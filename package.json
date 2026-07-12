@@ -1,0 +1,36 @@
+{
+  "name": "ruflo-source-patch",
+  "version": "1.0.0",
+  "description": "Patches ruflo / @claude-flow's cwd-anchoring defect (ruvnet/ruflo#2633) at source in the installed npm library, stopping .claude-flow/.swarm folder and daemon proliferation caused by Claude Code working-directory drift.",
+  "type": "module",
+  "bin": {
+    "ruflo-source-patch": "bin/cli.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ruflo",
+    "claude-flow",
+    "claude-code",
+    "daemon",
+    "patch",
+    "cwd",
+    "workaround"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sparkling/ruflo-source-patch.git"
+  },
+  "homepage": "https://github.com/sparkling/ruflo-source-patch#readme",
+  "bugs": {
+    "url": "https://github.com/ruvnet/ruflo/issues/2633"
+  },
+  "license": "MIT"
+}
