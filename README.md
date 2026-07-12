@@ -38,15 +38,15 @@ before using cwd:
 # install: patch every @claude-flow/cli copy in the npx cache, and register a
 # Claude Code SessionStart hook that re-applies the patch every session (so
 # newly npx-fetched copies get patched too)
-npx ruflo-source-patch install
+npx @sparkleideas/ruflo-source-patch install
 
 # revert every patched file byte-for-byte and remove the hook
-npx ruflo-source-patch uninstall
+npx @sparkleideas/ruflo-source-patch uninstall
 
 # one-off operations (no hook change)
-npx ruflo-source-patch patch
-npx ruflo-source-patch revert
-npx ruflo-source-patch status
+npx @sparkleideas/ruflo-source-patch patch
+npx @sparkleideas/ruflo-source-patch revert
+npx @sparkleideas/ruflo-source-patch status
 ```
 
 `install` copies its runtime to `~/.ruflo-source-patch/` and points the hook
@@ -69,7 +69,7 @@ there, so the always-firing hook never depends on the volatile npx cache.
 
 This is a **workaround**, not a substitute for the upstream fix. A copy fetched
 by `npx` mid-session is unpatched until the next session start (the reapply
-point). Remove it with `npx ruflo-source-patch uninstall` once #2633 is fixed
+point). Remove it with `npx @sparkleideas/ruflo-source-patch uninstall` once #2633 is fixed
 upstream.
 
 ## License

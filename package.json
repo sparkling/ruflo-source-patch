@@ -1,6 +1,9 @@
 {
-  "name": "ruflo-source-patch",
+  "name": "@sparkleideas/ruflo-source-patch",
   "version": "1.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Patches ruflo / @claude-flow's cwd-anchoring defect (ruvnet/ruflo#2633) at source in the installed npm library, stopping .claude-flow/.swarm folder and daemon proliferation caused by Claude Code working-directory drift.",
   "type": "module",
   "bin": {

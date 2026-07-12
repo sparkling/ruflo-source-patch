@@ -66,9 +66,9 @@ if (cmd === 'install') {
   console.log(`ruflo-source-patch — patch @claude-flow/cli's cwd-anchoring defect at source (ruvnet/ruflo#2633)
 
 Usage:
-  npx ruflo-source-patch install     install + patch, kept applied every session
-  npx ruflo-source-patch uninstall   revert everything, remove the hook
-  npx ruflo-source-patch patch       patch the current npx caches now
-  npx ruflo-source-patch revert       revert the current npx caches now
-  npx ruflo-source-patch status      show state`);
+  npx @sparkleideas/ruflo-source-patch install     install + patch, kept applied every session
+  npx @sparkleideas/ruflo-source-patch uninstall   revert everything, remove the hook
+  npx @sparkleideas/ruflo-source-patch patch       patch the current npx caches now
+  npx @sparkleideas/ruflo-source-patch revert       revert the current npx caches now
+  npx @sparkleideas/ruflo-source-patch status      show state`);
 }
