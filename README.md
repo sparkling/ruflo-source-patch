@@ -46,10 +46,11 @@ nearest ancestor `.git` (worktree-safe) before using cwd:
 ```bash
 # install: patch every @claude-flow/cli copy in the npx cache, and register a
 # Claude Code SessionStart hook that re-applies the patch every session (so
-# newly npx-fetched copies get patched too)
+# newly npx-fetched copies get patched too).  `init` is an alias for `install`.
 npx @sparkleideas/ruflo-source-patch install
+npx @sparkleideas/ruflo-source-patch init        # same thing
 
-# revert every patched file byte-for-byte and remove the hook
+# revert every patched file byte-for-byte and remove the hook (`remove` = alias)
 npx @sparkleideas/ruflo-source-patch uninstall
 
 # one-off operations (no hook change)

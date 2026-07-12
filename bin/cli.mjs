@@ -2,8 +2,9 @@
 // ruflo-source-patch CLI
 //
 //   ruflo-source-patch install     copy runtime to a stable dir, register the
-//                                  SessionStart hook, patch current npx caches
+//     (alias: init)                SessionStart hook, patch current npx caches
 //   ruflo-source-patch uninstall   revert every patched file, remove the hook
+//     (alias: remove)
 //   ruflo-source-patch patch       patch now (no hook change)
 //   ruflo-source-patch revert      revert now (no hook change)
 //   ruflo-source-patch status      show what's patched / hook state
@@ -31,7 +32,7 @@ function syncStableCopy() {
 
 const cmd = process.argv[2] || 'help';
 
-if (cmd === 'install') {
+if (cmd === 'install' || cmd === 'init') {
   syncStableCopy();
   log(`runtime copied to ${STABLE_LIB}`);
   const h = installHook();
@@ -40,7 +41,7 @@ if (cmd === 'install') {
   for (const l of r.log) log(l);
   log(`patched ${r.patched}, skipped ${r.skipped}`);
   log('done');
-} else if (cmd === 'uninstall') {
+} else if (cmd === 'uninstall' || cmd === 'remove') {
   const r = run({ revert: true });
   for (const l of r.log) log(l);
   log(`reverted ${r.reverted}`);
@@ -67,7 +68,9 @@ if (cmd === 'install') {
 
 Usage:
   npx @sparkleideas/ruflo-source-patch install     install + patch, kept applied every session
+  npx @sparkleideas/ruflo-source-patch init        alias for install
   npx @sparkleideas/ruflo-source-patch uninstall   revert everything, remove the hook
+  npx @sparkleideas/ruflo-source-patch remove      alias for uninstall
   npx @sparkleideas/ruflo-source-patch patch       patch the current npx caches now
   npx @sparkleideas/ruflo-source-patch revert       revert the current npx caches now
   npx @sparkleideas/ruflo-source-patch status      show state`);
