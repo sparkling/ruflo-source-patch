@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/@sparkleideas/ruflo-source-patch.svg)](https://www.npmjs.com/package/@sparkleideas/ruflo-source-patch)
 
 Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` bugs that are
-still open upstream — folder sprawl, multiplying daemons, and a memory store that silently
+still open upstream: folder sprawl, multiplying daemons, and a memory store that silently
 drops writes.
 
 ```bash
@@ -11,22 +11,20 @@ npx @sparkleideas/ruflo-source-patch <target> <action>
 ```
 
 The **first argument is the target**, the second the action. Every target installs and
-uninstalls **on its own**: take the daemon fix without the SQLite write lock, drop one later,
-keep the rest. They don't entangle.
+uninstalls **on its own** — take the daemon fix without the SQLite write lock, drop one later,
+keep the rest.
+
+## Setup
 
 ```bash
 npx @sparkleideas/ruflo-source-patch cwd install
 npx @sparkleideas/ruflo-source-patch daemon install
 npx @sparkleideas/ruflo-source-patch memory install
-npx @sparkleideas/ruflo-source-patch monitor install     # keep them live
+npx @sparkleideas/ruflo-source-patch monitor install     # keeps them applied
 
+npx @sparkleideas/ruflo-source-patch cwd status          # what's live?
 npx @sparkleideas/ruflo-source-patch memory uninstall    # drop one, keep the rest
-npx @sparkleideas/ruflo-source-patch memory status
 ```
-
-There is no `all` and no bare-action default. An `all` that meant "the three patch targets,
-but not the monitor and not the script targets" was a lie in the name, and a default that
-installs things you didn't ask for is worse than naming them.
 
 Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used via `npx`.
 
@@ -34,9 +32,8 @@ Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used v
 
 ## Targets
 
-### Patch targets — `install` · `uninstall` · `status`
-
-Source patches to the installed `@claude-flow/cli`.
+**Patch targets** — source patches to the installed `@claude-flow/cli`.
+Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
@@ -44,20 +41,11 @@ Source patches to the installed `@claude-flow/cli`.
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability — a cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
-> To turn a target off, **uninstall** it; install it again to get it back. There is no
-> `revert` or `pause` — reverting left the library byte-identical to what uninstalling
-> leaves, so it was `uninstall` with extra bookkeeping. One concept, not two.
+**`monitor`** — re-applies the patches when something overwrites them.
+Actions: `install` · `uninstall` · `status` · `run` · `check`
 
-### `monitor` — `install` · `uninstall` · `status` · `run` · `check`
-
-Re-applies the patches when something overwrites them. `npx -y ruflo@latest` fetches a **new**
-cache directory the moment a version changes, and a `ruflo update` can land mid-session — so a
-fresh, **unpatched** copy can run for hours, because the `SessionStart` hook only fires at
-session *start*.
-
-### Script targets — `install` · `uninstall` · `status`
-
-Shell scripts materialized at a stable path. No patching, no hook.
+**Script targets** — shell scripts materialized at a stable path. No patching, no hook.
+Actions: `install` · `uninstall` · `status`
 
 | Target | What it gives you |
 |--------|-------------------|
@@ -70,8 +58,8 @@ Shell scripts materialized at a stable path. No patching, no hook.
 
 `@claude-flow/cli` anchors its state to raw `process.cwd()`. Under Claude Code's
 working-directory drift (sub-agents, worktrees, `cd` inside Bash steps) `cwd` is frequently a
-subdirectory, not the project root — so a fresh `.claude-flow` folder appears in every visited
-directory and memory scatters across stray `.swarm/memory.db` files.
+subdirectory rather than the project root — so a fresh `.claude-flow` folder appears in every
+visited directory and memory scatters across stray `.swarm/memory.db` files.
 
 Caller-side interception can't reach every path — ruflo's own bundled plugin hooks invoke the
 CLI with a drifted cwd. Patching the **callee** fixes every caller at once:
@@ -118,8 +106,8 @@ safe-skipped — never double-locked.
 `memory.db` is written by **two different SQLite engines**: the AgentDB bridge
 (better-sqlite3, **WAL mode**) and a fallback that does a whole-file read-modify-write
 (sql.js: `db.export()` → atomic rename). ruflo 3.25.2 made those flushes atomic
-([#2585](https://github.com/ruvnet/ruflo/pull/2585)), which closed the *torn-write* class. The
-two failure modes named as follow-ups in the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
+([#2585](https://github.com/ruvnet/ruflo/pull/2585)), closing the *torn-write* class. The two
+failure modes named as follow-ups in the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
 close-out are still open upstream. This target patches both.
 
 **Write lock** ([#2621](https://github.com/ruvnet/ruflo/issues/2621)). `storeEntry`, `getEntry`,
@@ -127,9 +115,9 @@ close-out are still open upstream. This target patches both.
 read-modify-write, so two processes can each read image *v1* and each rename — the second
 silently clobbers the first. Per-write atomicity cannot fix this; only mutual exclusion spanning
 read..write can. Uses the same `O_EXCL` primitive ruflo already ships in `commands/daemon.js`.
-Reentrant (`storeEntry` calls `getEntry`), steals stale locks (>15 s), and **never hard-fails**:
-if the lock can't be taken within 5 s it proceeds unlocked, degrading to current behaviour rather
-than breaking memory.
+Reentrant (`storeEntry` calls `getEntry` internally), steals stale locks (>15 s), and **never
+hard-fails**: if the lock can't be taken within 5 s it proceeds unlocked, degrading to current
+behaviour rather than breaking memory.
 
 Measured — two processes × 25 concurrent `storeEntry` on one DB:
 
@@ -158,22 +146,26 @@ throughput hit. Correct-and-slower beats fast-and-lossy, but the honest fix is u
 follow-up #3 (native better-sqlite3 + WAL for the primary flush), which deletes this problem
 class instead of guarding it. Don't want the trade? `memory uninstall`.
 
-## `monitor` — keep the patches live
+## `monitor` — keep the patches applied
 
 ```bash
 npx @sparkleideas/ruflo-source-patch monitor install     # every 5 min (RSP_MONITOR_INTERVAL=secs)
 npx @sparkleideas/ruflo-source-patch monitor status      # scheduled? drifting? last repair?
 npx @sparkleideas/ruflo-source-patch monitor check       # dry-run; exit 1 on drift
-npx @sparkleideas/ruflo-source-patch monitor uninstall
 ```
 
-**No daemon.** This project exists partly *because* ruflo daemons multiply — shipping another
-resident watcher would be poor taste. The OS scheduler runs a short-lived check instead
+The `SessionStart` hook only fires when a session **starts**. But `npx -y ruflo@latest` fetches a
+**new** cache directory the moment a version changes, and a `ruflo update` can land mid-session —
+so a fresh, unpatched copy can run for hours until you restart Claude Code. The monitor closes
+that window.
+
+**It is not a daemon.** This project exists partly *because* ruflo daemons multiply; shipping
+another resident watcher would be poor taste. The OS scheduler runs a short-lived check instead
 (**launchd** on macOS, **cron** on Linux) which re-applies the installed target set and exits.
 
-There is no drift heuristic and no timestamp comparison: it recomputes what each file *should*
-be and compares bytes. Files are written **only when the bytes differ**, so a steady-state tick
-is a few `stat`s and no I/O. It logs only when it *repairs* something:
+There's no drift heuristic and no timestamp comparison: it recomputes what each file *should* be
+and compares bytes. Files are written **only when the bytes differ**, so a steady-state tick is a
+few `stat`s and no I/O. It logs only when it *repairs* something:
 
 ```
 2026-07-13T10:38:04.222Z REPAIRED 1 file(s) [cwd,daemon,memory] — patched daemon.js <- daemon/command-root
@@ -181,9 +173,8 @@ is a few `stat`s and no I/O. It logs only when it *repairs* something:
 
 `monitor check` exits **1** on drift, so it doubles as a CI or pre-flight gate. It also surfaces
 **uncovered builds**: patch discovery is package-name-driven, so a ruflo CLI published under a
-name we don't list gets *zero* protection, silently — which is exactly how 38 daemons piled up
-on one cwd from a differently-named build while `daemon status --all` reported "6 daemons, all
-within TTL".
+name we don't list gets *zero* protection, silently — which is how 38 daemons piled up on one cwd
+from a differently-named build while `daemon status --all` reported "6 daemons, all within TTL".
 
 ---
 
@@ -199,7 +190,7 @@ That's what makes independent install/uninstall possible. `memory-initializer.js
 **two** targets — `cwd` (`getMemoryRoot`, config paths) and `memory` (the write lock) — so
 uninstalling one must un-apply *its* edits and leave the other's intact. Rebuilding from pristine
 means the file is always exactly *pristine + the entries currently requested*: correct for any
-subset, and idempotent by construction.
+subset, idempotent by construction.
 
 Injected code is composed from **fragments with dependencies** (`req` → `resolveRoot` /
 `walCheckpoint` / `memLock` / `daemonLock`), each emitted at most once. The shared `req` base
@@ -218,8 +209,8 @@ neighbours.
 ## Tested
 
 `npm test` runs a property fuzzer: 60 random sequences × 8 steps over
-`{cwd, daemon, memory} × {install, uninstall, status}`, with a monitor tick after **every**
-step, asserting after every step:
+`{cwd, daemon, memory} × {install, uninstall, status}`, with a monitor tick after **every** step,
+asserting after every step:
 
 | | Invariant |
 |---|---|
@@ -234,15 +225,15 @@ step, asserting after every step:
 
 - Covers the **npx cache** only. A global `npm i -g ruflo` is invisible to it.
 - The scheduled job records an absolute `node` path. Version managers pin that per version
-  (mise: `.../installs/node/24.14.1/bin/node`), so upgrading node breaks the job — `monitor
-  status` detects this and reports `BROKEN`; re-run `monitor install` to re-pin.
+  (mise: `.../installs/node/24.14.1/bin/node`), so upgrading node breaks it — `monitor status`
+  detects this and reports `BROKEN`; re-run `monitor install` to re-pin.
 - A copy fetched mid-session runs unpatched until the next monitor tick (≤ 5 min).
 - Anchor-based patching is inherently brittle across upstream refactors. Mitigated by per-entry
   safe-fail, but a large enough refactor means new anchors.
 
 These are **workarounds**, not substitutes for the upstream fixes. Remove a target with its own
-`uninstall`; when the last one goes, the hook is removed — then delete `~/.ruflo-source-patch/`
-to clean up completely.
+`uninstall`; when the last one goes, the `SessionStart` hook is removed — then delete
+`~/.ruflo-source-patch/` to clean up completely.
 
 ## License
 
