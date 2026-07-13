@@ -356,6 +356,104 @@ from a differently-named build while `daemon status --all` reported "6 daemons, 
 
 ---
 
+## How you find out when a patch stops working
+
+A patch that silently stops applying, while `status` still says *installed*, is the exact failure
+this project exists to prevent. It must not be how the project itself fails — so nothing is allowed
+to end its life in a log file.
+
+### Anchors are literal, and they will break
+
+Edits are exact string find/replace — no line numbers, no regex, no `sed`. That's deliberate: an
+anchor that no longer matches is **skipped**, never guessed at. Each edit also carries alternative
+anchors and a `done()` predicate that asks *"is the fix present?"* rather than *"is the anchor
+absent?"* — because an anchor can be absent for two very different reasons, and only one of them
+means success. (That distinction is not theoretical: it caught a copy taking 3 of 4 edits and
+reporting it as fine.)
+
+So when upstream reindents or renames, the patch degrades **loudly**:
+
+```
+adr-index: INCOMPLETE …/scripts/import.mjs — applied: upsert, edge-key;
+           NOT APPLIED: records-miscount (upstream shape changed?)
+```
+
+### Two hooks, and the honest reason for each
+
+| Hook | When | Job |
+|---|---|---|
+| `SessionStart` | session start | re-apply every installed target, and report anything broken |
+| `UserPromptSubmit` | every prompt | **report only** — reads one small file, usually absent (~28ms) |
+
+The second exists because the first is too late. A new ruflo can land in the npx cache **while you
+work** — which is precisely how 3.26.1 arrived and silently disabled `cwd/daemon-autostart` — and a
+session-start-only warning would sit quiet for hours. The monitor detects it within one tick, but a
+detached scheduled job can't reach your session; it can only leave a note. It now leaves that note
+in `problems.json`, and the prompt hook reads it:
+
+```
+monitor tick (≤5 min)   →  writes ~/.ruflo-source-patch/problems.json
+UserPromptSubmit hook   →  surfaces it on the very next thing you type
+```
+
+Worst case between *"patch broke"* and *"you know"* is **one tick plus one keystroke**, not one
+session. It's rate-limited (an unchanged problem re-announces at most every 30 min; a new one at
+once) and it **clears itself** when fixed — a stale warning is as bad as no warning.
+
+### Watching the watchman
+
+Every warning above is delivered by the monitor. So if the **monitor** is dead, the system goes
+quiet — and quiet is exactly what healthy looks like. That's the one failure a watchdog can never
+report on itself, and it voids every guarantee on this page.
+
+The prompt hook therefore checks the monitor's own liveness, from a heartbeat plus two path checks
+(no subprocess — `installMonitor` records what it scheduled in `monitor.json`, so verification costs
+an `existsSync` and one `mtime`):
+
+- **its node interpreter is gone** — version managers pin an absolute path, so a node upgrade deletes
+  the interpreter out from under the job while launchd still reports it as scheduled;
+- **its job script is missing** — the schedule points at a file we've since moved;
+- **it simply isn't running** — no tick in hours: an unloaded launchd job, a removed crontab line,
+  permissions, a crash loop.
+
+A user who never installed a monitor is never nagged about not having one. The staleness threshold is
+deliberately generous (6 intervals, 30-min floor): a laptop that slept through six ticks is not a
+broken monitor, and a false alarm trains you to ignore a true one.
+
+### It found two real bugs on its first run
+
+Not a hypothetical, so it is worth stating plainly what it caught within minutes of existing.
+
+**The patcher could destroy the file it was patching.** Found `daemon-autostart.js` at **0 bytes** in
+two npx caches — no backup, mtime matching a monitor tick, while the published tarball has 4,553
+bytes.
+
+The lethal path is an **empty `.rsp-backup`**. Everything is rebuilt from pristine, so an empty
+pristine means: no anchor matches → the "nothing applies, restore the original" branch runs →
+`writeIfChanged(file, '')` → **the real file is truncated to zero and its backup deleted.** Measured:
+a healthy 3,954-byte vendor file reduced to 0 by *one* monitor tick. It is now pinned as a regression
+test (`R1a`), and verified to fail without the guard.
+
+Guarding only the *on-disk file* misses this completely — with an empty backup, a perfectly healthy
+file is what gets destroyed. So both patchers now reject an empty backup outright (discard it; if the
+file is already patched, refuse to guess at a pristine and say so) **and** refuse to touch a
+zero-byte target.
+
+Honest limit: the destruction path is proven and closed, but *how* those backups came to be empty is
+not fully reconstructable after the fact — a torn read of a file `npx` had created but not yet
+written is the likeliest origin, and is guarded, but I can't prove that's what happened. A patcher
+that eats the code it patches is worse than the bug it fixes, so both doors are shut regardless.
+
+**`cwd/daemon-autostart` had silently stopped applying on 3.26.x.** Its anchor was the
+`if (autostartDisabled())` line plus its exact reason string, and 3.26.0 changed both — so #2633
+folder sprawl was quietly back on the version `npx` resolves as *latest*, with `cwd` reporting a
+contented 13/15. Re-anchored on the function head of `ensureDaemonRunning()`, which is stable across
+3.25.1 / 3.26.0 / 3.26.1 and is also *more* correct: 3.26 reads a project-local
+`claude-flow.config.json` inside `autostartDisabled(projectRoot)`, so the root has to be resolved
+**before** that check, not one line after it.
+
+---
+
 ## `cleanup` — de-sprawl a project
 
 Removes a single project's daemon and folder sprawl — the mess that accumulated *before* the
@@ -402,15 +500,29 @@ Injected code is composed from **fragments with dependencies** (`req` → `resol
 matters: installing `memory` *without* `cwd` would otherwise inject a lock referencing an
 undeclared `__rufloReq`.
 
-`~/.ruflo-source-patch/state.json` records which targets are installed. The `SessionStart` hook
-and the monitor both read it and re-apply exactly that set — never a target you uninstalled.
+`~/.ruflo-source-patch/state.json` records which targets are installed — `patchTargets` (CLI) and
+`pluginTargets` (`ruflo-adr`). The `SessionStart` hook and the monitor both read it and re-apply
+exactly that set, never a target you uninstalled.
+
+**A backup is not pristine forever.** Rebuilding from `.rsp-backup` is only correct while the vendor
+file is the one we backed up. When upstream rewrites it **in place** — a `/plugin update`, or an
+`npm update -g` on a global CLI install, both of which land at a *fixed* path rather than a fresh
+versioned one — treating a stale backup as truth means writing old code over the new file, and the
+monitor would do it every five minutes: a watchdog turned into a downgrade machine.
+
+So a file on disk is read as exactly one of three states: **ours** (already patched — nothing to do),
+**the backup** (pristine — apply), or **neither** — which means upstream replaced it, so its bytes
+become the new pristine and the patches are re-derived on top. Reality outranks our snapshot, always.
+If the new file no longer matches the anchors, you get `INCOMPLETE` rather than a lie, and a
+`REBASELINE` line in the monitor log — which is your cue to check whether the anchors still hold.
 
 ### One install, every repo
 
 You install this **once per machine**, not per project. `npx ruflo` doesn't put a copy of
 `@claude-flow/cli` in each repo — every repo runs the *same* binary out of the shared npx cache
-(`~/.npm/_npx/`), plus any global `npm i -g` install. That shared binary is what gets patched,
-so there's one `state.json`, one `SessionStart` hook, and one monitor job covering all of them.
+(`~/.npm/_npx/`), plus any global `npm i -g` install. That shared binary is what gets patched, so
+there's one `state.json`, one pair of hooks (`SessionStart` to re-apply, `UserPromptSubmit` to warn),
+and one monitor job covering all of them.
 
 The patch is global, but its **behaviour is per-repo**, decided at call time: the injected code
 calls `__rufloResolveRoot(process.cwd())` on every invocation, so the same binary run from repo A
@@ -442,6 +554,25 @@ asserting after every step:
 | **I4** | no stray temp files, ever |
 | **I5** | `monitor check`'s exit code matches actual drift |
 | **I6** | installing twice is a no-op the second time |
+| **I7** | no vendor file is **ever** truncated to zero bytes |
+
+Plus deterministic regressions for the two bugs that actually shipped — random sequences never
+generate either, because both need the **vendor file to change underneath us**, which no sequence of
+our own commands can do:
+
+| | Regression |
+|---|---|
+| **R1a** | an empty `.rsp-backup` never destroys the real file *(fails without the guard: 3954 → 0 bytes)* |
+| **R1b** | a zero-byte target is never patched, and never adopted as pristine |
+| **R2** | an in-place vendor update is **re-baselined**, not reverted to a stale backup *(fails without the guard: "CLOBBERED an upstream update")* |
+
+Both regressions were mutation-tested — the guard was removed and each was confirmed to fail. A test
+that cannot fail is worth nothing.
+
+**Not covered:** the fuzzer exercises `{cwd, daemon, memory}` only. The plugin patches
+(`adr-template`, `adr-index`), the notifier, and the monitor-health checks were verified by hand —
+including simulating a `/plugin update`, a broken anchor, a dead monitor, and a vanished node
+interpreter — but they are not in the automated suite yet.
 
 ## Upstream issues
 

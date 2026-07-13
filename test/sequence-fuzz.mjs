@@ -95,6 +95,14 @@ function check(step, seq) {
     for (const f of fs.readdirSync(dir)) if (f.includes('.rsp-tmp-')) errs.push(`I4 stray temp ${f}`);
   }
 
+  // I7 — NEVER destroy a vendor file. This one is a headstone, not a hypothetical: reading a
+  // target mid-npx-extraction yielded '', which was taken as pristine, matched no anchors, and
+  // got written straight back — truncating the real file to zero bytes and deleting its backup.
+  // A patcher that eats the code it patches is worse than the bug it fixes.
+  for (const rel of FILES) {
+    if (fs.statSync(filePath(rel)).size === 0) errs.push(`I7 ${rel}: TRUNCATED to zero bytes`);
+  }
+
   // I5 — monitor check exit code matches reality
   const drift = Object.entries(ENTRY_PROBE).some(([id, { rel, needle }]) =>
     st.includes(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle));
@@ -142,4 +150,56 @@ for (let run = 0; run < RUNS; run++) {
     }
   });
 }
-console.log(`✔ ${RUNS} random sequences × ${LEN} steps — all invariants held (I1 entry⇔target, I2 parses, I3 pristine restore, I4 no temps, I5 check exit code, I6 idempotent)`);
+console.log(`✔ ${RUNS} random sequences × ${LEN} steps — all invariants held (I1 entry⇔target, I2 parses, I3 pristine restore, I4 no temps, I5 check exit code, I6 idempotent, I7 never truncated)`);
+
+// ── Deterministic regressions ───────────────────────────────────────────────────────────
+// Two bugs that shipped. Random sequences never generated either, because both need the
+// VENDOR file to change underneath us — something no sequence of our own commands can do.
+// Pinned here so they cannot come back.
+
+const REL = '@claude-flow/cli/dist/src/services/daemon-autostart.js';
+const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
+
+// R1a — an EMPTY BACKUP must never be used as pristine. This is the lethal one: with an
+// empty `saved`, a perfectly healthy vendor file yields pristine='', no anchor matches,
+// and the rebuild writes that empty pristine straight back over the real file. Measured
+// before the guard: 3954 bytes -> 0 in ONE monitor tick.
+{
+  freshSandbox();
+  for (const t of TARGETS) cli([t, 'install']);
+  fs.writeFileSync(`${filePath(REL)}.rsp-backup`, '');   // poisoned pristine (a torn read)
+  const before = fs.statSync(filePath(REL)).size;
+  cli(['monitor', 'run']);
+  if (fs.statSync(filePath(REL)).size === 0) fail(`R1a: DESTROYED the vendor file (${before} bytes -> 0) from an empty backup`);
+}
+
+// R1b — an empty vendor file is never patched, and never adopted as pristine.
+{
+  freshSandbox();
+  for (const t of TARGETS) cli([t, 'install']);
+  fs.writeFileSync(filePath(REL), '');           // mid-extraction: npx made the file, hasn't filled it
+  cli(['monitor', 'run']);
+  if (fs.statSync(filePath(REL)).size !== 0) fail('R1b: wrote to a zero-byte vendor file instead of leaving it alone');
+  if (fs.existsSync(`${filePath(REL)}.rsp-backup`) && fs.statSync(`${filePath(REL)}.rsp-backup`).size === 0) {
+    fail('R1b: adopted an EMPTY file as pristine');
+  }
+}
+
+// R2 — an in-place vendor update is preserved, not reverted to our stale backup.
+{
+  freshSandbox();
+  for (const t of TARGETS) cli([t, 'install']);
+  const NEW = `// VENDOR-UPDATED-IN-PLACE\n${PRISTINE[REL]}`;
+  fs.writeFileSync(filePath(REL), NEW);          // /plugin update, or npm update -g: same path, new bytes
+  cli(['monitor', 'run']);
+
+  const after = fs.readFileSync(filePath(REL), 'utf8');
+  if (!after.includes('VENDOR-UPDATED-IN-PLACE')) fail('R2: CLOBBERED an upstream update by restoring a stale backup');
+  if (!after.includes('__rufloResolveRoot')) fail('R2: failed to re-apply the patch on top of the new vendor file');
+
+  const backup = fs.readFileSync(`${filePath(REL)}.rsp-backup`, 'utf8');
+  if (!backup.includes('VENDOR-UPDATED-IN-PLACE')) fail('R2: backup not re-baselined to the new vendor file');
+  if (backup.includes('__rufloResolveRoot')) fail('R2: baked our own patch into "pristine" — uninstall would no longer be clean');
+}
+
+console.log('✔ regressions pinned (R1a empty backup never destroys the file, R1b never truncates, R2 re-baselines instead of reverting an update)');
