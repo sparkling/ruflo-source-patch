@@ -581,7 +581,7 @@ sequences × 6 steps over `{adr-template, adr-index} × {install, uninstall, sta
 
 **Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
 discipline earned its keep — it caught two of these tests being *vacuous* (passing with the guard
-deleted, therefore proving nothing), and fixing them exposed a live bug: `revert()` bypassed every
+deleted, therefore proving nothing), and fixing them exposed a live bug: `restore()` bypassed every
 guard, so a poisoned backup made **`uninstall` the most destructive command in the tool**. A test
 that cannot fail is worth nothing.
 
