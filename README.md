@@ -24,6 +24,12 @@ Actions: `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `s
 | **`memory`** | `.swarm/memory.db` durability — cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 | **`all`** | every patch target above | |
 
+**Keep it live.** Actions: `install` · `uninstall` · `status` · `run` · `check`
+
+| Target | What it does |
+|--------|--------------|
+| **`monitor`** | Re-applies the patches when something overwrites them — `npx -y ruflo@latest` fetching a new cache dir, or a `ruflo update`. Without it, a copy that lands **mid-session** runs unpatched until you restart Claude Code, because the `SessionStart` hook only fires at session *start*. |
+
 **Script targets** — materialize shell scripts at a stable path. No patching, no hook.
 Actions: `install`\|`init` · `uninstall`\|`remove` · `status`
 
@@ -161,6 +167,43 @@ it now takes the lock — so reads serialise too. On a large DB that's a real th
 Correct-and-slower beats fast-and-lossy, but the actual fix is upstream follow-up #3 (native
 better-sqlite3 + WAL for the primary flush), which deletes this problem class instead of guarding
 it. If you don't want the trade: `memory uninstall`.
+
+---
+
+## `monitor` — keep the patches live
+
+The `SessionStart` hook only fires when a Claude Code session **starts**. But
+`npx -y ruflo@latest` fetches a *new* cache directory the moment a version changes, and a
+`ruflo update` can land mid-session — so a fresh, **unpatched** copy can be running for hours
+while the hook sits idle until you restart. The monitor closes that window.
+
+```bash
+npx @sparkleideas/ruflo-source-patch monitor install     # every 5 min (RSP_MONITOR_INTERVAL=secs)
+npx @sparkleideas/ruflo-source-patch monitor status      # scheduled? drifting? last repair?
+npx @sparkleideas/ruflo-source-patch monitor check       # dry-run; exit 1 if anything drifted
+npx @sparkleideas/ruflo-source-patch monitor uninstall
+```
+
+**No daemon.** This project exists partly *because* ruflo daemons multiply; shipping another
+resident watcher would be poor taste. The OS scheduler runs a short-lived check instead —
+**launchd** on macOS, **cron** on Linux — which re-applies the installed target set and exits.
+Files are written only when the bytes actually differ, so a steady-state tick is a few `stat`s
+and no I/O at all.
+
+It logs only when it *repairs* something, to `~/.ruflo-source-patch/monitor.log`:
+
+```
+2026-07-13T10:38:04.222Z REPAIRED 1 file(s) [cwd,daemon,memory] — patched daemon.js <- daemon/command-root
+```
+
+`monitor check` exits **1** on drift, so it works as a CI or pre-flight gate. It also surfaces
+**uncovered builds**: `discover()` is package-name-driven, so a ruflo CLI published under a name
+the patcher doesn't list gets *zero* protection, silently — which is exactly how 38 daemons
+accumulated on one cwd from a differently-named build while `daemon status --all` cheerfully
+reported "6 daemons, all within TTL".
+
+> The monitor re-applies **only the targets you installed**. Uninstall `memory` and it stays
+> uninstalled — it will not quietly put the write lock back.
 
 ---
 
