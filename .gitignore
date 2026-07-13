@@ -1,4 +1,4 @@
-node_modules/
-*.tgz
 .DS_Store
 *.rsp-backup
+*.tgz
+node_modules/
