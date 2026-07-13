@@ -354,6 +354,14 @@ corruption close-out, and its atomic-write baseline is [#2585](https://github.co
 the WAL-coherent-reads half addresses the visibility symptom reported in
 [#2646](https://github.com/ruvnet/ruflo/issues/2646) and [#2652](https://github.com/ruvnet/ruflo/issues/2652).
 
+**Related but NOT addressed by `adr-template`:**
+[#2474](https://github.com/ruvnet/ruflo/issues/2474) (closed) fixed a different `adr-index`
+parsing gap (`**Status**:` vs `**Status:**` placement, em-dash titles, worktree
+double-counting) — its residual note on Nygard-style `## Status` sections and non-English
+status words is still open but distinct from the bullet-prefix bug this target fixes.
+[#2651](https://github.com/ruvnet/ruflo/issues/2651) (open) is a separate `adr-create` defect —
+step 4's `agentdb_hierarchical-store` param/key-charset mismatch — left unpatched here.
+
 ## Limits
 
 - Covers the **npx cache** and **global installs** (`npm i -g` — the root reported by `npm
@@ -365,6 +373,13 @@ the WAL-coherent-reads half addresses the visibility symptom reported in
 - A copy fetched mid-session runs unpatched until the next monitor tick (≤ 5 min).
 - Anchor-based patching is inherently brittle across upstream refactors. Mitigated by per-entry
   safe-fail, but a large enough refactor means new anchors.
+- `adr-template` is scoped to the `ruflo` marketplace only — a fork installed under a
+  different marketplace name is out of scope by design, not a gap. It is also not wired into
+  `monitor` (plugin files don't get silently replaced by a background `npx` fetch) and not
+  covered by the `npm test` property fuzzer below, which only exercises `{cwd, daemon, memory}`.
+- `adr-template` fixes the bullet-prefix parsing gap only ([#2659](https://github.com/ruvnet/ruflo/issues/2659));
+  it does not touch the separate `agentdb_hierarchical-store` defect in `adr-create` step 4
+  ([#2651](https://github.com/ruvnet/ruflo/issues/2651)).
 
 These are **workarounds**, not substitutes for the upstream fixes. Remove a target with its own
 `uninstall`; when the last one goes, the `SessionStart` hook is removed — then delete
