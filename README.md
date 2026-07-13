@@ -215,6 +215,23 @@ undeclared `__rufloReq`.
 `~/.ruflo-source-patch/state.json` records which targets are installed. The `SessionStart` hook
 and the monitor both read it and re-apply exactly that set — never a target you uninstalled.
 
+### One install, every repo
+
+You install this **once per machine**, not per project. `npx ruflo` doesn't put a copy of
+`@claude-flow/cli` in each repo — every repo runs the *same* binary out of the shared npx cache
+(`~/.npm/_npx/`), plus any global `npm i -g` install. That shared binary is what gets patched,
+so there's one `state.json`, one `SessionStart` hook, and one monitor job covering all of them.
+
+The patch is global, but its **behaviour is per-repo**, decided at call time: the injected code
+calls `__rufloResolveRoot(process.cwd())` on every invocation, so the same binary run from repo A
+resolves A's project root and locks A's `.swarm/memory.db`, while run from repo B it resolves B's.
+One patch, per-repo effect — which is why the data each repo stores (`.swarm/`, `.claude-flow/`,
+the daemon PID and locks) stays cleanly separated even though the code fixing it is shared.
+
+That's also why the monitor is a single machine-wide job: it has nothing per-repo to track. Its
+only job is "keep the shared binary patched," so when *any* repo pulls a new `ruflo` version into
+a fresh cache dir, one tick re-patches it and every repo is covered again.
+
 **Safety.** Writes are atomic (temp → `fsync` → rename), because the monitor rewrites these files
 while Claude Code sessions are importing them. Backups are the untouched vendor files, so a full
 uninstall restores **byte-identical** originals. Version drift is safe-failed **per entry**: an
