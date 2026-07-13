@@ -24,13 +24,17 @@ involved — no npmjs.org account, no local Verdaccio, nothing to stand up. Pick
 # straight from GitHub (recommended — nothing to clone, always current)
 npx github:sparkling/ruflo-source-patch cwd install
 
-# or clone + one command for the full setup (all patches + the monitor)
+# or clone + one command for the full setup (every patch + adr-reindex + the monitor)
 git clone https://github.com/sparkling/ruflo-source-patch && cd ruflo-source-patch
-make install          # global-install, apply cwd+daemon+memory, schedule the monitor
+make install          # cwd+daemon+memory + adr-template+adr-index + adr-reindex + monitor
 make uninstall        # revert everything and remove the package
 ```
 
-`make install` is the whole thing in one line. To pick targets individually instead:
+`make install` applies every **patch** target — the three CLI ones and the two `ruflo-adr`
+plugin ones — plus `adr-reindex`, and schedules the monitor. The remaining script targets
+(`dual`, `dedupe`) are project scaffolding rather than fixes, so they stay opt-in.
+
+To pick targets individually instead:
 
 ```bash
 npx github:sparkling/ruflo-source-patch cwd install
