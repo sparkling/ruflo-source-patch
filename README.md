@@ -193,6 +193,32 @@ from a differently-named build while `daemon status --all` reported "6 daemons, 
 
 ---
 
+## `cleanup` — de-sprawl a project
+
+Removes a single project's daemon and folder sprawl — the mess that accumulated *before* the
+`cwd`/`daemon` patches were applied (they prevent new sprawl; this clears the old).
+
+```bash
+npx github:sparkling/ruflo-source-patch cleanup [dir]              # default: cwd
+npx github:sparkling/ruflo-source-patch cleanup [dir] --dry-run    # preview, change nothing
+npx github:sparkling/ruflo-source-patch cleanup [dir] --all-daemons  # also kill the root daemon
+```
+
+Scoped strictly to the project root (nearest ancestor `.git`):
+
+- **stray state dirs** — removes any `.claude-flow` / `.swarm` in a *subdirectory*. The root's
+  own are kept; they're the project's real state.
+- **daemons** — keeps one daemon anchored at the exact root (the legit one) and kills every
+  other daemon whose cwd is inside the project tree: subdirectory-anchored strays and root
+  duplicates. `--all-daemons` kills the root one too (it respawns on next use).
+
+**Hard safety:** a process is killed only if its resolved cwd is the project root or beneath it
+— a daemon belonging to any other project is never touched, even by name. It also refuses to run
+against `$HOME` or `/`. (This is not idle caution: an earlier ad-hoc cleanup on this machine, with
+looser scoping, nearly killed unrelated sessions' daemons.)
+
+---
+
 ## How it works
 
 Each library file is rebuilt from a **pristine backup** on every apply:

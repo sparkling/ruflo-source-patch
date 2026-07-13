@@ -27,6 +27,7 @@
 // ask for is worse than typing three words.
 
 import { patchCommand, monitorCommand } from '../lib/cwd/commands.mjs';
+import { runCleanup } from '../lib/cwd/cleanup.mjs';
 import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 
@@ -48,6 +49,9 @@ Patch targets                  (actions: install | uninstall | status)
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update overwrites them
 
+Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemons]
+  ${pad('cleanup')}kill a project's stray daemons + remove subdir .claude-flow/.swarm
+
 Script targets                 (actions: install | uninstall | status)
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
   ${pad('dedupe-bundle')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (alias: dedupe)
@@ -62,7 +66,8 @@ Other:
   npx @sparkleideas/ruflo-source-patch memory uninstall   # drop one, keep the rest
   npx @sparkleideas/ruflo-source-patch memory status
   npx @sparkleideas/ruflo-source-patch monitor check      # exit 1 if anything drifted
-  npx @sparkleideas/ruflo-source-patch dedupe-bundle install`);
+  npx @sparkleideas/ruflo-source-patch dedupe-bundle install
+  npx @sparkleideas/ruflo-source-patch cleanup . --dry-run`);
 }
 
 const [rawTarget, rawAction] = process.argv.slice(2);
@@ -73,6 +78,15 @@ if (!rawTarget || ['help', '--help', '-h'].includes(rawTarget)) {
 }
 
 // A bare action names no target. Don't guess — say which targets exist.
+if (rawTarget === 'cleanup') {
+  const rest = process.argv.slice(3);
+  const dir = rest.find((a) => !a.startsWith('-')) || process.cwd();
+  const opts = { dryRun: rest.includes('--dry-run'), allDaemons: rest.includes('--all-daemons') };
+  const r = runCleanup(dir, opts);
+  for (const l of r.log) console.log(`[cleanup] ${l}`);
+  process.exit(0);
+}
+
 if (ACTIONS.has(rawTarget) && !rawAction) {
   console.error(`[ruflo-source-patch] \`${rawTarget}\` needs a target, e.g. \`cwd ${rawTarget}\`.`);
   usage();
@@ -96,7 +110,7 @@ if (target === 'monitor') {
 } else if (SCRIPT_TARGETS[target]) {
   ok = scriptCommand(target, action);
 } else {
-  const known = [...PATCH_TARGETS, 'monitor', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
+  const known = [...PATCH_TARGETS, 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
   console.error(`[ruflo-source-patch] unknown target "${target}" (expected: ${known})`);
   usage();
   process.exit(1);
