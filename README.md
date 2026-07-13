@@ -1,29 +1,44 @@
 # ruflo-source-patch
 
-[![npm](https://img.shields.io/npm/v/@sparkleideas/ruflo-source-patch.svg)](https://www.npmjs.com/package/@sparkleideas/ruflo-source-patch)
+Install with `npx github:sparkling/ruflo-source-patch` — zero dependencies, no registry required.
 
 Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` bugs that are
 still open upstream: folder sprawl, multiplying daemons, and a memory store that silently
 drops writes.
 
 ```bash
-npx @sparkleideas/ruflo-source-patch <target> <action>
+npx github:sparkling/ruflo-source-patch <target> <action>
 ```
 
 The **first argument is the target**, the second the action. Every target installs and
 uninstalls **on its own** — take the daemon fix without the SQLite write lock, drop one later,
 keep the rest.
 
-## Setup
+## Install
+
+The package has **zero dependencies**, so it installs from anywhere with no npm registry
+involved — no npmjs.org account, no local Verdaccio, nothing to stand up. Pick one:
 
 ```bash
-npx @sparkleideas/ruflo-source-patch cwd install
-npx @sparkleideas/ruflo-source-patch daemon install
-npx @sparkleideas/ruflo-source-patch memory install
-npx @sparkleideas/ruflo-source-patch monitor install     # keeps them applied
+# straight from GitHub (recommended — nothing to clone, always current)
+npx github:sparkling/ruflo-source-patch cwd install
 
-npx @sparkleideas/ruflo-source-patch cwd status          # what's live?
-npx @sparkleideas/ruflo-source-patch memory uninstall    # drop one, keep the rest
+# or clone + one command for the full setup (all patches + the monitor)
+git clone https://github.com/sparkling/ruflo-source-patch && cd ruflo-source-patch
+make install          # global-install, apply cwd+daemon+memory, schedule the monitor
+make uninstall        # revert everything and remove the package
+```
+
+`make install` is the whole thing in one line. To pick targets individually instead:
+
+```bash
+npx github:sparkling/ruflo-source-patch cwd install
+npx github:sparkling/ruflo-source-patch daemon install
+npx github:sparkling/ruflo-source-patch memory install
+npx github:sparkling/ruflo-source-patch monitor install   # keeps them applied
+
+npx github:sparkling/ruflo-source-patch cwd status        # what's live?
+npx github:sparkling/ruflo-source-patch memory uninstall  # drop one, keep the rest
 ```
 
 Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used via `npx`.
@@ -149,9 +164,9 @@ class instead of guarding it. Don't want the trade? `memory uninstall`.
 ## `monitor` — keep the patches applied
 
 ```bash
-npx @sparkleideas/ruflo-source-patch monitor install     # every 5 min (RSP_MONITOR_INTERVAL=secs)
-npx @sparkleideas/ruflo-source-patch monitor status      # scheduled? drifting? last repair?
-npx @sparkleideas/ruflo-source-patch monitor check       # dry-run; exit 1 on drift
+npx github:sparkling/ruflo-source-patch monitor install     # every 5 min (RSP_MONITOR_INTERVAL=secs)
+npx github:sparkling/ruflo-source-patch monitor status      # scheduled? drifting? last repair?
+npx github:sparkling/ruflo-source-patch monitor check       # dry-run; exit 1 on drift
 ```
 
 The `SessionStart` hook only fires when a session **starts**. But `npx -y ruflo@latest` fetches a

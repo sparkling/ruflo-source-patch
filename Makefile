@@ -7,12 +7,35 @@ REGISTRY ?= $(shell npm config get registry)
 PKG      := $(shell node -e "console.log(require('./package.json').name)")
 VERSION  := $(shell node -e "console.log(require('./package.json').version)")
 
-.PHONY: help test install-global link unlink pack publish-local unpublish-local whoami
+.PHONY: help install uninstall test install-global link unlink pack publish-local unpublish-local whoami
+
+# One command: global-install the package, apply every patch target, and schedule the
+# monitor that keeps them applied. This is the whole setup.
+install: install-global
+	ruflo-source-patch cwd install
+	ruflo-source-patch daemon install
+	ruflo-source-patch memory install
+	ruflo-source-patch monitor install
+	@echo ""
+	@echo "done — cwd + daemon + memory patched, monitor scheduled. Verify: ruflo-source-patch cwd status"
+
+# The inverse: remove every patch target (which drops the SessionStart hook), the monitor,
+# then uninstall the global package. Leaves the machine as it was.
+uninstall:
+	-ruflo-source-patch monitor uninstall
+	-ruflo-source-patch memory uninstall
+	-ruflo-source-patch daemon uninstall
+	-ruflo-source-patch cwd uninstall
+	npm uninstall -g $(PKG) 2>/dev/null || true
+	@echo "done — patches reverted, hook + monitor removed, package uninstalled"
+
 
 help:
 	@echo "ruflo-source-patch  $(PKG)@$(VERSION)"
 	@echo "  registry: $(REGISTRY)"
 	@echo ""
+	@echo "  make install          global-install + apply ALL patch targets + schedule monitor"
+	@echo "  make uninstall        revert everything and remove the package"
 	@echo "  make test             property fuzz (npm test)"
 	@echo "  make install-global   npm pack + npm i -g the tarball (real global install)"
 	@echo "  make link             npm link (symlink into the global prefix, dev)"
