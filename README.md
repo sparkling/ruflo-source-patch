@@ -283,16 +283,15 @@ asserting after every step:
 ## Upstream issues
 
 Every target here is a local workaround for an open (or closed-but-with-open-follow-ups)
-`ruvnet/ruflo` issue. Most of these we filed ourselves while building this tool; a couple we
-contributed a reproduction and fix to. The tool doesn't *fix* upstream — it works around these
-locally until they land.
+`ruvnet/ruflo` issue. Several we filed ourselves while building this tool; one we contributed a
+reproduction and fix to. The tool doesn't *fix* upstream — it works around these locally until
+they land.
 
 **Filed by us:**
 
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation — `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
-| [#2652](https://github.com/ruvnet/ruflo/issues/2652) | Read/write paths disagree on row visibility (also: soft-deleted keys block re-store) | `memory` — the WAL-coherent-reads half; the tombstone bug is upstream's |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | `ruflo init` (CLAUDE.md) and `codex init` (AGENTS.md) generate divergent instruction files | `dual-codex-claude` |
 | [#2637](https://github.com/ruvnet/ruflo/issues/2637) | `ruflo init` gitignores only a nested `.claude-flow/.gitignore`; root `.env` is left tracked | `dual-codex-claude` (its `.gitignore` step) |
@@ -300,17 +299,18 @@ locally until they land.
 | [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (uses `npx --yes`) |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634) | `codex init --template full` generates ~100 placeholder stub skills | `dual-codex-claude` (default template only) |
 
-**Contributed to (a reproduction + fix, not filed by us):**
+**Contributed a reproduction + fix (filed by someone else):**
 
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | daemon ↔ MCP last-writer-wins **silently drops writes** — we posted a 30-line repro and the lock implementation | `memory` write lock |
-| [#2584](https://github.com/ruvnet/ruflo/issues/2584) | `memory.db` sql.js corruption under concurrent writers (**closed** — we commented the two still-open follow-ups it named) | `memory` |
 
 **Referenced (upstream, not ours):** the `daemon` spawn-lock builds on
 [#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484);
-`memory`'s atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
-[#2646](https://github.com/ruvnet/ruflo/issues/2646) is another report of the visibility symptom the WAL fix addresses.
+the `memory` write lock is ruvnet's own follow-up from the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
+corruption close-out, and its atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
+the WAL-coherent-reads half addresses the visibility symptom reported in
+[#2646](https://github.com/ruvnet/ruflo/issues/2646) and [#2652](https://github.com/ruvnet/ruflo/issues/2652).
 
 ## Limits
 
