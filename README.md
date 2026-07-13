@@ -437,12 +437,14 @@ they land.
 | [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (uses `npx --yes`) |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634) | `codex init --template full` generates ~100 placeholder stub skills | `dual-codex-claude` (default template only) |
 | [#2659](https://github.com/ruvnet/ruflo/issues/2659) | `ruflo-adr`'s own `adr-create` template writes bullet-list metadata that `adr-index`'s parser can't read (Status/Date/Tags silently come back empty/Unknown) | `adr-template` |
+| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | `adr-index` **cannot update a changed ADR** — the one thing its own SKILL.md advertises. Both namespaces are insert-only: deterministic keys collide so records stay **frozen**; random edge keys never collide so edges **duplicate** every run (3 → 6 → 9). A `UNIQUE` failure (exit 1) is counted as a stored record, so both are reported as success | `adr-index`, `adr-reindex` |
 
 **Contributed a reproduction + fix (filed by someone else):**
 
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | daemon ↔ MCP last-writer-wins **silently drops writes** — we posted a 30-line repro and the lock implementation | `memory` write lock |
+| [#2594](https://github.com/ruvnet/ruflo/issues/2594) | `memory store --help` advertises `-u, --upsert [default: true]`, but that default is **declared and not honored** — an unpassed flag still does a strict INSERT (exit 1, `UNIQUE constraint failed`, no write). We measured it and posted the finding; it is the root cause of #2660 | `adr-index` (passes `--upsert` explicitly rather than trusting the documented default) |
 
 **Referenced (upstream, not ours):** the `daemon` spawn-lock builds on
 [#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484);
@@ -450,6 +452,9 @@ the `memory` write lock is ruvnet's own follow-up from the [#2584](https://githu
 corruption close-out, and its atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
 the WAL-coherent-reads half addresses the visibility symptom reported in
 [#2646](https://github.com/ruvnet/ruflo/issues/2646) and [#2652](https://github.com/ruvnet/ruflo/issues/2652).
+[#2652](https://github.com/ruvnet/ruflo/issues/2652) is load-bearing for `adr-reindex` for a second
+reason: `memory delete` is a **soft** delete and the tombstoned row still trips the UNIQUE constraint
+on re-store, so there is no CLI hard-delete and the rebuild has to clear the namespace with raw SQL.
 
 **Related but NOT addressed by `adr-template`:**
 [#2474](https://github.com/ruvnet/ruflo/issues/2474) (closed) fixed a different `adr-index`
