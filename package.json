@@ -1,6 +1,6 @@
 {
   "name": "@sparkleideas/ruflo-source-patch",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -35,5 +35,8 @@
   "bugs": {
     "url": "https://github.com/ruvnet/ruflo/issues/2633"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/sequence-fuzz.mjs $(mktemp -d)"
+  }
 }
