@@ -28,6 +28,13 @@
 #   - any time you want to be certain the graph matches the files   <- cheap
 # For an ordinary edit (ratify an ADR, add a relation), the patched importer
 # handles it: just run /adr-index as normal.
+#
+# REQUIRES the `memory` patch target. This deletes rows from memory.db through raw sqlite3, and
+# leans on memory/write-lock (so <db>.rsp-lock is honoured by every other ruflo writer) and
+# memory/wal-coherent-reads (so nobody acts on a stale pre-delete image). Without it the delete
+# races a daemon that can resurrect every row, so the script refuses rather than duplicating a
+# weaker version of protection the patch already provides.
+#   npx @sparkleideas/ruflo-source-patch memory install
 set -euo pipefail
 
 DRY_RUN=0
@@ -77,42 +84,54 @@ adr_file_count() {
   find "${dirs[@]}" -type f -name '*.md' | wc -l | tr -d ' '
 }
 
-# THE WRITE LOCK — the same <db>.rsp-lock the `memory` patch target installs into the CLI
-# (O_EXCL create, holder writes its pid, stale after 15s).
+# THE `memory` TARGET IS A PREREQUISITE, NOT AN OPTION.
 #
-# WHY THIS SCRIPT NEEDS IT. ruflo writes memory.db as a whole-file read-modify-write image, so a
-# concurrent writer that read BEFORE our delete and flushes AFTER it puts every row back — the
-# "50 acked, 25 on disk" failure the memory patch exists to prevent, aimed squarely at the one
-# operation this script exists to perform. Deleting outside the lock made the reconcile itself
-# the least safe write in the system.
+# This script hard-deletes rows from memory.db through raw sqlite3. ruflo writes that file as a
+# whole-file read-modify-write image, so a concurrent writer holding a pre-delete image flushes it
+# back and resurrects everything we just removed (ruvnet/ruflo#2621 — measured as 50 acked, 25 on
+# disk). The delete is the single least safe write in the system, and it is the one this script
+# exists to perform.
 #
-# SCOPE: the DELETE only. We must NOT hold it across the re-import — the patched CLI takes this
-# same lock for every store, and would spin for 5s and then proceed UNLOCKED (its timeout path
-# degrades rather than fails). Locking the delete is what the race needs; locking the import
-# would only disable the import's own locking.
+# The `memory` target ALREADY SOLVES BOTH HALVES of that:
+#   memory/write-lock         wraps storeEntry/getEntry/deleteEntry in __rufloLockAcquire, so
+#                             every CLI writer takes <db>.rsp-lock across its read..write.
+#   memory/wal-coherent-reads checkpoints the WAL before every .db read, so no reader ever acts
+#                             on a stale image.
 #
-# A LOCK IS A CONVENTION, NOT A MECHANISM. Nothing in the OS enforces this file — it works only
-# because the OTHER side takes it too, and the other side only takes it if the `memory` patch
-# target is installed (it is that patch which wraps storeEntry/getEntry/deleteEntry in
-# __rufloLockAcquire). Install adr-reindex WITHOUT memory and this script would hold a file that
-# nothing on earth honours, print "holding the write lock", and delete straight into the race it
-# claims to be protected from. So: check that the lock means something, and say so when it does
-# not. Announcing a protection you do not have is worse than announcing none.
+# So we DEPEND on it rather than reinventing a weaker version of it in bash. This script takes the
+# same lock — that is participation in the protocol, not duplication of it; the CLI's lock lives
+# inside node and cannot cover a sqlite3 subprocess. What it must NOT do is carry its own fallback
+# for the unpatched case: a lock nothing else honours protects nothing, and a private WAL
+# checkpoint duplicates memory/wal-coherent-reads with worse guarantees.
+#
+# So: require the patch, and refuse without it. Deleting is destructive and unrecoverable-by-retry;
+# "warn and proceed" would be gambling the user's index on a race we know we cannot win.
 LOCK="$DB.rsp-lock"
 
-# Does the INSTALLED CLI actually honour <db>.rsp-lock? Checked against the vendor bytes, not
-# against our own state.json — state records what we were asked to install; only the file says
-# what is true. Any copy missing the wrapper is enough to lose the race.
-memory_lock_honored() {
-  local f
+# Is the `memory` patch actually in the installed CLI? Checked against the VENDOR BYTES, not our
+# own state.json — state records what someone asked us to install; only the file says what is true.
+# Any copy missing the wrapper is enough to lose the race, so one unpatched copy fails the check.
+memory_patch_installed() {
+  local f found=1
   for f in "$HOME"/.npm/_npx/*/node_modules/@claude-flow/cli/dist/src/memory/memory-initializer.js \
            "$(dirname "$(dirname "$(command -v node)")")"/lib/node_modules/@claude-flow/cli/dist/src/memory/memory-initializer.js; do
     [ -f "$f" ] || continue
+    found=0
     grep -q '__rufloLockAcquire' "$f" || return 1
-    return 0
   done
-  return 1   # no CLI found at all — assume nothing honours it
+  return $found   # no CLI found at all -> not installed
 }
+
+if ! memory_patch_installed; then
+  echo "error: the \`memory\` patch target is not installed in the ruflo CLI." >&2
+  echo "       This script hard-deletes rows from memory.db. Without memory/write-lock, no other" >&2
+  echo "       ruflo process takes <db>.rsp-lock — a daemon or MCP server holding a pre-delete" >&2
+  echo "       image will flush it back and resurrect every row we remove (ruvnet/ruflo#2621)." >&2
+  echo "       Refusing rather than gambling your index on a race we cannot win." >&2
+  echo "" >&2
+  echo "       Install it:  npx @sparkleideas/ruflo-source-patch memory install" >&2
+  exit 1
+fi
 lock_acquire() {
   local deadline=$(( $(date +%s) + 5 ))
   while :; do
@@ -152,44 +171,27 @@ fi
 # would fix stale statuses and leave duplicate edges behind — a partial rebuild
 # is its own trap.
 #
-# The CHECKPOINT is belt-and-braces, NOT a fix for anything observed here. Tested
-# without it: the delete lands, the re-import stores 2/2 every time, and the WAL is
-# already empty — the sqlite3 CLI checkpoints on close. It is kept only because the
-# CLI reads through sql.js, which has documented WAL-coherence bugs (ruvnet/ruflo#2584,
-# #2646): a reader that saw a stale pre-delete image would try to INSERT rows it
-# believes still exist, hit UNIQUE, and store nothing. One PRAGMA removes that class
-# of hazard regardless of who checkpoints. Do not read this as a reproduction.
+# No PRAGMA wal_checkpoint here. It used to be, as "belt-and-braces" against the sql.js
+# WAL-coherence bugs (#2584, #2646) — but that is precisely what memory/wal-coherent-reads fixes,
+# by checkpointing before every .db read inside the CLI itself. We require that patch (checked at
+# the top), so the guarantee is already there, at the reader, where it belongs. A second private
+# checkpoint here would be a weaker copy of a solved problem, and it would rot independently.
 echo "==> clearing (hard delete — a soft delete would block the re-store)"
 
-# Say what the lock is actually worth BEFORE relying on it.
-if memory_lock_honored; then
-  HONORED=1
-else
-  HONORED=0
-  echo "    WARNING: the \`memory\` patch target is NOT installed in the ruflo CLI." >&2
-  echo "             <db>.rsp-lock is advisory — it only works because the CLI takes it too, and" >&2
-  echo "             an unpatched CLI does not. This delete is therefore UNPROTECTED: a daemon or" >&2
-  echo "             MCP server holding a pre-delete image can flush it back and resurrect every" >&2
-  echo "             row (ruvnet/ruflo#2621). The post-check below will catch it if it happens." >&2
-  echo "             Fix properly:  npx @sparkleideas/ruflo-source-patch memory install" >&2
-  echo "             Or, for this run:  npx @claude-flow/cli@latest daemon stop" >&2
+# Take the lock the `memory` patch makes meaningful. Hard-fail on timeout: memLock's own rule is
+# "never hard-fail, degrade to unlocked", which is right for a STORE (idempotent, retried) and
+# wrong for a DESTRUCTIVE DELETE. Five seconds of contention means a live writer is mid-cycle; the
+# safe move is to stop, not to delete into it.
+if ! lock_acquire; then
+  echo "error: could not take the write lock after 5s — another ruflo process is writing." >&2
+  echo "       $LOCK" >&2
+  echo "       Nothing has been deleted. Stop it and retry:" >&2
+  echo "       npx @claude-flow/cli@latest daemon stop" >&2
+  exit 1
 fi
+echo "    holding the write lock ($LOCK)"
 
-if lock_acquire; then
-  [ "$HONORED" = 1 ] && echo "    holding the write lock ($LOCK)"
-else
-  # Never hard-fail on the lock — same discipline as the memory patch itself, which proceeds
-  # unlocked rather than breaking memory. But SAY SO: an unlocked delete is exactly the window
-  # in which a concurrent writer can resurrect everything we are about to remove.
-  echo "    WARNING: could not take the write lock after 5s — deleting UNLOCKED." >&2
-  echo "             A concurrent ruflo writer could resurrect these rows. The post-check below" >&2
-  echo "             will catch it if it happens; re-run this command if it does." >&2
-fi
-
-sqlite3 "$DB" "
-  DELETE FROM memory_entries WHERE namespace IN ('adr-patterns','adr-edges');
-  PRAGMA wal_checkpoint(TRUNCATE);
-"
+sqlite3 "$DB" "DELETE FROM memory_entries WHERE namespace IN ('adr-patterns','adr-edges');"
 
 # Release BEFORE the import: the patched CLI takes this same lock on every store, and holding it
 # here would make it spin out and fall back to unlocked writes for the entire rebuild.
