@@ -57,13 +57,15 @@ Actions: `install` · `uninstall` · `status`
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability — a cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
-**Plugin template patch** — a source patch to the installed `ruflo-adr` plugin
-(not `@claude-flow/cli`), same shape as the patch targets above.
+**Plugin patches** — source patches to the installed `ruflo-adr` plugin (not
+`@claude-flow/cli`), same shape as the patch targets above. The pair covers both ends of
+the ADR round-trip: what `adr-create` **writes**, and what `adr-index` **reads back in**.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`adr-template`** | `adr-create`'s own template writes ADR metadata as a bullet list (`- **Status**: proposed`); `adr-index`'s parser only recognises an unprefixed `**Status**:` line or YAML frontmatter, so Status/Date/Tags silently come back empty/Unknown for every ADR authored via `adr-create`'s documented template. Strips the leading `- ` from those four lines so the two skills in the same plugin agree | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
+| **`adr-index`** | `adr-index` **cannot update an ADR that changed** — the one thing its own SKILL.md advertises ("Build or *rebuild* … when the graph is out of sync with the on-disk files"). Ratify an ADR, re-run it, and the graph still says `proposed`. Both namespaces are insert-only, failing in *opposite* directions: `adr-patterns` keys are deterministic → collide → the write is rejected and the record stays **frozen**; `adr-edges` keys embed `Date.now()`+random → never collide → every run **duplicates** the whole edge set (3 → 6 → 9). It reports `Records stored: 2/2` either way, because a `UNIQUE constraint` failure is counted as a success | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
 
 **`monitor`** — re-applies the patches when something overwrites them.
 Actions: `install` · `uninstall` · `status` · `run` · `check`
@@ -75,6 +77,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|-------------------|
 | **`dual-codex-claude`** *(alias `dual`)* | Create or convert a **single-source dual** Claude Code + Codex project: `AGENTS.md` is canonical, `CLAUDE.md` is `@AGENTS.md`. No symlink, no duplication, no drift. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
 | **`dedupe-bundle`** *(alias `dedupe`)* | **Clean up an existing project** bloated by `ruflo init --full`: drop the `.claude/{skills,commands,agents}` entries the installed `ruflo/*` plugins already provide, and optionally the `settings.json` hooks that double-fire against the plugin hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
+| **`adr-reindex`** | **Rebuild a project's ADR index and dependency graph** from `docs/adr/`. The `adr-index` patch makes an ordinary re-import *converge*; this reconciles what upsert can never reap — **deletions**. Remove an ADR file, or delete a relation line from one, and the orphan row survives every future import. Needs raw SQL: the CLI has no hard delete (`memory delete` is a *soft* delete, and the tombstone still trips the UNIQUE constraint on re-store, [#2652](https://github.com/ruvnet/ruflo/issues/2652)). |
 
 ---
 
@@ -198,9 +201,89 @@ Unlike `cwd`/`daemon`/`memory`, this patches an installed **Claude Code plugin**
 `adr-create/SKILL.md`), not `@claude-flow/cli` — scoped to the **upstream `ruflo` marketplace
 only** (`~/.claude/plugins/cache/ruflo/ruflo-adr/*/skills/adr-create/SKILL.md` and
 `~/.claude/plugins/marketplaces/ruflo/plugins/ruflo-adr/skills/adr-create/SKILL.md`), same
-pristine-backup + atomic-write discipline as the JS patches above. Not wired into `monitor` —
-plugin files don't get silently replaced by a background `npx` fetch the way the CLI does; they
-only change via an explicit `/plugin update`.
+pristine-backup + atomic-write discipline as the JS patches above — and, like them, re-applied by
+the SessionStart hook and the `monitor` (see below).
+
+## `adr-index` — the index can't be updated, only created
+
+`adr-template` fixes what `adr-create` **writes**. This fixes what `adr-index` **reads back in** —
+and it is the more consequential half, because it breaks the ADR lifecycle itself.
+
+An ADR's life *is* mutation: `proposed` → `accepted` → `superseded`, a new `Amends:`, a corrected
+date. `adr-index` cannot reflect any of it. Ratify an ADR, re-run the indexer, and the graph still
+says `proposed` — while printing `Records stored: 1/1`.
+
+Both namespaces are insert-only, and that single choice fails in **opposite directions** depending
+on whether the key is deterministic:
+
+| Namespace | Key | Re-run | Failure |
+|---|---|---|---|
+| `adr-patterns` | `ADR-001::<basename>` — deterministic | collides → INSERT rejected | **frozen** at the first value ever indexed |
+| `adr-edges` | `<rel>:<from>-><to>:${Date.now()}-${rand}` | never collides | **duplicates** — 3 → 6 → 9 edges, one set per run |
+
+Measured on a 2-ADR repo with nothing changed on disk between runs. Duplicate edges silently weight
+an ADR by *how many times someone ran the indexer*, and `verify` reports the inflated graph as
+healthy — every duplicate is individually valid.
+
+The failure is invisible because a `UNIQUE constraint` failure (exit **1**) is mapped to an
+`'exists'` sentinel and then **counted as a stored record**, so `errors` stays empty and the summary
+reports full success.
+
+Three edits fix it: pass `--upsert`, stop counting `'exists'` as stored, and make the edge key
+deterministic (`<rel>:<from>-><to>` — `capturedAt` already lives in the value, where identity has no
+business).
+
+> **The `--upsert` twist ([#2594](https://github.com/ruvnet/ruflo/issues/2594)).** `memory store --help`
+> advertises `-u, --upsert  [default: true]`. That default is **declared but not honored** — storing
+> to an existing key without the flag exits 1 with `UNIQUE constraint failed` and writes nothing;
+> pass it explicitly and it works. So the flag is passed explicitly here, and must be: trusting the
+> documented default silently gets you a strict insert. Worth keeping even after #2594 lands.
+
+Two copies get patched and they are **not identical** — the marketplace checkout carries local #2474
+fixes and passes args as `` `--key=${key}` `` (npm rejects an argv token starting with a U+2014
+em-dash, which ADR titles contain). Each edit therefore carries *variants* plus a `done()` predicate
+that reports whether the fix is present independently of which anchor produced it. That is what makes
+a **partial** patch visible: matching on anchor-absence alone would call a file "patched" when an
+anchor simply never existed — which is exactly how a missing `--upsert` could pass green while
+leaving the bug fully intact. `install` prints `INCOMPLETE` and `status` names the missing edits.
+
+**What it does not fix: deletions.** With upsert and deterministic keys a re-import *converges* —
+status, metadata and changed relations all land. But a removed ADR file, or a deleted `Depends-on:`
+line, leaves an orphan row that no re-import ever reaps. Reaping needs a full drop-and-rebuild: the
+`adr-reindex` script target.
+
+## `adr-reindex` — reconcile the graph to the files
+
+The ADR files are the source of truth; `adr-patterns` / `adr-edges` are a derived cache. For a derived
+cache the correct reconcile is a **rebuild**, and at ADR scale it's instant.
+
+```bash
+npx @sparkleideas/ruflo-source-patch adr-reindex install
+~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh [project-dir] [--dry-run]
+```
+
+Drop both namespaces, re-import, verify. Use it after **deleting** an ADR or a relation line (the one
+case `adr-index`'s upsert can't handle), after installing the `adr-index` patch for the first time
+(rows written under the old random-key scheme are unreachable orphans), or any time you want certainty.
+For an ordinary edit, the patched importer handles it — just run `/adr-index`.
+
+Three things it has to get right, each learned the hard way:
+
+- **Both namespaces, together.** Clearing only `adr-patterns` fixes stale statuses and leaves the
+  duplicate edges behind. A partial rebuild is its own trap.
+- **Checkpoint the WAL after the delete.** The delete goes through native `sqlite3` (into the WAL);
+  the importer reaches the DB through the CLI's sql.js reader, which can still see the *pre-delete*
+  image ([#2584](https://github.com/ruvnet/ruflo/issues/2584), [#2646](https://github.com/ruvnet/ruflo/issues/2646)),
+  then fails every INSERT on UNIQUE against rows it only *thinks* exist.
+- **Run from the project root.** `import.mjs` takes `ADR_ROOT` to find the ADR *files*, but the CLI it
+  shells out to resolves *which `memory.db` to write* from its **cwd**. Invoked from anywhere else it
+  reads the right ADRs and writes them to the wrong database — after this script has already emptied
+  the real one.
+
+Because the delete precedes the rebuild, a failed rebuild leaves an **empty** graph — which `verify`
+then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on nothing).
+So the script refuses to exit 0 on a zero-record rebuild and tells you how to diagnose it. The ADR
+files are never touched; re-running is always safe.
 
 ## `monitor` — keep the patches applied
 
@@ -214,6 +297,17 @@ The `SessionStart` hook only fires when a session **starts**. But `npx -y ruflo@
 **new** cache directory the moment a version changes, and a `ruflo update` can land mid-session —
 so a fresh, unpatched copy can run for hours until you restart Claude Code. The monitor closes
 that window.
+
+**It covers the plugin patches too** (`adr-template`, `adr-index`), not just the CLI targets. A
+`/plugin update` fetches a fresh `ruflo-adr` and drops those patches — and an unpatched `adr-index`
+doesn't fail loudly, it simply goes back to reporting `Records stored: N/N` while writing nothing,
+so the ADR index rots with no signal at all. Leaving the fix for silent staleness vulnerable to
+silent removal would be self-defeating. Both the hook and the monitor re-apply everything recorded
+in `state.json` — `patchTargets` (CLI) and `pluginTargets` (plugin) alike:
+
+```
+2026-07-13T18:38:05.742Z REPAIRED 1 plugin file(s) [adr-template,adr-index] — adr-index: patched …/scripts/import.mjs (4/4 edits)
+```
 
 **It is not a daemon.** This project exists partly *because* ruflo daemons multiply; shipping
 another resident watcher would be poor taste. The OS scheduler runs a short-lived check instead

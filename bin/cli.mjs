@@ -12,10 +12,14 @@
 //   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
 //
-// Plugin template patch (source patch to the installed `ruflo-adr` plugin, not
-// @claude-flow/cli — same install/uninstall/status shape, different target file):
+// Plugin patches (source patches to the installed `ruflo-adr` plugin, not
+// @claude-flow/cli — same install/uninstall/status shape, different target file).
+// The pair covers both ends of the ADR round-trip: what adr-create WRITES, and
+// what adr-index READS BACK IN.
 //   adr-template   adr-create's own template writes bullet-list metadata that
 //                  adr-index's parser can't read (#2659)
+//   adr-index      adr-index can't update a CHANGED ADR: records are frozen by a
+//                  strict insert, edges duplicate on every run (#2660 / #2594)
 //
 // Infra target:
 //   monitor  keep the patches live — a scheduled re-apply, because `npx` fetching a new
@@ -25,6 +29,8 @@
 // Script targets (materialize scripts; no patching, no hook):
 //   dual-codex-claude   single-source dual Claude Code + Codex project toolkit
 //   dedupe-bundle       slim a .claude bundle left behind by `ruflo init --full` (#2640)
+//   adr-reindex         rebuild a project's ADR index — reconciles the DELETIONS the
+//                       adr-index patch's upsert cannot reap (#2660)
 //
 // There is no `all` and no bare-action default: every invocation names its target. An
 // `all` that silently meant "the three patch targets, but not the monitor and not the
@@ -36,9 +42,17 @@ import { runCleanup } from '../lib/cwd/cleanup.mjs';
 import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 import { adrTemplateCommand } from '../lib/adr-template/commands.mjs';
+import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
+
+// Plugin patches — same shape as PATCH_TARGETS, but they patch the installed
+// `ruflo-adr` plugin rather than @claude-flow/cli, so they dispatch separately.
+const PLUGIN_PATCH_TARGETS = {
+  'adr-template': adrTemplateCommand,
+  'adr-index': adrIndexCommand,
+};
 
 function usage() {
   const pad = (s) => s.padEnd(18);
@@ -52,11 +66,12 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('daemon')}${TARGET_INFO.daemon}
   ${pad('memory')}${TARGET_INFO.memory}
 
-Plugin template patch          (actions: install | uninstall | status)
+Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)
+  ${pad('adr-index')}adr-index can't update a changed ADR — frozen records, duplicate edges (#2660)
 
 Keep it live                   (actions: install | uninstall | status | run | check)
-  ${pad('monitor')}re-apply patches when npx/ruflo-update overwrites them
+  ${pad('monitor')}re-apply patches when npx/ruflo-update/plugin-update overwrites them
 
 Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemons]
   ${pad('cleanup')}kill a project's stray daemons + remove subdir .claude-flow/.swarm
@@ -64,6 +79,7 @@ Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemon
 Script targets                 (actions: install | uninstall | status)
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
   ${pad('dedupe-bundle')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (alias: dedupe)
+  ${pad('adr-reindex')}${SCRIPT_TARGETS['adr-reindex'].blurb}
 
 Every target installs/uninstalls on its own. The usual setup:
   npx @sparkleideas/ruflo-source-patch cwd install
@@ -76,8 +92,12 @@ Other:
   npx @sparkleideas/ruflo-source-patch memory status
   npx @sparkleideas/ruflo-source-patch monitor check      # exit 1 if anything drifted
   npx @sparkleideas/ruflo-source-patch dedupe-bundle install
-  npx @sparkleideas/ruflo-source-patch adr-template install
-  npx @sparkleideas/ruflo-source-patch cleanup . --dry-run`);
+  npx @sparkleideas/ruflo-source-patch cleanup . --dry-run
+
+Working with ADRs? Install the pair — they fix opposite ends of the same round-trip:
+  npx @sparkleideas/ruflo-source-patch adr-template install   # what adr-create writes
+  npx @sparkleideas/ruflo-source-patch adr-index install      # what adr-index reads back
+  npx @sparkleideas/ruflo-source-patch adr-reindex install    # reconcile deletions`);
 }
 
 const [rawTarget, rawAction] = process.argv.slice(2);
@@ -117,12 +137,12 @@ if (target === 'monitor') {
   ok = monitorCommand(action);
 } else if (PATCH_TARGETS.includes(target)) {
   ok = patchCommand([target], action);
-} else if (target === 'adr-template') {
-  ok = adrTemplateCommand(action);
+} else if (PLUGIN_PATCH_TARGETS[target]) {
+  ok = PLUGIN_PATCH_TARGETS[target](action);
 } else if (SCRIPT_TARGETS[target]) {
   ok = scriptCommand(target, action);
 } else {
-  const known = [...PATCH_TARGETS, 'adr-template', 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
+  const known = [...PATCH_TARGETS, ...Object.keys(PLUGIN_PATCH_TARGETS), 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
   console.error(`[ruflo-source-patch] unknown target "${target}" (expected: ${known})`);
   usage();
   process.exit(1);
