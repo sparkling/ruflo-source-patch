@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ruflo-source-patch — multi-target CLI.
 //
-//   npx @sparkleideas/ruflo-source-patch <target> <action>
+//   npx github:sparkling/ruflo-source-patch <target> <action>
 //
 // The FIRST argument is the target, the second the action. Every target installs and
 // uninstalls independently — `memory uninstall` leaves `cwd` in place even though both
@@ -12,14 +12,20 @@
 //   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
 //
-// Plugin patches (source patches to the installed `ruflo-adr` plugin, not
-// @claude-flow/cli — same install/uninstall/status shape, different target file).
-// The pair covers both ends of the ADR round-trip: what adr-create WRITES, and
-// what adr-index READS BACK IN.
+// Plugin patches (changes to the installed `ruflo-adr` plugin, not @claude-flow/cli — same
+// install/uninstall/status shape, different target file). Together they cover the whole ADR
+// round-trip: what adr-create WRITES, what adr-index READS BACK IN, and what neither can REAP.
 //   adr-template   adr-create's own template writes bullet-list metadata that
 //                  adr-index's parser can't read (#2659)
 //   adr-index      adr-index can't update a CHANGED ADR: records are frozen by a
 //                  strict insert, edges duplicate on every run (#2660 / #2594)
+//   adr-reindex    ADDS the /adr-reindex skill (upstream ships no such command) + the script it
+//                  invokes. Reconciles DELETIONS, which upsert can never reap. Requires `memory`.
+//
+// Why adr-reindex is a PLUGIN target and not a script one, though it materializes a script: the
+// skill file lives INSIDE ruflo-adr, and a `/plugin update` re-fetches that plugin wholesale and
+// deletes the skill — silently. Only state.json + the SessionStart hook + the monitor put it back,
+// and script targets have none of those.
 //
 // Infra target:
 //   monitor  keep the patches live — a scheduled re-apply, because `npx` fetching a new
@@ -29,8 +35,6 @@
 // Script targets (materialize scripts; no patching, no hook):
 //   dual-codex-claude   single-source dual Claude Code + Codex project toolkit
 //   dedupe-bundle       slim a .claude bundle left behind by `ruflo init --full` (#2640)
-//   adr-reindex         rebuild a project's ADR index — reconciles the DELETIONS the
-//                       adr-index patch's upsert cannot reap (#2660)
 //
 // There is no `all` and no bare-action default: every invocation names its target. An
 // `all` that silently meant "the three patch targets, but not the monitor and not the
@@ -43,6 +47,7 @@ import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 import { adrTemplateCommand } from '../lib/adr-template/commands.mjs';
 import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
+import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
@@ -52,6 +57,9 @@ const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
 const PLUGIN_PATCH_TARGETS = {
   'adr-template': adrTemplateCommand,
   'adr-index': adrIndexCommand,
+  // Adds the /adr-reindex SKILL to ruflo-adr (and materializes the script it invokes). A plugin
+  // target, not a script one: the skill lives inside ruflo-adr, so `/plugin update` deletes it.
+  'adr-reindex': adrReindexCommand,
 };
 
 function usage() {
@@ -59,7 +67,7 @@ function usage() {
   console.log(`ruflo-source-patch — patch ruflo/@claude-flow at source; project toolkits
 
 Usage:
-  npx @sparkleideas/ruflo-source-patch <target> <action>
+  npx github:sparkling/ruflo-source-patch <target> <action>
 
 Patch targets                  (actions: install | uninstall | status)
   ${pad('cwd')}${TARGET_INFO.cwd}
@@ -69,6 +77,8 @@ Patch targets                  (actions: install | uninstall | status)
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)
   ${pad('adr-index')}adr-index can't update a changed ADR — frozen records, duplicate edges (#2660)
+  ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
+  ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
 
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update/plugin-update overwrites them
@@ -79,25 +89,24 @@ Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemon
 Script targets                 (actions: install | uninstall | status)
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
   ${pad('dedupe-bundle')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (alias: dedupe)
-  ${pad('adr-reindex')}${SCRIPT_TARGETS['adr-reindex'].blurb}
 
 Every target installs/uninstalls on its own. The usual setup:
-  npx @sparkleideas/ruflo-source-patch cwd install
-  npx @sparkleideas/ruflo-source-patch daemon install
-  npx @sparkleideas/ruflo-source-patch memory install
-  npx @sparkleideas/ruflo-source-patch monitor install    # keep them live
+  npx github:sparkling/ruflo-source-patch cwd install
+  npx github:sparkling/ruflo-source-patch daemon install
+  npx github:sparkling/ruflo-source-patch memory install
+  npx github:sparkling/ruflo-source-patch monitor install    # keep them live
 
 Other:
-  npx @sparkleideas/ruflo-source-patch memory uninstall   # drop one, keep the rest
-  npx @sparkleideas/ruflo-source-patch memory status
-  npx @sparkleideas/ruflo-source-patch monitor check      # exit 1 if anything drifted
-  npx @sparkleideas/ruflo-source-patch dedupe-bundle install
-  npx @sparkleideas/ruflo-source-patch cleanup . --dry-run
+  npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest
+  npx github:sparkling/ruflo-source-patch memory status
+  npx github:sparkling/ruflo-source-patch monitor check      # exit 1 if anything drifted
+  npx github:sparkling/ruflo-source-patch dedupe-bundle install
+  npx github:sparkling/ruflo-source-patch cleanup . --dry-run
 
-Working with ADRs? Install the pair — they fix opposite ends of the same round-trip:
-  npx @sparkleideas/ruflo-source-patch adr-template install   # what adr-create writes
-  npx @sparkleideas/ruflo-source-patch adr-index install      # what adr-index reads back
-  npx @sparkleideas/ruflo-source-patch adr-reindex install    # reconcile deletions`);
+Working with ADRs? Install all three — they cover the whole round-trip:
+  npx github:sparkling/ruflo-source-patch adr-template install   # what adr-create WRITES
+  npx github:sparkling/ruflo-source-patch adr-index install      # what adr-index READS BACK
+  npx github:sparkling/ruflo-source-patch adr-reindex install    # the /adr-reindex skill — reap DELETIONS`);
 }
 
 const [rawTarget, rawAction] = process.argv.slice(2);

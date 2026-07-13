@@ -271,6 +271,66 @@ console.log('fake importer stored ${rows}');
   console.log('✔ adr-reindex (R1 prerequisite enforced, R2 installs with it, R3 refuses + deletes nothing, R4 reconciles, R5 catches a clobbered delete, R6 catches failed stores)');
 }
 
+// ─── K: the /adr-reindex SKILL ───────────────────────────────────────────────
+// It ADDS a file to someone else's plugin, which makes it the one target with no pristine to
+// restore — and the one that can destroy work that isn't ours if it gets `uninstall` wrong.
+
+const pluginRoot = (ver = '0.3.0') => path.join(HOME, '.claude', 'plugins', 'cache', 'ruflo', 'ruflo-adr', ver);
+const skillFile = (ver) => path.join(pluginRoot(ver), 'skills', 'adr-reindex', 'SKILL.md');
+
+function fakeAdrPlugin() {
+  const p = pluginRoot();
+  fs.mkdirSync(path.join(p, '.claude-plugin'), { recursive: true });
+  // Discovery keys on the plugin MANIFEST, not on our skill — keying on the thing we are about to
+  // create would find nothing on a fresh install and silently patch zero copies.
+  fs.writeFileSync(path.join(p, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'ruflo-adr', version: '0.3.0' }));
+}
+
+freshSandbox();
+fakeAdrPlugin();
+
+// K1 — it REFUSES without the `memory` target. The rebuild hard-deletes rows; without the write lock
+// a concurrent writer can resurrect every one of them.
+cli(['cwd', 'install']);
+const noMemK = cli(['adr-reindex', 'install']);
+if (noMemK.status === 0) fail('K1 `adr-reindex install` succeeded without the memory target');
+if (fs.existsSync(skillFile())) fail('K1 it installed the skill anyway, having just refused');
+
+// K2 — with `memory`, both halves land: the skill (so `/adr-reindex` exists) AND the script it calls.
+// A skill whose script is missing is a slash command that errors.
+cli(['memory', 'install']);
+const okK = cli(['adr-reindex', 'install']);
+if (okK.status !== 0) fail(`K2 install failed with memory present:\n${out(okK)}`);
+if (!fs.existsSync(skillFile())) fail('K2 the SKILL.md was not installed into the plugin');
+if (!fs.existsSync(path.join(STATE, 'adr-reindex', 'ruflo-adr-reindex.sh'))) fail('K2 the script was not materialized — /adr-reindex would invoke nothing');
+
+// K3 — it SURVIVES a `/plugin update`. This is the whole reason it is a plugin target and not a
+// script one: an update re-fetches ruflo-adr wholesale and deletes the skill, silently, and the
+// slash command would simply stop existing with nothing to read.
+fs.rmSync(path.dirname(skillFile()), { recursive: true, force: true });
+spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
+if (!fs.existsSync(skillFile())) fail('K3 a `/plugin update` wiped the skill and the monitor did not put it back');
+
+// K4 — `uninstall` removes OUR skill...
+cli(['adr-reindex', 'uninstall']);
+if (fs.existsSync(skillFile())) fail('K4 uninstall left the skill behind');
+
+// K5 — ...but NEVER deletes a skill we did not write. There is no backup here: the file is ours or it
+// is upstream's, and getting that wrong destroys someone else's work outright. If ruflo-adr ever ships
+// its own adr-reindex, theirs must survive both our install and our uninstall.
+const theirs = '---\nname: adr-reindex\n---\n\n# upstream shipped their own\n';
+fs.mkdirSync(path.dirname(skillFile()), { recursive: true });
+fs.writeFileSync(skillFile(), theirs);
+
+const overK = cli(['adr-reindex', 'install']);
+if (fs.readFileSync(skillFile(), 'utf8') !== theirs) fail('K5 install OVERWROTE an upstream-owned skill');
+if (!/upstream-owns-it/.test(out(overK))) fail(`K5 it did not say it was yielding to upstream:\n${out(overK)}`);
+
+cli(['adr-reindex', 'uninstall']);
+if (!fs.existsSync(skillFile())) fail('K5 uninstall DELETED an upstream-owned skill — destroyed work that was not ours');
+
+console.log('✔ /adr-reindex skill (K1 memory required, K2 skill+script both land, K3 survives a /plugin update, K4 uninstall removes ours, K5 never touches upstream\'s)');
+
 // ─── the notifier actually speaks ────────────────────────────────────────────
 // The end of the chain. Everything above is worthless if the human is never told.
 
