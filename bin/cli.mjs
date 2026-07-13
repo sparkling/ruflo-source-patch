@@ -132,6 +132,24 @@ if (!action) {
   process.exit(1);
 }
 
+// Refresh the stable copy on EVERY invocation, not just `install`.
+//
+// ~/.ruflo-source-patch/lib is what the SessionStart hook and the monitor execute. It was
+// written only by an install action, so upgrading the package changed nothing about what
+// either of them actually ran — silently, and for good. This process is the package, so it is
+// the one thing that always knows the current bytes: any command at all now re-syncs them.
+//
+// Guarded on "something is installed": with an empty state there is no hook and no monitor, so
+// there is nothing to keep current, and a bare `status` should not create a stable dir. The
+// monitor self-heals too (stable.mjs), for the case where the CLI is never run again.
+try {
+  const { readState, isEmpty } = await import('../lib/cwd/state.mjs');
+  if (!isEmpty(readState())) {
+    const { syncStableCopy } = await import('../lib/cwd/commands.mjs');
+    syncStableCopy();
+  }
+} catch { /* never let a refresh break the command the user actually asked for */ }
+
 let ok;
 if (target === 'monitor') {
   ok = monitorCommand(action);
