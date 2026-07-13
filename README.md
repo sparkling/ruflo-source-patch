@@ -2,222 +2,197 @@
 
 [![npm](https://img.shields.io/npm/v/@sparkleideas/ruflo-source-patch.svg)](https://www.npmjs.com/package/@sparkleideas/ruflo-source-patch)
 
-Local workarounds for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli`
-rough edges, packaged as one CLI with per-**target** subcommands:
+Local workarounds for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` rough
+edges. The **first argument is the target**, the second the action:
 
 ```bash
 npx @sparkleideas/ruflo-source-patch <target> <action>
 ```
 
-| Target | What it does | Actions |
-|--------|--------------|---------|
-| **`cwd`** | Source patches for the installed `@claude-flow/cli` (**6 patch targets**). Three fix families: **(1)** `process.cwd()` anchoring ([#2633](https://github.com/ruvnet/ruflo/issues/2633)) so `.claude-flow`/`.swarm` folders and daemons stop proliferating; **(2)** **daemon dedup** — one daemon per project root ([#2407](https://github.com/ruvnet/ruflo/issues/2407)/[#2484](https://github.com/ruvnet/ruflo/issues/2484)); **(3)** `.swarm/memory.db` **durability** — a cross-process write lock ([#2621](https://github.com/ruvnet/ruflo/issues/2621)) and WAL-coherent reads ([#2584](https://github.com/ruvnet/ruflo/issues/2584) follow-ups). | `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status` |
-| **`dual-codex-claude`** | Installs the single-source dual (Claude Code + Codex) project toolkit — scripts that create/convert a project so `AGENTS.md` is canonical and `CLAUDE.md` = `@AGENTS.md` (no duplication or drift). | `install`\|`init` · `uninstall`\|`remove` · `status` |
+**Every target installs and uninstalls on its own.** Take the daemon fix without the SQLite
+write lock, drop one later, keep the rest — they don't entangle.
 
-> A bare action with no target (`npx … install`) defaults to the **`cwd`** target.
+## Targets
+
+**Patch targets** — source patches to the installed `@claude-flow/cli`.
+Actions: `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status`
+
+| Target | Fixes | Upstream |
+|--------|-------|----------|
+| **`cwd`** | `.claude-flow`/`.swarm` stop following a drifted cwd — one state dir at the project root, not one per visited subdirectory | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
+| **`daemon`** | One daemon per project **root** — dedup was keyed per-cwd, so a start from any subdir forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
+| **`memory`** | `.swarm/memory.db` durability — cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
+| **`all`** | every patch target above | |
+
+**Script targets** — materialize shell scripts at a stable path. No patching, no hook.
+Actions: `install`\|`init` · `uninstall`\|`remove` · `status`
+
+| Target | What it gives you |
+|--------|-------------------|
+| **`dual-codex-claude`** *(alias `dual`)* | Create or convert a **single-source dual** Claude Code + Codex project: `AGENTS.md` is canonical, `CLAUDE.md` is `@AGENTS.md`. No symlink, no duplication, no drift. |
+| **`dedupe-bundle`** *(alias `dedupe`)* | **Clean up an existing Claude project** left bloated by `ruflo init --full`: remove the `.claude/{skills,commands,agents}` entries the installed `ruflo/*` plugins already provide, and optionally the `settings.json` hooks that double-fire against the plugin hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
+
+```bash
+npx @sparkleideas/ruflo-source-patch all install          # everything
+npx @sparkleideas/ruflo-source-patch daemon install       # just the daemon fix
+npx @sparkleideas/ruflo-source-patch memory uninstall     # drop the write lock, keep the rest
+npx @sparkleideas/ruflo-source-patch all status
+npx @sparkleideas/ruflo-source-patch dedupe-bundle install
+```
+
+> A bare action with no target (`npx … install`) applies to **`all`** — what a pre-2.0
+> `install` did.
 
 Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used via `npx`.
 
 ---
 
-## Target: `cwd` — source patch for the folder/daemon sprawl
+## How the patching works
 
-The `cwd` CLI target applies **6 patch targets** across 3 fix families. All are idempotent,
-individually safe-fail on anchor drift, and reverted together by `cwd uninstall`:
+`@claude-flow/cli` anchors state to raw `process.cwd()`. Under Claude Code's working-directory
+drift (sub-agents, worktrees, `cd` inside Bash steps), `cwd` is frequently a subdirectory
+rather than the project root. Caller-side interception can't reach every path — ruflo's own
+bundled plugin hooks invoke the CLI with a drifted cwd — so this patches the **callee**, which
+fixes every caller at once.
 
-| # | Patch target | File | Fix family |
-|---|--------------|------|------------|
-| 1 | `daemon-autostart` | `@claude-flow/cli` · `services/daemon-autostart.js` | cwd anchoring |
-| 2 | `memory-initializer` | `@claude-flow/cli` · `memory/memory-initializer.js` | cwd anchoring + **write lock** |
-| 3 | `cli-core getProjectCwd` | `@claude-flow/cli-core` · `mcp-tools/types.js` | cwd anchoring |
-| 4 | `daemon-command` | `@claude-flow/cli` · `commands/daemon.js` | cwd anchoring (**daemon dedup keyed per-cwd**) |
-| 5 | `fs-secure wal-safety` | `@claude-flow/cli` · `fs-secure.js` | memory durability |
-| 6 | `daemon-dedup (pre-#2407 builds)` | old/forked CLI · `commands/daemon.js` | daemon dedup (missing spawn lock) |
+Each library file is rebuilt from its **pristine backup** on every apply:
 
-`@claude-flow/cli` anchors its state to raw `process.cwd()`. Under Claude Code's
-working-directory drift (sub-agents, git worktrees, `cd` inside Bash steps), `cwd`
-is frequently a subdirectory rather than the project root — so a fresh
-`.claude-flow` folder (and its own background daemon) is created in every visited
-directory, and memory is scattered across stray `.swarm/memory.db` files.
+```
+pristine (.rsp-backup)  →  prelude(fragments the active targets need)  →  edits
+```
 
-Caller-side interception can't reach every path — ruflo's own bundled plugin
-hooks invoke the CLI with a drifted cwd. Patching the **callee** fixes every
-caller at once. Four files are rewritten to resolve the nearest ancestor
-`.git` (worktree-safe) before using cwd:
+That is what makes independent install/uninstall possible. `memory/memory-initializer.js` is
+patched by **two** targets — `cwd` (`getMemoryRoot`, config paths) and `memory` (the write
+lock) — so uninstalling one must un-apply *its* edits and leave the other's intact. Rebuilding
+from pristine means the file is always exactly *pristine + the entries currently requested*,
+which is correct for any subset and idempotent by construction.
+
+**Safety:** reversible (backup = the untouched vendor file; restore is byte-identical),
+idempotent, and safe-fail on version drift — an entry whose anchor no longer matches is skipped
+**individually**, never a partial write and never blocking the other entries.
+
+`install` also copies the runtime to `~/.ruflo-source-patch/lib` and registers a Claude Code
+`SessionStart` hook that re-applies **the installed set** to any `npx` copy fetched later (same
+reapply model as `patch-package`). Uninstalling the last patch target removes the hook.
+
+---
+
+## `cwd` — folder sprawl
 
 | Function | File |
 |----------|------|
-| `ensureDaemonRunning` | `@claude-flow/cli/dist/src/services/daemon-autostart.js` |
-| `getMemoryRoot` | `@claude-flow/cli/dist/src/memory/memory-initializer.js` |
-| `getProjectCwd` | `@claude-flow/cli-core/dist/src/mcp-tools/types.js` |
-| `daemon start` / `stop` / `status` (6 call sites) | `@claude-flow/cli/dist/src/commands/daemon.js` |
+| `ensureDaemonRunning` | `@claude-flow/cli` · `services/daemon-autostart.js` |
+| `getMemoryRoot` + config paths | `@claude-flow/cli` · `memory/memory-initializer.js` |
+| `getProjectCwd` | `@claude-flow/cli-core` · `mcp-tools/types.js` |
 
-```bash
-npx @sparkleideas/ruflo-source-patch cwd install     # or: cwd init
-npx @sparkleideas/ruflo-source-patch cwd uninstall   # or: cwd remove
-npx @sparkleideas/ruflo-source-patch cwd patch | revert | status
-```
+Resolves the nearest ancestor `.git` (worktree-safe) before using cwd.
 
-`install` patches every `@claude-flow/cli` copy in the npx cache, copies its
-runtime to `~/.ruflo-source-patch/lib`, and registers a Claude Code
-`SessionStart` hook that re-applies the patch each session (so newly-`npx`-fetched
-copies get patched too — same reapply model as `patch-package`).
+## `daemon` — one daemon per project root
 
-**Safety:** reversible (per-file `.rsp-backup`, restored byte-for-byte on
-`uninstall`/`revert`), idempotent (`/* ruflo-source-patch:patched */` marker),
-and safe-fail on version drift (each anchor string is checked before any write;
-a moved anchor is skipped, never a partial write).
+Two distinct bugs, one target.
 
-### `daemon start` is dedup'd per-CWD, not per-project (current upstream)
+**1. Dedup is keyed per-CWD (live in current upstream).** `commands/daemon.js` anchors its own
+state — `.claude-flow/`, `daemon.pid`, and the #2484 dedup lockfile itself — to raw
+`process.cwd()`. So the lock dedups against starts *in the same directory* and not at all
+against starts elsewhere in the repo. Patching `daemon-autostart.js` doesn't cover it; the CLI
+command does its own resolution.
 
-Patching `daemon-autostart.js` and `getMemoryRoot` is **not enough**, and this gap is live in
-**up-to-date upstream** (verified on 3.25.6, which already has the #2484 spawn lock). The
-`daemon start` *command* in `commands/daemon.js` anchors its own state — `.claude-flow/`,
-`daemon.pid`, and the #2484 dedup lockfile — to raw `process.cwd()`. So the lock and PID file
-are keyed **per-cwd**, not per-project: they dedup perfectly against other starts *in the same
-directory*, and not at all against starts elsewhere in the same repo.
+Measured on **3.25.6** (which already *has* the #2484 lock), 6 concurrent `daemon start`:
 
-Measured on ruflo **3.25.6**, with the rest of the cwd patch already applied:
-
-| 6 concurrent `daemon start` | Before | After |
+| | Before | After |
 |---|---|---|
 | all 6 from the repo **root** | 1 daemon | 1 daemon |
 | 6 from 6 different **subdirs** | **6 daemons, 6 stray `.claude-flow` dirs** | **1 daemon, 1 `.claude-flow`** |
 
-Hooks, sub-agents and worktrees routinely invoke the CLI with a drifted cwd, which is how one
-project accumulates daemons even on a current build. Resolving to the project root makes the
-existing #2484 lockfile/PID dedup actually *bind* across all of them, and makes `daemon
-status`/`stop` from a subdirectory find the root daemon instead of reporting "not running".
+`daemon status`/`stop` from a subdirectory now find the root daemon instead of reporting "not
+running". The `const cwd = process.cwd();` path-validation guard is **deliberately not patched**
+— it's a security boundary, not state anchoring.
 
-> The `const cwd = process.cwd();` path-validation guard in `daemon.js` is **deliberately not
-> patched** — it's a security boundary ("allow only paths within project structure"), not state
-> anchoring, and widening it to the repo root would loosen it for zero dedup benefit.
+**2. Old/forked builds have no spawn lock at all.** Builds predating
+[#2407](https://github.com/ruvnet/ruflo/issues/2407)/[#2484](https://github.com/ruvnet/ruflo/issues/2484)
+dedup like this: read `daemon.pid` → not running → `killStaleDaemons` → spawn, **with no lock**.
+N concurrent starts all see an empty PID file in the same instant and each fork a daemon. The
+patch injects the same `O_EXCL` lockfile upstream uses, at the same path
+(`<root>/.claude-flow/daemon.lock`), so a patched old build and a modern build dedup against
+*each other*. Upstream ≥ 3.25 already has it, so the anchor doesn't match there and it is
+safe-skipped — never double-locked.
 
-### Daemon dedup — one daemon per project root (shipped with the `cwd` target)
-
-Separately from the per-cwd keying above, **old/forked builds lack the spawn lock entirely**.
-
-CLI builds predating [#2407](https://github.com/ruvnet/ruflo/issues/2407) /
-[#2484](https://github.com/ruvnet/ruflo/issues/2484) dedup like this: read `daemon.pid` → not
-running → `killStaleDaemons` → spawn. **With no lock.** So N concurrent `daemon start` calls
-all see an empty PID file in the same instant and each fork their own daemon. Upstream
-`@claude-flow/cli` ≥ 3.25 holds an `O_EXCL` `daemon.lock` across the whole spawn and is fine;
-older/forked builds are not.
-
-Observed in the wild on a fork pinned at `3.7.0-alpha.10`: **38 daemons on one cwd**, still
-spawning ~1 per 5 min, all orphaned to `ppid=1`, and invisible to `daemon status --all`
-(whose registry only tracks `@claude-flow/cli`). #2407 reports the same shape upstream —
-39 zombie daemons, ~8.5 GiB, kernel panic.
-
-Measured, 6 concurrent `daemon start` in one fresh project root:
-
-```
-UNPATCHED   6 concurrent starts -> 6 daemons
-PATCHED     6 concurrent starts -> 1 daemon
-```
-
-The patch injects the same `O_EXCL` lockfile upstream uses, **at the same path**
-(`<projectRoot>/.claude-flow/daemon.lock`) — so a patched old build and a modern build dedup
-against *each other*, which is what the cross-package blindness requires. Upstream's anchor
-doesn't match (it already has the lock), so it is safe-skipped — never double-locked.
-
-**Blind-spot detector.** Patch coverage is package-name-scoped, so a ruflo CLI published under
-a name we don't list would silently get *zero* protection — which is precisely how those 38
-daemons appeared. `install`/`patch` now scans the npx cache for any package that ships a
-`commands/daemon.js` (i.e. can spawn daemons) and isn't covered, and warns.
-
-> A stale fork is worth retiring, not patching: `3.7.0-alpha.10` is missing not just daemon
-> dedup but also [#2585](https://github.com/ruvnet/ruflo/pull/2585)'s atomic flushes — the
-> torn-write corruption fix. This patch is a guard, not a substitute for keeping up with
-> upstream.
-
-### Memory durability (shipped with the `cwd` target)
+## `memory` — `.swarm/memory.db` durability
 
 `.swarm/memory.db` is written by two different SQLite engines: the AgentDB bridge
-(**better-sqlite3, WAL mode**) and a fallback path that does a whole-file
-read-modify-write (**sql.js**: `db.export()` → atomic rename). ruflo 3.25.2 made those
-flushes atomic ([#2585](https://github.com/ruvnet/ruflo/pull/2585)), which closed the
-*torn-write* class. Two failure modes named as follow-ups in the
-[#2584](https://github.com/ruvnet/ruflo/issues/2584) close-out are still open upstream;
-this target patches both.
+(**better-sqlite3, WAL mode**) and a fallback that does a whole-file read-modify-write
+(**sql.js**: `db.export()` → atomic rename). ruflo 3.25.2 made those flushes atomic
+([#2585](https://github.com/ruvnet/ruflo/pull/2585)), closing the *torn-write* class. The two
+failure modes named as follow-ups in the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
+close-out are still open upstream; this target patches both.
 
-| Patch | Fixes | Function |
-|-------|-------|----------|
-| **Cross-process write lock** | [#2621](https://github.com/ruvnet/ruflo/issues/2621) — daemon ↔ MCP last-writer-wins **silently drops writes** | `storeEntry`, `getEntry`, `deleteEntry`, `applyTemporalDecay`, `ensureSchemaColumns` |
-| **WAL-coherent reads** | sql.js cannot read WAL frames, so it reads a **stale image** (see [#2646](https://github.com/ruvnet/ruflo/issues/2646), [#2652](https://github.com/ruvnet/ruflo/issues/2652)) | `readFileMaybeEncrypted` |
+**Write lock** ([#2621](https://github.com/ruvnet/ruflo/issues/2621)). `storeEntry`, `getEntry`,
+`deleteEntry`, `applyTemporalDecay` and `ensureSchemaColumns` each do a whole-file
+read-modify-write, so two processes can each read image *v1* and each rename — the second
+silently clobbers the first. Per-write atomicity cannot fix this; only mutual exclusion spanning
+read..write can. Uses the same `O_EXCL` primitive ruflo already ships in `commands/daemon.js`.
+Reentrant (`storeEntry` calls `getEntry`), steals stale locks (>15 s), and **never hard-fails**:
+if the lock can't be taken within 5 s it proceeds unlocked, degrading to current behaviour rather
+than breaking memory.
 
-**The write lock.** Each of those five functions does a whole-file read-modify-write, so
-two processes can each read image *v1* and each rename — the second silently clobbers the
-first. Per-write atomicity cannot fix this; only mutual exclusion spanning read..write can.
-The patch wraps them in an `O_CREAT|O_EXCL` advisory lockfile — the **same primitive ruflo
-already ships** in `commands/daemon.js` ([#2484](https://github.com/ruvnet/ruflo/issues/2484)).
-It is reentrant (`storeEntry` calls `getEntry` internally), recovers stale locks (>15s, holder
-died mid-write), and **never hard-fails**: if the lock can't be taken within 5s it proceeds
-unlocked, degrading to current behaviour rather than breaking memory.
-
-Measured, two processes × 25 concurrent `storeEntry` calls on one DB:
+Measured, two processes × 25 concurrent `storeEntry` on one DB:
 
 ```
-UNPATCHED   writes ACKed: 50/50   rows on disk: 25/50   SILENTLY LOST: 25   integrity_check: ok
-PATCHED     writes ACKed: 50/50   rows on disk: 50/50   SILENTLY LOST:  0   integrity_check: ok
+UNPATCHED   acked: 50/50   on disk: 25/50   SILENTLY LOST: 25   integrity_check: ok
+PATCHED     acked: 50/50   on disk: 50/50   SILENTLY LOST:  0   integrity_check: ok
 ```
 
-Every lost write returned `success: true`, and the DB stays `integrity_check: ok` — nothing
+Every lost write returned `success: true` and the DB stays `integrity_check: ok` — nothing
 errors, the data is simply gone.
 
 **WAL-coherent reads.** sql.js reads the main DB file only; it cannot see frames sitting in
-`-wal`. With an uncheckpointed WAL it can read a database in which the table does not even
-exist (measured: `no such table: memory_entries` with 500 rows live in a 2.3 MB WAL), then
-write that fiction back over the image. The patch runs `PRAGMA wal_checkpoint(TRUNCATE)`
-before any `*.db` read, so the image is complete.
+`-wal`. With an uncheckpointed WAL it can read a database in which the table does not even exist
+(measured: `no such table: memory_entries` while 500 rows sat in a 2.3 MB WAL), then write that
+fiction back over the image. `PRAGMA wal_checkpoint(TRUNCATE)` runs before any `*.db` read so the
+image is complete.
 
 > Deliberately **not** done: unlinking `-wal`/`-shm` after a swap. `-shm` is SQLite's
-> shared-memory lock index; unlinking it while another process holds a connection splits the
-> two onto different lock state — manufacturing the unsynchronised writers this is meant to
-> prevent. After a `TRUNCATE` checkpoint the WAL is zero-length and replays nothing, so the
-> unlink buys nothing anyway.
+> shared-memory *lock index*; unlinking it while another process holds a connection splits the two
+> onto different lock state — manufacturing the unsynchronised writers this exists to prevent.
+> After a `TRUNCATE` checkpoint the WAL is zero-length and replays nothing, so it's redundant anyway.
 
-**Cost, stated plainly:** `getEntry` rewrites the entire DB image just to bump `access_count`,
-and it now takes the lock — so reads serialise too. On a large DB that is a real throughput
-hit. Correct-and-slower beats fast-and-lossy, but the actual fix is upstream follow-up #3
-(native better-sqlite3 + WAL for the primary flush), which deletes this problem class instead
-of guarding it.
+**Cost, stated plainly:** `getEntry` rewrites the entire DB image just to bump `access_count`, and
+it now takes the lock — so reads serialise too. On a large DB that's a real throughput hit.
+Correct-and-slower beats fast-and-lossy, but the actual fix is upstream follow-up #3 (native
+better-sqlite3 + WAL for the primary flush), which deletes this problem class instead of guarding
+it. If you don't want the trade: `memory uninstall`.
 
-## Target: `dual-codex-claude` — single-source dual project toolkit
+---
 
-`ruflo init --dual`/`--codex` doesn't produce a working dual Claude Code + Codex
-project. This target installs a small toolkit that does:
+## Script targets
 
 ```bash
-npx @sparkleideas/ruflo-source-patch dual-codex-claude install     # copies scripts to ~/.ruflo-source-patch/dual
-npx @sparkleideas/ruflo-source-patch dual-codex-claude uninstall   # removes them
+npx @sparkleideas/ruflo-source-patch dual install            # -> ~/.ruflo-source-patch/dual/
+npx @sparkleideas/ruflo-source-patch dedupe-bundle install   # -> ~/.ruflo-source-patch/dedupe-bundle/
 ```
-
-Installed scripts (run directly against a project):
 
 | Script | Purpose |
 |--------|---------|
-| `ruflo-add-codex.sh <project>` | Convert an existing ruflo (Claude Code) project into single-source dual |
-| `ruflo-new-dual.sh <project>` | Create a fresh single-source dual project |
-| `ruflo-dedupe-bundle.sh <project>` | Strip the `.claude` bundle content the installed ruflo plugins already provide |
+| `dual/ruflo-add-codex.sh <project>` | Convert an existing ruflo (Claude Code) project into single-source dual |
+| `dual/ruflo-new-dual.sh <project>` | Create a fresh single-source dual project |
+| `dedupe-bundle/ruflo-dedupe-bundle.sh <project> [--strip-dup-hooks] [--dry-run]` | Slim a `.claude` bundle left by `ruflo init --full` |
 
-Design: `AGENTS.md` is the one canonical instruction file (shared content +
-Codex-only overlay); `CLAUDE.md` is `@AGENTS.md` (Claude Code's memory import) +
-a small Claude-only overlay — no symlink, no duplication, no drift. Related:
-ruvnet/ruflo [#2634](https://github.com/ruvnet/ruflo/issues/2634)–[#2638](https://github.com/ruvnet/ruflo/issues/2638),
+`ruflo init --full` bundles ~260 skill/command/agent files, of which ~100 % of agents/commands and
+97 % of skills are **also** provided by the installed `ruflo/*` plugins, and the project
+`settings.json` registers lifecycle hooks that duplicate the plugin hooks (post-edit/session-end
+run twice). `ruflo-dedupe-bundle.sh` defers to the plugins: it only removes an item when a plugin
+actually provides it, backs everything up first, keeps project-only items, and prunes nothing if no
+plugins are found. Related: ruvnet/ruflo
+[#2634](https://github.com/ruvnet/ruflo/issues/2634)–[#2638](https://github.com/ruvnet/ruflo/issues/2638),
 [#2640](https://github.com/ruvnet/ruflo/issues/2640).
-
-`install` copies the scripts to `~/.ruflo-source-patch/dual/` (marked executable);
-`uninstall` removes that directory. No Claude Code hook is registered for this
-target — the scripts are run on demand.
 
 ---
 
 ## Caveat
 
-These are **workarounds**, not substitutes for the upstream fixes. For `cwd`, a
-copy fetched by `npx` mid-session is unpatched until the next session start.
-Remove everything with the per-target `uninstall`, then delete
+These are **workarounds**, not substitutes for the upstream fixes. A copy fetched by `npx`
+mid-session stays unpatched until the next session start. Remove a target with its own
+`uninstall`; when the last patch target goes, the hook is removed — then delete
 `~/.ruflo-source-patch/` to fully clean up.
 
 ## License

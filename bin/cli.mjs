@@ -3,70 +3,92 @@
 //
 //   npx @sparkleideas/ruflo-source-patch <target> <action>
 //
-// Targets:
-//   cwd                 patch @claude-flow/cli's process.cwd() anchoring at
-//                       source (ruvnet/ruflo#2633) so .claude-flow/.swarm and
-//                       daemons stop proliferating under Claude Code cwd drift.
-//     actions: install|init · uninstall|remove · patch · revert · status
+// The FIRST argument is the target, the second the action. Every target installs and
+// uninstalls independently — `memory uninstall` leaves `cwd` in place even though both
+// patch the same file (the patcher rebuilds each file from its pristine backup).
 //
-//   dual-codex-claude   install the single-source dual (Claude Code + Codex)
-//     (alias: dual)     toolkit scripts to ~/.ruflo-source-patch/dual.
-//     actions: install|init · uninstall|remove · status
+// Patch targets (source patches to the installed @claude-flow/cli):
+//   cwd      cwd anchoring — .claude-flow/.swarm stop following a drifted cwd (#2633)
+//   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
+//   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
+//   all      every patch target above
 //
-// Backward compat: a bare action with no target (e.g. `install`) targets `cwd`.
+// Script targets (materialize scripts; no patching, no hook):
+//   dual-codex-claude   single-source dual Claude Code + Codex project toolkit
+//   dedupe-bundle       slim a .claude bundle left behind by `ruflo init --full` (#2640)
+//
+// Back-compat: a bare action with no target (e.g. `install`) applies to `all`, which is
+// what a pre-2.0 `install` did.
 
-import { cwdCommand } from '../lib/cwd/commands.mjs';
-import { dualCommand } from '../lib/dual/commands.mjs';
+import { patchCommand } from '../lib/cwd/commands.mjs';
+import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
+import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'patch', 'revert', 'status']);
+const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
 
 function usage() {
-  console.log(`ruflo-source-patch — patch ruflo/@claude-flow at source, and set up dual Codex+Claude projects
+  const pad = (s) => s.padEnd(18);
+  console.log(`ruflo-source-patch — patch ruflo/@claude-flow at source; project toolkits
 
 Usage:
   npx @sparkleideas/ruflo-source-patch <target> <action>
 
-Targets & actions:
-  cwd                install | init | uninstall | remove | patch | revert | status
-  dual-codex-claude  install | init | uninstall | remove | status   (alias: dual)
+Patch targets                  (actions: install | uninstall | patch | revert | status)
+  ${pad('cwd')}${TARGET_INFO.cwd}
+  ${pad('daemon')}${TARGET_INFO.daemon}
+  ${pad('memory')}${TARGET_INFO.memory}
+  ${pad('all')}every patch target above
+
+Script targets                 (actions: install | uninstall | status)
+  ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
+  ${pad('dedupe-bundle')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (alias: dedupe)
+
+Each target installs/uninstalls on its own — e.g. keep cwd, drop memory:
+  npx @sparkleideas/ruflo-source-patch memory uninstall
 
 Examples:
-  npx @sparkleideas/ruflo-source-patch cwd install
-  npx @sparkleideas/ruflo-source-patch cwd uninstall
-  npx @sparkleideas/ruflo-source-patch dual-codex-claude install
-  npx @sparkleideas/ruflo-source-patch dual-codex-claude uninstall`);
+  npx @sparkleideas/ruflo-source-patch all install
+  npx @sparkleideas/ruflo-source-patch daemon install
+  npx @sparkleideas/ruflo-source-patch memory status
+  npx @sparkleideas/ruflo-source-patch dedupe-bundle install`);
 }
 
-const [a1, a2] = process.argv.slice(2);
+const [rawTarget, rawAction] = process.argv.slice(2);
+
+if (!rawTarget || ['help', '--help', '-h'].includes(rawTarget)) {
+  usage();
+  process.exit(0);
+}
 
 let target;
 let action;
 
-if (!a1 || a1 === 'help' || a1 === '--help' || a1 === '-h') {
-  usage();
-  process.exit(0);
-} else if (ACTIONS.has(a1) && !a2) {
-  // Backward compat: bare action -> cwd target.
-  target = 'cwd';
-  action = a1;
+if (ACTIONS.has(rawTarget) && !rawAction) {
+  // Back-compat: bare action -> every patch target (what pre-2.0 `install` did).
+  target = 'all';
+  action = rawTarget;
 } else {
-  target = a1;
-  action = a2;
+  target = ALIASES[rawTarget] || rawTarget;
+  action = rawAction;
 }
 
 if (!action) {
-  console.error(`[ruflo-source-patch] target "${target}" needs an action (install | uninstall | ...)`);
+  console.error(`[ruflo-source-patch] target "${target}" needs an action (install | uninstall | status | ...)`);
   usage();
   process.exit(1);
 }
 
 let ok;
-if (target === 'cwd') {
-  ok = cwdCommand(action);
-} else if (target === 'dual-codex-claude' || target === 'dual') {
-  ok = dualCommand(action);
+if (target === 'all') {
+  ok = patchCommand([...PATCH_TARGETS], action);
+} else if (PATCH_TARGETS.includes(target)) {
+  ok = patchCommand([target], action);
+} else if (SCRIPT_TARGETS[target]) {
+  ok = scriptCommand(target, action);
 } else {
-  console.error(`[ruflo-source-patch] unknown target "${target}" (expected: cwd | dual-codex-claude)`);
+  const known = [...PATCH_TARGETS, 'all', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
+  console.error(`[ruflo-source-patch] unknown target "${target}" (expected: ${known})`);
   usage();
   process.exit(1);
 }
