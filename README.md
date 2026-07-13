@@ -15,7 +15,7 @@ write lock, drop one later, keep the rest — they don't entangle.
 ## Targets
 
 **Patch targets** — source patches to the installed `@claude-flow/cli`.
-Actions: `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status`
+Actions: `install`\|`init` · `uninstall`\|`remove` · `status`
 
 | Target | Fixes | Upstream |
 |--------|-------|----------|
@@ -48,6 +48,11 @@ npx @sparkleideas/ruflo-source-patch dedupe-bundle install
 
 > A bare action with no target (`npx … install`) applies to **`all`** — what a pre-2.0
 > `install` did.
+>
+> `patch` and `revert` are **deprecated** aliases for `install`/`uninstall`. They predate
+> per-target state, when they simply meant "apply/unapply the files"; `revert` left the
+> library byte-identical to what `uninstall` leaves, so it was `uninstall` with extra
+> bookkeeping. To turn a target off, **uninstall** it; install it again to get it back.
 
 Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used via `npx`.
 

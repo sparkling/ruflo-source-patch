@@ -49,7 +49,7 @@ function stateRaw() {
     return JSON.parse(fs.readFileSync(path.join(SB, 'home', '.ruflo-source-patch', 'state.json'), 'utf8'));
   } catch { return { patchTargets: [], paused: false }; }
 }
-function stateTargets() { const s = stateRaw(); return s.paused ? [] : s.patchTargets; }
+function stateTargets() { return stateRaw().patchTargets || []; }
 
 // Re-derive expectations from the ENTRIES table (not from apply()).
 const ENTRY_PROBE = {
@@ -110,7 +110,9 @@ function check(step, seq) {
 }
 
 const TARGETS = ['cwd', 'daemon', 'memory', 'all'];
-const ACTIONS = ['install', 'uninstall', 'patch', 'revert', 'status'];
+// `patch`/`revert` are deprecated aliases for install/uninstall — exercised so the
+// aliases stay correct too.
+const ACTIONS = ['install', 'uninstall', 'status', 'patch', 'revert'];
 
 freshSandbox();
 for (const rel of FILES) PRISTINE[rel] = fs.readFileSync(filePath(rel), 'utf8');
@@ -130,12 +132,10 @@ for (let run = 0; run < RUNS; run++) {
     cli(['monitor', 'run']);   // a monitor tick after EVERY step — must never violate an invariant
     check(i, seq);
   }
-  // I6 — idempotence: `patch` applied twice must be a no-op the SECOND time.
-  // (Comparing against a pre-patch snapshot would be wrong: if the state is paused,
-  // `patch` legitimately un-pauses and re-applies.)
-  cli(['all', 'patch']);
+  // I6 — idempotence: `install` twice is a no-op the second time.
+  cli(['all', 'install']);
   const snap = FILES.map((rel) => fs.readFileSync(filePath(rel), 'utf8'));
-  cli(['all', 'patch']);
+  cli(['all', 'install']);
   cli(['monitor', 'run']);
   FILES.forEach((rel, i) => {
     if (fs.readFileSync(filePath(rel), 'utf8') !== snap[i]) {

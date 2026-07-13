@@ -29,8 +29,13 @@ import { patchCommand, monitorCommand } from '../lib/cwd/commands.mjs';
 import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 
-const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'patch', 'revert', 'status']);
+const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'patch', 'revert', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
+
+// `patch`/`revert` predate per-target state, when they meant "apply/unapply the files".
+// `revert` left the library byte-identical to `uninstall`, so it was uninstall with extra
+// bookkeeping. Deleted; aliased so old scripts keep working.
+const DEPRECATED = { patch: 'install', revert: 'uninstall' };
 
 function usage() {
   const pad = (s) => s.padEnd(18);
@@ -39,7 +44,7 @@ function usage() {
 Usage:
   npx @sparkleideas/ruflo-source-patch <target> <action>
 
-Patch targets                  (actions: install | uninstall | patch | revert | status)
+Patch targets                  (actions: install | uninstall | status)
   ${pad('cwd')}${TARGET_INFO.cwd}
   ${pad('daemon')}${TARGET_INFO.daemon}
   ${pad('memory')}${TARGET_INFO.memory}
@@ -84,9 +89,14 @@ if (ACTIONS.has(rawTarget) && !rawAction) {
 }
 
 if (!action) {
-  console.error(`[ruflo-source-patch] target "${target}" needs an action (install | uninstall | status | ...)`);
+  console.error(`[ruflo-source-patch] target "${target}" needs an action (install | uninstall | status)`);
   usage();
   process.exit(1);
+}
+
+if (DEPRECATED[action] && target !== 'monitor') {
+  console.error(`[ruflo-source-patch] \`${action}\` is deprecated — use \`${DEPRECATED[action]}\` (same result). Running \`${DEPRECATED[action]}\`.`);
+  action = DEPRECATED[action];
 }
 
 let ok;
