@@ -81,7 +81,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|-------------------|
 | **`dual-codex-claude`** *(alias `dual`)* | Create or convert a **single-source dual** Claude Code + Codex project: `AGENTS.md` is canonical, `CLAUDE.md` is `@AGENTS.md`. No symlink, no duplication, no drift. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
 | **`dedupe-bundle`** *(alias `dedupe`)* | **Clean up an existing project** bloated by `ruflo init --full`: drop the `.claude/{skills,commands,agents}` entries the installed `ruflo/*` plugins already provide, and optionally the `settings.json` hooks that double-fire against the plugin hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
-| **`adr-reindex`** | **Rebuild a project's ADR index and dependency graph** from `docs/adr/`. The `adr-index` patch makes an ordinary re-import *converge*; this reconciles what upsert can never reap — **deletions**. Remove an ADR file, or delete a relation line from one, and the orphan row survives every future import. Needs raw SQL: the CLI has no hard delete (`memory delete` is a *soft* delete, and the tombstone still trips the UNIQUE constraint on re-store, [#2652](https://github.com/ruvnet/ruflo/issues/2652)). |
+| **`adr-reindex`** | **Rebuild a project's ADR index and dependency graph** from `docs/adr/`. The `adr-index` patch makes an ordinary re-import *converge*; this reconciles what upsert can never reap — **deletions**. Remove an ADR file, or delete a relation line from one, and the orphan row survives every future import. Needs raw SQL: the CLI has no hard delete (`memory delete` is a *soft* delete, and the tombstone still trips the UNIQUE constraint on re-store, [#2652](https://github.com/ruvnet/ruflo/issues/2652)). **Requires the `memory` target** — it hard-deletes rows, and refuses to do that without the write lock. |
 
 ---
 
@@ -285,6 +285,7 @@ The ADR files are the source of truth; `adr-patterns` / `adr-edges` are a derive
 cache the correct reconcile is a **rebuild**, and at ADR scale it's instant.
 
 ```bash
+npx @sparkleideas/ruflo-source-patch memory install       # REQUIRED — see below
 npx @sparkleideas/ruflo-source-patch adr-reindex install
 ~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh [project-dir] [--dry-run]
 ```
@@ -296,7 +297,28 @@ after installing the `adr-index` patch for the first time (rows written under th
 scheme are unreachable orphans, and show up as exactly that), or any time you want certainty. For an
 ordinary edit, the patched importer handles it — just run `/adr-index`.
 
-Three things it has to get right, each learned the hard way:
+### It **requires** the `memory` target
+
+Not a suggestion — `adr-reindex install` refuses without it, and so does the script. This is the one
+operation in the whole package whose entire job is to **delete rows**, and ruflo writes `memory.db` as
+a whole-file read-modify-write image: a daemon or MCP server holding a *pre-delete* image flushes it
+back and resurrects everything you just removed. That is [#2621](https://github.com/ruvnet/ruflo/issues/2621),
+aimed squarely at the reconcile itself.
+
+The `memory` target already solves both halves, so this **depends on it rather than reimplementing a
+weaker copy** — `memory/write-lock` makes `<db>.rsp-lock` mean something (a lock nothing else takes
+protects nothing), and `memory/wal-coherent-reads` stops any reader acting on a stale image. The script
+takes that same lock around its `DELETE`, which is *participation* in the protocol, not duplication of
+it: the CLI's lock lives inside node and can't cover a `sqlite3` subprocess. It releases before the
+re-import, because the patched CLI takes the same lock per store and would otherwise spin out into
+unlocked writes for the whole rebuild.
+
+An earlier version carried its own `PRAGMA wal_checkpoint` as "belt-and-braces" and *warned* instead of
+refusing when `memory` was absent. Both were wrong: the checkpoint duplicated `memory/wal-coherent-reads`
+with worse guarantees, and warning-then-deleting gambles your index on a race the warning has just
+finished explaining it cannot win.
+
+### Three things it has to get right, each learned the hard way
 
 - **Both namespaces, together.** Clearing only `adr-patterns` fixes stale statuses and leaves the
   duplicate edges behind. A partial rebuild is its own trap.
@@ -304,18 +326,16 @@ Three things it has to get right, each learned the hard way:
   shells out to resolves *which `memory.db` to write* from its **cwd**. Invoked from anywhere else it
   reads the right ADRs and writes them to the wrong database — after this script has already emptied
   the real one. This is what an early version did, and it is what an empty index looks like.
-- **Checkpoint the WAL after the delete** — *belt-and-braces, not a fix for anything observed.*
-  Tested without it, the re-import stores 2/2 every time and the WAL is already empty (the `sqlite3`
-  CLI checkpoints on close). It is kept only because the ruflo CLI reads through sql.js, which has
-  documented WAL-coherence bugs ([#2584](https://github.com/ruvnet/ruflo/issues/2584),
-  [#2646](https://github.com/ruvnet/ruflo/issues/2646)); a reader seeing a stale pre-delete image
-  would INSERT against rows it only *thinks* exist and store nothing. One `PRAGMA` retires the whole
-  class, whoever checkpoints.
+- **A post-condition that can see a reconcile that didn't happen.** It used to check `records != 0`,
+  which is blind to the exact failure it exists to prevent: if the delete is clobbered, the re-import
+  upserts *cleanly on top of the resurrected rows*, every store reports ok, `records` is nonzero — and
+  the script exits 0 having reconciled nothing, orphans intact. It now asserts **`records` == the
+  number of ADR files**, which catches both directions: too many (the delete didn't stick) and too few
+  (stores are failing). It names the likely cause of each.
 
-Because the delete precedes the rebuild, a failed rebuild leaves an **empty** graph — which `verify`
-then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on nothing).
-So the script refuses to exit 0 on a zero-record rebuild and tells you how to diagnose it. The ADR
-files are never touched; re-running is always safe.
+Because the delete precedes the rebuild, a failed rebuild would leave an **empty** graph — which
+`verify` then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on
+nothing). The ADR files are never touched; re-running is always safe.
 
 ## `monitor` — keep the patches applied
 
@@ -339,6 +359,26 @@ in `state.json` — `patchTargets` (CLI) and `pluginTargets` (plugin) alike:
 
 ```
 2026-07-13T18:38:05.742Z REPAIRED 1 plugin file(s) [adr-template,adr-index] — adr-index: patched …/scripts/import.mjs (4/4 edits)
+```
+
+**It keeps *itself* current, too — and this was the sharpest bug in the package.**
+`~/.ruflo-source-patch/lib` is not a cache, it's the **executable**: the hook and the scheduled job
+both run modules from *there*, never from the npm package. But only an `install` action ever wrote it.
+So `npm i -g …@next` — a version that adds an entry for an anchor upstream re-worded — changed
+**nothing** about what the hook and the monitor actually did. They kept applying the old entry set,
+forever, and every reporting surface was *also* the old code, so it was silent. The package upgraded
+and nothing it does upgraded with it. Found live at nine modules behind.
+
+The invariant is **provenance**, not location: the stable copy must match *the source it was synced
+from*, recorded at sync time. (Diffing against the globally-installed package is the obvious answer
+and it's wrong — develop from a clone and the global is *older*, so the CLI would sync your clone in
+and the monitor would dutifully heal it **backward** to the stale release, the two writers fighting
+each other on a timer. The fuzz suite caught exactly that.) The monitor now self-heals on its own
+tick, any mutating command refreshes it, and `monitor status` / `monitor check` **report** it rather
+than repairing it out from under the question:
+
+```
+[monitor] STALE LIB: 9 module(s) behind the installed package — the hook and monitor are running OLD code
 ```
 
 **It is not a daemon.** This project exists partly *because* ruflo daemons multiply; shipping
@@ -583,11 +623,26 @@ sequences × 6 steps over `{adr-template, adr-index} × {install, uninstall, sta
 | **N1–N4** | the notifier: silent when healthy · announces the break · rate-limits · self-clears when fixed |
 | **H1–H4** | monitor liveness: silent when no monitor installed · stale heartbeat · dead interpreter · missing script |
 
+A third suite covers **every path where a failure could be mistaken for success** — which, for a
+package that is almost entirely notification paths, is the only thing that matters. It exists because
+the other two stayed green through a round of fixes they were green *before*: they pinned the old
+invariants, and an untested notification path rots without anyone noticing.
+
+| | |
+|---|---|
+| **S1–S8** | the **stable copy** — the code the hook and the monitor actually *run*. Provenance recorded · the mirror is complete · a stale module **fails `monitor check`** · is named in `status` · a mutating command heals it · **the monitor heals itself with no CLI invocation** (the case that bites: nobody re-runs `install` after `npm i -g`) · modules the package no longer ships are reaped · modules it *does* ship survive the reap |
+| **E1–E3** | the **error path** — a patch that **throws** (EACCES on a global npm root, a read-only fs) is counted and summarised, exits nonzero, and matches the shared problem predicate so the notifier will say it. Before: logged, counted nowhere, matched by none of *three divergent* regexes, and summarised as `nothing to do` |
+| **R1–R6** | **`adr-reindex`** — the `memory` prerequisite is enforced at install *and* by the script, which **refuses and deletes nothing** · a real rebuild reaps an orphan · and the post-condition catches a rebuild that reconciled **nothing**, in both directions (a clobbered delete, and silently failing stores) |
+
 **Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
-discipline earned its keep — it caught two of these tests being *vacuous* (passing with the guard
+discipline earned its keep repeatedly — it caught two tests being *vacuous* (passing with the guard
 deleted, therefore proving nothing), and fixing them exposed a live bug: `restore()` bypassed every
-guard, so a poisoned backup made **`uninstall` the most destructive command in the tool**. A test
-that cannot fail is worth nothing.
+guard, so a poisoned backup made **`uninstall` the most destructive command in the tool**.
+
+It paid again on the third suite. Writing **S3** exposed that `monitor check` **synced the stable copy
+on its way to checking it** — healing the drift before looking for it, so the gate could only ever
+report `none`. A check that cannot fail. Read-only actions now observe; mutating actions repair. A
+test that cannot fail is worth nothing, and you only ever find out by making it fail on purpose.
 
 ## Upstream issues
 
