@@ -110,9 +110,7 @@ function check(step, seq) {
 }
 
 const TARGETS = ['cwd', 'daemon', 'memory', 'all'];
-// `patch`/`revert` are deprecated aliases for install/uninstall — exercised so the
-// aliases stay correct too.
-const ACTIONS = ['install', 'uninstall', 'status', 'patch', 'revert'];
+const ACTIONS = ['install', 'uninstall', 'status'];
 
 freshSandbox();
 for (const rel of FILES) PRISTINE[rel] = fs.readFileSync(filePath(rel), 'utf8');

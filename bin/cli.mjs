@@ -22,20 +22,15 @@
 //   dual-codex-claude   single-source dual Claude Code + Codex project toolkit
 //   dedupe-bundle       slim a .claude bundle left behind by `ruflo init --full` (#2640)
 //
-// Back-compat: a bare action with no target (e.g. `install`) applies to `all`, which is
-// what a pre-2.0 `install` did.
+// A bare action with no target (e.g. `install`) applies to `all` — the sensible default,
+// since most people want every fix.
 
 import { patchCommand, monitorCommand } from '../lib/cwd/commands.mjs';
 import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 
-const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'patch', 'revert', 'run', 'check']);
+const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
-
-// `patch`/`revert` predate per-target state, when they meant "apply/unapply the files".
-// `revert` left the library byte-identical to `uninstall`, so it was uninstall with extra
-// bookkeeping. Deleted; aliased so old scripts keep working.
-const DEPRECATED = { patch: 'install', revert: 'uninstall' };
 
 function usage() {
   const pad = (s) => s.padEnd(18);
@@ -80,7 +75,7 @@ let target;
 let action;
 
 if (ACTIONS.has(rawTarget) && !rawAction) {
-  // Back-compat: bare action -> every patch target (what pre-2.0 `install` did).
+  // Bare action -> every patch target.
   target = 'all';
   action = rawTarget;
 } else {
@@ -92,11 +87,6 @@ if (!action) {
   console.error(`[ruflo-source-patch] target "${target}" needs an action (install | uninstall | status)`);
   usage();
   process.exit(1);
-}
-
-if (DEPRECATED[action] && target !== 'monitor') {
-  console.error(`[ruflo-source-patch] \`${action}\` is deprecated — use \`${DEPRECATED[action]}\` (same result). Running \`${DEPRECATED[action]}\`.`);
-  action = DEPRECATED[action];
 }
 
 let ok;
