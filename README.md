@@ -11,7 +11,7 @@ npx @sparkleideas/ruflo-source-patch <target> <action>
 
 | Target | What it does | Actions |
 |--------|--------------|---------|
-| **`cwd`** | Source patches for the installed `@claude-flow/cli`. Two fix families: **(1)** `process.cwd()` anchoring ([#2633](https://github.com/ruvnet/ruflo/issues/2633)) so `.claude-flow`/`.swarm` folders and daemons stop proliferating; **(2)** **daemon dedup** — one daemon per project root ([#2407](https://github.com/ruvnet/ruflo/issues/2407)/[#2484](https://github.com/ruvnet/ruflo/issues/2484)); **(3)** `.swarm/memory.db` **durability** — a cross-process write lock ([#2621](https://github.com/ruvnet/ruflo/issues/2621)) and WAL-coherent reads ([#2584](https://github.com/ruvnet/ruflo/issues/2584) follow-ups). | `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status` |
+| **`cwd`** | Source patches for the installed `@claude-flow/cli` (**6 patch targets**). Three fix families: **(1)** `process.cwd()` anchoring ([#2633](https://github.com/ruvnet/ruflo/issues/2633)) so `.claude-flow`/`.swarm` folders and daemons stop proliferating; **(2)** **daemon dedup** — one daemon per project root ([#2407](https://github.com/ruvnet/ruflo/issues/2407)/[#2484](https://github.com/ruvnet/ruflo/issues/2484)); **(3)** `.swarm/memory.db` **durability** — a cross-process write lock ([#2621](https://github.com/ruvnet/ruflo/issues/2621)) and WAL-coherent reads ([#2584](https://github.com/ruvnet/ruflo/issues/2584) follow-ups). | `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status` |
 | **`dual-codex-claude`** | Installs the single-source dual (Claude Code + Codex) project toolkit — scripts that create/convert a project so `AGENTS.md` is canonical and `CLAUDE.md` = `@AGENTS.md` (no duplication or drift). | `install`\|`init` · `uninstall`\|`remove` · `status` |
 
 > A bare action with no target (`npx … install`) defaults to the **`cwd`** target.
@@ -22,6 +22,18 @@ Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used v
 
 ## Target: `cwd` — source patch for the folder/daemon sprawl
 
+The `cwd` CLI target applies **6 patch targets** across 3 fix families. All are idempotent,
+individually safe-fail on anchor drift, and reverted together by `cwd uninstall`:
+
+| # | Patch target | File | Fix family |
+|---|--------------|------|------------|
+| 1 | `daemon-autostart` | `@claude-flow/cli` · `services/daemon-autostart.js` | cwd anchoring |
+| 2 | `memory-initializer` | `@claude-flow/cli` · `memory/memory-initializer.js` | cwd anchoring + **write lock** |
+| 3 | `cli-core getProjectCwd` | `@claude-flow/cli-core` · `mcp-tools/types.js` | cwd anchoring |
+| 4 | `daemon-command` | `@claude-flow/cli` · `commands/daemon.js` | cwd anchoring (**daemon dedup keyed per-cwd**) |
+| 5 | `fs-secure wal-safety` | `@claude-flow/cli` · `fs-secure.js` | memory durability |
+| 6 | `daemon-dedup (pre-#2407 builds)` | old/forked CLI · `commands/daemon.js` | daemon dedup (missing spawn lock) |
+
 `@claude-flow/cli` anchors its state to raw `process.cwd()`. Under Claude Code's
 working-directory drift (sub-agents, git worktrees, `cd` inside Bash steps), `cwd`
 is frequently a subdirectory rather than the project root — so a fresh
@@ -30,7 +42,7 @@ directory, and memory is scattered across stray `.swarm/memory.db` files.
 
 Caller-side interception can't reach every path — ruflo's own bundled plugin
 hooks invoke the CLI with a drifted cwd. Patching the **callee** fixes every
-caller at once. Three functions are rewritten to resolve the nearest ancestor
+caller at once. Four files are rewritten to resolve the nearest ancestor
 `.git` (worktree-safe) before using cwd:
 
 | Function | File |
