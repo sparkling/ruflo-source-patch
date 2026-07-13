@@ -271,14 +271,17 @@ Three things it has to get right, each learned the hard way:
 
 - **Both namespaces, together.** Clearing only `adr-patterns` fixes stale statuses and leaves the
   duplicate edges behind. A partial rebuild is its own trap.
-- **Checkpoint the WAL after the delete.** The delete goes through native `sqlite3` (into the WAL);
-  the importer reaches the DB through the CLI's sql.js reader, which can still see the *pre-delete*
-  image ([#2584](https://github.com/ruvnet/ruflo/issues/2584), [#2646](https://github.com/ruvnet/ruflo/issues/2646)),
-  then fails every INSERT on UNIQUE against rows it only *thinks* exist.
 - **Run from the project root.** `import.mjs` takes `ADR_ROOT` to find the ADR *files*, but the CLI it
   shells out to resolves *which `memory.db` to write* from its **cwd**. Invoked from anywhere else it
   reads the right ADRs and writes them to the wrong database — after this script has already emptied
-  the real one.
+  the real one. This is what an early version did, and it is what an empty index looks like.
+- **Checkpoint the WAL after the delete** — *belt-and-braces, not a fix for anything observed.*
+  Tested without it, the re-import stores 2/2 every time and the WAL is already empty (the `sqlite3`
+  CLI checkpoints on close). It is kept only because the ruflo CLI reads through sql.js, which has
+  documented WAL-coherence bugs ([#2584](https://github.com/ruvnet/ruflo/issues/2584),
+  [#2646](https://github.com/ruvnet/ruflo/issues/2646)); a reader seeing a stale pre-delete image
+  would INSERT against rows it only *thinks* exist and store nothing. One `PRAGMA` retires the whole
+  class, whoever checkpoints.
 
 Because the delete precedes the rebuild, a failed rebuild leaves an **empty** graph — which `verify`
 then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on nothing).

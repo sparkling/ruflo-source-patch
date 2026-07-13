@@ -84,13 +84,13 @@ fi
 # would fix stale statuses and leave duplicate edges behind — a partial rebuild
 # is its own trap.
 #
-# The CHECKPOINT is not optional. We delete through native sqlite3, which lands the
-# change in the WAL — but the importer reaches the DB through the CLI's sql.js
-# reader, which can still see the pre-delete image (ruvnet/ruflo#2584, #2646).
-# It then tries to INSERT rows it believes still exist, hits UNIQUE, and stores
-# NOTHING: observed live as `Records stored: 0/2` against a freshly emptied table,
-# leaving an EMPTY graph. Checkpointing folds the WAL back into the main file so
-# every reader — sql.js included — sees the same truth.
+# The CHECKPOINT is belt-and-braces, NOT a fix for anything observed here. Tested
+# without it: the delete lands, the re-import stores 2/2 every time, and the WAL is
+# already empty — the sqlite3 CLI checkpoints on close. It is kept only because the
+# CLI reads through sql.js, which has documented WAL-coherence bugs (ruvnet/ruflo#2584,
+# #2646): a reader that saw a stale pre-delete image would try to INSERT rows it
+# believes still exist, hit UNIQUE, and store nothing. One PRAGMA removes that class
+# of hazard regardless of who checkpoints. Do not read this as a reproduction.
 echo "==> clearing (hard delete — a soft delete would block the re-store)"
 sqlite3 "$DB" "
   DELETE FROM memory_entries WHERE namespace IN ('adr-patterns','adr-edges');
