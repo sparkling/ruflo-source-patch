@@ -11,7 +11,7 @@ npx @sparkleideas/ruflo-source-patch <target> <action>
 
 | Target | What it does | Actions |
 |--------|--------------|---------|
-| **`cwd`** | Source patches for the installed `@claude-flow/cli`. Two fix families: **(1)** `process.cwd()` anchoring ([#2633](https://github.com/ruvnet/ruflo/issues/2633)) so `.claude-flow`/`.swarm` folders and daemons stop proliferating; **(2)** `.swarm/memory.db` **durability** — a cross-process write lock ([#2621](https://github.com/ruvnet/ruflo/issues/2621)) and WAL-coherent reads ([#2584](https://github.com/ruvnet/ruflo/issues/2584) follow-ups). | `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status` |
+| **`cwd`** | Source patches for the installed `@claude-flow/cli`. Two fix families: **(1)** `process.cwd()` anchoring ([#2633](https://github.com/ruvnet/ruflo/issues/2633)) so `.claude-flow`/`.swarm` folders and daemons stop proliferating; **(2)** **daemon dedup** — one daemon per project root ([#2407](https://github.com/ruvnet/ruflo/issues/2407)/[#2484](https://github.com/ruvnet/ruflo/issues/2484)); **(3)** `.swarm/memory.db` **durability** — a cross-process write lock ([#2621](https://github.com/ruvnet/ruflo/issues/2621)) and WAL-coherent reads ([#2584](https://github.com/ruvnet/ruflo/issues/2584) follow-ups). | `install`\|`init` · `uninstall`\|`remove` · `patch` · `revert` · `status` |
 | **`dual-codex-claude`** | Installs the single-source dual (Claude Code + Codex) project toolkit — scripts that create/convert a project so `AGENTS.md` is canonical and `CLAUDE.md` = `@AGENTS.md` (no duplication or drift). | `install`\|`init` · `uninstall`\|`remove` · `status` |
 
 > A bare action with no target (`npx … install`) defaults to the **`cwd`** target.
@@ -54,6 +54,46 @@ copies get patched too — same reapply model as `patch-package`).
 `uninstall`/`revert`), idempotent (`/* ruflo-source-patch:patched */` marker),
 and safe-fail on version drift (each anchor string is checked before any write;
 a moved anchor is skipped, never a partial write).
+
+### Daemon dedup — one daemon per project root (shipped with the `cwd` target)
+
+The cwd patch fixes **where** state lands (one `.swarm`/`.claude-flow` at the project root
+instead of one per visited subdirectory). It does **not** stop N daemons stacking up on that
+one root — a separate bug, in a separate place.
+
+CLI builds predating [#2407](https://github.com/ruvnet/ruflo/issues/2407) /
+[#2484](https://github.com/ruvnet/ruflo/issues/2484) dedup like this: read `daemon.pid` → not
+running → `killStaleDaemons` → spawn. **With no lock.** So N concurrent `daemon start` calls
+all see an empty PID file in the same instant and each fork their own daemon. Upstream
+`@claude-flow/cli` ≥ 3.25 holds an `O_EXCL` `daemon.lock` across the whole spawn and is fine;
+older/forked builds are not.
+
+Observed in the wild on a fork pinned at `3.7.0-alpha.10`: **38 daemons on one cwd**, still
+spawning ~1 per 5 min, all orphaned to `ppid=1`, and invisible to `daemon status --all`
+(whose registry only tracks `@claude-flow/cli`). #2407 reports the same shape upstream —
+39 zombie daemons, ~8.5 GiB, kernel panic.
+
+Measured, 6 concurrent `daemon start` in one fresh project root:
+
+```
+UNPATCHED   6 concurrent starts -> 6 daemons
+PATCHED     6 concurrent starts -> 1 daemon
+```
+
+The patch injects the same `O_EXCL` lockfile upstream uses, **at the same path**
+(`<projectRoot>/.claude-flow/daemon.lock`) — so a patched old build and a modern build dedup
+against *each other*, which is what the cross-package blindness requires. Upstream's anchor
+doesn't match (it already has the lock), so it is safe-skipped — never double-locked.
+
+**Blind-spot detector.** Patch coverage is package-name-scoped, so a ruflo CLI published under
+a name we don't list would silently get *zero* protection — which is precisely how those 38
+daemons appeared. `install`/`patch` now scans the npx cache for any package that ships a
+`commands/daemon.js` (i.e. can spawn daemons) and isn't covered, and warns.
+
+> A stale fork is worth retiring, not patching: `3.7.0-alpha.10` is missing not just daemon
+> dedup but also [#2585](https://github.com/ruvnet/ruflo/pull/2585)'s atomic flushes — the
+> torn-write corruption fix. This patch is a guard, not a substitute for keeping up with
+> upstream.
 
 ### Memory durability (shipped with the `cwd` target)
 
