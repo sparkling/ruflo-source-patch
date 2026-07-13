@@ -238,7 +238,9 @@ asserting after every step:
 
 ## Limits
 
-- Covers the **npx cache** only. A global `npm i -g ruflo` is invisible to it.
+- Covers the **npx cache** and **global installs** (`npm i -g` — the root reported by `npm
+  root -g`). If `@claude-flow/cli` isn't installed in one of those, that location is simply
+  skipped. A custom npm prefix can be pointed at with `RUFLO_GLOBAL_ROOT`.
 - The scheduled job records an absolute `node` path. Version managers pin that per version
   (mise: `.../installs/node/24.14.1/bin/node`), so upgrading node breaks it — `monitor status`
   detects this and reports `BROKEN`; re-run `monitor install` to re-pin.
