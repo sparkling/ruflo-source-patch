@@ -61,6 +61,52 @@ PLUGIN="$(find "$PLUGIN_ROOT" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort
 
 count() { sqlite3 "$DB" "SELECT count(*) FROM memory_entries WHERE namespace='$1';"; }
 
+# How many ADRs SHOULD be in the index. Mirrors import.mjs's own discovery rule exactly (any
+# .md under docs/adr/ or docs/adrs/, recursively) — which is what it calls `desiredRecords`.
+# Without this the rebuild has no post-condition worth the name; see the guard at the bottom.
+#
+# Only ever hand `find` directories that EXIST. Most projects have docs/adr and not docs/adrs, so
+# naming both unconditionally makes find exit 1 — and under `set -e` that killed the script dead,
+# right after a perfectly good rebuild, with no message and exit 1. (Observed, in this script,
+# during exactly the verification run that was supposed to prove it worked.)
+adr_file_count() {
+  local dirs=()
+  [ -d "$ROOT/docs/adr" ] && dirs+=("$ROOT/docs/adr")
+  [ -d "$ROOT/docs/adrs" ] && dirs+=("$ROOT/docs/adrs")
+  [ ${#dirs[@]} -eq 0 ] && { echo 0; return; }
+  find "${dirs[@]}" -type f -name '*.md' | wc -l | tr -d ' '
+}
+
+# THE WRITE LOCK — the same <db>.rsp-lock the `memory` patch target installs into the CLI
+# (O_EXCL create, holder writes its pid, stale after 15s).
+#
+# WHY THIS SCRIPT NEEDS IT. ruflo writes memory.db as a whole-file read-modify-write image, so a
+# concurrent writer that read BEFORE our delete and flushes AFTER it puts every row back — the
+# "50 acked, 25 on disk" failure the memory patch exists to prevent, aimed squarely at the one
+# operation this script exists to perform. Deleting outside the lock made the reconcile itself
+# the least safe write in the system.
+#
+# SCOPE: the DELETE only. We must NOT hold it across the re-import — the patched CLI takes this
+# same lock for every store, and would spin for 5s and then proceed UNLOCKED (its timeout path
+# degrades rather than fails). Locking the delete is what the race needs; locking the import
+# would only disable the import's own locking.
+LOCK="$DB.rsp-lock"
+lock_acquire() {
+  local deadline=$(( $(date +%s) + 5 ))
+  while :; do
+    if ( set -o noclobber; printf '%s' "$$" > "$LOCK" ) 2>/dev/null; then
+      trap 'rm -f "$LOCK"' EXIT INT TERM
+      return 0
+    fi
+    # Steal a stale lock: >15s old means the holder died mid-write.
+    local age
+    age=$(( $(date +%s) - $(stat -f %m "$LOCK" 2>/dev/null || stat -c %Y "$LOCK" 2>/dev/null || echo 0) ))
+    if [ "$age" -gt 15 ]; then rm -f "$LOCK"; continue; fi
+    [ "$(date +%s)" -ge "$deadline" ] && return 1
+    sleep 0.1
+  done
+}
+
 # Run FROM the project root. import.mjs takes ADR_ROOT to find the ADR *files*, but
 # it shells out to the ruflo CLI to store them — and the CLI resolves which
 # memory.db to write from its CWD, not from ADR_ROOT. Invoked from anywhere else,
@@ -92,24 +138,60 @@ fi
 # believes still exist, hit UNIQUE, and store nothing. One PRAGMA removes that class
 # of hazard regardless of who checkpoints. Do not read this as a reproduction.
 echo "==> clearing (hard delete — a soft delete would block the re-store)"
+if lock_acquire; then
+  echo "    holding the write lock ($LOCK)"
+else
+  # Never hard-fail on the lock — same discipline as the memory patch itself, which proceeds
+  # unlocked rather than breaking memory. But SAY SO: an unlocked delete is exactly the window
+  # in which a concurrent writer can resurrect everything we are about to remove.
+  echo "    WARNING: could not take the write lock after 5s — deleting UNLOCKED." >&2
+  echo "             A concurrent ruflo writer could resurrect these rows. The post-check below" >&2
+  echo "             will catch it if it happens; re-run this command if it does." >&2
+fi
+
 sqlite3 "$DB" "
   DELETE FROM memory_entries WHERE namespace IN ('adr-patterns','adr-edges');
   PRAGMA wal_checkpoint(TRUNCATE);
 "
 
+# Release BEFORE the import: the patched CLI takes this same lock on every store, and holding it
+# here would make it spin out and fall back to unlocked writes for the entire rebuild.
+rm -f "$LOCK"; trap - EXIT INT TERM
+
 echo "==> rebuilding from the ADR files"
 ADR_ROOT="$ROOT" node "$PLUGIN/scripts/import.mjs"
 
-# A rebuild that stored nothing is the worst outcome: the old index is already
-# gone, so a silent failure leaves an EMPTY graph that `verify` then certifies as
-# healthy (0 records, 0 dangling refs, 0 cycles — a clean bill of health on
-# nothing). Never exit 0 on that.
+# THE POST-CONDITION. The index must now hold EXACTLY one record per ADR file — no more, no less.
+#
+# `records != 0` was the old check, and it cannot see the failure this script exists to prevent.
+# If the delete is clobbered (a concurrent writer flushing a pre-delete image), the re-import
+# simply upserts cleanly on top of the resurrected rows: records is nonzero, every store reports
+# ok, and the script exits 0 having reconciled NOTHING — with the orphans it was run to reap
+# still sitting there. The one job, silently not done.
+#
+# Comparing against the file count catches both directions at once: too few (the store is
+# failing) and too many (the delete didn't take, or didn't stick).
 RECORDS="$(count adr-patterns)"
+EXPECTED="$(adr_file_count)"
+
 if [ "$RECORDS" -eq 0 ]; then
   echo "error: rebuild stored 0 records — the index is now EMPTY." >&2
   echo "       The ADR files are intact; re-run this command to rebuild." >&2
   echo "       If it persists, the CLI's store is failing — run the importer directly to see why:" >&2
   echo "       ADR_ROOT=$ROOT node $PLUGIN/scripts/import.mjs" >&2
+  exit 1
+fi
+
+if [ "$RECORDS" -ne "$EXPECTED" ]; then
+  echo "error: the index holds $RECORDS record(s) for $EXPECTED ADR file(s) — NOT reconciled." >&2
+  if [ "$RECORDS" -gt "$EXPECTED" ]; then
+    echo "       More rows than files: the DELETE did not stick. A concurrent ruflo writer" >&2
+    echo "       (daemon, MCP server) most likely flushed a pre-delete image back over it." >&2
+    echo "       Stop it and re-run:  npx @claude-flow/cli@latest daemon stop" >&2
+  else
+    echo "       Fewer rows than files: some ADRs failed to store. Run the importer directly:" >&2
+    echo "       ADR_ROOT=$ROOT node $PLUGIN/scripts/import.mjs" >&2
+  fi
   exit 1
 fi
 

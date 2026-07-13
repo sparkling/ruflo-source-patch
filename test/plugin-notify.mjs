@@ -25,24 +25,27 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const REPO = '/Users/henrik/source/ruflo-source-patch';
+import { REPO, findPluginRoot, pristineBytes } from './fixtures.mjs';
+
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
 
-const PLUGIN_VER = '0.3.0';
-const REAL_PLUGIN = `${process.env.HOME}/.claude/plugins/cache/ruflo/ruflo-adr/${PLUGIN_VER}`;
+// Discovered, not pinned: `0.3.0` was written down here, so the suite broke the moment the
+// plugin was upgraded — and broke by not finding its fixtures, which is a confusing way to fail.
+const { dir: REAL_PLUGIN, version: PLUGIN_VER } = findPluginRoot();
 const IMPORT_REL = ['scripts', 'import.mjs'];
 const SKILL_REL = ['skills', 'adr-create', 'SKILL.md'];
 
 const pluginFile = (rel) => path.join(HOME, '.claude', 'plugins', 'cache', 'ruflo', 'ruflo-adr', PLUGIN_VER, ...rel);
 const PRISTINE = {};
 
-// Fixtures are the VENDOR originals — the .rsp-backup when the dev machine has the patch
-// installed, otherwise the file itself.
-function vendorSource(rel) {
-  const real = path.join(REAL_PLUGIN, ...rel);
-  return fs.existsSync(`${real}.rsp-backup`) ? `${real}.rsp-backup` : real;
+// The VENDOR originals. pristineBytes() prefers the .rsp-backup and REFUSES a patched file that
+// has none — the old fallback took the patched file as the baseline and tested the patch against
+// itself.
+const KIND = { 'scripts,import.mjs': 'adrIndex', 'skills,adr-create,SKILL.md': 'adrTemplate' };
+function vendorBytes(rel) {
+  return pristineBytes(path.join(REAL_PLUGIN, ...rel), KIND[rel.join(',')]);
 }
 
 function freshSandbox() {
@@ -52,7 +55,7 @@ function freshSandbox() {
   for (const rel of [IMPORT_REL, SKILL_REL]) {
     const dest = pluginFile(rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.copyFileSync(vendorSource(rel), dest);
+    fs.writeFileSync(dest, vendorBytes(rel));
   }
 }
 

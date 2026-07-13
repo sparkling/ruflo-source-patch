@@ -114,7 +114,9 @@ if (rawTarget === 'cleanup') {
   const opts = { dryRun: rest.includes('--dry-run'), allDaemons: rest.includes('--all-daemons') };
   const r = runCleanup(dir, opts);
   for (const l of r.log) console.log(`[cleanup] ${l}`);
-  process.exit(0);
+  // `refused` (too-broad root) and any failed kill/removal are failures. This used to exit 0
+  // unconditionally — including on a run that refused to do anything at all.
+  process.exit(r.refused || r.failures ? 1 : 0);
 }
 
 if (ACTIONS.has(rawTarget) && !rawAction) {

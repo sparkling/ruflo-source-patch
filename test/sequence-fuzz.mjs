@@ -13,9 +13,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 
-const REPO = '/Users/henrik/source/ruflo-source-patch';
+import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+
 const SB = process.argv[2];
-const REAL = '/Users/henrik/.npm/_npx/9806d7724c607a8d/node_modules';
+const REAL = findVendorRoot(); // discovered — the npx cache hash is content-addressed, not fixed
 const FILES = [
   '@claude-flow/cli/dist/src/fs-secure.js',
   '@claude-flow/cli/dist/src/memory/memory-initializer.js',
@@ -31,8 +32,9 @@ function freshSandbox() {
   for (const rel of FILES) {
     const dest = path.join(SB, 'npx', 'h', 'node_modules', rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    const src = fs.existsSync(`${REAL}/${rel}.rsp-backup`) ? `${REAL}/${rel}.rsp-backup` : `${REAL}/${rel}`;
-    fs.copyFileSync(src, dest);
+    // pristineBytes() REFUSES a patched file with no backup, rather than adopting it as the
+    // baseline — which is what the old `backup ?? file` fallback did, silently.
+    fs.writeFileSync(dest, pristineBytes(path.join(REAL, rel)));
   }
 }
 const filePath = (rel) => path.join(SB, 'npx', 'h', 'node_modules', rel);
