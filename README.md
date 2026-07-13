@@ -285,8 +285,8 @@ The ADR files are the source of truth; `adr-patterns` / `adr-edges` are a derive
 cache the correct reconcile is a **rebuild**, and at ADR scale it's instant.
 
 ```bash
-npx @sparkleideas/ruflo-source-patch memory install       # REQUIRED — see below
-npx @sparkleideas/ruflo-source-patch adr-reindex install
+npx github:sparkling/ruflo-source-patch memory install       # REQUIRED — see below
+npx github:sparkling/ruflo-source-patch adr-reindex install
 ~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh [project-dir] [--dry-run]
 ```
 

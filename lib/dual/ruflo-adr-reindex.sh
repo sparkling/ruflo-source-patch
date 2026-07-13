@@ -34,7 +34,7 @@
 # memory/wal-coherent-reads (so nobody acts on a stale pre-delete image). Without it the delete
 # races a daemon that can resurrect every row, so the script refuses rather than duplicating a
 # weaker version of protection the patch already provides.
-#   npx @sparkleideas/ruflo-source-patch memory install
+#   npx github:sparkling/ruflo-source-patch memory install
 set -euo pipefail
 
 DRY_RUN=0
@@ -129,7 +129,7 @@ if ! memory_patch_installed; then
   echo "       image will flush it back and resurrect every row we remove (ruvnet/ruflo#2621)." >&2
   echo "       Refusing rather than gambling your index on a race we cannot win." >&2
   echo "" >&2
-  echo "       Install it:  npx @sparkleideas/ruflo-source-patch memory install" >&2
+  echo "       Install it:  npx github:sparkling/ruflo-source-patch memory install" >&2
   exit 1
 fi
 lock_acquire() {
