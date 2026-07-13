@@ -134,21 +134,27 @@ if (!action) {
   process.exit(1);
 }
 
-// Refresh the stable copy on EVERY invocation, not just `install`.
+// Refresh the stable copy on every MUTATING invocation, not just `install`.
 //
 // ~/.ruflo-source-patch/lib is what the SessionStart hook and the monitor execute. It was
-// written only by an install action, so upgrading the package changed nothing about what
-// either of them actually ran — silently, and for good. This process is the package, so it is
-// the one thing that always knows the current bytes: any command at all now re-syncs them.
+// written only by an install action, so upgrading the package changed nothing about what either
+// of them actually ran — silently, and for good. This process IS the package, so it is the one
+// thing that always knows the current bytes.
 //
-// Guarded on "something is installed": with an empty state there is no hook and no monitor, so
-// there is nothing to keep current, and a bare `status` should not create a stable dir. The
-// monitor self-heals too (stable.mjs), for the case where the CLI is never run again.
+// But NOT on the read-only actions. `status` and `check` exist to tell you what is true, and a
+// command that heals the drift on its way to looking for it can only ever report `none` — the
+// STALE-LIB gate would be unreachable, a check that cannot fail. Read-only commands observe;
+// mutating commands repair. (The monitor repairs too, on its own tick — see stable.mjs.)
+const READ_ONLY = new Set(['status', 'check']);
 try {
-  const { readState, isEmpty } = await import('../lib/cwd/state.mjs');
-  if (!isEmpty(readState())) {
-    const { syncStableCopy } = await import('../lib/cwd/commands.mjs');
-    syncStableCopy();
+  if (!READ_ONLY.has(action)) {
+    const { readState, isEmpty } = await import('../lib/cwd/state.mjs');
+    // Guarded on "something is installed": with an empty state there is no hook and no monitor,
+    // so there is nothing to keep current, and no reason to create a stable dir.
+    if (!isEmpty(readState())) {
+      const { syncStableCopy } = await import('../lib/cwd/commands.mjs');
+      syncStableCopy();
+    }
   }
 } catch { /* never let a refresh break the command the user actually asked for */ }
 
