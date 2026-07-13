@@ -173,6 +173,18 @@ const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
   if (fs.statSync(filePath(REL)).size === 0) fail(`R1a: DESTROYED the vendor file (${before} bytes -> 0) from an empty backup`);
 }
 
+// R1c — the same poison, via UNINSTALL. revert() bypasses readPristine() entirely: it just
+// copies the backup back, so an empty backup makes `uninstall` truncate the file it is meant
+// to be restoring. The most destructive command in the tool was the one that undoes things.
+{
+  freshSandbox();
+  for (const t of TARGETS) cli([t, 'install']);
+  fs.writeFileSync(`${filePath(REL)}.rsp-backup`, '');
+  const before = fs.statSync(filePath(REL)).size;
+  for (const t of TARGETS) cli([t, 'uninstall']);
+  if (fs.statSync(filePath(REL)).size === 0) fail(`R1c: UNINSTALL destroyed the vendor file (${before} bytes -> 0) from an empty backup`);
+}
+
 // R1b — an empty vendor file is never patched, and never adopted as pristine.
 {
   freshSandbox();
@@ -202,4 +214,4 @@ const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
   if (backup.includes('__rufloResolveRoot')) fail('R2: baked our own patch into "pristine" — uninstall would no longer be clean');
 }
 
-console.log('✔ regressions pinned (R1a empty backup never destroys the file, R1b never truncates, R2 re-baselines instead of reverting an update)');
+console.log('✔ regressions pinned (R1a empty backup never destroys, R1b never truncates, R1c uninstall never destroys, R2 re-baselines instead of reverting an update)');

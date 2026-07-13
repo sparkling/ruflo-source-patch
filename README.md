@@ -562,17 +562,28 @@ our own commands can do:
 
 | | Regression |
 |---|---|
-| **R1a** | an empty `.rsp-backup` never destroys the real file *(fails without the guard: 3954 → 0 bytes)* |
+| **R1a** | an empty `.rsp-backup` never destroys the real file *(without the guard: 3954 → 0 bytes)* |
 | **R1b** | a zero-byte target is never patched, and never adopted as pristine |
-| **R2** | an in-place vendor update is **re-baselined**, not reverted to a stale backup *(fails without the guard: "CLOBBERED an upstream update")* |
+| **R1c** | **`uninstall`** never destroys the file from an empty backup *(without the guard: 3954 → 0)* |
+| **R2** | an in-place vendor update is **re-baselined**, not reverted to a stale backup *(without the guard: "CLOBBERED an upstream update")* |
 
-Both regressions were mutation-tested — the guard was removed and each was confirmed to fail. A test
+A second suite covers the **plugin patches, the notifier, and the monitor's own liveness** — 30
+sequences × 6 steps over `{adr-template, adr-index} × {install, uninstall, status}`, plus:
+
+| | |
+|---|---|
+| **P1–P5** | applied ⟺ installed · pristine restore · still parses · never truncated · idempotent |
+| **R3** | an in-place `/plugin update` is re-baselined, not reverted *(without the guard: "CLOBBERED")* |
+| **R4** | an empty backup never destroys the plugin file — on **`monitor run` and `uninstall`** *(without the guard: 13337 → 0)* |
+| **R5** | a broken anchor is reported as `INCOMPLETE` and **names the edit that failed** — never silently skipped |
+| **N1–N4** | the notifier: silent when healthy · announces the break · rate-limits · self-clears when fixed |
+| **H1–H4** | monitor liveness: silent when no monitor installed · stale heartbeat · dead interpreter · missing script |
+
+**Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
+discipline earned its keep — it caught two of these tests being *vacuous* (passing with the guard
+deleted, therefore proving nothing), and fixing them exposed a live bug: `revert()` bypassed every
+guard, so a poisoned backup made **`uninstall` the most destructive command in the tool**. A test
 that cannot fail is worth nothing.
-
-**Not covered:** the fuzzer exercises `{cwd, daemon, memory}` only. The plugin patches
-(`adr-template`, `adr-index`), the notifier, and the monitor-health checks were verified by hand —
-including simulating a `/plugin update`, a broken anchor, a dead monitor, and a vanished node
-interpreter — but they are not in the automated suite yet.
 
 ## Upstream issues
 

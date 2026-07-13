@@ -37,6 +37,6 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "node test/sequence-fuzz.mjs $(mktemp -d)"
+    "test": "node test/sequence-fuzz.mjs $(mktemp -d) && node test/plugin-notify.mjs $(mktemp -d)"
   }
 }
