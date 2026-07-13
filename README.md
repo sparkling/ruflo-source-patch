@@ -15,11 +15,18 @@ uninstalls **on its own**: take the daemon fix without the SQLite write lock, dr
 keep the rest. They don't entangle.
 
 ```bash
-npx @sparkleideas/ruflo-source-patch all install        # every fix
-npx @sparkleideas/ruflo-source-patch daemon install     # just the daemon one
-npx @sparkleideas/ruflo-source-patch memory uninstall   # drop the write lock, keep the rest
-npx @sparkleideas/ruflo-source-patch all status
+npx @sparkleideas/ruflo-source-patch cwd install
+npx @sparkleideas/ruflo-source-patch daemon install
+npx @sparkleideas/ruflo-source-patch memory install
+npx @sparkleideas/ruflo-source-patch monitor install     # keep them live
+
+npx @sparkleideas/ruflo-source-patch memory uninstall    # drop one, keep the rest
+npx @sparkleideas/ruflo-source-patch memory status
 ```
+
+There is no `all` and no bare-action default. An `all` that meant "the three patch targets,
+but not the monitor and not the script targets" was a lie in the name, and a default that
+installs things you didn't ask for is worse than naming them.
 
 Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used via `npx`.
 
@@ -36,7 +43,6 @@ Source patches to the installed `@claude-flow/cli`.
 | **`cwd`** | `.claude-flow`/`.swarm` stop following a drifted cwd — one state dir at the project root, not one per visited subdirectory | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability — a cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
-| **`all`** | every patch target above | |
 
 > To turn a target off, **uninstall** it; install it again to get it back. There is no
 > `revert` or `pause` — reverting left the library byte-identical to what uninstalling
@@ -212,7 +218,7 @@ neighbours.
 ## Tested
 
 `npm test` runs a property fuzzer: 60 random sequences × 8 steps over
-`{cwd, daemon, memory, all} × {install, uninstall, status}`, with a monitor tick after **every**
+`{cwd, daemon, memory} × {install, uninstall, status}`, with a monitor tick after **every**
 step, asserting after every step:
 
 | | Invariant |

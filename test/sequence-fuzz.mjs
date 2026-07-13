@@ -109,7 +109,7 @@ function check(step, seq) {
   }
 }
 
-const TARGETS = ['cwd', 'daemon', 'memory', 'all'];
+const TARGETS = ['cwd', 'daemon', 'memory'];
 const ACTIONS = ['install', 'uninstall', 'status'];
 
 freshSandbox();
@@ -130,10 +130,10 @@ for (let run = 0; run < RUNS; run++) {
     cli(['monitor', 'run']);   // a monitor tick after EVERY step — must never violate an invariant
     check(i, seq);
   }
-  // I6 — idempotence: `install` twice is a no-op the second time.
-  cli(['all', 'install']);
+  // I6 — idempotence: installing twice is a no-op the second time.
+  for (const t of TARGETS) cli([t, 'install']);
   const snap = FILES.map((rel) => fs.readFileSync(filePath(rel), 'utf8'));
-  cli(['all', 'install']);
+  for (const t of TARGETS) cli([t, 'install']);
   cli(['monitor', 'run']);
   FILES.forEach((rel, i) => {
     if (fs.readFileSync(filePath(rel), 'utf8') !== snap[i]) {
