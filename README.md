@@ -38,6 +38,7 @@ caller at once. Three functions are rewritten to resolve the nearest ancestor
 | `ensureDaemonRunning` | `@claude-flow/cli/dist/src/services/daemon-autostart.js` |
 | `getMemoryRoot` | `@claude-flow/cli/dist/src/memory/memory-initializer.js` |
 | `getProjectCwd` | `@claude-flow/cli-core/dist/src/mcp-tools/types.js` |
+| `daemon start` / `stop` / `status` (6 call sites) | `@claude-flow/cli/dist/src/commands/daemon.js` |
 
 ```bash
 npx @sparkleideas/ruflo-source-patch cwd install     # or: cwd init
@@ -55,11 +56,34 @@ copies get patched too — same reapply model as `patch-package`).
 and safe-fail on version drift (each anchor string is checked before any write;
 a moved anchor is skipped, never a partial write).
 
+### `daemon start` is dedup'd per-CWD, not per-project (current upstream)
+
+Patching `daemon-autostart.js` and `getMemoryRoot` is **not enough**, and this gap is live in
+**up-to-date upstream** (verified on 3.25.6, which already has the #2484 spawn lock). The
+`daemon start` *command* in `commands/daemon.js` anchors its own state — `.claude-flow/`,
+`daemon.pid`, and the #2484 dedup lockfile — to raw `process.cwd()`. So the lock and PID file
+are keyed **per-cwd**, not per-project: they dedup perfectly against other starts *in the same
+directory*, and not at all against starts elsewhere in the same repo.
+
+Measured on ruflo **3.25.6**, with the rest of the cwd patch already applied:
+
+| 6 concurrent `daemon start` | Before | After |
+|---|---|---|
+| all 6 from the repo **root** | 1 daemon | 1 daemon |
+| 6 from 6 different **subdirs** | **6 daemons, 6 stray `.claude-flow` dirs** | **1 daemon, 1 `.claude-flow`** |
+
+Hooks, sub-agents and worktrees routinely invoke the CLI with a drifted cwd, which is how one
+project accumulates daemons even on a current build. Resolving to the project root makes the
+existing #2484 lockfile/PID dedup actually *bind* across all of them, and makes `daemon
+status`/`stop` from a subdirectory find the root daemon instead of reporting "not running".
+
+> The `const cwd = process.cwd();` path-validation guard in `daemon.js` is **deliberately not
+> patched** — it's a security boundary ("allow only paths within project structure"), not state
+> anchoring, and widening it to the repo root would loosen it for zero dedup benefit.
+
 ### Daemon dedup — one daemon per project root (shipped with the `cwd` target)
 
-The cwd patch fixes **where** state lands (one `.swarm`/`.claude-flow` at the project root
-instead of one per visited subdirectory). It does **not** stop N daemons stacking up on that
-one root — a separate bug, in a separate place.
+Separately from the per-cwd keying above, **old/forked builds lack the spawn lock entirely**.
 
 CLI builds predating [#2407](https://github.com/ruvnet/ruflo/issues/2407) /
 [#2484](https://github.com/ruvnet/ruflo/issues/2484) dedup like this: read `daemon.pid` → not
