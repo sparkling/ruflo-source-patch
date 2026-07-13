@@ -64,7 +64,7 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it gives you |
 |--------|-------------------|
-| **`dual-codex-claude`** *(alias `dual`)* | Create or convert a **single-source dual** Claude Code + Codex project: `AGENTS.md` is canonical, `CLAUDE.md` is `@AGENTS.md`. No symlink, no duplication, no drift. |
+| **`dual-codex-claude`** *(alias `dual`)* | Create or convert a **single-source dual** Claude Code + Codex project: `AGENTS.md` is canonical, `CLAUDE.md` is `@AGENTS.md`. No symlink, no duplication, no drift. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
 | **`dedupe-bundle`** *(alias `dedupe`)* | **Clean up an existing project** bloated by `ruflo init --full`: drop the `.claude/{skills,commands,agents}` entries the installed `ruflo/*` plugins already provide, and optionally the `settings.json` hooks that double-fire against the plugin hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
 
 ---
@@ -197,6 +197,7 @@ from a differently-named build while `daemon status --all` reported "6 daemons, 
 
 Removes a single project's daemon and folder sprawl — the mess that accumulated *before* the
 `cwd`/`daemon` patches were applied (they prevent new sprawl; this clears the old).
+([#2633](https://github.com/ruvnet/ruflo/issues/2633))
 
 ```bash
 npx github:sparkling/ruflo-source-patch cleanup [dir]              # default: cwd
@@ -278,6 +279,38 @@ asserting after every step:
 | **I4** | no stray temp files, ever |
 | **I5** | `monitor check`'s exit code matches actual drift |
 | **I6** | installing twice is a no-op the second time |
+
+## Upstream issues
+
+Every target here is a local workaround for an open (or closed-but-with-open-follow-ups)
+`ruvnet/ruflo` issue. Most of these we filed ourselves while building this tool; a couple we
+contributed a reproduction and fix to. The tool doesn't *fix* upstream — it works around these
+locally until they land.
+
+**Filed by us:**
+
+| Issue | What's wrong upstream | Worked around by |
+|-------|-----------------------|------------------|
+| [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation — `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
+| [#2652](https://github.com/ruvnet/ruflo/issues/2652) | Read/write paths disagree on row visibility (also: soft-deleted keys block re-store) | `memory` — the WAL-coherent-reads half; the tombstone bug is upstream's |
+| [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
+| [#2638](https://github.com/ruvnet/ruflo/issues/2638) | `ruflo init` (CLAUDE.md) and `codex init` (AGENTS.md) generate divergent instruction files | `dual-codex-claude` |
+| [#2637](https://github.com/ruvnet/ruflo/issues/2637) | `ruflo init` gitignores only a nested `.claude-flow/.gitignore`; root `.env` is left tracked | `dual-codex-claude` (its `.gitignore` step) |
+| [#2636](https://github.com/ruvnet/ruflo/issues/2636) | `ruflo init --dual` produces a Codex-primary layout (thin CLAUDE.md stub) | `dual-codex-claude` |
+| [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (uses `npx --yes`) |
+| [#2634](https://github.com/ruvnet/ruflo/issues/2634) | `codex init --template full` generates ~100 placeholder stub skills | `dual-codex-claude` (default template only) |
+
+**Contributed to (a reproduction + fix, not filed by us):**
+
+| Issue | What's wrong upstream | Worked around by |
+|-------|-----------------------|------------------|
+| [#2621](https://github.com/ruvnet/ruflo/issues/2621) | daemon ↔ MCP last-writer-wins **silently drops writes** — we posted a 30-line repro and the lock implementation | `memory` write lock |
+| [#2584](https://github.com/ruvnet/ruflo/issues/2584) | `memory.db` sql.js corruption under concurrent writers (**closed** — we commented the two still-open follow-ups it named) | `memory` |
+
+**Referenced (upstream, not ours):** the `daemon` spawn-lock builds on
+[#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484);
+`memory`'s atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
+[#2646](https://github.com/ruvnet/ruflo/issues/2646) is another report of the visibility symptom the WAL fix addresses.
 
 ## Limits
 
