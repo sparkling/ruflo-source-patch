@@ -2,9 +2,10 @@
 
 Install with `npx github:sparkling/ruflo-source-patch` — zero dependencies, no registry required.
 
-Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` bugs that are
-still open upstream: folder sprawl, multiplying daemons, and a memory store that silently
-drops writes.
+Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` (and its
+`ruflo-adr` plugin) bugs that are still open upstream: folder sprawl, multiplying daemons, a
+memory store that silently drops writes, and an ADR template whose own metadata format its
+sibling parser can't read.
 
 ```bash
 npx github:sparkling/ruflo-source-patch <target> <action>
@@ -55,6 +56,14 @@ Actions: `install` · `uninstall` · `status`
 | **`cwd`** | `.claude-flow`/`.swarm` stop following a drifted cwd — one state dir at the project root, not one per visited subdirectory | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability — a cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
+
+**Plugin template patch** — a source patch to the installed `ruflo-adr` plugin
+(not `@claude-flow/cli`), same shape as the patch targets above.
+Actions: `install` · `uninstall` · `status`
+
+| Target | What it fixes | Upstream |
+|--------|---------------|----------|
+| **`adr-template`** | `adr-create`'s own template writes ADR metadata as a bullet list (`- **Status**: proposed`); `adr-index`'s parser only recognises an unprefixed `**Status**:` line or YAML frontmatter, so Status/Date/Tags silently come back empty/Unknown for every ADR authored via `adr-create`'s documented template. Strips the leading `- ` from those four lines so the two skills in the same plugin agree | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
 
 **`monitor`** — re-applies the patches when something overwrites them.
 Actions: `install` · `uninstall` · `status` · `run` · `check`
@@ -160,6 +169,38 @@ read, so the image is complete.
 throughput hit. Correct-and-slower beats fast-and-lossy, but the honest fix is upstream
 follow-up #3 (native better-sqlite3 + WAL for the primary flush), which deletes this problem
 class instead of guarding it. Don't want the trade? `memory uninstall`.
+
+## `adr-template` — adr-create's own template breaks adr-index's parser
+
+`ruflo-adr`'s two skills disagree with each other on ADR metadata format. `adr-create`'s own
+template (`SKILL.md` step 3) writes:
+
+```
+- **Status**: proposed
+- **Date**: 2026-07-13
+- **Tags**: golden-corpus, ddd, microservices
+```
+
+`adr-index`'s parser (`scripts/import.mjs`) reads these fields with `^`-anchored regexes
+(`/^\*\*Status\*\*:.../m`, same shape for `Date`/`Tags`) that require the field marker at the
+*start* of the line — per its own doc comment, it recognises exactly two formats: "v3-style"
+(an unprefixed `**Status**:` line) or YAML frontmatter. The bullet list `adr-create` itself
+emits is neither, so the leading `- ` breaks the `^` anchor and `parseStatus`/`parseDate`/
+`parseTags` silently return `Unknown`/`''`/`[]` for every ADR authored by following
+`adr-create`'s documented template to the letter — confirmed against a real ADR
+(`docs/adr/ADR-001-*.md`) produced exactly that way ([#2659](https://github.com/ruvnet/ruflo/issues/2659)).
+
+**Fix:** strip the leading `- ` from those four template lines, so `adr-create`'s own output
+matches the "v3-style" format `adr-index` — its sibling skill in the SAME plugin — already
+parses. One plugin, one format; both skills agree once patched.
+
+Unlike `cwd`/`daemon`/`memory`, this patches an installed **Claude Code plugin** (`ruflo-adr`'s
+`adr-create/SKILL.md`), not `@claude-flow/cli` — scoped to the **upstream `ruflo` marketplace
+only** (`~/.claude/plugins/cache/ruflo/ruflo-adr/*/skills/adr-create/SKILL.md` and
+`~/.claude/plugins/marketplaces/ruflo/plugins/ruflo-adr/skills/adr-create/SKILL.md`), same
+pristine-backup + atomic-write discipline as the JS patches above. Not wired into `monitor` —
+plugin files don't get silently replaced by a background `npx` fetch the way the CLI does; they
+only change via an explicit `/plugin update`.
 
 ## `monitor` — keep the patches applied
 
@@ -298,6 +339,7 @@ they land.
 | [#2636](https://github.com/ruvnet/ruflo/issues/2636) | `ruflo init --dual` produces a Codex-primary layout (thin CLAUDE.md stub) | `dual-codex-claude` |
 | [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (uses `npx --yes`) |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634) | `codex init --template full` generates ~100 placeholder stub skills | `dual-codex-claude` (default template only) |
+| [#2659](https://github.com/ruvnet/ruflo/issues/2659) | `ruflo-adr`'s own `adr-create` template writes bullet-list metadata that `adr-index`'s parser can't read (Status/Date/Tags silently come back empty/Unknown) | `adr-template` |
 
 **Contributed a reproduction + fix (filed by someone else):**
 

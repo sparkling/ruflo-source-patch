@@ -12,6 +12,11 @@
 //   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
 //
+// Plugin template patch (source patch to the installed `ruflo-adr` plugin, not
+// @claude-flow/cli — same install/uninstall/status shape, different target file):
+//   adr-template   adr-create's own template writes bullet-list metadata that
+//                  adr-index's parser can't read (#2659)
+//
 // Infra target:
 //   monitor  keep the patches live — a scheduled re-apply, because `npx` fetching a new
 //            copy (or a `ruflo update`) silently replaces a patched file and the
@@ -30,6 +35,7 @@ import { patchCommand, monitorCommand } from '../lib/cwd/commands.mjs';
 import { runCleanup } from '../lib/cwd/cleanup.mjs';
 import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
+import { adrTemplateCommand } from '../lib/adr-template/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
@@ -45,6 +51,9 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('cwd')}${TARGET_INFO.cwd}
   ${pad('daemon')}${TARGET_INFO.daemon}
   ${pad('memory')}${TARGET_INFO.memory}
+
+Plugin template patch          (actions: install | uninstall | status)
+  ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)
 
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update overwrites them
@@ -67,6 +76,7 @@ Other:
   npx @sparkleideas/ruflo-source-patch memory status
   npx @sparkleideas/ruflo-source-patch monitor check      # exit 1 if anything drifted
   npx @sparkleideas/ruflo-source-patch dedupe-bundle install
+  npx @sparkleideas/ruflo-source-patch adr-template install
   npx @sparkleideas/ruflo-source-patch cleanup . --dry-run`);
 }
 
@@ -107,10 +117,12 @@ if (target === 'monitor') {
   ok = monitorCommand(action);
 } else if (PATCH_TARGETS.includes(target)) {
   ok = patchCommand([target], action);
+} else if (target === 'adr-template') {
+  ok = adrTemplateCommand(action);
 } else if (SCRIPT_TARGETS[target]) {
   ok = scriptCommand(target, action);
 } else {
-  const known = [...PATCH_TARGETS, 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
+  const known = [...PATCH_TARGETS, 'adr-template', 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
   console.error(`[ruflo-source-patch] unknown target "${target}" (expected: ${known})`);
   usage();
   process.exit(1);
