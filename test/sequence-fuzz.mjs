@@ -173,7 +173,7 @@ const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
   if (fs.statSync(filePath(REL)).size === 0) fail(`R1a: DESTROYED the vendor file (${before} bytes -> 0) from an empty backup`);
 }
 
-// R1c — the same poison, via UNINSTALL. revert() bypasses readPristine() entirely: it just
+// R1c — the same poison, via UNINSTALL. restore() bypasses readPristine() entirely: it just
 // copies the backup back, so an empty backup makes `uninstall` truncate the file it is meant
 // to be restoring. The most destructive command in the tool was the one that undoes things.
 {

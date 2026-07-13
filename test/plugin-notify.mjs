@@ -155,7 +155,7 @@ console.log(`✔ ${RUNS} plugin sequences × ${LEN} steps (P1 applied⇔installe
 
 // R4 — an empty backup must never destroy the file, on ANY path.
 //
-// UNINSTALL is the dangerous one: revert() doesn't need a pristine, it just copies the backup
+// UNINSTALL is the dangerous one: restore() doesn't need a pristine, it just copies the backup
 // back — so it bypasses every guard in resolvePristine(), and a poisoned backup makes
 // `uninstall` the most destructive command in the tool. copyFileSync('', file) truncates the
 // very file it is meant to restore. Measured before the guard: 13337 bytes -> 0.
