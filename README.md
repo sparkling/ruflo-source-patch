@@ -247,10 +247,33 @@ a **partial** patch visible: matching on anchor-absence alone would call a file 
 anchor simply never existed — which is exactly how a missing `--upsert` could pass green while
 leaving the bug fully intact. `install` prints `INCOMPLETE` and `status` names the missing edits.
 
-**What it does not fix: deletions.** With upsert and deterministic keys a re-import *converges* —
-status, metadata and changed relations all land. But a removed ADR file, or a deleted `Depends-on:`
-line, leaves an orphan row that no re-import ever reaps. Reaping needs a full drop-and-rebuild: the
-`adr-reindex` script target.
+**What it does not fix: deletions — but it now tells you.** With upsert and deterministic keys a
+re-import *converges*: status, metadata and changed relations all land. What it can never do is
+**reap**. A removed ADR file, or a deleted `Depends-on:` line, leaves an orphan row that no future
+import touches — the index goes on asserting a decision that no longer exists on disk.
+
+Reaping needs a rebuild (`adr-reindex`). The importer can't do it, but it can *say so*, which is the
+part that actually matters — an orphan you're told about is a chore; an orphan you're not told about
+is a graph quietly rotting:
+
+```
+### Issues found
+- ORPHANS: 0 record(s) + 1 edge(s) in the index have no source on disk
+  (an ADR file or a relation line was deleted; an import can add and update, but never reap)
+  reconcile with a rebuild:  ~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh
+```
+
+The count is **exact, not a heuristic.** The CLI can't enumerate keys (`memory list` truncates them
+and caps at `--limit`, with no `--json`), so a key-by-key diff is impossible — but the *total* is
+reported and excludes soft-deleted rows. Every desired record is written before we look, so the
+namespace then holds exactly `desired ∪ orphans`, making `count − desired` the precise orphan count.
+It even catches a same-size swap: delete ADR-003 and add ADR-004 in one go, and the index lands at 4
+against a desired 3.
+
+(The tempting alternative — have the importer keep a manifest of what it wrote, and prune the
+difference — was rejected. It trades a stateless one-second rebuild for persistent state that can
+drift, a new "manifest is wrong" failure mode, and a much larger patch surface. The files are the
+truth; nothing else should have to be.)
 
 ## `adr-reindex` — reconcile the graph to the files
 
@@ -262,10 +285,12 @@ npx @sparkleideas/ruflo-source-patch adr-reindex install
 ~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh [project-dir] [--dry-run]
 ```
 
-Drop both namespaces, re-import, verify. Use it after **deleting** an ADR or a relation line (the one
-case `adr-index`'s upsert can't handle), after installing the `adr-index` patch for the first time
-(rows written under the old random-key scheme are unreachable orphans), or any time you want certainty.
-For an ordinary edit, the patched importer handles it — just run `/adr-index`.
+Drop both namespaces, re-import, verify. You don't have to remember when: the patched importer
+**prints an `ORPHANS:` line** the moment the index holds a row with no source on disk, and points you
+here. Reach for it after **deleting** an ADR or a relation line (the one case upsert can't reap),
+after installing the `adr-index` patch for the first time (rows written under the old random-key
+scheme are unreachable orphans, and show up as exactly that), or any time you want certainty. For an
+ordinary edit, the patched importer handles it — just run `/adr-index`.
 
 Three things it has to get right, each learned the hard way:
 
