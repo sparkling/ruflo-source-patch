@@ -90,7 +90,29 @@ adr_file_count() {
 # same lock for every store, and would spin for 5s and then proceed UNLOCKED (its timeout path
 # degrades rather than fails). Locking the delete is what the race needs; locking the import
 # would only disable the import's own locking.
+#
+# A LOCK IS A CONVENTION, NOT A MECHANISM. Nothing in the OS enforces this file — it works only
+# because the OTHER side takes it too, and the other side only takes it if the `memory` patch
+# target is installed (it is that patch which wraps storeEntry/getEntry/deleteEntry in
+# __rufloLockAcquire). Install adr-reindex WITHOUT memory and this script would hold a file that
+# nothing on earth honours, print "holding the write lock", and delete straight into the race it
+# claims to be protected from. So: check that the lock means something, and say so when it does
+# not. Announcing a protection you do not have is worse than announcing none.
 LOCK="$DB.rsp-lock"
+
+# Does the INSTALLED CLI actually honour <db>.rsp-lock? Checked against the vendor bytes, not
+# against our own state.json — state records what we were asked to install; only the file says
+# what is true. Any copy missing the wrapper is enough to lose the race.
+memory_lock_honored() {
+  local f
+  for f in "$HOME"/.npm/_npx/*/node_modules/@claude-flow/cli/dist/src/memory/memory-initializer.js \
+           "$(dirname "$(dirname "$(command -v node)")")"/lib/node_modules/@claude-flow/cli/dist/src/memory/memory-initializer.js; do
+    [ -f "$f" ] || continue
+    grep -q '__rufloLockAcquire' "$f" || return 1
+    return 0
+  done
+  return 1   # no CLI found at all — assume nothing honours it
+}
 lock_acquire() {
   local deadline=$(( $(date +%s) + 5 ))
   while :; do
@@ -138,8 +160,23 @@ fi
 # believes still exist, hit UNIQUE, and store nothing. One PRAGMA removes that class
 # of hazard regardless of who checkpoints. Do not read this as a reproduction.
 echo "==> clearing (hard delete — a soft delete would block the re-store)"
+
+# Say what the lock is actually worth BEFORE relying on it.
+if memory_lock_honored; then
+  HONORED=1
+else
+  HONORED=0
+  echo "    WARNING: the \`memory\` patch target is NOT installed in the ruflo CLI." >&2
+  echo "             <db>.rsp-lock is advisory — it only works because the CLI takes it too, and" >&2
+  echo "             an unpatched CLI does not. This delete is therefore UNPROTECTED: a daemon or" >&2
+  echo "             MCP server holding a pre-delete image can flush it back and resurrect every" >&2
+  echo "             row (ruvnet/ruflo#2621). The post-check below will catch it if it happens." >&2
+  echo "             Fix properly:  npx @sparkleideas/ruflo-source-patch memory install" >&2
+  echo "             Or, for this run:  npx @claude-flow/cli@latest daemon stop" >&2
+fi
+
 if lock_acquire; then
-  echo "    holding the write lock ($LOCK)"
+  [ "$HONORED" = 1 ] && echo "    holding the write lock ($LOCK)"
 else
   # Never hard-fail on the lock — same discipline as the memory patch itself, which proceeds
   # unlocked rather than breaking memory. But SAY SO: an unlocked delete is exactly the window
