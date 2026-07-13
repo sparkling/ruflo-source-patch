@@ -343,6 +343,53 @@ if (!fs.existsSync(skillFile())) fail('K5 uninstall DELETED an upstream-owned sk
 
 console.log('✔ /adr-reindex skill (K1 memory required, K2 skill+script both land, K3 survives a /plugin update, K4 uninstall removes ours, K5 never touches upstream\'s)');
 
+// ─── H: legacy hooks — the ones our own uninstall could not see ──────────────
+// installHook() self-heals a MARKED hook. An UNMARKED hook of ours is invisible to every path here:
+// install won't touch it, uninstall won't remove it. It outlives `uninstall` itself.
+
+freshSandbox();
+const settingsPath = path.join(HOME, '.claude', 'settings.json');
+const readHooks = (ev) => (JSON.parse(fs.readFileSync(settingsPath, 'utf8')).hooks?.[ev] || [])
+  .flatMap((g) => g.hooks || []);
+
+// Two dead, UNMARKED SessionStart hooks pointing at the pre-flat-copy layout (no `cwd/` segment) —
+// exactly what was found live: `node` fired at a path that had not existed for weeks, every session,
+// and nothing could clean them up because they predate the marker.
+const deadCmd = `node "${path.join(STATE, 'lib', 'session-start.mjs')}"`;
+const foreign = 'node "/somewhere/else/not-ours.mjs"';
+fs.writeFileSync(settingsPath, JSON.stringify({
+  hooks: {
+    SessionStart: [
+      { hooks: [{ type: 'command', command: deadCmd, timeout: 5000 }] },
+      { hooks: [{ type: 'command', command: deadCmd, timeout: 5000 }] },
+      { hooks: [{ type: 'command', command: foreign, timeout: 5000 }] },
+    ],
+  },
+}, null, 2));
+
+cli(['cwd', 'install']);
+const after = readHooks('SessionStart').map((h) => h.command);
+
+// H5 — the dead unmarked copies of OURS are reaped.
+if (after.includes(deadCmd)) fail(`H5 a dead legacy hook of ours survived install:\n  ${after.join('\n  ')}`);
+
+// H6 — and somebody ELSE's hook on the same event is untouched. The ownership test is "does it point
+// inside OUR stable dir", which is ours by construction; everything else is none of our business.
+if (!after.includes(foreign)) fail('H6 install deleted a hook that was not ours');
+
+// H7 — exactly ONE of ours is registered, not one-per-layout-change.
+const ours = after.filter((c) => c.includes(path.join(STATE, 'lib')));
+if (ours.length !== 1) fail(`H7 expected exactly 1 hook of ours, found ${ours.length}: ${ours.join(', ')}`);
+if (!ours[0].includes(path.join('lib', 'cwd', 'session-start.mjs'))) fail(`H7 the surviving hook is not the current one: ${ours[0]}`);
+
+// H8 — uninstall leaves none of ours behind, and still does not touch theirs.
+cli(['cwd', 'uninstall']);
+const post = readHooks('SessionStart').map((h) => h.command);
+if (post.some((c) => c.includes(STATE))) fail(`H8 uninstall left our hooks behind: ${post.join(', ')}`);
+if (!post.includes(foreign)) fail('H8 uninstall deleted a hook that was not ours');
+
+console.log('✔ legacy hooks (H5 dead unmarked copies reaped, H6 foreign hooks untouched, H7 exactly one of ours, H8 uninstall leaves none)');
+
 // ─── the notifier actually speaks ────────────────────────────────────────────
 // The end of the chain. Everything above is worthless if the human is never told.
 
