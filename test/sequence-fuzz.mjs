@@ -24,6 +24,7 @@ const FILES = [
   '@claude-flow/cli/dist/src/commands/daemon.js',
   '@claude-flow/cli/dist/src/services/daemon-autostart.js',
   '@claude-flow/cli-core/dist/src/mcp-tools/types.js',
+  '@claude-flow/cli/dist/src/autopilot-state.js',
 ];
 
 function freshSandbox() {
@@ -67,9 +68,13 @@ const ENTRY_PROBE = {
   'daemon/command-root': { rel: '@claude-flow/cli/dist/src/commands/daemon.js', needle: 'const daemon = getDaemon(__rufloResolveRoot(process.cwd()));' },
   'memory/wal-coherent-reads': { rel: '@claude-flow/cli/dist/src/fs-secure.js', needle: '__rufloCheckpointWal(path);' },
   'memory/write-lock': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: 'storeEntry = __rufloGuard(storeEntry);' },
+  // `state` anchors the DURABLE stores (autopilot/neural/metrics/agentdb). Without it in the fuzz, the
+  // target could be installed, uninstalled or half-applied by any sequence and nothing would notice.
+  'state/autopilot': { rel: '@claude-flow/cli/dist/src/autopilot-state.js', needle: "export const STATE_DIR = __rufloResolveRoot(process.cwd()) + '/.claude-flow/data';" },
 };
 const OWNER = { 'cwd/daemon-autostart': 'cwd', 'cwd/memory-root': 'cwd', 'cwd/cli-core-getProjectCwd': 'cwd',
-  'daemon/command-root': 'daemon', 'memory/wal-coherent-reads': 'memory', 'memory/write-lock': 'memory' };
+  'daemon/command-root': 'daemon', 'memory/wal-coherent-reads': 'memory', 'memory/write-lock': 'memory',
+  'state/autopilot': 'state' };
 
 // `expected` is derived from the COMMANDS WE TYPED, never from state.json.
 //
@@ -171,7 +176,7 @@ function parses(file) {
   return ok;
 }
 
-const TARGETS = ['cwd', 'daemon', 'memory'];
+const TARGETS = ['cwd', 'daemon', 'memory', 'state'];
 const ACTIONS = ['install', 'uninstall', 'status'];
 
 freshSandbox();

@@ -205,3 +205,95 @@ if (JSON.stringify(before) !== JSON.stringify(after)) fail('SH2 dedupe --dry-run
 if (!fs.existsSync(path.join(p2, '.claude', 'skills', 'some-skill', 'SKILL.md'))) fail('SH2 --dry-run destroyed a project-unique skill');
 
 console.log('✔ shell scripts (SH1 all three parse, SH2 dedupe --dry-run deletes nothing)');
+
+// ─── CW: the project-root resolver, EXECUTED (not grepped) ───────────────────
+//
+// This is the code we inject into 150+ vendor files. Every prior test only ever asserted that the
+// STRING was present. A resolver that returns the wrong directory would have passed all of them, and
+// the failure it produces is the silent kind: state written to a drifted directory and never read again.
+//
+// So: build the fragment and run it.
+const { FRAGMENTS: FRAGS } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'patch-library.mjs')}`);
+const resolverSrc = `${FRAGS.req.src}\n${FRAGS.resolveRoot.src}\nexport { __rufloResolveRoot };`;
+const resolverPath = path.join(SB, 'resolver.mjs');
+fs.writeFileSync(resolverPath, resolverSrc);
+const { __rufloResolveRoot } = await import(`file://${resolverPath}`);
+
+const mk = (...segs) => { const d = path.join(SB, 'cw', ...segs); fs.mkdirSync(d, { recursive: true }); return d; };
+
+// CW1 — a drifted cwd resolves back to the project root. THE WHOLE POINT.
+const root1 = mk('p1');
+fs.mkdirSync(path.join(root1, '.git'), { recursive: true });
+const deep1 = mk('p1', 'src', 'deep', 'nested');
+if (__rufloResolveRoot(deep1) !== root1) {
+  fail(`CW1 a deep subdir did not resolve to the project root: ${__rufloResolveRoot(deep1)} != ${root1}`);
+}
+
+// CW2 — `.git` ALONE IS NOT ENOUGH, which is what this used to use. A package inside a monorepo has its
+// own `.claude/` and no `.git`, so a bare .git walk sails past it and pools every package's state into
+// one store at the outer repo.
+const outer = mk('p2');
+fs.mkdirSync(path.join(outer, '.git'), { recursive: true });
+const pkg = mk('p2', 'packages', 'api');
+fs.writeFileSync(path.join(pkg, 'CLAUDE.md'), '# api');
+fs.mkdirSync(path.join(pkg, '.claude'), { recursive: true });
+if (__rufloResolveRoot(path.join(pkg, 'src')) !== pkg) {
+  fail(`CW2 a monorepo package with CLAUDE.md+.claude/ resolved to the OUTER repo — every package would share one store`);
+}
+
+// CW3 — CLAUDE.md ALONE is NOT a project root. `docs/CLAUDE.md` is a document, not a project, and
+// treating it as one would anchor state inside the docs folder. ADR-0100 requires BOTH markers.
+const root3 = mk('p3');
+fs.mkdirSync(path.join(root3, '.git'), { recursive: true });
+const docs = mk('p3', 'docs');
+fs.writeFileSync(path.join(docs, 'CLAUDE.md'), '# a doc, not a project');   // no sibling .claude/
+if (__rufloResolveRoot(docs) !== root3) {
+  fail(`CW3 a lone docs/CLAUDE.md was treated as a project root: ${__rufloResolveRoot(docs)}`);
+}
+
+// CW4 — the `.ruflo-project` sentinel wins over everything below it. An explicit contract is explicit.
+const inner4 = mk('p4', 'sub');
+fs.mkdirSync(path.join(SB, 'cw', 'p4', '.git'), { recursive: true });
+fs.writeFileSync(path.join(inner4, '.ruflo-project'), '');
+if (__rufloResolveRoot(inner4) !== inner4) fail('CW4 the .ruflo-project sentinel was ignored');
+
+// CW5 — NO MARKER ANYWHERE => return the start dir, i.e. exactly the old behaviour. The fix can never be
+// worse than the raw cwd it replaces.
+const bare = mk('p5', 'nothing', 'here');
+if (__rufloResolveRoot(bare) !== bare) fail(`CW5 with no marker it must fall back to the start dir, got ${__rufloResolveRoot(bare)}`);
+
+// CW6 — memoised per START DIR, not once per process. A module-level cache is the one thing ADR-0100
+// warns against: it goes stale exactly when the cwd drifts mid-session, which is the case this exists
+// for. Two different start dirs must give two different answers.
+if (__rufloResolveRoot(deep1) !== root1 || __rufloResolveRoot(path.join(pkg, 'src')) !== pkg) {
+  fail('CW6 a cached root leaked across start dirs — a drifted cwd would get a stale answer');
+}
+
+console.log('✔ project-root resolver, EXECUTED (CW1 drift resolves to root, CW2 monorepo package keeps its own store, CW3 a lone docs/CLAUDE.md is not a root, CW4 sentinel wins, CW5 no marker = old behaviour, CW6 no stale cache across dirs)');
+
+// ─── LK: the leak detector ───────────────────────────────────────────────────
+//
+// The `state` target cannot be complete — cwd-dependence hides in one-arg `resolve()` and in
+// argument-passing, neither of which a search can enumerate. So the hook OBSERVES THE RESULT: a
+// `.claude-flow`/`.swarm` in a subdirectory is an anchor that leaked, whatever form it took.
+const { strayStateDirs: strays } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'cleanup.mjs')}`);
+const leakProj = path.join(SB, 'leak');
+fs.mkdirSync(path.join(leakProj, '.claude-flow'), { recursive: true });          // the ROOT's own — legitimate
+fs.mkdirSync(path.join(leakProj, '.swarm'), { recursive: true });                // ditto
+fs.mkdirSync(path.join(leakProj, 'node_modules', 'x', '.claude-flow'), { recursive: true });  // not ours
+fs.mkdirSync(path.join(leakProj, 'src', 'deep', '.claude-flow'), { recursive: true });        // A LEAK
+
+const found = strays(leakProj);
+// LK1 — the leak is found.
+if (!found.some((d) => d.endsWith(path.join('src', 'deep', '.claude-flow')))) {
+  fail(`LK1 a stray state dir in a subdirectory was NOT detected: ${JSON.stringify(found)}`);
+}
+// LK2 — the project's OWN root state dirs are not reported. Crying wolf on the correct layout would make
+// the warning worthless, and it fires on every session.
+if (found.some((d) => d === path.join(leakProj, '.claude-flow') || d === path.join(leakProj, '.swarm'))) {
+  fail(`LK2 the project's own root state dirs were reported as strays: ${JSON.stringify(found)}`);
+}
+// LK3 — node_modules is not our business.
+if (found.some((d) => d.includes('node_modules'))) fail('LK3 it reported a .claude-flow inside node_modules');
+
+console.log('✔ leak detector (LK1 a stray subdir state dir is found, LK2 the root\'s own is not, LK3 node_modules ignored)');
