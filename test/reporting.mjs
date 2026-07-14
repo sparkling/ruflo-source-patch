@@ -496,6 +496,43 @@ if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
   console.log('✔ verify-interface (V1 buggy fixture proven, V2 5/5 edits, V3 false positives gone, V4 the gate STILL blocks, V5 override reachable, V6 clean restore, V7 a partial match writes NOTHING)');
 }
 
+// ─── A: an AMBIGUOUS anchor is refused, not guessed at ───────────────────────
+// Every anchor is unique in today's vendor files. That is a MEASUREMENT, not a promise: anchor
+// uniqueness is a property of UPSTREAM'S code, which we do not control and cannot guarantee for any
+// future release.
+//
+// Duplicate one and the two apply mechanisms fail in opposite directions — `split().join()` patches
+// EVERY occurrence; `.replace()` silently takes the FIRST, which may not be the one that matters. Both
+// are guesses. Neither is acceptable in someone else's code.
+
+freshSandbox();
+
+// UPSTREAM RESTRUCTURES: our anchored line now appears twice (they extracted a helper, duplicated a
+// guard, whatever). The patch is no longer able to say WHERE it belongs.
+const amb = vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js');
+const ambSrc = fs.readFileSync(amb, 'utf8');
+// A REAL anchor from the shipped entry table, not an invented string — a made-up needle would prove
+// nothing about the anchors we actually rely on.
+const anchor = 'export function ensureDaemonRunning(projectRoot, opts = {}) {\n    try {';
+if (!ambSrc.includes(anchor)) fail(`A1 fixture: the vendor file no longer contains ${anchor} — this test cannot mean anything`);
+
+// duplicate the whole function signature line
+fs.writeFileSync(amb, ambSrc.replace(anchor, `${anchor}\n// upstream duplicated this below\n${anchor}`));
+
+const ambRun = cli(['cwd', 'install']);
+
+// A1 — it REFUSES, and says why. Silently patching both (or arbitrarily the first) is the failure mode.
+if (!/ambiguous-anchor|anchor-not-found/.test(out(ambRun))) {
+  fail(`A1 a duplicated anchor was not reported — it guessed:\n${out(ambRun)}`);
+}
+
+// A2 — and the notifier will actually say it, rather than it dying in a log nobody reads.
+if (!isProblem('skip:ambiguous-anchor cwd/x (/f.js) — anchor occurs 2x')) {
+  fail('A2 an ambiguous anchor does not match the shared problem predicate — the notifier will never announce it');
+}
+
+console.log('✔ ambiguous anchors (A1 a duplicated anchor is refused, not guessed at; A2 it reaches the notifier)');
+
 // ─── M: `make install` covers every target that exists ───────────────────────
 // This package OPENED with a commit fixing "make install never installed the ADR patches it claimed
 // to". Then verify-interface was added in 4.2.0 and the Makefile was not touched — so `make install`
