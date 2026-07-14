@@ -59,7 +59,12 @@ function freshSandbox() {
   }
 }
 
-const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx') };
+const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx'),
+  // Sandbox the GLOBAL npm root too. Without this, nodeModulesDirs() returns the sandbox PLUS the
+  // developer's real global node_modules — so on any machine with a global @claude-flow/cli the suite
+  // would patch, restore and re-baseline the REAL install (and R1a/R1c would poison its backups),
+  // invisibly, because every assertion probes only sandbox paths.
+  RUFLO_GLOBAL_ROOT: path.join(SB, 'global') };
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
 const notify = () => spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'notify.mjs')], { env, encoding: 'utf8', input: '{}' }).stdout.trim();
 
@@ -205,10 +210,29 @@ console.log('✔ plugin regressions (R3 re-baselines a /plugin update, R4 empty 
   if (!/ATTENTION/.test(first) || !/edges-miscount/.test(first)) fail(`N2: notifier did not announce the broken patch — got: ${first || '(silence)'}`);
   if (notify() !== '') fail('N3: notifier repeated itself on the next prompt (not rate-limited)');  // N3
 
-  // Fix it; the warning must stop on its own. A stale warning is as bad as no warning.
-  freshSandbox();
+  // N4 — fix it, and the warning must stop ON ITS OWN. A stale warning is as bad as no warning.
+  //
+  // This used to call freshSandbox(), which rm -rf's the WHOLE sandbox — INCLUDING problems.json and
+  // notify-state.json. So N4 started from "no problem record at all" and was simply a duplicate of N1.
+  // Mutating recordProblems() to never clear the record — so a healthy install nags every 30 minutes,
+  // forever, which is precisely the failure this test names — passed.
+  //
+  // Repair the plugin file IN PLACE, and leave the state dir alone, so the recorded problem has to be
+  // cleared by the code rather than by the test's own cleanup.
+  fs.writeFileSync(pluginFile(IMPORT_REL), PRISTINE[IMPORT_REL.join('/')]);
   cli(['adr-index', 'install']);
   cli(['monitor', 'run']);
+
+  // Assert the RECORD IS GONE, not merely that the notifier is quiet.
+  //
+  // Quiet is not proof: N3 already consumed the announcement, so the 30-minute rate limit keeps it
+  // silent for the rest of this test whether the record was cleared or not. A stale record would sit
+  // there and re-announce on a perfectly healthy install half an hour later — the exact failure this
+  // test names — and `notify() === ''` would never see it.
+  const rec = path.join(STATE, 'problems.json');
+  if (fs.existsSync(rec)) {
+    fail(`N4: the problem record SURVIVED the fix — it will re-announce on a healthy install in 30 min:\n  ${fs.readFileSync(rec, 'utf8')}`);
+  }
   if (notify() !== '') fail('N4: notifier still warning after the problem was fixed');     // N4
 }
 console.log('✔ notifier (N1 silent when healthy, N2 announces, N3 rate-limited, N4 self-clears)');

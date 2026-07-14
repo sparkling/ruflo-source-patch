@@ -43,7 +43,12 @@ function freshSandbox() {
   }
 }
 
-const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx') };
+const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx'),
+  // Sandbox the GLOBAL npm root too. Without this, nodeModulesDirs() returns the sandbox PLUS the
+  // developer's real global node_modules — so on any machine with a global @claude-flow/cli the suite
+  // would patch, restore and re-baseline the REAL install (and R1a/R1c would poison its backups),
+  // invisibly, because every assertion probes only sandbox paths.
+  RUFLO_GLOBAL_ROOT: path.join(SB, 'global') };
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
 const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
 const out = (r) => `${r.stdout || ''}${r.stderr || ''}`;

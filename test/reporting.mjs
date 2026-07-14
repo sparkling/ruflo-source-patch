@@ -50,7 +50,12 @@ function freshSandbox() {
   }
 }
 
-const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx') };
+const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx'),
+  // Sandbox the GLOBAL npm root too. Without this, nodeModulesDirs() returns the sandbox PLUS the
+  // developer's real global node_modules — so on any machine with a global @claude-flow/cli the suite
+  // would patch, restore and re-baseline the REAL install (and R1a/R1c would poison its backups),
+  // invisibly, because every assertion probes only sandbox paths.
+  RUFLO_GLOBAL_ROOT: path.join(SB, 'global') };
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
 const notify = () => spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'notify.mjs')], { env, encoding: 'utf8', input: '{}' }).stdout.trim();
 
@@ -113,9 +118,28 @@ cli(['cwd', 'install']);
 if (fs.existsSync(legacyFlat)) fail('S7 the legacy flat-copy module was not reaped');
 if (fs.existsSync(upstreamGone)) fail('S7 a module the package no longer ships was not reaped');
 
-// S8 — and a module the package DOES ship at lib/ root survives, even though a file of the same
-// basename exists under lib/cwd/. The old prune keyed on exactly that basename collision, so it
-// would have deleted this one — silently, from the copy the hook imports.
+// S8 — a root module survives even when a file of the SAME BASENAME exists under lib/cwd/.
+//
+// This is the collision the old basename-heuristic prune would silently eat. S8 used to assert
+// pristine.mjs / plugin-registry.mjs / cwd/state.mjs survive — but NO SUCH COLLISION EXISTS in the tree
+// (there is no lib/cwd/pristine.mjs, no lib/cwd/plugin-registry.mjs), so reverting the prune to the old
+// heuristic passed it. It pinned a regression that could not occur on the files it checked.
+//
+// So plant a real one: a root module whose basename collides with an existing lib/cwd/ module. The old
+// prune deleted a root .mjs iff cwd/ held the same basename — exactly this shape.
+const collide = path.join(STABLE_LIB, 'state.mjs');           // collides with cwd/state.mjs
+fs.writeFileSync(collide, '// a module the package ships at lib/ root\n');
+const pkgCollide = path.join(REPO, 'lib', 'state.mjs');
+fs.writeFileSync(pkgCollide, '// a module the package ships at lib/ root\n');   // the package DOES ship it
+try {
+  cli(['cwd', 'install']);
+  if (!fs.existsSync(collide)) {
+    fail('S8 the prune ATE a shipped root module because lib/cwd/ has one of the same basename — the hook would fail to import it, invisibly');
+  }
+} finally {
+  fs.rmSync(pkgCollide, { force: true });
+  cli(['cwd', 'install']);   // reap it again now that the package no longer ships it
+}
 for (const rel of ['pristine.mjs', 'plugin-registry.mjs', 'cwd/state.mjs']) {
   if (!fs.existsSync(path.join(STABLE_LIB, rel))) fail(`S8 the prune ate a module the package ships: ${rel}`);
 }
@@ -160,7 +184,10 @@ try {
 // E1 — it is COUNTED and SUMMARISED. `nothing to do` over a total failure to patch was the
 // actual output before this.
 if (!/ERRORS/.test(out(r))) fail(`E1 a throwing patch was not reported in the summary:\n${out(r)}`);
-if (/nothing to do/.test(out(r))) fail('E1 a run in which every file threw printed `nothing to do`');
+// The error must be COUNTED, not merely logged — that is the whole fix. (The old assertion here checked
+// for `nothing to do`, which is unreachable: two of the three cwd files patch fine, so report() always
+// prints `patched 2, …` regardless of whether errors are counted. A dead assertion.)
+if (!/ERRORS 1\b/.test(out(r))) fail(`E1 the error was not COUNTED — expected 'ERRORS 1' in the summary:\n${out(r)}`);
 
 // E2 — and it FAILS. `make install` must not print "done" over this.
 if (r.status === 0) fail('E2 `cwd install` exited 0 despite every file failing to patch');

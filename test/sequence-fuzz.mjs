@@ -40,7 +40,12 @@ function freshSandbox() {
 const filePath = (rel) => path.join(SB, 'npx', 'h', 'node_modules', rel);
 const PRISTINE = {};
 
-const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: path.join(SB, 'home'), RUFLO_NPX_ROOT: path.join(SB, 'npx') };
+const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: path.join(SB, 'home'), RUFLO_NPX_ROOT: path.join(SB, 'npx'),
+  // Sandbox the GLOBAL npm root too. Without this, nodeModulesDirs() returns the sandbox PLUS the
+  // developer's real global node_modules — so on any machine with a global @claude-flow/cli the suite
+  // would patch, restore and re-baseline the REAL install (and R1a/R1c would poison its backups),
+  // invisibly, because every assertion probes only sandbox paths.
+  RUFLO_GLOBAL_ROOT: path.join(SB, 'global') };
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
 
 // Import the entry table so we can assert per-entry, independent of apply().
@@ -65,16 +70,42 @@ const ENTRY_PROBE = {
 const OWNER = { 'cwd/daemon-autostart': 'cwd', 'cwd/memory-root': 'cwd', 'cwd/cli-core-getProjectCwd': 'cwd',
   'daemon/command-root': 'daemon', 'memory/wal-coherent-reads': 'memory', 'memory/write-lock': 'memory' };
 
-function check(step, seq) {
+// `expected` is derived from the COMMANDS WE TYPED, never from state.json.
+//
+// This was the suite's deepest flaw and it survived 480 steps a run: `should` came from
+// stateTargets(), so every invariant asserted "the files agree with state.json" and NOTHING ever
+// asserted that either agrees with what the user actually asked for. Two mutations sailed through
+// all 60 sequences:
+//
+//   removeTargets(targets) -> removeTargets(PATCH_TARGETS)   `cwd uninstall` silently uninstalls
+//                                                            daemon and memory as well. State says
+//                                                            [], files are pristine, every invariant
+//                                                            holds. Green on a CLI that removes
+//                                                            targets you never named.
+//   addTargets(...) -> no-op                                 every install records nothing and
+//                                                            patches nothing. State and files agree
+//                                                            perfectly. Green.
+//
+// A test whose oracle is the code under test is not a test.
+function check(step, seq, expected) {
   const st = stateTargets();
   const errs = [];
 
-  // I1 — entry applied  <=>  target installed
+  // I0 — state.json records EXACTLY what the typed commands asked for. state.json is no longer the
+  // oracle; it is a thing under test. Without this, `cwd uninstall` could remove daemon and memory
+  // too and every other invariant would still hold.
+  const recorded = [...st].sort();
+  const want = [...expected].sort();
+  if (JSON.stringify(recorded) !== JSON.stringify(want)) {
+    errs.push(`I0 state.json=[${recorded}] but the typed commands asked for [${want}]`);
+  }
+
+  // I1 — entry applied  <=>  the COMMANDS asked for its target (not: <=> state.json says so)
   for (const [id, { rel, needle }] of Object.entries(ENTRY_PROBE)) {
     const src = fs.readFileSync(filePath(rel), 'utf8');
     const applied = src.includes(needle);
-    const should = st.includes(OWNER[id]);
-    if (applied !== should) errs.push(`I1 ${id}: applied=${applied} but target ${OWNER[id]} installed=${should}`);
+    const should = expected.has(OWNER[id]);
+    if (applied !== should) errs.push(`I1 ${id}: applied=${applied} but the commands asked for ${OWNER[id]}=${should}`);
   }
 
   // I2 — everything still parses
@@ -83,8 +114,8 @@ function check(step, seq) {
     if (r.status !== 0) errs.push(`I2 ${rel}: SYNTAX ERROR`);
   }
 
-  // I3 — empty state => byte-identical to pristine, no backups
-  if (st.length === 0) {
+  // I3 — nothing asked for => byte-identical to pristine, no backups
+  if (expected.size === 0) {
     for (const rel of FILES) {
       if (fs.readFileSync(filePath(rel), 'utf8') !== PRISTINE[rel]) errs.push(`I3 ${rel}: not restored to pristine`);
       if (fs.existsSync(`${filePath(rel)}.rsp-backup`)) errs.push(`I3 ${rel}: backup left behind`);
@@ -107,7 +138,7 @@ function check(step, seq) {
 
   // I5 — monitor check exit code matches reality
   const drift = Object.entries(ENTRY_PROBE).some(([id, { rel, needle }]) =>
-    st.includes(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle));
+    expected.has(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle));
   const rc = cli(['monitor', 'check']).status;
   if ((rc === 1) !== drift) errs.push(`I5 monitor check exit=${rc} but drift=${drift}`);
 
@@ -132,13 +163,17 @@ const RUNS = 60, LEN = 8;
 for (let run = 0; run < RUNS; run++) {
   freshSandbox();
   const seq = [];
+  const expected = new Set();          // <- the oracle: what the TYPED commands should have produced
   for (let i = 0; i < LEN; i++) {
     const t = TARGETS[rand(TARGETS.length)];
     const a = ACTIONS[rand(ACTIONS.length)];
     seq.push(`${t} ${a}`);
+    if (a === 'install') expected.add(t);
+    else if (a === 'uninstall') expected.delete(t);
+    // 'status' changes nothing — and if it ever does, I0 will say so.
     cli([t, a]);
     cli(['monitor', 'run']);   // a monitor tick after EVERY step — must never violate an invariant
-    check(i, seq);
+    check(i, seq, expected);
   }
   // I6 — idempotence: installing twice is a no-op the second time.
   for (const t of TARGETS) cli([t, 'install']);
@@ -152,6 +187,28 @@ for (let run = 0; run < RUNS; run++) {
     }
   });
 }
+// I5b — `monitor check` FAILS on real patch drift.
+//
+// I5 above could never see this: check() runs `monitor run` BEFORE every check, which re-applies, so
+// `drift` was always false and I5 only ever asserted "exit 0". `monitor check` is the CI / pre-flight
+// gate and it was proven only to say "ok". Mutating `if (f.patched < f.files)` to `if (false)` — i.e.
+// monitor check can NEVER report patch drift — passed all 60 sequences.
+freshSandbox();
+cli(['cwd', 'install']);
+if (cli(['monitor', 'check']).status !== 0) { console.log('\n✘ I5b monitor check failed on a healthy install'); process.exit(1); }
+
+// upstream clobbers a patched file (an npx refetch), and NOTHING re-applies before we look
+fs.writeFileSync(filePath(FILES[3]), PRISTINE[FILES[3]]);
+const drifted = cli(['monitor', 'check']);
+const dout = (drifted.stdout || '') + (drifted.stderr || '');
+if (drifted.status !== 1) {
+  console.log(`\n✘ I5b monitor check exited ${drifted.status} on REAL patch drift — the CI gate cannot fail`);
+  console.log(`  ${dout}`);
+  process.exit(1);
+}
+if (!/DRIFT/.test(dout)) { console.log('\n✘ I5b monitor check exited 1 but never said DRIFT'); process.exit(1); }
+console.log('✔ monitor check gate (I5b exits 1 and says DRIFT on a reverted patch)');
+
 console.log(`✔ ${RUNS} random sequences × ${LEN} steps — all invariants held (I1 entry⇔target, I2 parses, I3 pristine restore, I4 no temps, I5 check exit code, I6 idempotent, I7 never truncated)`);
 
 // ── Deterministic regressions ───────────────────────────────────────────────────────────
