@@ -30,9 +30,18 @@ make install          # cwd+daemon+memory + adr-template+adr-index + adr-reindex
 make uninstall        # revert everything and remove the package
 ```
 
-`make install` applies every **patch** target — the three CLI ones and the two `ruflo-adr`
-plugin ones — plus `adr-reindex`, and schedules the monitor. The remaining script targets
-(`dual`, `dedupe`) are project scaffolding rather than fixes, so they stay opt-in.
+`make install` applies every **patch** target — the three CLI ones and the `ruflo-adr` plugin ones —
+plus `adr-reindex`, and schedules the monitor.
+
+The **script targets stay opt-in**, because they change *your projects* rather than the library — but
+they're the most immediately useful thing here, so don't skip past them:
+
+```bash
+npx github:sparkling/ruflo-source-patch dual install     # one instruction file for Claude Code + Codex
+npx github:sparkling/ruflo-source-patch dedupe install    # delete the ~260 files `init --full` duplicates
+```
+
+See [Script targets — the project toolkits](#script-targets--the-project-toolkits).
 
 To pick targets individually instead:
 
@@ -83,13 +92,18 @@ Actions: `install` · `uninstall` · `status`
 **`monitor`** — re-applies the patches when something overwrites them.
 Actions: `install` · `uninstall` · `status` · `run` · `check`
 
-**Script targets** — shell scripts materialized at a stable path. No patching, no hook.
+**Script targets** — project *toolkits*, not patches. They fix nothing in the library; they set up and
+clean up **your projects**. Nothing is patched, no hook is registered — `install` just materializes the
+scripts at a stable path so you can run them.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it gives you |
 |--------|-------------------|
-| **`dual-codex-claude`** *(alias `dual`)* | Create or convert a **single-source dual** Claude Code + Codex project: `AGENTS.md` is canonical, `CLAUDE.md` is `@AGENTS.md`. No symlink, no duplication, no drift. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
-| **`dedupe-bundle`** *(alias `dedupe`)* | **Clean up an existing project** bloated by `ruflo init --full`: drop the `.claude/{skills,commands,agents}` entries the installed `ruflo/*` plugins already provide, and optionally the `settings.json` hooks that double-fire against the plugin hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
+| **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
+| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** `ruflo init --full` bundles ~260 files that ~100% duplicate the installed plugins. This deletes the duplicates and the double-firing hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
+
+See **[Script targets — the project toolkits](#script-targets--the-project-toolkits)** below for what
+each script actually does and how to run it.
 
 ---
 
@@ -344,6 +358,73 @@ finished explaining it cannot win.
 Because the delete precedes the rebuild, a failed rebuild would leave an **empty** graph — which
 `verify` then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on
 nothing). The ADR files are never touched; re-running is always safe.
+
+## Script targets — the project toolkits
+
+Everything else in this package fixes **the library**. These fix **your projects** — and they're the
+part people miss, because they're not patches and nothing re-applies them. `install` materializes the
+scripts; you run them by hand, on a project, when you want them.
+
+```bash
+npx github:sparkling/ruflo-source-patch dual install      # or: dual-codex-claude
+npx github:sparkling/ruflo-source-patch dedupe install     # or: dedupe-bundle
+```
+
+They land in `~/.ruflo-source-patch/<target>/` and stay there. `status` byte-compares them against the
+packaged versions, so an upgraded package with a stale materialized script says **`STALE`** rather than
+`installed`.
+
+---
+
+### `dual` — one instruction file, two agents
+
+`ruflo init` writes `CLAUDE.md`. `codex init` writes `AGENTS.md`. They **diverge immediately**, and
+keeping them in sync by hand is a losing game ([#2638](https://github.com/ruvnet/ruflo/issues/2638),
+[#2636](https://github.com/ruvnet/ruflo/issues/2636)).
+
+The model here is **one canonical file, no symlinks, no duplication**:
+
+- **`AGENTS.md`** — the single source of truth. Codex reads it directly.
+- **`CLAUDE.md`** — literally `@AGENTS.md` (Claude Code imports it) plus a short Claude-only overlay.
+
+Edit the shared bulk **once**, in `AGENTS.md`; both platforms see it. Each platform's unique bits live
+only in the file that platform reads. Nothing to keep in sync, so nothing drifts.
+
+**Two scripts, depending on where you're starting:**
+
+```bash
+# a NEW dual project, from scratch
+~/.ruflo-source-patch/dual/ruflo-new-dual.sh <project-dir> [--no-start-all] [--template <t>] [--force]
+
+# convert an EXISTING ruflo/Claude Code project
+~/.ruflo-source-patch/dual/ruflo-add-codex.sh [project-dir] [--template <t>] [--force]
+```
+
+`ruflo-new-dual.sh` runs `ruflo init` with the **default** preset, deliberately — not `--full`, which
+bundles the ~260 duplicate files that `dedupe` exists to remove. It also uses `npx --yes` so a missing
+`@claude-flow/codex` doesn't abort the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)),
+and it gitignores the root `.env` that `ruflo init` leaves **tracked**
+([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
+
+---
+
+### `dedupe` — delete what the plugins already give you
+
+`ruflo init --full` bundles roughly **260** skill/command/agent files into `.claude/`. Of those, ~**100%**
+of the agents and commands, and ~**97%** of the skills, are *already provided* by the installed `ruflo/*`
+plugins ([#2640](https://github.com/ruvnet/ruflo/issues/2640)). The project's `settings.json` also
+registers lifecycle hooks that duplicate the plugin hooks — so `post-edit` and `session-end` **fire
+twice**.
+
+```bash
+~/.ruflo-source-patch/dedupe-bundle/ruflo-dedupe-bundle.sh <project-dir> [--strip-dup-hooks] [--dry-run]
+```
+
+**Start with `--dry-run`.** It prints exactly what it would remove and touches nothing.
+
+It is conservative by construction: an item is removed **only when a plugin actually provides it**, so
+anything project-unique is kept. Everything it removes is backed up first. `--strip-dup-hooks` is opt-in
+because that one edits your `settings.json`.
 
 ## `verify-interface` — a gate that cannot be opened
 
