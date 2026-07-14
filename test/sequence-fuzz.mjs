@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
 
@@ -110,8 +111,7 @@ function check(step, seq, expected) {
 
   // I2 — everything still parses
   for (const rel of FILES) {
-    const r = spawnSync(process.execPath, ['--check', filePath(rel)], { encoding: 'utf8' });
-    if (r.status !== 0) errs.push(`I2 ${rel}: SYNTAX ERROR`);
+    if (!parses(filePath(rel))) errs.push(`I2 ${rel}: SYNTAX ERROR`);
   }
 
   // I3 — nothing asked for => byte-identical to pristine, no backups
@@ -148,6 +148,27 @@ function check(step, seq, expected) {
     for (const e of errs) console.log(`  ${e}`);
     process.exit(1);
   }
+}
+
+// I2 ran `node --check` on every target file after every step: 60 runs x 8 steps x |FILES| spawns, and
+// it was 74% of the whole suite's wall clock. But a file only ever holds a handful of DISTINCT byte
+// states across the run (pristine, patched by each subset of targets, re-baselined), so the same bytes
+// were being re-parsed thousands of times.
+//
+// Memoise on the CONTENT, not the path. This is not a weaker check: `node --check` is still really run,
+// on real bytes, and its verdict is a pure function of (bytes, extension) — .mjs and .js parse under
+// different grammars, so the extension is part of the key. What is skipped is only the re-proving of an
+// answer already obtained. The first time any given content appears, it is checked for real.
+const PARSE_CACHE = new Map();
+function parses(file) {
+  const bytes = fs.readFileSync(file);
+  const key = `${path.extname(file)}:${crypto.createHash('sha1').update(bytes).digest('hex')}`;
+  let ok = PARSE_CACHE.get(key);
+  if (ok === undefined) {
+    ok = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' }).status === 0;
+    PARSE_CACHE.set(key, ok);
+  }
+  return ok;
 }
 
 const TARGETS = ['cwd', 'daemon', 'memory'];

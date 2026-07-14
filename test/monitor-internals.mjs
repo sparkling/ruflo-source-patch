@@ -29,6 +29,12 @@ const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
 process.env.RUFLO_SOURCE_PATCH_HOME = HOME;      // <- BEFORE any lib/ module is loaded
+// The CLI-root vars too, and for the same reason. paths.mjs freezes GLOBAL_ROOTS/NPX_ROOT at module
+// load, so a lib/ module imported IN-PROCESS below (adr-reindex's patcher does, to find out whether the
+// installed CLI has `memory purge`) would otherwise read the developer's REAL npx cache and global root.
+// The test would then pass or fail on what happens to be installed on this machine.
+process.env.RUFLO_NPX_ROOT = path.join(SB, 'npx');
+process.env.RUFLO_GLOBAL_ROOT = path.join(SB, 'global');
 
 const REPO = path.dirname(path.dirname(url.fileURLToPath(import.meta.url)));
 
@@ -166,4 +172,37 @@ if (!st.log.some((l) => /STALE/.test(l))) {
   fail(`AR3 an out-of-date copy of our OWN skill was not reported STALE:\n${st.log.join('\n')}`);
 }
 
-console.log('✔ adr-reindex reporting (AR1 skip:not-ours reaches the notifier, AR2 skip:upstream-owns-it too, AR3 a stale skill copy is named)');
+// AR4/AR5 — WHAT THE `skip:upstream-owns-it` MESSAGE TELLS YOU TO DO.
+//
+// This is not cosmetic. The message used to say "(uninstall this target)" the moment ruflo-adr shipped
+// ANY adr-reindex skill, and I followed it and uninstalled a working reconcile. Upstream's 0.4.0 skill
+// shells out to `memory purge`, which no published @claude-flow/cli provides; the unknown subcommand
+// exits 0, so their reindex reports "purged" having purged nothing.
+//
+// "Upstream owns the file" and "upstream's version works" are different claims. The message must not
+// conflate them, so both branches are pinned here.
+const upstreamSkill = path.join(skillDir, 'skills', 'adr-reindex', 'SKILL.md');
+fs.writeFileSync(upstreamSkill, '---\nname: adr-reindex\n---\n\nupstream ships this now (no rsp marker)\n');
+
+const cliMemoryJs = path.join(SB, 'npx', 'abc', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'commands', 'memory.js');
+fs.mkdirSync(path.dirname(cliMemoryJs), { recursive: true });
+
+// AR4 — the CLI has NO `purge` subcommand, which is every published build to date.
+fs.writeFileSync(cliMemoryJs, "const subs = ['store', 'delete', 'cleanup', 'distill'];\n");
+const noPurge = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
+if (!noPurge) fail('AR4 fixture: no skip:upstream-owns-it line at all');
+if (/uninstall this target/i.test(noPurge) && !/Do NOT uninstall/i.test(noPurge)) {
+  fail(`AR4 the advice says to UNINSTALL while upstream's reindex cannot run (no \`memory purge\` in the CLI). That is how a working reconcile got removed:\n  ${noPurge}`);
+}
+if (!/memory purge/.test(noPurge) || !/ruflo-adr-reindex\.sh/.test(noPurge)) {
+  fail(`AR4 the advice does not name the missing command, or the script that still works:\n  ${noPurge}`);
+}
+
+// AR5 — and once `memory purge` DOES ship, the advice must flip. Otherwise this target nags forever.
+fs.writeFileSync(cliMemoryJs, "const subs = ['store', 'delete', 'purge', 'cleanup'];\n");
+const withPurge = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
+if (!/Uninstall this target/i.test(withPurge) || /Do NOT uninstall/i.test(withPurge)) {
+  fail(`AR5 \`memory purge\` is available, so upstream's reindex works and ours is redundant — the advice must say to uninstall:\n  ${withPurge}`);
+}
+
+console.log('✔ adr-reindex reporting (AR1 skip:not-ours reaches the notifier, AR2 skip:upstream-owns-it too, AR3 a stale skill copy is named, AR4 it does NOT say uninstall while upstream\'s reindex cannot run, AR5 it does once `memory purge` ships)');
