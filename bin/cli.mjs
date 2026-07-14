@@ -19,8 +19,8 @@
 //                  adr-index's parser can't read (#2659)
 //   adr-index      adr-index can't update a CHANGED ADR: records are frozen by a
 //                  strict insert, edges duplicate on every run (#2660 / #2594)
-//   adr-reindex    ADDS the /adr-reindex skill (upstream ships no such command) + the script it
-//                  invokes. Reconciles DELETIONS, which upsert can never reap. Requires `memory`.
+//   adr-reindex    ADDS the /adr-reindex skill (upstream ships no such command — #2666) + the script
+//                  it invokes. Reconciles DELETIONS, which upsert can never reap. Requires `memory`.
 //
 // Why adr-reindex is a PLUGIN target and not a script one, though it materializes a script: the
 // skill file lives INSIDE ruflo-adr, and a `/plugin update` re-fetches that plugin wholesale and

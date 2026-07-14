@@ -3,7 +3,7 @@
 #
 #   ruflo-adr-reindex [project-dir] [--dry-run]
 #
-# WHY THIS EXISTS
+# WHY THIS EXISTS  (the gap is filed upstream as ruvnet/ruflo#2666)
 # ---------------
 # `adr-index` has no reconcile path. The `adr-index` PATCH TARGET fixes the common
 # case (ruvnet/ruflo#2660): with an explicit --upsert and a deterministic edge key,

@@ -18,7 +18,9 @@ Only a full drop-and-rebuild reconciles a deletion. That is this skill.
 
 > Installed and kept applied by [`ruflo-source-patch`](https://github.com/sparkling/ruflo-source-patch).
 > It is **not** part of upstream `ruflo-adr` — a `/plugin update` would drop it, and the patch tool's
-> monitor puts it back.
+> monitor puts it back. The missing-command gap is filed as
+> [ruvnet/ruflo#2666](https://github.com/ruvnet/ruflo/issues/2666); if it lands upstream, uninstall this
+> target and use theirs.
 
 ## When to use
 
