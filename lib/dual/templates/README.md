@@ -1,5 +1,7 @@
 # `templates/`
 
+[← ruflo-source-patch](../../../README.md)
+
 The instruction-file bodies that [`../ruflo-new-dual.sh`](../ruflo-new-dual.sh) and
 [`../ruflo-add-codex.sh`](../ruflo-add-codex.sh) write into a project.
 

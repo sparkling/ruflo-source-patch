@@ -1,5 +1,7 @@
 # `lib/dual/` — the script targets
 
+[← ruflo-source-patch](../../README.md)
+
 **These are the only things here that don't patch anything.** They fix *your projects*, not the library.
 `install` just materializes them to `~/.ruflo-source-patch/<target>/`; you run them by hand.
 

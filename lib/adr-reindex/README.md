@@ -1,5 +1,7 @@
 # `adr-reindex` — the reconcile `ruflo-adr` doesn't ship
 
+[← ruflo-source-patch](../../README.md)
+
 The only target that **adds** a command rather than fixing a broken one. Filed upstream as
 [ruvnet/ruflo#2666](https://github.com/ruvnet/ruflo/issues/2666); if it lands, uninstall this target and
 use theirs.
@@ -10,6 +12,15 @@ use theirs.
 | `ruflo-adr-reindex.sh` | The rebuild. Materialized to `~/.ruflo-source-patch/adr-reindex/`, which is what the skill invokes. |
 | `patcher.mjs` | Installs `SKILL.md` into every discovered copy of `ruflo-adr`. |
 | `commands.mjs` | `install` / `uninstall` / `status`. Lands both artifacts, or reports INCOMPLETE. |
+
+## Contents
+
+- [Convergence is not reaping](#convergence-is-not-reaping)
+- [Why it hard-deletes through raw SQL](#why-it-hard-deletes-through-raw-sql)
+- [Why it requires the `memory` target](#why-it-requires-the-memory-target)
+- [The post-condition that can see a failure](#the-post-condition-that-can-see-a-failure)
+- [Why this is a *plugin* target, not a script target](#why-this-is-a-plugin-target-not-a-script-target)
+- [Additive, which inverts the safety rule](#additive-which-inverts-the-safety-rule)
 
 ## Convergence is not reaping
 

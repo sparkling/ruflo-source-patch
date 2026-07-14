@@ -15,6 +15,40 @@ The **first argument is the target**, the second the action. Every target instal
 uninstalls **on its own** — take the daemon fix without the SQLite write lock, drop one later,
 keep the rest.
 
+## Contents
+
+- [Install](#install)
+- [Targets](#targets)
+  - [Patch targets](#patch-targets)
+  - [Plugin patches — `ruflo-adr`](#plugin-patches--ruflo-adr)
+  - [Plugin patches — `ruvnet-brain`](#plugin-patches--ruvnet-brain)
+  - [Keeping them applied — `monitor`](#keeping-them-applied--monitor)
+  - [Script targets](#script-targets)
+- [The patches, in detail](#the-patches-in-detail)
+  - [`cwd` — folder sprawl](#cwd--folder-sprawl)
+  - [`daemon` — one daemon per project root](#daemon--one-daemon-per-project-root)
+  - [`memory` — `.swarm/memory.db` durability](#memory--swarmmemorydb-durability)
+  - [`adr-template` — adr-create's own template breaks adr-index's parser](#adr-template--adr-creates-own-template-breaks-adr-indexs-parser)
+  - [`adr-index` — the index can't be updated, only created](#adr-index--the-index-cant-be-updated-only-created)
+  - [`adr-reindex` — reconcile the graph to the files](#adr-reindex--reconcile-the-graph-to-the-files)
+  - [`verify-interface` — a gate that cannot be opened](#verify-interface--a-gate-that-cannot-be-opened)
+- [Script targets — what they do and how to run them](#script-targets--what-they-do-and-how-to-run-them)
+  - [`dual` — one instruction file, two agents](#dual--one-instruction-file-two-agents)
+  - [`dedupe` — delete what the plugins already give you](#dedupe--delete-what-the-plugins-already-give-you)
+- [`monitor` — keep the patches applied](#monitor--keep-the-patches-applied)
+- [How you find out when a patch stops working](#how-you-find-out-when-a-patch-stops-working)
+  - [Anchors are literal, and they will break](#anchors-are-literal-and-they-will-break)
+  - [Two hooks, and the honest reason for each](#two-hooks-and-the-honest-reason-for-each)
+  - [Watching the watchman](#watching-the-watchman)
+  - [It found two real bugs on its first run](#it-found-two-real-bugs-on-its-first-run)
+- [`cleanup` — de-sprawl a project](#cleanup--de-sprawl-a-project)
+- [How it works](#how-it-works)
+  - [One install, every repo](#one-install-every-repo)
+- [Tested](#tested)
+- [Upstream issues](#upstream-issues)
+- [Limits](#limits)
+- [License](#license)
+
 ## Install
 
 The package has **zero dependencies**, so it installs from anywhere with no npm registry
@@ -61,7 +95,9 @@ Requirements: Node.js ≥ 18, Claude Code with ruflo / `@claude-flow/cli` used v
 
 ## Targets
 
-**Patch targets** — source patches to the installed `@claude-flow/cli`.
+### Patch targets
+
+Source patches to the installed `@claude-flow/cli`.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
@@ -70,10 +106,12 @@ Actions: `install` · `uninstall` · `status`
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability — a cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
-**Plugin patches (`ruflo-adr`)** — changes to the installed `ruflo-adr` plugin, not
-`@claude-flow/cli`; same shape as the patch targets above. Together they cover the whole ADR
-round-trip: what `adr-create` **writes**, what `adr-index` **reads back in**, and what neither
-can **reap**. Actions: `install` · `uninstall` · `status`
+### Plugin patches — `ruflo-adr`
+
+Changes to the installed `ruflo-adr` plugin, not `@claude-flow/cli`; same shape as the patch targets
+above. Together they cover the whole ADR round-trip: what `adr-create` **writes**, what `adr-index`
+**reads back in**, and what neither can **reap**.
+Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
@@ -81,18 +119,22 @@ can **reap**. Actions: `install` · `uninstall` · `status`
 | **`adr-index`** | `adr-index` **cannot update an ADR that changed** — the one thing its own SKILL.md advertises ("Build or *rebuild* … when the graph is out of sync with the on-disk files"). Ratify an ADR, re-run it, and the graph still says `proposed`. Both namespaces are insert-only, failing in *opposite* directions: `adr-patterns` keys are deterministic → collide → the write is rejected and the record stays **frozen**; `adr-edges` keys embed `Date.now()`+random → never collide → every run **duplicates** the whole edge set (3 → 6 → 9). It reports `Records stored: 2/2` either way, because a `UNIQUE constraint` failure is counted as a success | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
 | **`adr-reindex`** | The only target that **adds** rather than fixes: upstream ships no reconcile command, so this installs a **`/adr-reindex`** skill into `ruflo-adr` (next to `/adr-create`, `/adr-index`, `/adr-review`, `/adr-verify`) plus the script it invokes. `adr-index` converges; it can never **reap** — delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL: the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target** — it hard-deletes rows and refuses to do that without the write lock | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
-**Plugin patches (`ruvnet-brain`)** — a different plugin, the same machinery and the same reason
-to be a target: a `/plugin update` reverts a hand-edit silently.
+### Plugin patches — `ruvnet-brain`
+
+A different plugin, the same machinery, and the same reason to be a target: a `/plugin update` reverts a
+hand-edit silently.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`verify-interface`** | Its PreToolUse gate — block a rUv CLI call until you've read that command's `--help` — is a good idea that **cannot be opened**. The tool regex `($TOOLS)[@a-z0-9.-]*` absorbs `@latest` *and* any hyphenated **binary name**, so `ruflo-source-patch adr-index status` (a different tool) reads as the `ruflo` CLI and it demands `ruflo adr-index status --help` — a command that does not exist. Unanchored, it also matches inside **prose**: a `git commit` message mentioning `ruflo-adr-reindex.sh was the …` parsed as `ruflo was the`. And the documented override (`RUVNET_SKIP_INTERFACE_CHECK=1`) is read from the *hook's* environment, where a caller can never set it. Anchors the match, absorbs only a `@version`, and honours the override on the command. **The gate still blocks an unread interface** — fixed, not disabled | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) |
 
-**`monitor`** — re-applies the patches when something overwrites them.
+### Keeping them applied — `monitor`
+
+Re-applies the patches when something overwrites them.
 Actions: `install` · `uninstall` · `status` · `run` · `check`
 
-## Script targets
+### Script targets
 
 Project *toolkits*, not patches. They fix nothing in the library; they set up and clean up **your
 projects**. Nothing is patched, no hook is registered — `install` just materializes the scripts at a
@@ -108,7 +150,9 @@ Actions: `install` · `uninstall` · `status`
 
 ---
 
-## `cwd` — folder sprawl
+## The patches, in detail
+
+### `cwd` — folder sprawl
 
 `@claude-flow/cli` anchors its state to raw `process.cwd()`. Under Claude Code's
 working-directory drift (sub-agents, worktrees, `cd` inside Bash steps) `cwd` is frequently a
@@ -126,7 +170,7 @@ CLI with a drifted cwd. Patching the **callee** fixes every caller at once:
 
 Each resolves the nearest ancestor `.git` (worktree-safe) before using cwd.
 
-## `daemon` — one daemon per project root
+### `daemon` — one daemon per project root
 
 Two distinct bugs, one target.
 
@@ -155,7 +199,7 @@ patch injects the same `O_EXCL` lockfile upstream uses, at the same path
 *each other*. Upstream ≥ 3.25 already has it, so the anchor doesn't match there and it is
 safe-skipped — never double-locked.
 
-## `memory` — `.swarm/memory.db` durability
+### `memory` — `.swarm/memory.db` durability
 
 `memory.db` is written by **two different SQLite engines**: the AgentDB bridge
 (better-sqlite3, **WAL mode**) and a fallback that does a whole-file read-modify-write
@@ -200,7 +244,7 @@ throughput hit. Correct-and-slower beats fast-and-lossy, but the honest fix is u
 follow-up #3 (native better-sqlite3 + WAL for the primary flush), which deletes this problem
 class instead of guarding it. Don't want the trade? `memory uninstall`.
 
-## `adr-template` — adr-create's own template breaks adr-index's parser
+### `adr-template` — adr-create's own template breaks adr-index's parser
 
 `ruflo-adr`'s two skills disagree with each other on ADR metadata format. `adr-create`'s own
 template (`SKILL.md` step 3) writes:
@@ -231,7 +275,7 @@ only** (`~/.claude/plugins/cache/ruflo/ruflo-adr/*/skills/adr-create/SKILL.md` a
 pristine-backup + atomic-write discipline as the JS patches above — and, like them, re-applied by
 the SessionStart hook and the `monitor` (see below).
 
-## `adr-index` — the index can't be updated, only created
+### `adr-index` — the index can't be updated, only created
 
 `adr-template` fixes what `adr-create` **writes**. This fixes what `adr-index` **reads back in** —
 and it is the more consequential half, because it breaks the ADR lifecycle itself.
@@ -284,7 +328,7 @@ part that actually matters — an orphan you're told about is a chore; an orphan
 is a graph quietly rotting:
 
 ```
-### Issues found
+#### Issues found
 - ORPHANS: 0 record(s) + 1 edge(s) in the index have no source on disk
   (an ADR file or a relation line was deleted; an import can add and update, but never reap)
   reconcile with a rebuild:  ~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh
@@ -302,7 +346,7 @@ difference — was rejected. It trades a stateless one-second rebuild for persis
 drift, a new "manifest is wrong" failure mode, and a much larger patch surface. The files are the
 truth; nothing else should have to be.)
 
-## `adr-reindex` — reconcile the graph to the files
+### `adr-reindex` — reconcile the graph to the files
 
 The ADR files are the source of truth; `adr-patterns` / `adr-edges` are a derived cache. For a derived
 cache the correct reconcile is a **rebuild**, and at ADR scale it's instant.
@@ -320,7 +364,7 @@ after installing the `adr-index` patch for the first time (rows written under th
 scheme are unreachable orphans, and show up as exactly that), or any time you want certainty. For an
 ordinary edit, the patched importer handles it — just run `/adr-index`.
 
-### It **requires** the `memory` target
+#### It **requires** the `memory` target
 
 Not a suggestion — `adr-reindex install` refuses without it, and so does the script. This is the one
 operation in the whole package whose entire job is to **delete rows**, and ruflo writes `memory.db` as
@@ -341,7 +385,7 @@ refusing when `memory` was absent. Both were wrong: the checkpoint duplicated `m
 with worse guarantees, and warning-then-deleting gambles your index on a race the warning has just
 finished explaining it cannot win.
 
-### Three things it has to get right, each learned the hard way
+#### Three things it has to get right, each learned the hard way
 
 - **Both namespaces, together.** Clearing only `adr-patterns` fixes stale statuses and leaves the
   duplicate edges behind. A partial rebuild is its own trap.
@@ -359,6 +403,58 @@ finished explaining it cannot win.
 Because the delete precedes the rebuild, a failed rebuild would leave an **empty** graph — which
 `verify` then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on
 nothing). The ADR files are never touched; re-running is always safe.
+
+### `verify-interface` — a gate that cannot be opened
+
+`ruvnet-brain` ships a PreToolUse hook that blocks a Bash command naming a rUv CLI until you have read
+that command's `--help`. **The idea is sound and this target does not disable it** — it exists because
+someone once called `ruflo memory search "query"` positionally, got nothing back, and declared AgentDB
+broken three times over. Keep the gate. It simply cannot be *opened*.
+
+**1. It fires on things that are not the tool.**
+
+```bash
+MATCH_RE="($TOOLS)[@a-z0-9.-]*[[:space:]]+([a-z][a-z-]*)…"
+```
+
+The character class exists to absorb `@latest`. It also absorbs a hyphenated **binary name** — so
+`ruflo-source-patch adr-index status`, an entirely different tool with its own CLI, is read as the
+`ruflo` CLI, and the gate demands you first run `ruflo adr-index status --help`. That command does not
+exist; `ruflo` has no `adr-index` subcommand. It asks for something impossible, then blocks until you
+provide it.
+
+There is no command-position anchor either, so the regex is applied to the **whole command string,
+quoted text included**. A `git commit` whose message contained the sentence *"…the installed
+`ruflo-adr-reindex.sh` **was the** pre-71be214 copy"* matched as `ruflo … was the`, and the gate
+demanded the help output for a command called **`was the`**. Ordinary English prose is enough.
+
+**2. The documented override cannot work.** The block message ends:
+
+> *(Deliberate override, say why out loud: `RUVNET_SKIP_INTERFACE_CHECK=1`)*
+
+But the check reads that variable from the **hook's own environment** — and a PreToolUse hook is handed
+the proposed command as JSON on stdin and **never executes it**. Setting the variable on the command,
+which is precisely what the message instructs, cannot reach the hook. The one documented escape hatch is
+unreachable from the only side that is told to use it.
+
+Together: a false-positive match with no working override. In one session it blocked **five** unrelated
+commands — including a `git commit` — in a repo whose name begins `ruflo-`. There is no way round it
+except to not name the tool.
+
+The patch absorbs only a `@version`, anchors the tool to command position, and honours the override where
+the message says to write it. The regex necessarily gains capture groups (bash ERE has no non-capturing
+`(?:…)`), so its `BASH_REMATCH` readers move with it — **five edits, each with its own `done()`
+predicate**, because a *partial* apply here is worse than none: land the regex without its readers and the
+gate blocks on garbage.
+
+Tested **behaviourally, not textually** — asserting "the regex string changed" would pass on a patch that
+broke the gate outright. The suite proves the unpatched fixture really does block (else everything below
+is vacuous), that all three commands which actually blocked us now pass, that the override finally works,
+and — the one that matters — **that an unread interface still blocks.**
+
+When upstream fixes [#12](https://github.com/stuinfla/ruvnet-brain/issues/12), the anchors stop matching
+and `apply()` reports `skip:no-anchor-matched`, naming #12 as the likely reason. Then uninstall the
+target. It never guesses.
 
 ## Script targets — what they do and how to run them
 
@@ -426,58 +522,6 @@ twice**.
 It is conservative by construction: an item is removed **only when a plugin actually provides it**, so
 anything project-unique is kept. Everything it removes is backed up first. `--strip-dup-hooks` is opt-in
 because that one edits your `settings.json`.
-
-## `verify-interface` — a gate that cannot be opened
-
-`ruvnet-brain` ships a PreToolUse hook that blocks a Bash command naming a rUv CLI until you have read
-that command's `--help`. **The idea is sound and this target does not disable it** — it exists because
-someone once called `ruflo memory search "query"` positionally, got nothing back, and declared AgentDB
-broken three times over. Keep the gate. It simply cannot be *opened*.
-
-**1. It fires on things that are not the tool.**
-
-```bash
-MATCH_RE="($TOOLS)[@a-z0-9.-]*[[:space:]]+([a-z][a-z-]*)…"
-```
-
-The character class exists to absorb `@latest`. It also absorbs a hyphenated **binary name** — so
-`ruflo-source-patch adr-index status`, an entirely different tool with its own CLI, is read as the
-`ruflo` CLI, and the gate demands you first run `ruflo adr-index status --help`. That command does not
-exist; `ruflo` has no `adr-index` subcommand. It asks for something impossible, then blocks until you
-provide it.
-
-There is no command-position anchor either, so the regex is applied to the **whole command string,
-quoted text included**. A `git commit` whose message contained the sentence *"…the installed
-`ruflo-adr-reindex.sh` **was the** pre-71be214 copy"* matched as `ruflo … was the`, and the gate
-demanded the help output for a command called **`was the`**. Ordinary English prose is enough.
-
-**2. The documented override cannot work.** The block message ends:
-
-> *(Deliberate override, say why out loud: `RUVNET_SKIP_INTERFACE_CHECK=1`)*
-
-But the check reads that variable from the **hook's own environment** — and a PreToolUse hook is handed
-the proposed command as JSON on stdin and **never executes it**. Setting the variable on the command,
-which is precisely what the message instructs, cannot reach the hook. The one documented escape hatch is
-unreachable from the only side that is told to use it.
-
-Together: a false-positive match with no working override. In one session it blocked **five** unrelated
-commands — including a `git commit` — in a repo whose name begins `ruflo-`. There is no way round it
-except to not name the tool.
-
-The patch absorbs only a `@version`, anchors the tool to command position, and honours the override where
-the message says to write it. The regex necessarily gains capture groups (bash ERE has no non-capturing
-`(?:…)`), so its `BASH_REMATCH` readers move with it — **five edits, each with its own `done()`
-predicate**, because a *partial* apply here is worse than none: land the regex without its readers and the
-gate blocks on garbage.
-
-Tested **behaviourally, not textually** — asserting "the regex string changed" would pass on a patch that
-broke the gate outright. The suite proves the unpatched fixture really does block (else everything below
-is vacuous), that all three commands which actually blocked us now pass, that the override finally works,
-and — the one that matters — **that an unread interface still blocks.**
-
-When upstream fixes [#12](https://github.com/stuinfla/ruvnet-brain/issues/12), the anchors stop matching
-and `apply()` reports `skip:no-anchor-matched`, naming #12 as the likely reason. Then uninstall the
-target. It never guesses.
 
 ## `monitor` — keep the patches applied
 

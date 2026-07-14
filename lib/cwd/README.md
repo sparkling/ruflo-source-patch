@@ -1,5 +1,7 @@
 # `lib/cwd/` — the CLI patch targets, and all the shared machinery
 
+[← ruflo-source-patch](../../README.md)
+
 Named for the first target (`cwd`), but it now holds the engine everything else stands on.
 
 ## The targets

@@ -1,5 +1,7 @@
 # `test/`
 
+[← ruflo-source-patch](../README.md)
+
 `npm test` — **seven suites, 30 groups.** No framework, no dependencies.
 
 | Suite | Covers |

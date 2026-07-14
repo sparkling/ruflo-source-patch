@@ -1,5 +1,7 @@
 # `bin/`
 
+[← ruflo-source-patch](../README.md)
+
 `cli.mjs` — the whole CLI. One file, zero dependencies.
 
 ```

@@ -1,5 +1,7 @@
 # `adr-template` — a plugin whose two skills disagree about their own format
 
+[← ruflo-source-patch](../../README.md)
+
 Patches `ruflo-adr`'s `skills/adr-create/SKILL.md`.
 Upstream: [#2659](https://github.com/ruvnet/ruflo/issues/2659)
 

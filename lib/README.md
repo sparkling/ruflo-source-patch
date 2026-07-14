@@ -1,5 +1,7 @@
 # `lib/` — the engine
 
+[← ruflo-source-patch](../README.md)
+
 Every target is one of **three kinds**, and the kind determines what re-applies it. Getting this wrong is
 how a fix silently stops existing.
 

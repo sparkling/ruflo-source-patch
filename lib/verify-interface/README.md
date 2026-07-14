@@ -1,8 +1,19 @@
 # `verify-interface` — a gate that cannot be opened
 
+[← ruflo-source-patch](../../README.md)
+
 Patches the **`ruvnet-brain`** plugin (not `ruflo-adr`) — its PreToolUse hook,
 `scripts/verify-interface.sh`.
 Upstream: [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12)
+
+## Contents
+
+- [The gate is a good idea, and this does not disable it](#the-gate-is-a-good-idea-and-this-does-not-disable-it)
+- [1. It fires on things that are not the tool](#1-it-fires-on-things-that-are-not-the-tool)
+- [2. The documented override cannot work](#2-the-documented-override-cannot-work)
+- [Why five edits and not one](#why-five-edits-and-not-one)
+- [Tested behaviourally, not textually](#tested-behaviourally-not-textually)
+- [When upstream fixes it](#when-upstream-fixes-it)
 
 ## The gate is a good idea, and this does not disable it
 

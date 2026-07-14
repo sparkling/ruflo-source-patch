@@ -1,5 +1,7 @@
 # `adr-index` — the index that could be created but never updated
 
+[← ruflo-source-patch](../../README.md)
+
 Patches `ruflo-adr`'s importer, `scripts/import.mjs`.
 Upstream: [#2660](https://github.com/ruvnet/ruflo/issues/2660) ·
 [#2594](https://github.com/ruvnet/ruflo/issues/2594)
