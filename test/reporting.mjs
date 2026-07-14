@@ -595,6 +595,71 @@ console.log('✔ ambiguous anchors (A1 a duplicated anchor is refused, not guess
   console.log(`✔ make install (M1 installs all ${mustInstall.length} patch/plugin targets, M2 uninstall removes them all)`);
 }
 
+// ─── RB: a re-baseline tells you WHAT TO DO, not just what happened ──────────
+// A re-baseline is the one failure mode with NO automated guard: the anchors still matched, uniquely,
+// and the result parses — but a literal string can still match and no longer MEAN the same thing.
+// Upstream may have moved our anchored line into a dead path. Nothing here can detect that.
+//
+// So the notifier must not merely report it. The reader of that text is usually an agent, and it can act
+// on instructions — so it gets instructions.
+
+freshSandbox();
+cli(['cwd', 'install']);
+
+// UPSTREAM SHIPS A NEW BUILD: the file is replaced with something that still carries our anchors (so the
+// patch re-applies) but is otherwise different. This is a re-baseline, not a break.
+const rbFile = vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js');
+const rbPristine = pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/services/daemon-autostart.js')).toString('utf8');
+fs.writeFileSync(rbFile, `// upstream v9: a new header they added\n${rbPristine}`);
+
+spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
+
+const rbSaid = notify();
+if (!/re-baselined/.test(rbSaid)) fail(`RB a vendor file was replaced under us and the notifier never said so:\n${said || '(silence)'}`);
+
+// RB1 — it says what CANNOT be verified. Without this, a clean-looking re-apply reads as "all fine".
+if (!/does NOT prove it still DOES anything|no automated guard/i.test(rbSaid)) {
+  fail(`RB1 the notifier reported the re-baseline but never said the patch's CORRECTNESS is unverified:\n${rbSaid}`);
+}
+
+// RB2 — it hands over the actual diff command, with the real paths. "Go look at it" is not an instruction.
+if (!/diff .*\.rsp-backup/.test(rbSaid)) fail(`RB2 no diff command was given — the reader has nothing to act on:\n${rbSaid}`);
+if (!rbSaid.includes(rbFile)) fail('RB2 the guidance does not name the file that actually changed');
+
+// RB3 — it says what to LOOK for (a dead path / an early return), not merely "check it".
+if (!/early return|dead path|no-op that LOOKS applied/i.test(rbSaid)) {
+  fail(`RB3 the guidance does not say what to look for in the new code:\n${rbSaid}`);
+}
+
+// RB4 — and how to act on the answer, either way.
+if (!/uninstall/.test(rbSaid)) fail('RB4 the guidance never says how to back the patch out if it is now wrong');
+
+// RB5 — an ORDINARY problem does NOT get the essay. A warning that always prints a wall of text is a
+// warning people learn to scroll past.
+//
+// Note the fixture has to be a problem that is NOT a re-baseline, and "rewrite the vendor file" is not
+// one — replacing the bytes IS what triggers a re-baseline. So: make the write FAIL instead (a read-only
+// directory), which produces an `error ` line and no re-baseline at all.
+freshSandbox();
+cli(['cwd', 'install']);
+cli(['cwd', 'uninstall']);
+const lockedDir2 = path.dirname(vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js'));
+fs.chmodSync(lockedDir2, 0o555);
+try {
+  spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
+  cli(['cwd', 'install']);
+  spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
+} finally {
+  fs.chmodSync(lockedDir2, 0o755);
+}
+const plain = notify();
+if (!plain.trim()) fail('RB5 fixture: an unwritable vendor dir produced no warning at all — the test would be vacuous');
+if (/A VENDOR FILE CHANGED UNDER US/.test(plain)) {
+  fail(`RB5 the re-baseline guidance printed for an ordinary problem — it must be reserved for the case it describes:\n${plain}`);
+}
+
+console.log('✔ re-baseline guidance (RB names the unverifiable risk, RB2 gives the real diff command, RB3 says what to look for, RB4 how to act, RB5 stays quiet for ordinary problems)');
+
 // ─── the notifier actually speaks ────────────────────────────────────────────
 // The end of the chain. Everything above is worthless if the human is never told.
 
