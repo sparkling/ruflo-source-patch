@@ -21,7 +21,7 @@ the engine everything else stands on.
 | `daemon` | dedup keyed per-cwd, so a `daemon start` from any subdirectory forks its own daemon |
 | `memory` | `memory.db` durability: a cross-process **write lock**, and **WAL-coherent reads** |
 
-`patch-library.mjs` holds the entry table (7 entries across the 3 targets) and the engine that composes
+`patch-library.mjs` holds the entry table (33 entries across the 3 targets) and the engine that composes
 them. Several entries share a file, so the rebuild is **from pristine plus the desired entry set**, never
 a sequence of in-place edits. That is what makes `memory uninstall` able to remove the write lock while
 leaving `cwd`'s anchoring in the same file untouched.
@@ -38,7 +38,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 | `notify.mjs` | UserPromptSubmit. SessionStart is too late: a new ruflo version can land in the npx cache **mid-session**. |
 | `state.mjs` | What is installed, and what has **retired**. Every mutation is a read-modify-write, and it now holds a **cross-process lock** (see below). |
 | `update-check.mjs` | Self-update, from **immutable semver tags** and never a branch. On the tick, not the hook: sessions run for days, so a hook-gated update leaves an invalidated patch re-applying itself for a week. Forward only; a failed install keeps the working version and says so. |
-| `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. |
+| `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. `strayStateDirs()` is also the LEAK DETECTOR the SessionStart hook reports from: a state dir in a subdirectory is an anchor that leaked, whatever form it took. |
 
 ## The one that bites
 

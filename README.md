@@ -109,7 +109,7 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`cwd`** | `.claude-flow`/`.swarm` stop following a drifted cwd. One state dir at the project root, not one per visited subdirectory | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
+| **`cwd`** | **Silent data loss.** `.claude-flow` holds the learning state (autopilot, `neural/`, `metrics/`, `agentdb`, `memory.db`) and it is anchored to raw `process.cwd()`. Under an agent the cwd drifts and *sticks*, so state is written to a subdirectory nothing will ever read again. `loadState()` does not error: it returns **defaults** and writes a fresh file. The system quietly resets to zero, and it looks exactly like normal operation. Anchors the resolver, the callees and the implicit-relative constants; plus a leak detector, because completeness cannot be proven | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability. A cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
@@ -165,23 +165,83 @@ Actions: `install` · `uninstall` · `status` · `run` · `check`
 
 ### `cwd`
 
-Fixes folder sprawl: `.claude-flow` and `.swarm` directories breeding through the repo.
+Stray folders are the symptom. **The bug is silent data loss.**
 
-`@claude-flow/cli` anchors its state to raw `process.cwd()`. Under Claude Code's
-working-directory drift (sub-agents, worktrees, `cd` inside Bash steps) `cwd` is frequently a
-subdirectory rather than the project root, so a fresh `.claude-flow` folder appears in every
-visited directory and memory scatters across stray `.swarm/memory.db` files.
+`.claude-flow/` holds the *learning* state: `autopilot-state.json`, `neural/` checkpoints, `metrics/`,
+`learning.json`, `vectors.json`, `agentdb/`, `hnsw/`, and `.swarm/memory.db`. All of it is anchored to raw
+`process.cwd()`, and under an agent `process.cwd()` is not the project. It is wherever the agent last ran
+`cd`, and **it stays there**:
 
-Caller-side interception can't reach every path, because ruflo's own bundled plugin hooks invoke
-the CLI with a drifted cwd. Patching the **callee** fixes every caller at once:
+```text
+tool call 1:   cd docs && pwd      ->  /repo/docs
+tool call 2:   pwd                 ->  /repo/docs     # a separate call, no cd. It never goes back.
+```
 
-| Function | File |
-|----------|------|
-| `ensureDaemonRunning` | `@claude-flow/cli` · `services/daemon-autostart.js` |
-| `getMemoryRoot` + config paths | `@claude-flow/cli` · `memory/memory-initializer.js` |
+The user is at the repo root and never leaves it. The agent runs `cd src/website && npm test` for an
+unrelated reason, and from that moment every `ruflo` command, `npx` invocation and MCP spawn in the
+session is anchored in `src/website/`.
+
+So state is written to a directory nothing will ever read again. And it does not error:
+
+```js
+export function loadState() {
+  const filePath = resolve(STATE_FILE);      // relative to the DRIFTED cwd
+  try { if (existsSync(filePath)) { … } } catch { }
+  return defaults;                            // not found => start over, silently
+}
+```
+
+Nothing is corrupted. The self-learning system quietly resets to zero, and it looks exactly like normal
+operation. That is the worst shape a data bug can have.
+
+#### Three forms, and only one is greppable
+
+| Form | Sites | Findable by search? |
+|------|-------|---------------------|
+| `path.join(process.cwd(), '.claude-flow', …)` | 62 | yes |
+| `resolve('.claude-flow/data')` | 11 | **no**. A one-arg `resolve()` is *already* cwd-relative, so there is no `process.cwd()` token to find |
+| `applyChampion(process.cwd())` | 87 | **no**. The callee builds the path from a parameter |
+
+A grep-driven patch therefore cannot be complete. And **an incomplete one is worse than none**, because it
+splits writers from readers. We shipped exactly that: `getProjectCwd` (the **reader** of
+`harness-active-policy.json`) was anchored while `applyChampion` (its **writer**) still followed the
+drifted cwd, so the reader looked at the project root for a file the writer had put elsewhere and silently
+found nothing. Unpatched, both sides at least agreed on the drifted directory. Fixed in 4.16.0.
+
+#### What it does
+
+Ported from [`sparkling/ruflo`](https://github.com/sparkling/ruflo)'s ADR-0100 and ADR-0137, which triaged
+all 91 sites (70 fixed, 21 kept as deliberate `intentional-cwd`).
+
+**The resolver**, by marker priority: `.ruflo-project` sentinel, then `CLAUDE.md` **and** `.claude/` (both
+required, so a `docs/CLAUDE.md` is not mistaken for a project), then `.git`, then the start dir unchanged.
+`.git` alone is not enough: a monorepo package has its own `.claude/` and no `.git`, so a bare `.git` walk
+sails past it and pools every package's state into one store. Memoised per **resolved start dir**, never at
+module load, because a module-level cache goes stale precisely when the cwd drifts.
+
+**Anchored at the callee, not the call site.** One edit fixes every caller, present and future:
+
+| Anchored | Where |
+|----------|-------|
+| `ensureDaemonRunning`, `getDaemon`, `startDaemon` | `services/daemon-autostart.js`, `services/worker-daemon.js` |
+| `getMemoryRoot` + config paths | `memory/memory-initializer.js` |
 | `getProjectCwd` | `@claude-flow/cli-core` · `mcp-tools/types.js` |
+| `applyChampion`, `applyChampionParams`, `rollbackActivePolicy` | `config/harness-feedback-applier.js` |
+| `getDataDir` (neural), `defaultMemoryDbPath`, `defaultTunedConfigPath`, `createClaimService`, `runHarnessLoopWorker` | `memory/`, `services/` |
+| `STATE_DIR` (the implicit-relative case) | `autopilot-state.js`. Patching the **constant** fixes all five `resolve()` sites, since `resolve(<absolute>)` returns it unchanged |
 
-Each resolves the nearest ancestor `.git` (worktree-safe) before using cwd.
+**`commands/init.js` is deliberately left alone.** `init` legitimately targets the invocation directory, so
+resolving it would initialise a nested project at the outer repo root. That is the fork's
+`adr-0100-allow: intentional-cwd` triage, and it is also why a blanket `chdir` at the entry point cannot
+work.
+
+#### And a leak detector, because completeness cannot be proven
+
+A `.claude-flow`/`.swarm` in a subdirectory **is** an anchor that leaked, whatever syntactic form it took.
+The SessionStart hook reports them, and only reports: those directories hold orphaned neural checkpoints and
+split `memory.db` files, and discarding the only copy of someone's learning state is not a hook's decision.
+
+Upstream: [#2633](https://github.com/ruvnet/ruflo/issues/2633).
 
 ### `daemon`
 
