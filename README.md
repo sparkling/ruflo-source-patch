@@ -79,7 +79,7 @@ can **reap**. Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`adr-template`** | `adr-create`'s own template writes ADR metadata as a bullet list (`- **Status**: proposed`); `adr-index`'s parser only recognises an unprefixed `**Status**:` line or YAML frontmatter, so Status/Date/Tags silently come back empty/Unknown for every ADR authored via `adr-create`'s documented template. Strips the leading `- ` from those four lines so the two skills in the same plugin agree | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
 | **`adr-index`** | `adr-index` **cannot update an ADR that changed** — the one thing its own SKILL.md advertises ("Build or *rebuild* … when the graph is out of sync with the on-disk files"). Ratify an ADR, re-run it, and the graph still says `proposed`. Both namespaces are insert-only, failing in *opposite* directions: `adr-patterns` keys are deterministic → collide → the write is rejected and the record stays **frozen**; `adr-edges` keys embed `Date.now()`+random → never collide → every run **duplicates** the whole edge set (3 → 6 → 9). It reports `Records stored: 2/2` either way, because a `UNIQUE constraint` failure is counted as a success | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
-| **`adr-reindex`** | The only target that **adds** rather than fixes: upstream ships no reconcile command, so this installs a **`/adr-reindex`** skill into `ruflo-adr` (next to `/adr-create`, `/adr-index`, `/adr-review`, `/adr-verify`) plus the script it invokes. `adr-index` converges; it can never **reap** — delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL: the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target** — it hard-deletes rows and refuses to do that without the write lock | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) · *(no upstream issue for the missing command itself)* |
+| **`adr-reindex`** | The only target that **adds** rather than fixes: upstream ships no reconcile command, so this installs a **`/adr-reindex`** skill into `ruflo-adr` (next to `/adr-create`, `/adr-index`, `/adr-review`, `/adr-verify`) plus the script it invokes. `adr-index` converges; it can never **reap** — delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL: the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target** — it hard-deletes rows and refuses to do that without the write lock | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
 **Plugin patches (`ruvnet-brain`)** — a different plugin, the same machinery and the same reason
 to be a target: a `/plugin update` reverts a hand-edit silently.
@@ -796,16 +796,16 @@ building this tool; one we contributed a reproduction and fix to. The tool doesn
 works around these locally until they land, and reports `skip:no-anchor-matched` (loudly) when a fix
 does land and the anchors stop matching.
 
-**One target is not a workaround for a bug:** `adr-reindex` **adds** a `/adr-reindex` command that
-`ruflo-adr` simply does not ship. There is no upstream issue for it, because it is a missing *feature*
-rather than a defect — the reconcile it performs is only *necessary* because of
-[#2660](https://github.com/ruvnet/ruflo/issues/2660) and
-[#2652](https://github.com/ruvnet/ruflo/issues/2652), both listed below.
+**One target adds rather than fixes:** `adr-reindex` installs a `/adr-reindex` command that `ruflo-adr`
+does not ship. That gap is now filed as [#2666](https://github.com/ruvnet/ruflo/issues/2666) — the plugin
+can *add* an ADR to the index and (once #2660 lands) *update* one, but it has no way to **remove** one, and
+`adr-verify` then certifies the orphaned graph as healthy.
 
 **Filed by us:**
 
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
+| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | `ruflo-adr` has **no way to reconcile a deleted ADR** — the orphan row survives every import, and `adr-verify` certifies it as healthy (an orphan has no dangling ref and forms no cycle). Upsert converges; it can never reap | `adr-reindex` |
 | [ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) | `verify-interface.sh`'s PreToolUse gate is **unopenable**: its tool regex swallows any hyphenated binary name (`ruflo-source-patch …` → `ruflo …`) and matches inside plain English prose, while the documented `RUVNET_SKIP_INTERFACE_CHECK=1` override is read from the hook's own environment, where a caller can never set it | `verify-interface` |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation — `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
