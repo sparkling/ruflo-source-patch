@@ -41,7 +41,7 @@ npx github:sparkling/ruflo-source-patch dual install     # one instruction file 
 npx github:sparkling/ruflo-source-patch dedupe install    # delete the ~260 files `init --full` duplicates
 ```
 
-See [Script targets — the project toolkits](#script-targets--the-project-toolkits).
+See [Script targets — what they do and how to run them](#script-targets--what-they-do-and-how-to-run-them).
 
 To pick targets individually instead:
 
@@ -92,9 +92,11 @@ Actions: `install` · `uninstall` · `status`
 **`monitor`** — re-applies the patches when something overwrites them.
 Actions: `install` · `uninstall` · `status` · `run` · `check`
 
-**Script targets** — project *toolkits*, not patches. They fix nothing in the library; they set up and
-clean up **your projects**. Nothing is patched, no hook is registered — `install` just materializes the
-scripts at a stable path so you can run them.
+## Script targets
+
+Project *toolkits*, not patches. They fix nothing in the library; they set up and clean up **your
+projects**. Nothing is patched, no hook is registered — `install` just materializes the scripts at a
+stable path so you can run them.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it gives you |
@@ -102,8 +104,7 @@ Actions: `install` · `uninstall` · `status`
 | **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
 | **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** `ruflo init --full` bundles ~260 files that ~100% duplicate the installed plugins. This deletes the duplicates and the double-firing hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
 
-See **[Script targets — the project toolkits](#script-targets--the-project-toolkits)** below for what
-each script actually does and how to run it.
+[**What each script does, and how to run it →**](#script-targets--what-they-do-and-how-to-run-them)
 
 ---
 
@@ -359,7 +360,7 @@ Because the delete precedes the rebuild, a failed rebuild would leave an **empty
 `verify` then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on
 nothing). The ADR files are never touched; re-running is always safe.
 
-## Script targets — the project toolkits
+## Script targets — what they do and how to run them
 
 Everything else in this package fixes **the library**. These fix **your projects** — and they're the
 part people miss, because they're not patches and nothing re-applies them. `install` materializes the
