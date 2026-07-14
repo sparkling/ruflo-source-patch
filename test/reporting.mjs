@@ -468,6 +468,41 @@ if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
   console.log('✔ verify-interface (V1 buggy fixture proven, V2 5/5 edits, V3 false positives gone, V4 the gate STILL blocks, V5 override reachable, V6 clean restore)');
 }
 
+// ─── M: `make install` covers every target that exists ───────────────────────
+// This package OPENED with a commit fixing "make install never installed the ADR patches it claimed
+// to". Then verify-interface was added in 4.2.0 and the Makefile was not touched — so `make install`
+// silently stopped covering everything again, exactly as before. Twice is a pattern, and a pattern
+// needs a test, not another apology.
+//
+// The Makefile is checked against the CODE's target list, never against a list typed here — a
+// hardcoded expectation would need updating by the same person who forgot the Makefile.
+{
+  const makefile = fs.readFileSync(path.join(REPO, 'Makefile'), 'utf8');
+  const installBlock = makefile.split(/^install: /m)[1]?.split(/^\w+:/m)[0] || '';
+  const uninstallBlock = makefile.split(/^uninstall:/m)[1]?.split(/^\w+:/m)[0] || '';
+
+  const { PATCH_TARGETS } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'patch-library.mjs')}`);
+  const { PLUGIN_TARGETS } = await import(`file://${path.join(REPO, 'lib', 'plugin-registry.mjs')}`);
+  const mustInstall = [...PATCH_TARGETS, ...PLUGIN_TARGETS];
+
+  // M1 — every patch and plugin target is installed by `make install`. Script targets are deliberately
+  // opt-in (they change your PROJECTS, not the library), so they are not required here.
+  const missingInstall = mustInstall.filter((t) => !new RegExp(`ruflo-source-patch ${t} install\\b`).test(installBlock));
+  if (missingInstall.length) {
+    fail(`M1 \`make install\` does not install: ${missingInstall.join(', ')}\n`
+      + '   Every patch/plugin target must be in the Makefile, or `make install` is lying about what it does.');
+  }
+
+  // M2 — and `make uninstall` removes every one of them. An uninstall that leaves targets behind has
+  // not uninstalled the package; it has just stopped admitting to them.
+  const missingUninstall = mustInstall.filter((t) => !new RegExp(`ruflo-source-patch ${t} uninstall\\b`).test(uninstallBlock));
+  if (missingUninstall.length) {
+    fail(`M2 \`make uninstall\` does not remove: ${missingUninstall.join(', ')}`);
+  }
+
+  console.log(`✔ make install (M1 installs all ${mustInstall.length} patch/plugin targets, M2 uninstall removes them all)`);
+}
+
 // ─── the notifier actually speaks ────────────────────────────────────────────
 // The end of the chain. Everything above is worthless if the human is never told.
 

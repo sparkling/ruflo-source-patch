@@ -24,9 +24,11 @@ install: install-global
 	ruflo-source-patch adr-template install
 	ruflo-source-patch adr-index install
 	ruflo-source-patch adr-reindex install
+	ruflo-source-patch verify-interface install
 	ruflo-source-patch monitor install
 	@echo ""
-	@echo "done — cwd + daemon + memory + adr-template + adr-index patched, adr-reindex installed,"
+	@echo "done — cwd + daemon + memory + adr-template + adr-index + verify-interface patched,"
+	@echo "       adr-reindex installed,"
 	@echo "       monitor scheduled. Verify: ruflo-source-patch monitor check"
 
 # The inverse: remove every target this Makefile's `install` added (the last patch target
@@ -34,6 +36,7 @@ install: install-global
 # machine as it was.
 uninstall:
 	-ruflo-source-patch monitor uninstall
+	-ruflo-source-patch verify-interface uninstall
 	-ruflo-source-patch adr-reindex uninstall
 	-ruflo-source-patch adr-index uninstall
 	-ruflo-source-patch adr-template uninstall
