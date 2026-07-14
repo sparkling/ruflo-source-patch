@@ -697,7 +697,7 @@ retirement with no memory of itself would be undone within the hour and redone o
 $ npx github:sparkling/ruflo-source-patch monitor run
 RETIRED retired adr-reindex — ruflo-adr ships its own /adr-reindex AND the installed
   @claude-flow/cli registers `memory purge`, so the replacement is present and runnable.
-  To get it back: `adr-reindex unretire`. To have kept it: `adr-reindex pin`. (#2666)
+  This is not a failure: upstream now does this job. (#2666)
 ```
 
 Announced **once**, then silence. The old behaviour was a `skip:upstream-owns-it` warning that fired every
@@ -705,11 +705,11 @@ session and could never resolve itself, and a banner that always cries wolf is a
 A retirement is explicitly **not** a problem, so it never triggers the *"a patch may no longer be doing
 anything"* alarm. That would be crying wolf over good news.
 
-| Action | What it does |
-|---|---|
-| `<target> pin` | **Never** auto-retire this one. The user's veto, and it is final |
-| `<target> unpin` | Lift the veto |
-| `<target> unretire` | Undo a retirement, so `install` works again |
+`install` on a retired target refuses, prints the evidence, and stops. That refusal is the entire retirement
+interface. **There is no `unretire` and no `pin`**, deliberately: a target retires only when its replacement
+is proven present *and* runnable on that machine, so "I disagree" is not a state worth modelling, and every
+override is another surface to test, document and get wrong. If the predicate is right, the answer is right.
+If the predicate is wrong, fix the predicate.
 
 Read-only actions never retire anything. `status` and `monitor check` observe; `install` and `monitor run`
 repair. A `check` that quietly uninstalled things would be the worst possible violation of that rule.

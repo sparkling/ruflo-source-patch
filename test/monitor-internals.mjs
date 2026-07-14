@@ -227,7 +227,7 @@ const noPurgeCli = "const subs = ['store', 'delete', 'cleanup'];\n";
 const purgeCli = "const subs = ['store', 'delete', 'purge', 'cleanup'];\n";
 
 const installOurs = () => {
-  stateMod.writeState({ patchTargets: ['memory'], pluginTargets: ['adr-reindex'], retired: {}, pinned: [] });
+  stateMod.writeState({ patchTargets: ['memory'], pluginTargets: ['adr-reindex'], retired: {} });
 };
 
 // SU1 — THE REPLACEMENT IS THERE BUT CANNOT RUN. Keep ours. This is the case that actually happened,
@@ -282,27 +282,16 @@ if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
   fail('SU4 a retired target was re-installed by the next apply — it will now flip-flop every session');
 }
 
-// SU5 — and `install` refuses it, with a way back.
+// SU5 — and `install` refuses it, rather than silently resurrecting it, and says why.
+// (There is no `unretire` and no `pin`. A target retires only on proof that its replacement is present
+// AND runnable HERE, so "I disagree" is not a state worth modelling — and every override is another
+// surface to get wrong. If the predicate is right, the answer is right.)
 const inst = cli(['adr-reindex', 'install']);
 if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
-  fail(`SU5 \`install\` re-installed a RETIRED target:\n${out(inst)}`);
+  fail(`SU5 \`install\` re-installed a RETIRED target — it will now flip-flop:\n${out(inst)}`);
 }
-if (!/unretire/.test(out(inst))) fail(`SU5 install refused but never said how to get it back:\n${out(inst)}`);
-
-// SU6 — `unretire` is the way back, and it works.
-stateMod.unretire('adr-reindex');
-if (stateMod.isRetired('adr-reindex')) fail('SU6 unretire did not clear the retirement');
-const back = cli(['adr-reindex', 'install']);
-if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
-  fail(`SU6 after unretire, install still refused:\n${out(back)}`);
+if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
+  fail(`SU5 install refused but did not say why, with evidence:\n${out(inst)}`);
 }
 
-// SU7 — THE USER'S VETO. Someone pinned to an old CLI, or who judges upstream's fix worse than ours,
-// gets to keep ours. An automatic uninstall the user cannot refuse is hostile.
-stateMod.pinTarget('adr-reindex');
-cmds.applyInstalled();
-if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
-  fail('SU7 a PINNED target was auto-retired anyway — the user\'s veto was ignored');
-}
-
-console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN, SU2 never retires into a hole, SU3 retires on proof + records evidence + announces without crying wolf, SU4 terminal, SU5 install refuses, SU6 unretire restores, SU7 pin vetoes)');
+console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN, SU2 never retires into a hole, SU3 retires on proof + records evidence + announces without crying wolf, SU4 terminal, SU5 install refuses and says why)');

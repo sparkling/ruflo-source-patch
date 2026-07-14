@@ -50,7 +50,7 @@ import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
 import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 
-const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check', 'pin', 'unpin', 'unretire']);
+const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
 
 // Plugin patches — same shape as PATCH_TARGETS, but they patch the installed
@@ -174,46 +174,25 @@ try {
   }
 } catch { /* never let a refresh break the command the user actually asked for */ }
 
-// ─── retirement: the user's side of it ──────────────────────────────────────
+// `install` on a RETIRED target refuses, and that is the whole of the retirement UI.
 //
-// A target retires ITSELF when its replacement is proven present and runnable here (supersede.mjs).
-// These three actions are the human overrides, and they exist because an automatic uninstall that the
-// user cannot see, question or refuse would be indistinguishable from a bug that ate their patch.
+// It has to refuse: the SessionStart hook re-applies everything in state.json and `make install` installs
+// every target, so a retirement with no memory of itself would be undone within the hour, re-done on the
+// next monitor tick, and flip-flop forever.
 //
-//   pin        never auto-retire this one. The user's veto, and it is final — someone pinned to an old
-//              CLI, or who judges upstream's fix worse than ours, gets to keep ours.
-//   unpin      lift the veto.
-//   unretire   undo a retirement, so `install` works again.
-//
-// And `install` on a RETIRED target refuses. It has to: retirement is terminal precisely because the
-// SessionStart hook re-applies everything in state.json and `make install` installs every target, so a
-// retirement with no memory of itself would be undone within the hour, re-done on the next monitor tick,
-// and flip-flop forever. Refusing, with the evidence and the way out, is the only stable answer.
-const KNOWN_TARGET = PATCH_TARGETS.includes(target) || Boolean(PLUGIN_PATCH_TARGETS[target]);
-if (KNOWN_TARGET) {
-  const { readState, unretire, pinTarget, unpinTarget, isRetired } = await import('../lib/cwd/state.mjs');
-  const say = (m) => console.log(`[${target}] ${m}`);
-
-  if (action === 'pin' || action === 'unpin') {
-    if (action === 'pin') { pinTarget(target); say('PINNED — it will never auto-retire, even once upstream ships a replacement. Undo: `unpin`.'); } else { unpinTarget(target); say('unpinned — it may auto-retire again once its replacement is present AND runnable here.'); }
-    process.exit(0);
-  }
-
-  if (action === 'unretire') {
-    if (!isRetired(target)) { say('not retired — nothing to undo.'); process.exit(0); }
-    unretire(target);
-    say('un-retired. `install` will work again. (It will NOT auto-retire on the next tick unless its replacement is still present and runnable, so `pin` it if you mean to keep it regardless.)');
-    process.exit(0);
-  }
-
-  const st = readState();
+// There is deliberately no `unretire` and no `pin`. A target retires only when its replacement is proven
+// PRESENT and RUNNABLE on this machine, so "I disagree" is not a state the tool needs to model — and every
+// override is another surface to test, document and get wrong. If the predicate is right, the answer is
+// right; if the predicate is wrong, fix the predicate.
+if (PATCH_TARGETS.includes(target) || PLUGIN_PATCH_TARGETS[target]) {
+  const { readState, isRetired } = await import('../lib/cwd/state.mjs');
   if ((action === 'install' || action === 'init') && isRetired(target)) {
-    const r = st.retired[target];
-    say(`RETIRED on ${r.at} and NOT re-installed: ${r.reason}.`);
+    const r = readState().retired[target];
+    const say = (m) => console.log(`[${target}] ${m}`);
+    say(`RETIRED on ${r.at}, and not re-installed: ${r.reason}.`);
     say(`  evidence: ${r.evidence}`);
     if (r.issue) say(`  upstream: ${r.issue}`);
-    say('This was not a failure — upstream now does this job, and the replacement was verified on THIS machine.');
-    say(`If you still want ours: \`${target} unretire\` then \`${target} install\` (and \`${target} pin\` to stop it retiring again).`);
+    say('Not a failure: upstream now does this job, and the replacement was verified on THIS machine.');
     process.exit(0);
   }
 }
