@@ -75,6 +75,7 @@ const looksPatched = {
   marker: (buf) => buf.includes(PATCH_MARKER),
   adrIndex: (buf) => buf.includes('ruflo-source-patch (#2660)'),
   adrTemplate: (buf) => buf.includes('   **Status**: proposed'),
+  verifyInterface: (buf) => buf.includes('(^|[[:space:]]|[;&|(])($TOOLS)'),
 };
 
 /**

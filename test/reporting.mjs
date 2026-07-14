@@ -17,6 +17,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
 
@@ -25,6 +26,8 @@ const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
 const STABLE_LIB = path.join(STATE, 'lib');
 const REAL = findVendorRoot();
+// The REAL home — the sandbox HOME is where we PUT fixtures; the vendor originals live here.
+const HOME_REAL = os.homedir();
 
 const FILES = [
   '@claude-flow/cli/dist/src/fs-secure.js',
@@ -389,6 +392,81 @@ if (post.some((c) => c.includes(STATE))) fail(`H8 uninstall left our hooks behin
 if (!post.includes(foreign)) fail('H8 uninstall deleted a hook that was not ours');
 
 console.log('✔ legacy hooks (H5 dead unmarked copies reaped, H6 foreign hooks untouched, H7 exactly one of ours, H8 uninstall leaves none)');
+
+// ─── V: verify-interface — the gate that could not be opened ─────────────────
+// Behavioural, not textual. Asserting "the regex string changed" would pass on a patch that broke the
+// gate entirely; the only thing worth testing is what the SCRIPT DOES with a command.
+
+const brainDir = path.join(HOME, '.claude', 'plugins', 'marketplaces', 'ruvnet-brain', 'plugin', 'scripts');
+const brainScript = path.join(brainDir, 'verify-interface.sh');
+
+// The real vendor file: its .rsp-backup if the patch is installed on this machine, else the file itself
+// (pristineBytes refuses a patched file with no backup, so it can never fabricate a baseline).
+const REAL_BRAIN = path.join(HOME_REAL, '.claude', 'plugins', 'marketplaces', 'ruvnet-brain', 'plugin', 'scripts', 'verify-interface.sh');
+
+if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
+  console.log('· verify-interface (SKIPPED — the ruvnet-brain plugin is not installed)');
+} else {
+  freshSandbox();
+  fs.mkdirSync(brainDir, { recursive: true });
+  fs.writeFileSync(brainScript, pristineBytes(REAL_BRAIN, 'verifyInterface'));
+  fs.chmodSync(brainScript, 0o755);
+
+  // The gate exits 0 immediately when the model-router profile is absent — so without this file the
+  // hook allows EVERYTHING, V1 passes for the wrong reason, and every assertion below is vacuous.
+  // (V1 caught exactly that on the first run. A test that cannot fail is worth nothing.)
+  const profileDir = path.join(HOME, '.claude', 'model-router');
+  fs.mkdirSync(profileDir, { recursive: true });
+  fs.writeFileSync(path.join(profileDir, 'profile.json'), '{}');
+
+  // Drive the gate the way Claude Code does: the proposed command, as JSON, on stdin. Exit 0 = allowed,
+  // nonzero = blocked.
+  const gate = (command) => {
+    const payload = JSON.stringify({ tool_name: 'Bash', command, tool_input: { command } });
+    return spawnSync('bash', [brainScript], { input: payload, encoding: 'utf8', env: { ...process.env, HOME } }).status === 0;
+  };
+
+  // V1 — BEFORE the patch, the gate blocks a command it has no business seeing. If this does not block,
+  // the fixture is wrong and everything below would pass vacuously.
+  if (gate('ruflo-source-patch adr-index status')) {
+    fail('V1 the UNPATCHED gate allowed `ruflo-source-patch adr-index status` — fixture is not the buggy version, the rest of this suite would be vacuous');
+  }
+
+  const r = cli(['verify-interface', 'install']);
+  if (r.status !== 0) fail(`V2 install failed:\n${out(r)}`);
+  if (!/5\/5 edits/.test(out(r))) fail(`V2 not all edits applied:\n${out(r)}`);
+
+  // V3 — the false positives are gone. Each of these actually blocked a real command in one session.
+  const shouldPass = [
+    ['a DIFFERENT binary', 'ruflo-source-patch adr-index status'],
+    ['a grep over a source tree', 'grep -rn ruflo-source-patch lib/'],
+    ['English prose in a commit message', 'git commit -m "ruflo-adr-reindex.sh was the old copy"'],
+  ];
+  for (const [why, cmd] of shouldPass) {
+    if (!gate(cmd)) fail(`V3 still blocked (${why}): ${cmd}`);
+  }
+
+  // V4 — THE GATE STILL WORKS. This is the one that matters: a patch that merely disabled the check
+  // would sail through V3. An unread interface must still block.
+  if (gate('ruflo some-unread-command sub')) {
+    fail('V4 the patched gate no longer blocks an unread interface — we broke it instead of fixing it');
+  }
+
+  // V5 — the documented override is reachable at last. The block message tells you to write it on the
+  // command; the check read it from the hook's own environment, where a caller can never put it.
+  if (!gate('RUVNET_SKIP_INTERFACE_CHECK=1 ruflo memory search -q x')) {
+    fail('V5 the documented override still does not work');
+  }
+
+  // V6 — uninstall restores the vendor bytes exactly, and the gate goes back to its old behaviour.
+  cli(['verify-interface', 'uninstall']);
+  if (!fs.readFileSync(brainScript).equals(pristineBytes(REAL_BRAIN, 'verifyInterface'))) {
+    fail('V6 uninstall did not restore the vendor file byte-for-byte');
+  }
+  if (fs.existsSync(`${brainScript}.rsp-backup`)) fail('V6 uninstall left a backup behind');
+
+  console.log('✔ verify-interface (V1 buggy fixture proven, V2 5/5 edits, V3 false positives gone, V4 the gate STILL blocks, V5 override reachable, V6 clean restore)');
+}
 
 // ─── the notifier actually speaks ────────────────────────────────────────────
 // The end of the chain. Everything above is worthless if the human is never told.

@@ -48,6 +48,7 @@ import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 import { adrTemplateCommand } from '../lib/adr-template/commands.mjs';
 import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
 import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
+import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
@@ -60,6 +61,8 @@ const PLUGIN_PATCH_TARGETS = {
   // Adds the /adr-reindex SKILL to ruflo-adr (and materializes the script it invokes). A plugin
   // target, not a script one: the skill lives inside ruflo-adr, so `/plugin update` deletes it.
   'adr-reindex': adrReindexCommand,
+  // ruvnet-brain, not ruflo-adr — same machinery, different plugin.
+  'verify-interface': verifyInterfaceCommand,
 };
 
 function usage() {
@@ -79,6 +82,10 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-index')}adr-index can't update a changed ADR — frozen records, duplicate edges (#2660)
   ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
   ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
+
+Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
+  ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
+  ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
 
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update/plugin-update overwrites them
