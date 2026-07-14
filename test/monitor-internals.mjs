@@ -206,3 +206,103 @@ if (!/Uninstall this target/i.test(withPurge) || /Do NOT uninstall/i.test(withPu
 }
 
 console.log('✔ adr-reindex reporting (AR1 skip:not-ours reaches the notifier, AR2 skip:upstream-owns-it too, AR3 a stale skill copy is named, AR4 it does NOT say uninstall while upstream\'s reindex cannot run, AR5 it does once `memory purge` ships)');
+
+// ─── SU: self-retirement ─────────────────────────────────────────────────────
+//
+// A target stands down when upstream genuinely takes over. The DANGEROUS way to build this is a
+// published list of "fixed" issues that the monitor acts on — because `closed` != `fixed` (#2621 is
+// closed and upstream's own commit says it is not fixed) and `fixed` != `runnable here` (#2666 is fixed,
+// but `memory purge` shipped on npm separately from the plugin, so for a window the skill was installed
+// and the command it calls did not exist). A list keyed on either would have uninstalled a WORKING
+// reconcile on anyone still on an older CLI.
+//
+// So retirement is a LOCAL MEASUREMENT, and these tests pin the properties that make it safe.
+const sup = await import(`file://${path.join(REPO, 'lib', 'supersede.mjs')}`);
+const stateMod = await import(`file://${path.join(REPO, 'lib', 'cwd', 'state.mjs')}`);
+const cmds = await import(`file://${path.join(REPO, 'lib', 'cwd', 'commands.mjs')}`);
+
+const reindexSkill = path.join(skillDir, 'skills', 'adr-reindex', 'SKILL.md');
+const upstreamSkillBytes = '---\nname: adr-reindex\n---\n\nupstream ships this now (no rsp marker)\n';
+const noPurgeCli = "const subs = ['store', 'delete', 'cleanup'];\n";
+const purgeCli = "const subs = ['store', 'delete', 'purge', 'cleanup'];\n";
+
+const installOurs = () => {
+  stateMod.writeState({ patchTargets: ['memory'], pluginTargets: ['adr-reindex'], retired: {}, pinned: [] });
+};
+
+// SU1 — THE REPLACEMENT IS THERE BUT CANNOT RUN. Keep ours. This is the case that actually happened,
+// and the one a list-of-fixed-issues gets catastrophically wrong.
+fs.writeFileSync(reindexSkill, upstreamSkillBytes);
+fs.writeFileSync(cliMemoryJs, noPurgeCli);
+installOurs();
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail('SU1 retired the target while upstream\'s replacement CANNOT RUN (no `memory purge`) — that removes a working reconcile and leaves an /adr-reindex that reports "purged" having purged nothing');
+}
+
+// SU2 — NEVER RETIRE INTO A HOLE. `memory purge` exists, but upstream ships no skill: there is no
+// replacement to stand down FOR. Keep ours.
+fs.rmSync(reindexSkill, { force: true });
+fs.writeFileSync(cliMemoryJs, purgeCli);
+installOurs();
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail('SU2 retired the target with NO replacement skill on disk — it retired into a hole');
+}
+
+// SU3 — both halves present and runnable => retire, and RECORD THE EVIDENCE. A retirement a user
+// cannot audit later is indistinguishable from a bug that ate their patch.
+fs.writeFileSync(reindexSkill, upstreamSkillBytes);
+fs.writeFileSync(cliMemoryJs, purgeCli);
+installOurs();
+const retiredRun = cmds.applyInstalled();
+const st3 = stateMod.readState();
+if (st3.pluginTargets.includes('adr-reindex')) fail('SU3 the replacement is present AND runnable, but the target did not retire');
+if (!st3.retired['adr-reindex']) fail('SU3 retired the target but recorded nothing — the next install would just put it back');
+if (!/memory purge/.test(st3.retired['adr-reindex'].evidence || '')) {
+  fail(`SU3 the retirement records no usable evidence: ${JSON.stringify(st3.retired['adr-reindex'])}`);
+}
+if (!retiredRun.log.some((l) => /^retired adr-reindex/.test(l))) {
+  fail('SU3 the retirement was never announced — a patch that vanishes silently is exactly what this package refuses to do');
+}
+// and it must NOT be dressed up as a problem: the banner says "a patch may no longer be doing anything",
+// which is the wrong thing to say about a patch that is no longer NEEDED.
+if (cmds.problemsIn(retiredRun).some((l) => /^retired /.test(l))) {
+  fail('SU3 a retirement was reported as a PROBLEM — crying wolf over good news is how the banner that matters gets ignored');
+}
+// upstream's own file must be untouched by our standing down
+if (fs.readFileSync(reindexSkill, 'utf8') !== upstreamSkillBytes) {
+  fail('SU3 retiring DELETED or REWROTE upstream\'s skill — we may only ever remove files carrying our own marker');
+}
+
+// SU4 — RETIREMENT IS TERMINAL. The SessionStart hook re-applies everything in state.json and
+// `make install` installs every target, so a retirement with no memory of itself flip-flops forever.
+cmds.applyInstalled();
+if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail('SU4 a retired target was re-installed by the next apply — it will now flip-flop every session');
+}
+
+// SU5 — and `install` refuses it, with a way back.
+const inst = cli(['adr-reindex', 'install']);
+if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail(`SU5 \`install\` re-installed a RETIRED target:\n${out(inst)}`);
+}
+if (!/unretire/.test(out(inst))) fail(`SU5 install refused but never said how to get it back:\n${out(inst)}`);
+
+// SU6 — `unretire` is the way back, and it works.
+stateMod.unretire('adr-reindex');
+if (stateMod.isRetired('adr-reindex')) fail('SU6 unretire did not clear the retirement');
+const back = cli(['adr-reindex', 'install']);
+if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail(`SU6 after unretire, install still refused:\n${out(back)}`);
+}
+
+// SU7 — THE USER'S VETO. Someone pinned to an old CLI, or who judges upstream's fix worse than ours,
+// gets to keep ours. An automatic uninstall the user cannot refuse is hostile.
+stateMod.pinTarget('adr-reindex');
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail('SU7 a PINNED target was auto-retired anyway — the user\'s veto was ignored');
+}
+
+console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN, SU2 never retires into a hole, SU3 retires on proof + records evidence + announces without crying wolf, SU4 terminal, SU5 install refuses, SU6 unretire restores, SU7 pin vetoes)');

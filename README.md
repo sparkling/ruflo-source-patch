@@ -38,6 +38,11 @@ keep the rest.
   - [dedupe](#dedupe)
 - [The monitor](#the-monitor)
 - [How you find out when a patch stops working](#how-you-find-out-when-a-patch-stops-working)
+- [How a patch retires itself](#how-a-patch-retires-itself)
+  - [Publish a predicate, not a verdict](#publish-a-predicate-not-a-verdict)
+  - [The failure direction](#the-failure-direction)
+  - [What you see, and what you can do about it](#what-you-see-and-what-you-can-do-about-it)
+- [How you find out when a patch stops working](#how-you-find-out-when-a-patch-stops-working)
   - [Anchors are literal, and they will break](#anchors-are-literal-and-they-will-break)
   - [Two hooks, and the honest reason for each](#two-hooks-and-the-honest-reason-for-each)
   - [Watching the watchman](#watching-the-watchman)
@@ -632,6 +637,82 @@ few `stat`s and no I/O. It logs only when it *repairs* something:
 **uncovered builds**: patch discovery is package-name-driven, so a ruflo CLI published under a
 name we don't list gets *zero* protection, silently. Which is how 38 daemons piled up on one cwd
 from a differently-named build while `daemon status --all` reported "6 daemons, all within TTL".
+
+## How a patch retires itself
+
+Every target here is temporary by design: upstream is supposed to fix these, and when it does, the
+patch should get out of the way. It should not need me to notice, or you to run anything.
+
+### Publish a predicate, not a verdict
+
+The obvious mechanism is a list of *fixed* issues that the monitor reads and acts on. It is the wrong
+mechanism, and this week showed why twice:
+
+| Issue | Closed? | Fixed? | Runnable on your machine? |
+|---|---|---|---|
+| [#2621](https://github.com/ruvnet/ruflo/issues/2621) | yes | **no**. Upstream's own commit says it does not close it | n/a |
+| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | yes | yes | **only on `@claude-flow/cli` 3.29.0+** |
+
+`closed` is not `fixed`, and `fixed` is not `runnable here`. `ruflo-adr` ships from the marketplace the
+instant it lands; the `memory purge` its `/adr-reindex` calls shipped on npm **separately**. For a window
+the skill was installed and the command it invokes did not exist. An unknown subcommand exits 0, so
+it reported `adr-patterns: purged` having purged nothing.
+
+A retirement list keyed on "fixed" would have uninstalled a **working** reconcile on everyone still
+running 3.28.0, unattended, via cron. That is this tool manufacturing its own founding failure mode on
+other people's machines.
+
+So [`lib/supersede.mjs`](lib/supersede.mjs) holds **predicates, not verdicts**. Each target declares the
+condition under which it is obsolete, as code, and that code is evaluated **locally against the software
+actually installed**. Retirement is a measurement, the same way the anchors are: we never trust a version
+number, we check that the string is really there.
+
+The predicate **ships in the package**. It is not fetched at runtime, deliberately: a remote file that an
+unattended launchd job parses and acts on destructively is a live channel into every user's machine, where
+one typo is a mass uninstall with no review at the moment it happens. Shipped in-repo, publishing a
+supersession means committing a predicate and cutting a release. That is the trust boundary you already accepted,
+and no new one.
+
+### The failure direction
+
+Every unknown biases toward **keeping** the patch:
+
+| Situation | Verdict | Result |
+|---|---|---|
+| Replacement present **and** runnable here | `superseded` | retire |
+| Replacement present, but cannot run (no `memory purge`) | `live` | **keep** |
+| Replacement absent | `live` | **keep**. Never retire into a hole |
+| CLI not found, or the probe throws | `unknown` | **keep** |
+
+The cost of wrongly keeping a patch is a redundant slash command and a banner. The cost of wrongly retiring
+one is an index that reports a successful reconcile and reconciles nothing. Those are not symmetric.
+
+### What you see, and what you can do about it
+
+Retiring is not uninstalling. It is recorded, with its evidence, and it **sticks**. It has to, because the
+SessionStart hook re-applies everything in `state.json` and `make install` installs every target, so a
+retirement with no memory of itself would be undone within the hour and redone on the next tick, forever.
+
+```console
+$ npx github:sparkling/ruflo-source-patch monitor run
+RETIRED retired adr-reindex — ruflo-adr ships its own /adr-reindex AND the installed
+  @claude-flow/cli registers `memory purge`, so the replacement is present and runnable.
+  To get it back: `adr-reindex unretire`. To have kept it: `adr-reindex pin`. (#2666)
+```
+
+Announced **once**, then silence. The old behaviour was a `skip:upstream-owns-it` warning that fired every
+session and could never resolve itself, and a banner that always cries wolf is a banner people stop reading.
+A retirement is explicitly **not** a problem, so it never triggers the *"a patch may no longer be doing
+anything"* alarm. That would be crying wolf over good news.
+
+| Action | What it does |
+|---|---|
+| `<target> pin` | **Never** auto-retire this one. The user's veto, and it is final |
+| `<target> unpin` | Lift the veto |
+| `<target> unretire` | Undo a retirement, so `install` works again |
+
+Read-only actions never retire anything. `status` and `monitor check` observe; `install` and `monitor run`
+repair. A `check` that quietly uninstalled things would be the worst possible violation of that rule.
 
 ## How you find out when a patch stops working
 
