@@ -465,7 +465,35 @@ if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
   }
   if (fs.existsSync(`${brainScript}.rsp-backup`)) fail('V6 uninstall left a backup behind');
 
-  console.log('✔ verify-interface (V1 buggy fixture proven, V2 5/5 edits, V3 false positives gone, V4 the gate STILL blocks, V5 override reachable, V6 clean restore)');
+  // V7 — UPSTREAM RE-WORDS ONE ANCHORED LINE. This is not hypothetical: it is what every plugin update
+  // does, and `resolvePristine` will adopt the new bytes as pristine and re-derive the patch against
+  // them. Four of the five edits still match — INCLUDING the regex, which shifts the capture groups its
+  // readers use (bash ERE has no non-capturing groups). The fifth, a reader, does not.
+  //
+  // We used to WRITE that: the gate then read BASH_REMATCH[1] — now the boundary character, not the tool
+  // — and blocked on garbage, on every command. It reported INCOMPLETE and exited nonzero, so it was
+  // loud. But the vendor file was already corrupted, and only `uninstall` got you out. Loud-but-broken
+  // is not the bar.
+  //
+  // These edits are INTERDEPENDENT: all of them land, or none do.
+  cli(['verify-interface', 'uninstall']);
+  const pristineBrain = pristineBytes(REAL_BRAIN, 'verifyInterface').toString('utf8');
+  const readerAnchor = 'TOOL="${BASH_REMATCH[1]}"; SUB=';
+  if (!pristineBrain.includes(readerAnchor)) fail('V7 fixture: the reader anchor is missing — the test cannot mean anything');
+
+  // upstream reformats that one line (an extra space). Every other anchor is untouched.
+  fs.writeFileSync(brainScript, pristineBrain.replace(readerAnchor, 'TOOL="${BASH_REMATCH[1]}";  SUB='));
+  const partial = cli(['verify-interface', 'install']);
+
+  const onDisk = fs.readFileSync(brainScript, 'utf8');
+  if (onDisk.includes('(^|[[:space:]]|[;&|(])($TOOLS)')) {
+    fail('V7 a PARTIAL patch was written — the regex landed and shifted the capture groups, but its reader did not move. The gate now blocks on garbage.');
+  }
+  if (!/INCOMPLETE/.test(out(partial))) fail(`V7 the partial match was not reported:\n${out(partial)}`);
+  if (!/NOTHING WRITTEN/.test(out(partial))) fail('V7 it did not say the file was left untouched');
+  if (partial.status === 0) fail('V7 exited 0 on a partial match — it must fail');
+
+  console.log('✔ verify-interface (V1 buggy fixture proven, V2 5/5 edits, V3 false positives gone, V4 the gate STILL blocks, V5 override reachable, V6 clean restore, V7 a partial match writes NOTHING)');
 }
 
 // ─── M: `make install` covers every target that exists ───────────────────────
