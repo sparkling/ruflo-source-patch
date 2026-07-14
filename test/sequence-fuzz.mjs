@@ -74,7 +74,7 @@ const ENTRY_PROBE = {
 };
 const OWNER = { 'cwd/daemon-autostart': 'cwd', 'cwd/memory-root': 'cwd', 'cwd/cli-core-getProjectCwd': 'cwd',
   'daemon/command-root': 'daemon', 'memory/wal-coherent-reads': 'memory', 'memory/write-lock': 'memory',
-  'state/autopilot': 'state' };
+  'state/autopilot': 'cwd' };
 
 // `expected` is derived from the COMMANDS WE TYPED, never from state.json.
 //
@@ -176,7 +176,7 @@ function parses(file) {
   return ok;
 }
 
-const TARGETS = ['cwd', 'daemon', 'memory', 'state'];
+const TARGETS = ['cwd', 'daemon', 'memory'];
 const ACTIONS = ['install', 'uninstall', 'status'];
 
 freshSandbox();

@@ -21,14 +21,13 @@ install: install-global
 	ruflo-source-patch cwd install
 	ruflo-source-patch daemon install
 	ruflo-source-patch memory install
-	ruflo-source-patch state install
 	ruflo-source-patch adr-template install
 	ruflo-source-patch adr-index install
 	ruflo-source-patch adr-reindex install
 	ruflo-source-patch verify-interface install
 	ruflo-source-patch monitor install
 	@echo ""
-	@echo "done — cwd + daemon + memory + state + adr-template + adr-index + verify-interface patched,"
+	@echo "done — cwd + daemon + memory + adr-template + adr-index + verify-interface patched,"
 	@echo "       adr-reindex installed,"
 	@echo "       monitor scheduled. Verify: ruflo-source-patch monitor check"
 
@@ -41,7 +40,6 @@ uninstall:
 	-ruflo-source-patch adr-reindex uninstall
 	-ruflo-source-patch adr-index uninstall
 	-ruflo-source-patch adr-template uninstall
-	-ruflo-source-patch state uninstall
 	-ruflo-source-patch memory uninstall
 	-ruflo-source-patch daemon uninstall
 	-ruflo-source-patch cwd uninstall
