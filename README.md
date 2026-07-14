@@ -765,29 +765,33 @@ sequences × 6 steps over `{adr-template, adr-index} × {install, uninstall, sta
 | **N1–N4** | the notifier: silent when healthy · announces the break · rate-limits · self-clears when fixed |
 | **H1–H4** | monitor liveness: silent when no monitor installed · stale heartbeat · dead interpreter · missing script |
 
-A third suite covers **every path where a failure could be mistaken for success** — which, for a
-package that is almost entirely notification paths, is the only thing that matters. It exists because
-the other two stayed green through a round of fixes they were green *before*: they pinned the old
+The remaining five suites cover **every path where a failure could be mistaken for success** — which,
+for a package that is almost entirely notification paths, is the only thing that matters. They exist
+because the first two stayed green through a round of fixes they were green *before*: they pinned the old
 invariants, and an untested notification path rots without anyone noticing.
 
 | | |
 |---|---|
-| **S1–S9** | the **stable copy** — the code the hook and the monitor actually *run*. Provenance recorded · the mirror is complete · a stale module **fails `monitor check`** · is named in `status` · a mutating command heals it · **the monitor heals itself with no CLI invocation** (the case that bites: nobody re-runs `install` after `npm i -g`) · modules the package no longer ships are reaped · modules it *does* ship survive the reap · **non-`.mjs` assets reach the copy too** (the mirror once dropped `SKILL.md`, so the monitor threw `ENOENT` every tick — caught in the wild by the notifier, one prompt after it shipped) |
-| **E1–E3** | the **error path** — a patch that **throws** (EACCES on a global npm root, a read-only fs) is counted and summarised, exits nonzero, and matches the shared problem predicate so the notifier will say it. Before: logged, counted nowhere, matched by none of *three divergent* regexes, and summarised as `nothing to do` |
-| **R1–R6** | **`adr-reindex`** — the `memory` prerequisite is enforced at install *and* by the script, which **refuses and deletes nothing** · a real rebuild reaps an orphan · and the post-condition catches a rebuild that reconciled **nothing**, in both directions (a clobbered delete, and silently failing stores) |
-| **K1–K5** | the **`/adr-reindex` skill** — skill and script both land, or the install reports INCOMPLETE · it **survives a `/plugin update`** (the reason it is a plugin target, not a script one) · uninstall removes ours · and **never** deletes a skill upstream owns |
-| **H5–H8** | **legacy hooks** — our own *unmarked* hooks are reaped (install and uninstall could both see straight past them, so they outlived `uninstall` itself) · a **foreign** hook on the same event is untouched · exactly one of ours survives, and it is the current one |
-| **V1–V6** | **`verify-interface`** — behavioural, not textual. The unpatched fixture really does block (else all of this is vacuous — and V1 caught exactly that on its first run) · all three commands that wrongly blocked us now pass · the documented override finally works · **an unread interface still blocks** · uninstall restores the vendor bytes byte-for-byte |
+| **S1–S9** | the **stable copy** — the code the hook and the monitor actually *run*. `~/.ruflo-source-patch/lib` is not a cache, it is the **executable**, and only an `install` ever wrote it: upgrading the package changed nothing about what either of them did. Found live at **nine modules behind**. Now: provenance recorded · a stale module **fails `monitor check`** · a mutating command heals it · **the monitor heals itself with no CLI invocation** (nobody re-runs `install` after `npm i -g`) · non-`.mjs` assets reach the copy too |
+| **E1–E3** | the **error path** — a patch that **throws** is counted, summarised, exits nonzero, and reaches the notifier. Before: logged, counted nowhere, matched by none of *three divergent* regexes, and summarised as `nothing to do` |
+| **A1–A2** | an **ambiguous anchor** is refused, never guessed at. Uniqueness is a property of *upstream's* code — a measurement, not a promise — so it is checked on every apply |
+| **RB1–RB5** | a **re-baseline hands over instructions**, not just a warning: the real `diff` command, what to look for in the new code, and how to back the patch out. And an *ordinary* problem does **not** print the essay |
+| **V1–V7** | **`verify-interface`** — behavioural, not textual. The unpatched fixture really does block (else all of it is vacuous — and V1 caught exactly that on its first run) · the false positives are gone · **an unread interface still blocks** · and a **partial apply writes nothing**, because these five edits are interdependent |
+| **CC · ML** | **concurrency** — three simultaneous installs lost a target in **12 runs out of 12** before `state.json` got a lock. And **ML executes the injected memory write lock** rather than grepping for it: two processes × 40 read-modify-writes. With the lock: 80. Stubbed out: **38** — the exact shape of the "50 acked, 25 on disk" bug it exists to prevent |
+| **CL · K** | **`cleanup`** — the only command that removes directories and signals processes. `--dry-run` deletes nothing · the project's own state **survives** · `$HOME` is refused · and **K3: another project's daemon survives.** Real processes, real `pgrep`/`lsof`/`ps` |
+| **SS · MI · SC** | the **SessionStart hook** actually re-applying to a fresh npx copy (never executed before) · the plist, cron spec and interval clamp · and the `dual` scripts really producing an `AGENTS.md` that `CLAUDE.md` imports |
 
 **Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
-discipline earned its keep repeatedly — it caught two tests being *vacuous* (passing with the guard
-deleted, therefore proving nothing), and fixing them exposed a live bug: `restore()` bypassed every
-guard, so a poisoned backup made **`uninstall` the most destructive command in the tool**.
+discipline has now caught **six vacuous tests** — ones that passed with the guard deleted, and were
+therefore proving nothing.
 
-It paid again on the third suite. Writing **S3** exposed that `monitor check` **synced the stable copy
-on its way to checking it** — healing the drift before looking for it, so the gate could only ever
-report `none`. A check that cannot fail. Read-only actions now observe; mutating actions repair. A
-test that cannot fail is worth nothing, and you only ever find out by making it fail on purpose.
+The worst was the **fuzzer itself**. Its oracle was `state.json`, so 480 steps a run asserted *"the files
+agree with the bookkeeping"* and **nothing ever asserted that either agrees with the commands you typed**.
+A CLI mutated to uninstall targets the user never named passed all 60 sequences. It also caught
+`restore()` bypassing every guard (making **`uninstall` the most destructive command in the tool**), and
+`monitor check` **healing the drift on its way to checking for it** — a gate that could only ever say *ok*.
+
+A test that cannot fail is worth nothing, and you only find out by making it fail on purpose.
 
 ## Upstream issues
 
@@ -852,8 +856,15 @@ step 4's `agentdb_hierarchical-store` param/key-charset mismatch — left unpatc
   (mise: `.../installs/node/24.14.1/bin/node`), so upgrading node breaks it — `monitor status`
   detects this and reports `BROKEN`; re-run `monitor install` to re-pin.
 - A copy fetched mid-session runs unpatched until the next monitor tick (≤ 5 min).
-- Anchor-based patching is inherently brittle across upstream refactors. Mitigated by per-entry
-  safe-fail, but a large enough refactor means new anchors.
+- **The one failure mode with no automated guard.** Anchors are exact literal strings — never line
+  numbers, so nothing drifts by offset. An anchor that stops matching is `skip:anchor-not-found`; one that
+  matches *twice* is `skip:ambiguous-anchor`; a partial apply is `INCOMPLETE`. But an anchor can still
+  match, still match **uniquely**, still produce a file that parses — and no longer **mean** the same
+  thing. Upstream can move the line we anchor on into a different function, add an early return above it,
+  or restructure the call so our injected code sits in a path that never runs. **No textual check can see
+  that.** It is announced rather than swallowed: a re-baseline prints the `diff` command, says what
+  re-applying does *not* prove, and tells you what to look for. Re-evaluating it is a human's (or an
+  agent's) job.
 - `adr-template` is scoped to the `ruflo` marketplace only — a fork installed under a
   different marketplace name is out of scope by design, not a gap. It is also not wired into
   `monitor` (plugin files don't get silently replaced by a background `npx` fetch) and not

@@ -40,9 +40,16 @@ session, in a repo whose name begins `ruflo-`.
 Bash ERE has no non-capturing `(?:…)`, so anchoring the regex **necessarily shifts the capture groups** —
 tool 1→2, sub 2→4, sub-sub 4→6. The three `BASH_REMATCH` readers must move with it.
 
-**A partial apply is worse than none here:** land the regex without its readers and the gate reads the
-wrong groups and blocks on garbage. Each edit has its own `done()` predicate, and a partial apply reports
-`INCOMPLETE` and exits nonzero.
+**A partial apply is worse than none here**, so it is **atomic: all five land, or none do.**
+
+Land the regex without its readers and the gate reads `BASH_REMATCH[1]` — which after the shift is the
+boundary character, not the tool — and blocks on garbage, on every command, until you run `uninstall`.
+
+An earlier version *wrote* that. It reported `INCOMPLETE` and exited nonzero, so it was **loud** — and the
+file was already corrupted. Loud-but-broken is not the bar, and upstream re-wording **one** anchored line
+(an extra space is enough) is all it takes, which is exactly what a plugin update does. On a partial match
+it now writes nothing and leaves the vendor file as upstream shipped it: the gate keeps its old (annoying)
+behaviour instead of a broken one, and the notifier says so.
 
 ## Tested behaviourally, not textually
 
