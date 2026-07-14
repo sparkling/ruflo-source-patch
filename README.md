@@ -120,7 +120,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`adr-template`** | `adr-create`'s own template writes ADR metadata as a bullet list (`- **Status**: proposed`); `adr-index`'s parser only recognises an unprefixed `**Status**:` line or YAML frontmatter, so Status/Date/Tags silently come back empty/Unknown for every ADR authored via `adr-create`'s documented template. Strips the leading `- ` from those four lines so the two skills in the same plugin agree | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
 | **`adr-index`** | `adr-index` **cannot update an ADR that changed**, which is the one thing its own SKILL.md advertises ("Build or *rebuild* … when the graph is out of sync with the on-disk files"). Ratify an ADR, re-run it, and the graph still says `proposed`. Both namespaces are insert-only, failing in *opposite* directions. `adr-patterns` keys are deterministic, so they collide, the write is rejected, and the record stays **frozen**. `adr-edges` keys embed `Date.now()`+random, so they never collide, and every run **duplicates** the whole edge set (3 → 6 → 9). It reports `Records stored: 2/2` either way, because a `UNIQUE constraint` failure is counted as a success | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
-| **`adr-reindex`** | The only target that **adds** rather than fixes. `adr-index` converges; it can never **reap**. Delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL, because the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target**: it hard-deletes rows and refuses to do that without the write lock. **`ruflo-adr` 0.4.0 ships its own `/adr-reindex` and #2666 is closed, but it calls `memory purge`, which no published CLI provides** (the unknown subcommand exits 0, so it reports "purged" having purged nothing). This target stays until that lands, and says which of the two is actually runnable | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
+| **`adr-reindex`** | The only target that **adds** rather than fixes. `adr-index` converges; it can never **reap**. Delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL, because the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target**: it hard-deletes rows and refuses to do that without the write lock. **SUPERSEDED on `@claude-flow/cli` 3.29.0+**, which ships the `memory purge` that `ruflo-adr` 0.4.0's own `/adr-reindex` needs; on an older CLI that command is missing, an unknown subcommand exits 0, and theirs reports "purged" having purged nothing. `apply()` checks the CLI on this machine and says which of the two is runnable | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
 #### ruvnet-brain
 
@@ -373,22 +373,21 @@ truth; nothing else should have to be.
 
 ### `adr-reindex`
 
-> **Upstream shipped a version of this, and it cannot run yet.** `ruflo-adr` **0.4.0** ships its own
-> `/adr-reindex` and `scripts/reindex.mjs`, and [#2666](https://github.com/ruvnet/ruflo/issues/2666) is
-> **closed**. But their `reindex.mjs` shells out to **`memory purge --namespace <ns> --force`**, a CLI
-> command that is merged to ruflo's `main` and **not published**: no released `@claude-flow/cli` (3.25.x,
-> 3.26.0, 3.28.0) registers a `purge` subcommand. **An unknown subcommand prints the help text and exits
-> 0**, and their `reindex.mjs` gates on `status !== 0`, so it reports `adr-patterns: purged` having purged
-> nothing. Its post-condition does catch the mismatch and exit 1, but blames a concurrent writer and tells
-> you to re-run, which can never help.
+> **SUPERSEDED on a current CLI.** `ruflo-adr` **0.4.0** ships its own `/adr-reindex`,
+> [#2666](https://github.com/ruvnet/ruflo/issues/2666) is **closed**, and the `memory purge` command it
+> depends on shipped in **`@claude-flow/cli` 3.29.0**. On that CLI, uninstall this target.
 >
-> The plugin ships from the marketplace the moment it lands; the CLI primitive it depends on ships on npm,
-> later. So this target **stays**. It reconciles with raw SQL and depends on no CLI subcommand. It refuses
-> to overwrite upstream's skill file, and `apply()` now reports **which of the two is actually runnable**
-> rather than assuming the newer file is the better one. When `memory purge` reaches npm, the message flips
-> to "uninstall this target" by itself.
+> **On an older CLI it still matters, and the failure is quiet.** The plugin ships from the marketplace
+> the instant it lands; the CLI ships on npm separately, so for a window the skill was installed and the
+> command it needs was not. Their `reindex.mjs` gates on `status !== 0`, and an unknown subcommand prints
+> the help text and **exits 0**, so against a pre-3.29.0 CLI it reports `adr-patterns: purged` having
+> purged nothing. (Its post-condition catches the mismatch and exits 1, but blames a concurrent writer.)
+>
+> So `apply()` asks the only question that decides it: **does the CLI on THIS machine have `memory
+> purge`?** If yes, it says to uninstall. If no, it keeps our script, which reconciles with raw SQL and
+> depends on no CLI subcommand. Either way it never overwrites upstream's skill file.
 
-Adds the reconcile command upstream has not yet shipped in runnable form: rebuild the graph from the ADR files.
+Rebuilds the graph from the ADR files, for a CLI that cannot yet do it itself.
 
 The ADR files are the source of truth; `adr-patterns` / `adr-edges` are a derived cache. For a derived
 cache the correct reconcile is a **rebuild**, and at ADR scale it's instant.
@@ -890,18 +889,18 @@ works around these locally until they land, and reports `skip:no-anchor-matched`
 does land and the anchors stop matching.
 
 **One target adds rather than fixes:** `adr-reindex` installs an `/adr-reindex` command. `ruflo-adr` 0.4.0
-now ships one too and [#2666](https://github.com/ruvnet/ruflo/issues/2666) is **closed**, but theirs calls
-`memory purge`, which **no published CLI provides**, so it cannot run. Ours stays until that lands.
+now ships one too, [#2666](https://github.com/ruvnet/ruflo/issues/2666) is **closed**, and the `memory purge`
+it needs shipped in `@claude-flow/cli` **3.29.0**. On that CLI, ours is redundant and `apply()` says so.
+On an older one it is not, because the plugin and the CLI ship on separate tracks.
 
-**A closed issue is not the same as a fixed one, and both of these closed early.** The tool reports what is
-*runnable*, not what is *merged*.
+**"Fixed upstream" is a claim about a VERSION, not about a repo.** The tool reports what is *runnable on
+this machine*, which is the only form of the question that can be acted on.
 
 **Filed by us:**
 
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
-| [#2666](https://github.com/ruvnet/ruflo/issues/2666) **closed, not yet runnable** | `ruflo-adr` had **no way to reconcile a deleted ADR**. The orphan row survived every import, and `adr-verify` certified it as healthy (an orphan has no dangling ref and forms no cycle). Upsert converges; it can never reap. Fixed in `ruflo-adr` 0.4.0, **but its `reindex.mjs` shells out to `memory purge`, a CLI command merged to `main` and not published**. The unknown subcommand prints help and **exits 0**, so their reindex reports `purged` having purged nothing | `adr-reindex` |
-| [#2672](https://github.com/ruvnet/ruflo/issues/2672) | `memory <unknown-subcommand>` prints the usage text and **exits 0**, so a scripted caller reads a missing command as success. This is the root enabler of #2666's false "purged": `ruflo-adr`'s own `reindex.mjs` decides the purge happened from the exit code | (none: reported, and it is why `adr-reindex` stays) |
+| [#2666](https://github.com/ruvnet/ruflo/issues/2666) **fixed in CLI 3.29.0** | `ruflo-adr` had **no way to reconcile a deleted ADR**. The orphan row survived every import, and `adr-verify` certified it as healthy (an orphan has no dangling ref and forms no cycle). Upsert converges; it can never reap. Fixed by `ruflo-adr` 0.4.0's `/adr-reindex` plus the `memory purge` hard-delete in `@claude-flow/cli` 3.29.0. **On a pre-3.29.0 CLI the command is absent, the unknown subcommand exits 0, and their reindex reports `purged` having purged nothing** | `adr-reindex` (superseded on 3.29.0+) |
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) **closed, not fully fixed** | Whole-file read-modify-write on `memory.db`: a daemon or MCP server holding a stale in-memory image flushes it back and resurrects deleted rows. `dc01598` adds a `withMemoryDbLock`, but **only `purgeNamespace` calls it**, and upstream's own comment says so: *"This does NOT fully close #2621 … that requires every memory.db writer to respect the same lock."* Every other writer is still unlocked | `memory` |
 | [ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) | `verify-interface.sh`'s PreToolUse gate is **unopenable**: its tool regex swallows any hyphenated binary name (`ruflo-source-patch …` → `ruflo …`) and matches inside plain English prose (`another ruflo process is writing` → `ruflo process is`), while the documented `RUVNET_SKIP_INTERFACE_CHECK=1` override is read from the hook's own environment, where a caller can never set it. **Upstream adopted v1 of our patch into 2.7.x but left the issue open**, and the prose false positive shipped with it | `verify-interface` |
 | [ruvnet-brain#13](https://github.com/stuinfla/ruvnet-brain/issues/13) | The same hook parses its JSON payload with a **regex**, and `[^"]*` cannot cross a quote, so a command containing an escaped `"` is **truncated at the first one**. `bash -c "ruflo memory search"` reaches the gate as `bash -c \` and runs unchecked. It also *hides* false positives, so a `MATCH_RE` fix verified with a quoted test command looks like it works whatever it does. **Not patched here**: it is upstream's payload parsing, not the match | (none: reported, not worked around) |
