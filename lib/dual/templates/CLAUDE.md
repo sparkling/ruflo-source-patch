@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# __PROJECT__ — Claude Code overlay
+# Claude Code overlay for __PROJECT__
 
 > **The shared, canonical instructions are in `AGENTS.md`, imported above via `@AGENTS.md`.**
 > Edit shared rules THERE (they apply to both Claude Code and Codex).
@@ -38,31 +38,35 @@ Agent({ prompt: "Wait for 'tester'. Review code quality and security.",
 SendMessage({ to: "researcher", summary: "Start", message: "[task context]" })
 ```
 
+### Patterns
+
 | Pattern | Flow | Use when |
 |---------|------|----------|
 | **Pipeline** | A → B → C → D | Sequential dependencies (feature dev) |
 | **Fan-out** | Lead → A, B, C → Lead | Independent parallel work (research) |
 | **Supervisor** | Lead ↔ workers | Ongoing coordination (complex refactor) |
 
-- ALWAYS name agents — `name: "role"` makes them addressable
-- ALWAYS include comms instructions in prompts — who to message, what to send
+### Rules
+
+- ALWAYS name agents; `name: "role"` makes them addressable
+- ALWAYS include comms instructions in prompts: who to message, what to send
 - Spawn ALL agents in ONE message with `run_in_background: true`
 - After spawning: STOP, tell the user what's running, wait for results
-- NEVER poll status — agents message back or complete automatically
+- NEVER poll status; agents message back or complete automatically
 
-(The **Agent tool** handles execution; **MCP tools** handle coordination — see `AGENTS.md`.)
+(The **Agent tool** handles execution; **MCP tools** handle coordination. See `AGENTS.md`.)
 
 ## 3-Tier Model Routing
 
 | Tier | Handler | Use cases |
 |------|---------|-----------|
-| 1 | Agent Booster (WASM) | Simple transforms — skip LLM, use Edit directly |
+| 1 | Agent Booster (WASM) | Simple transforms; skip the LLM and use Edit directly |
 | 2 | Haiku | Simple tasks, low complexity |
 | 3 | Sonnet/Opus | Architecture, security, complex reasoning |
 
 ## Commit attribution (Claude Code Bash tool)
 
-- NEVER add a `Co-Authored-By` trailer to user commits unless this project's `.claude/settings.json` has `attribution.commit` set (#2078). The Claude Code Bash tool may suggest one in its default commit-message template — ignore it. `Co-Authored-By` is semantic authorship attribution; the tool is the facilitator, not a co-author.
+- NEVER add a `Co-Authored-By` trailer to user commits unless this project's `.claude/settings.json` has `attribution.commit` set (#2078). The Claude Code Bash tool may suggest one in its default commit-message template. Ignore it. `Co-Authored-By` is semantic authorship attribution; the tool is the facilitator, not a co-author.
 
 ## Setup (Claude Code)
 
