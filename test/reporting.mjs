@@ -474,28 +474,63 @@ if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
 
   // V1 — BEFORE the patch, the gate blocks a command it has no business seeing. If this does not block,
   // the fixture is wrong and everything below would pass vacuously.
-  if (gate('ruflo-source-patch adr-index status')) {
-    fail('V1 the UNPATCHED gate allowed `ruflo-source-patch adr-index status` — fixture is not the buggy version, the rest of this suite would be vacuous');
+  //
+  // The probe is PROSE, deliberately. UPSTREAM ADOPTED v1 OF THIS PATCH (ruvnet-brain 2.7.x ships its
+  // regex and comments verbatim), so on a current plugin the vendor file is no longer the ORIGINAL buggy
+  // version and `ruflo-source-patch adr-index status` is already allowed by it. Probing with that would
+  // report "fixture is not buggy" on a fixture that is still buggy — just differently.
+  //
+  // Prose is the one false positive BOTH shapes still have: the original regex and v1's both anchor the
+  // tool to "after any whitespace". So this holds whichever version the plugin happens to ship, and it
+  // is precisely what v2 fixes.
+  if (gate('echo could not take the lock, another ruflo process is writing')) {
+    fail('V1 the UNPATCHED gate allowed prose that names ruflo — fixture is not a buggy version, the rest of this suite would be vacuous');
   }
 
   const r = cli(['verify-interface', 'install']);
   if (r.status !== 0) fail(`V2 install failed:\n${out(r)}`);
-  if (!/5\/5 edits/.test(out(r))) fail(`V2 not all edits applied:\n${out(r)}`);
+  // 5 edits on the original vendor file; 4 on a 2.7.x one, where upstream already ships the reachable
+  // override and that edit reports done() before it is applied. Both are complete — an edit that is
+  // ALREADY PRESENT is not a missing edit, and `missing` (which is what makes it INCOMPLETE) is empty.
+  if (!/[45]\/5 edits/.test(out(r))) fail(`V2 not all edits applied:\n${out(r)}`);
 
-  // V3 — the false positives are gone. Each of these actually blocked a real command in one session.
+  // NO DOUBLE QUOTES IN THESE FIXTURES, AND THAT IS NOT A STYLE CHOICE.
+  //
+  // Upstream parses the hook's JSON payload with a REGEX: `"command"…"([^"]*)"`. A `[^"]*` class cannot
+  // cross a quote, so a command containing an escaped `"` is silently TRUNCATED at the first one:
+  //
+  //     {"command":"echo \"another ruflo process is writing\""}   ->   CMD = 'echo \'
+  //
+  // The gate then sees no tool name and exits 0. So ANY fixture with an embedded double quote passes
+  // whatever the regex does — it never reaches the regex. Two of these cases were written that way and
+  // were therefore vacuous; so was the `git commit -m "…"` case, which had been green since the day it
+  // was added. A test that cannot fail is worth nothing, and this suite has now been bitten by that
+  // twice. Single quotes and bare words keep the command intact all the way to MATCH_RE.
   const shouldPass = [
     ['a DIFFERENT binary', 'ruflo-source-patch adr-index status'],
     ['a grep over a source tree', 'grep -rn ruflo-source-patch lib/'],
-    ['English prose in a commit message', 'git commit -m "ruflo-adr-reindex.sh was the old copy"'],
+    ['English prose in a commit message', "git commit -m 'ruflo-adr-reindex.sh was the old copy'"],
+    ['PROSE: a word before the tool name', 'echo could not take the lock, another ruflo process is writing'],
+    ['PROSE: a trailing comment', "python3 -c 'print(1)'  # the ruflo memory store is slow"],
+    ['PROSE: a heredoc body', 'cat <<EOF\nwait: another ruflo daemon start is in flight\nEOF'],
+    ['the tool named as an ARGUMENT, not run', 'grep ruflo memory ./notes.txt'],
   ];
   for (const [why, cmd] of shouldPass) {
     if (!gate(cmd)) fail(`V3 still blocked (${why}): ${cmd}`);
   }
 
   // V4 — THE GATE STILL WORKS. This is the one that matters: a patch that merely disabled the check
-  // would sail through V3. An unread interface must still block.
-  if (gate('ruflo some-unread-command sub')) {
-    fail('V4 the patched gate no longer blocks an unread interface — we broke it instead of fixing it');
+  // would sail through V3, and so would an anchor tightened until it matches nothing. An unread
+  // interface must still block — in every form a real invocation is actually written.
+  const shouldBlock = [
+    ['bare', 'ruflo some-unread-command sub'],
+    ['via npx, with a version', 'npx ruflo@latest some-unread-command sub'],
+    ['after a shell separator', 'cd /tmp && ruflo some-unread-command sub'],
+    ['behind an env assignment', 'DEBUG=1 ruflo some-unread-command sub'],
+    ['indented', '  ruflo some-unread-command sub'],
+  ];
+  for (const [why, cmd] of shouldBlock) {
+    if (gate(cmd)) fail(`V4 the patched gate no longer blocks an unread interface (${why}): ${cmd} — we broke it instead of fixing it`);
   }
 
   // V5 — the documented override is reachable at last. The block message tells you to write it on the
@@ -524,22 +559,26 @@ if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
   // These edits are INTERDEPENDENT: all of them land, or none do.
   cli(['verify-interface', 'uninstall']);
   const pristineBrain = pristineBytes(REAL_BRAIN, 'verifyInterface').toString('utf8');
-  const readerAnchor = 'TOOL="${BASH_REMATCH[1]}"; SUB=';
-  if (!pristineBrain.includes(readerAnchor)) fail('V7 fixture: the reader anchor is missing — the test cannot mean anything');
+  // Whichever shape the installed plugin ships: the ORIGINAL reader (BASH_REMATCH[1]) or the one from
+  // v1, which upstream adopted (BASH_REMATCH[2]). Hard-coding [1] would silently skip this test on a
+  // current plugin — it would not fail, it would just stop meaning anything.
+  const readerAnchor = ['TOOL="${BASH_REMATCH[1]}"; SUB=', 'TOOL="${BASH_REMATCH[2]}"; SUB=']
+    .find((a) => pristineBrain.includes(a));
+  if (!readerAnchor) fail('V7 fixture: no known reader anchor — the test cannot mean anything');
 
   // upstream reformats that one line (an extra space). Every other anchor is untouched.
-  fs.writeFileSync(brainScript, pristineBrain.replace(readerAnchor, 'TOOL="${BASH_REMATCH[1]}";  SUB='));
+  fs.writeFileSync(brainScript, pristineBrain.replace(readerAnchor, readerAnchor.replace('; SUB=', ';  SUB=')));
   const partial = cli(['verify-interface', 'install']);
 
   const onDisk = fs.readFileSync(brainScript, 'utf8');
-  if (onDisk.includes('(^|[[:space:]]|[;&|(])($TOOLS)')) {
+  if (onDisk.includes('MATCH_RE="(^|[;&|(])')) {
     fail('V7 a PARTIAL patch was written — the regex landed and shifted the capture groups, but its reader did not move. The gate now blocks on garbage.');
   }
   if (!/INCOMPLETE/.test(out(partial))) fail(`V7 the partial match was not reported:\n${out(partial)}`);
   if (!/NOTHING WRITTEN/.test(out(partial))) fail('V7 it did not say the file was left untouched');
   if (partial.status === 0) fail('V7 exited 0 on a partial match — it must fail');
 
-  console.log('✔ verify-interface (V1 buggy fixture proven, V2 5/5 edits, V3 false positives gone, V4 the gate STILL blocks, V5 override reachable, V6 clean restore, V7 a partial match writes NOTHING)');
+  console.log('✔ verify-interface (V1 buggy fixture proven, V2 every edit applied, V3 false positives gone incl. PROSE, V4 the gate STILL blocks incl. npx/env/separator forms, V5 override reachable, V6 clean restore, V7 a partial match writes NOTHING)');
 }
 
 // ─── A: an AMBIGUOUS anchor is refused, not guessed at ───────────────────────

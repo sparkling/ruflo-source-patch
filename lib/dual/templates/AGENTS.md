@@ -64,6 +64,17 @@ Use MCP tools for coordination, then keep working. Coordination calls return ins
 | **Security** | `aidefence_scan`, `aidefence_is_safe`, `aidefence_has_pii` |
 | **Hive-Mind** | `hive-mind_init`, `hive-mind_consensus`, `hive-mind_spawn` |
 
+## Model Routing
+
+Route by complexity, not by habit: the cheapest tier that can do the job correctly.
+
+| Tier | Handler | Use cases |
+|------|---------|-----------|
+| 1 | Agent Booster (WASM) | Mechanical transforms; skip the LLM and use an edit directly |
+| 2 | Haiku | Simple, low-complexity tasks |
+| 3 | Sonnet | Everyday implementation, tests, refactors |
+| 4 | Opus | Architecture, security, the hardest reasoning |
+
 ## Memory & Learning
 
 ### Before any task
