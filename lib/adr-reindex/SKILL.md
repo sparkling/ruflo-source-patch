@@ -46,10 +46,10 @@ failures means the index is NOT reconciled, and the alternatives (`memory delete
 | Message | Meaning | Do this |
 |---|---|---|
 | `` the `memory` patch target is not installed `` | The delete would race a concurrent ruflo writer that can resurrect every removed row. **Nothing was deleted.** | Tell the user: `npx github:sparkling/ruflo-source-patch memory install`. Then re-run. |
-| `could not take the write lock after 5s` | Another ruflo process is mid-write. **Nothing was deleted.** | `npx @claude-flow/cli@latest daemon stop`, then re-run. Safe to retry. |
+| `could not take the write lock after 5s. Another writer holds it.` | Another ruflo process is mid-write. **Nothing was deleted.** | `npx @claude-flow/cli@latest daemon stop`, then re-run. Safe to retry. |
 | `More rows than files: the DELETE did not stick` | A concurrent writer flushed a pre-delete image back. The rebuild reconciled **nothing**; the orphans are still there. | Stop the daemon, re-run. If it recurs, something is writing to `memory.db` continuously. Report that rather than retrying in a loop. |
 | `Fewer rows than files: some ADRs failed to store` | The CLI's store is failing. | Run the importer directly to see the real error. The script prints both paths: `ADR_ROOT=<root> node <plugin>/scripts/import.mjs`. |
-| `rebuild stored 0 records` | The delete landed; the re-import stored nothing, so the index is now EMPTY. | Re-run. The ADR files are intact, so a rebuild restores it. If it persists, run the importer directly. |
+| `rebuild stored 0 records. The index is now EMPTY.` | The delete landed. The re-import stored nothing. | Re-run. The ADR files are intact, so a rebuild restores it. If it persists, run the importer directly. |
 | `no docs/adr/ or docs/adrs/ under <root>` | Wrong directory. | Pass the project root explicitly. |
 
 ## Constraints

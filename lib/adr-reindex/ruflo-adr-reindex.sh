@@ -125,7 +125,7 @@ memory_patch_installed() {
 if ! memory_patch_installed; then
   echo "error: the \`memory\` patch target is not installed in the ruflo CLI." >&2
   echo "       This script hard-deletes rows from memory.db. Without memory/write-lock, no other" >&2
-  echo "       ruflo process takes <db>.rsp-lock — a daemon or MCP server holding a pre-delete" >&2
+  echo "       ruflo process takes <db>.rsp-lock. a daemon or MCP server holding a pre-delete" >&2
   echo "       image will flush it back and resurrect every row we remove (ruvnet/ruflo#2621)." >&2
   echo "       Refusing rather than gambling your index on a race we cannot win." >&2
   echo "" >&2
@@ -162,7 +162,7 @@ echo "==> importer  $PLUGIN/scripts/import.mjs"
 echo "==> before    adr-patterns=$(count adr-patterns)  adr-edges=$(count adr-edges)"
 
 if [ "$DRY_RUN" = 1 ]; then
-  echo "==> dry run — would DELETE both namespaces and re-import; nothing written"
+  echo "==> dry run. would DELETE both namespaces and re-import; nothing written"
   ADR_ROOT="$ROOT" IMPORT_DRY_RUN=1 node "$PLUGIN/scripts/import.mjs"
   exit 0
 fi
@@ -176,14 +176,14 @@ fi
 # by checkpointing before every .db read inside the CLI itself. We require that patch (checked at
 # the top), so the guarantee is already there, at the reader, where it belongs. A second private
 # checkpoint here would be a weaker copy of a solved problem, and it would rot independently.
-echo "==> clearing (hard delete — a soft delete would block the re-store)"
+echo "==> clearing (hard delete. a soft delete would block the re-store)"
 
 # Take the lock the `memory` patch makes meaningful. Hard-fail on timeout: memLock's own rule is
 # "never hard-fail, degrade to unlocked", which is right for a STORE (idempotent, retried) and
 # wrong for a DESTRUCTIVE DELETE. Five seconds of contention means a live writer is mid-cycle; the
 # safe move is to stop, not to delete into it.
 if ! lock_acquire; then
-  echo "error: could not take the write lock after 5s — another ruflo process is writing." >&2
+  echo "error: could not take the write lock after 5s. Another writer holds it." >&2
   echo "       $LOCK" >&2
   echo "       Nothing has been deleted. Stop it and retry:" >&2
   echo "       npx @claude-flow/cli@latest daemon stop" >&2
@@ -214,15 +214,15 @@ RECORDS="$(count adr-patterns)"
 EXPECTED="$(adr_file_count)"
 
 if [ "$RECORDS" -eq 0 ]; then
-  echo "error: rebuild stored 0 records — the index is now EMPTY." >&2
+  echo "error: rebuild stored 0 records. The index is now EMPTY." >&2
   echo "       The ADR files are intact; re-run this command to rebuild." >&2
-  echo "       If it persists, the CLI's store is failing — run the importer directly to see why:" >&2
+  echo "       If it persists, the CLI's store is failing. run the importer directly to see why:" >&2
   echo "       ADR_ROOT=$ROOT node $PLUGIN/scripts/import.mjs" >&2
   exit 1
 fi
 
 if [ "$RECORDS" -ne "$EXPECTED" ]; then
-  echo "error: the index holds $RECORDS record(s) for $EXPECTED ADR file(s) — NOT reconciled." >&2
+  echo "error: the index holds $RECORDS record(s) for $EXPECTED ADR file(s). NOT reconciled." >&2
   if [ "$RECORDS" -gt "$EXPECTED" ]; then
     echo "       More rows than files: the DELETE did not stick. A concurrent ruflo writer" >&2
     echo "       (daemon, MCP server) most likely flushed a pre-delete image back over it." >&2

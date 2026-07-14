@@ -310,7 +310,26 @@ console.log('fake importer stored ${rows}');
   if (tooFew.status === 0) fail('R6 a rebuild that stored too few records exited 0');
   if (!/Fewer rows than files/.test(out(tooFew))) fail(`R6 the mismatch was not reported:\n${out(tooFew)}`);
 
-  console.log('✔ adr-reindex (R1 prerequisite enforced, R2 installs with it, R3 refuses + deletes nothing, R4 reconciles, R5 catches a clobbered delete, R6 catches failed stores)');
+  // R7 — SKILL.md's failure table QUOTES the script's error strings, and an agent MATCHES on them. If the
+  // script re-words a message and the table does not, the agent falls through to no row at all and is left
+  // to improvise on a failed reconcile. A quote that has drifted is worse than no quote.
+  const skillSrc = fs.readFileSync(path.join(REPO, 'lib', 'adr-reindex', 'SKILL.md'), 'utf8');
+  const scriptSrc = fs.readFileSync(path.join(REPO, 'lib', 'adr-reindex', 'ruflo-adr-reindex.sh'), 'utf8');
+
+  // every `backticked` string in the table's Message column must appear verbatim in the script
+  const quoted = [...skillSrc.matchAll(/^\| `([^`]+)`/gm)].map((m) => m[1]).filter((q) => q.length > 20);
+  if (quoted.length < 4) fail(`R7 the SKILL.md failure table has only ${quoted.length} quoted messages. Did it lose its decision table?`);
+  for (const q of quoted) {
+    // The doc writes <root> where the script interpolates $ROOT, so compare the literal PREFIX before the
+    // first placeholder. That is the part an agent actually matches on.
+    const needle = q.replace(/^the /, '').split(/<[^>]+>/)[0].trim();
+    if (needle.length > 15 && !scriptSrc.includes(needle)) {
+      fail(`R7 SKILL.md quotes a message the script never prints:\n    "${needle}"\n`
+        + '   An agent matches on these strings. A drifted quote sends it to no row at all.');
+    }
+  }
+
+  console.log('✔ adr-reindex (R1 prerequisite enforced, R2 installs with it, R3 refuses + deletes nothing, R4 reconciles, R5 catches a clobbered delete, R6 catches failed stores, R7 SKILL.md quotes the script verbatim)');
 }
 
 // ─── K: the /adr-reindex SKILL ───────────────────────────────────────────────
