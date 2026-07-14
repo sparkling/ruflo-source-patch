@@ -121,16 +121,16 @@ for (const rel of ['pristine.mjs', 'plugin-registry.mjs', 'cwd/state.mjs']) {
 }
 
 // S9 — NON-.mjs assets reach the stable copy too. The mirror used to copy only .mjs, and the
-// adr-reindex patcher reads `skill.md` — a data file shipped next to its code. The monitor runs FROM
+// adr-reindex patcher reads `SKILL.md` — a data file shipped next to its code. The monitor runs FROM
 // the stable copy, so it threw ENOENT on every single tick. (Caught in the wild by the notifier, on
 // the prompt right after I shipped it.) A mirror that drops every file type it didn't think of is
 // not a mirror.
-if (!fs.existsSync(path.join(STABLE_LIB, 'adr-reindex', 'skill.md'))) {
-  fail('S9 skill.md never reached the stable copy — the monitor cannot install the /adr-reindex skill');
+if (!fs.existsSync(path.join(STABLE_LIB, 'adr-reindex', 'SKILL.md'))) {
+  fail('S9 SKILL.md never reached the stable copy — the monitor cannot install the /adr-reindex skill');
 }
 // And it is READABLE from there, which is the thing that actually broke.
-const stableSkill = fs.readFileSync(path.join(STABLE_LIB, 'adr-reindex', 'skill.md'), 'utf8');
-if (!stableSkill.includes('ruflo-source-patch')) fail('S9 the stable copy of skill.md is missing its ownership marker');
+const stableSkill = fs.readFileSync(path.join(STABLE_LIB, 'adr-reindex', 'SKILL.md'), 'utf8');
+if (!stableSkill.includes('ruflo-source-patch')) fail('S9 the stable copy of SKILL.md is missing its ownership marker');
 
 console.log('✔ stable copy (S1 provenance, S2 complete, S3 drift fails the gate, S4 named in status, S5 install heals, S6 the monitor self-heals, S7 stale modules reaped, S8 shipped modules survive)');
 
