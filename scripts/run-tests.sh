@@ -8,6 +8,12 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# NO TEST MAY SELF-UPDATE THIS MACHINE. Several suites spawn `monitor run`, whose tick now ends by
+# checking GitHub for a newer TAG and, if it finds one, really running `npx github:...#vX monitor install`.
+# Unguarded, running the test suite would reach the network and reinstall the developer's own tool from
+# whatever is published. The self-update tests lift this locally and put it back.
+export RSP_NO_SELF_UPDATE=1
+
 SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs monitor-internals)
 tmp=$(mktemp -d); pids=(); fail=0
 

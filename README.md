@@ -42,6 +42,9 @@ keep the rest.
   - [Publish a predicate, not a verdict](#publish-a-predicate-not-a-verdict)
   - [The failure direction](#the-failure-direction)
   - [What you see, and what you can do about it](#what-you-see-and-what-you-can-do-about-it)
+- [How the update reaches you](#how-the-update-reaches-you)
+  - [The tick pulls it, not the hook](#the-tick-pulls-it-not-the-hook)
+  - [Tags, never the branch](#tags-never-the-branch)
 - [How you find out when a patch stops working](#how-you-find-out-when-a-patch-stops-working)
   - [Anchors are literal, and they will break](#anchors-are-literal-and-they-will-break)
   - [Two hooks, and the honest reason for each](#two-hooks-and-the-honest-reason-for-each)
@@ -713,6 +716,52 @@ If the predicate is wrong, fix the predicate.
 
 Read-only actions never retire anything. `status` and `monitor check` observe; `install` and `monitor run`
 repair. A `check` that quietly uninstalled things would be the worst possible violation of that rule.
+
+## How the update reaches you
+
+A predicate is worthless if it never arrives. Retirement only works if a machine actually *gets* the code
+that knows a patch is obsolete, and nothing about a patched `node_modules` updates itself.
+
+### The tick pulls it, not the hook
+
+The monitor tick ends by asking GitHub for the repo's tags. If a newer **semver tag** than the running
+version exists, it runs the package's own installer at that exact tag:
+
+```bash
+npx -y github:sparkling/ruflo-source-patch#v4.15.0 monitor install
+```
+
+That re-syncs the stable copy, re-registers the hook and the schedule. The new code takes effect on the
+**next tick**: the child rewrites `~/.ruflo-source-patch/lib` while the current process already holds its
+modules in memory, which is the same "effective next tick" rule `healStableLib()` follows.
+
+**Not the SessionStart hook.** I built it there first, and it was the same mistake the monitor exists to
+fix: the hook fires only when a session *starts*, and people leave Claude Code running for days. A patch
+that upstream's restructuring has turned from redundant into actively **wrong** would keep re-applying
+itself every five minutes until someone happened to restart. Bounded staleness is the entire reason there
+is a scheduler, and the update is the thing that most needs bounding.
+
+### Tags, never the branch
+
+`github:sparkling/ruflo-source-patch` is a git **ref**, not a version: no semver, nothing immutable, and a
+force-push retroactively changes what everyone already installed. Auto-pulling that is standing remote code
+execution from a moving target.
+
+A **tag** is immutable. `v4.15.0` is the same bytes forever, a bad commit on `main` reaches nobody until it
+is tagged, and the version that ran is a version you can go back and read.
+
+| Rule | Why |
+|---|---|
+| Immutable semver tags only (`v1.2.3`) | A branch or a moving `latest` is the live wire tags exist to avoid |
+| **Forward** only | A downgrade reinstates patches upstream fixed, and un-retires what was retired on proof |
+| Installs the **pinned** tag | `#v4.15.0`, never `#main` |
+| Offline, or GitHub down | Keep the working version, silently. A tool that breaks itself upgrading is worse than a stale one |
+| A failed install | Stay on the old version and **say so**. Half-upgraded and quiet is the failure this package hunts |
+| End of the tick, never mid-apply | The child must not rewrite modules this tick is still using |
+| `RSP_NO_SELF_UPDATE=1` | The kill switch. Pin your install, and keep the test suite off the network |
+
+That last one is not hypothetical: several suites spawn `monitor run`, so without the switch running
+`npm test` would reach the network and genuinely reinstall the developer's own tool.
 
 ## How you find out when a patch stops working
 

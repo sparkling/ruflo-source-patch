@@ -295,3 +295,82 @@ if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
 }
 
 console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN, SU2 never retires into a hole, SU3 retires on proof + records evidence + announces without crying wolf, SU4 terminal, SU5 install refuses and says why)');
+
+// ─── UP: self-update from immutable tags ─────────────────────────────────────
+//
+// The monitor tick pulls a newer TAG of this package. It is the only thing that carries a new
+// supersession predicate to a machine, and it must be on the TICK, not the SessionStart hook: sessions
+// run for days, so a hook-gated update would leave a patch that upstream has since invalidated
+// re-applying itself every 5 minutes for a week.
+//
+// It EXECUTES fetched code, so every rule below is load-bearing. None of these tests touch the network.
+const up = await import(`file://${path.join(REPO, 'lib', 'cwd', 'update-check.mjs')}`);
+
+// The suite runs with RSP_NO_SELF_UPDATE=1 set, so that no OTHER suite (which spawn `monitor run`, and
+// would therefore reach the real network and really npx) can self-update the developer's machine mid-test.
+// These tests are about that very code, so they lift it locally and put it back.
+const KILL = process.env.RSP_NO_SELF_UPDATE;
+delete process.env.RSP_NO_SELF_UPDATE;
+
+// UP1 — numeric compare, not lexical. `4.10.0` > `4.9.9`; a string compare says the opposite and would
+// strand every user on 4.9.x forever.
+if (!up.isNewer('v4.10.0', '4.9.9')) fail('UP1 4.10.0 was not newer than 4.9.9 — lexical compare');
+if (up.isNewer('4.9.9', '4.10.0')) fail('UP1 4.9.9 was considered newer than 4.10.0');
+if (up.isNewer('4.14.0', '4.14.0')) fail('UP1 the same version was treated as an update');
+
+// UP2 — IMMUTABLE SEMVER TAGS ONLY. A branch, or a moving `latest` tag, is the live wire that tags exist
+// to avoid: pulling one would mean every commit goes live everywhere with no review and no rollback.
+const tag = await up.latestTag({ fetchJson: async () => ([
+  { name: 'main' }, { name: 'latest' }, { name: 'v4.9.9' }, { name: 'v4.14.0' }, { name: 'nightly' },
+]) });
+if (tag !== 'v4.14.0') fail(`UP2 picked ${JSON.stringify(tag)} — it must pick the highest SEMVER tag and ignore moving refs`);
+
+const onlyBranches = await up.latestTag({ fetchJson: async () => ([{ name: 'main' }, { name: 'latest' }]) });
+if (onlyBranches !== null) fail(`UP2 selected a non-semver ref: ${onlyBranches}`);
+
+// UP3 — FORWARD ONLY. An API that offers an older tag must never downgrade us: a downgrade reinstates
+// patches upstream already fixed, and un-retires what was retired on proof.
+let ran = null;
+const older = await up.selfUpdate({
+  fetchJson: async () => ([{ name: 'v0.0.1' }]),
+  run: (spec) => { ran = spec; },
+});
+if (older.updated || ran) fail(`UP3 it DOWNGRADED to an older tag (ran: ${ran})`);
+
+// UP4 — a newer tag updates, and installs THAT EXACT PINNED TAG, never a branch.
+ran = null;
+const bump = await up.selfUpdate({
+  fetchJson: async () => ([{ name: 'v999.0.0' }]),
+  run: (spec) => { ran = spec; },
+});
+if (!bump.updated) fail('UP4 a newer tag did not trigger an update');
+if (!/#v999\.0\.0$/.test(ran || '')) fail(`UP4 it did not install the pinned tag — it ran: ${ran}`);
+if (/#(main|HEAD)\b/.test(ran || '')) fail(`UP4 it installed a BRANCH, which is a mutable ref: ${ran}`);
+
+// UP5 — OFFLINE, or GitHub down. Keep the version we have, silently. A tool that breaks itself trying to
+// upgrade is worse than a stale one.
+ran = null;
+const netdown = await up.selfUpdate({
+  fetchJson: async () => { throw new Error('ENOTFOUND'); },
+  run: (spec) => { ran = spec; },
+});
+if (netdown.updated || ran) fail('UP5 a failed fetch still tried to install something');
+
+// UP6 — THE INSTALL ITSELF FAILS (bad tarball, npx exits nonzero). Stay on the working version, and SAY
+// so: a half-upgraded silent tool is the exact failure this package exists to hunt.
+const brokenInstall = await up.selfUpdate({
+  fetchJson: async () => ([{ name: 'v999.0.0' }]),
+  run: () => { throw new Error('npx exited 1'); },
+});
+if (brokenInstall.updated) fail('UP6 a FAILED install reported success');
+if (!brokenInstall.error) fail('UP6 a failed install was swallowed — the user would never know they are stale');
+
+// UP7 — the kill switch. The suite depends on it (no test may reach the network or run npx), and so does
+// anyone who wants to pin their install.
+process.env.RSP_NO_SELF_UPDATE = '1';
+ran = null;
+const off = await up.selfUpdate({ fetchJson: async () => ([{ name: 'v999.0.0' }]), run: (s) => { ran = s; } });
+if (off.updated || ran) fail('UP7 RSP_NO_SELF_UPDATE=1 did not disable self-update');
+if (KILL === undefined) delete process.env.RSP_NO_SELF_UPDATE; else process.env.RSP_NO_SELF_UPDATE = KILL;
+
+console.log('✔ self-update (UP1 numeric compare, UP2 immutable SEMVER TAGS only — never a branch, UP3 forward only, UP4 installs the pinned tag, UP5 offline keeps the working version, UP6 a failed install is reported not swallowed, UP7 kill switch)');

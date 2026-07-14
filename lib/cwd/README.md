@@ -36,7 +36,8 @@ leaving `cwd`'s anchoring in the same file untouched.
 | `problems.mjs` | **One** definition of "a line a human must see." Used by the hook, the monitor log, and the notifier. It was three copies, and they had all drifted the same way. |
 | `health.mjs` | Watches the watchman. A dead monitor is indistinguishable from a healthy system, the most dangerous state a watchdog can be in, and one it cannot report on itself. |
 | `notify.mjs` | UserPromptSubmit. SessionStart is too late: a new ruflo version can land in the npx cache **mid-session**. |
-| `state.mjs` | What is installed. Every mutation is a read-modify-write, and it now holds a **cross-process lock** (see below). |
+| `state.mjs` | What is installed, and what has **retired**. Every mutation is a read-modify-write, and it now holds a **cross-process lock** (see below). |
+| `update-check.mjs` | Self-update, from **immutable semver tags** and never a branch. On the tick, not the hook: sessions run for days, so a hook-gated update leaves an invalidated patch re-applying itself for a week. Forward only; a failed install keeps the working version and says so. |
 | `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. |
 
 ## The one that bites
