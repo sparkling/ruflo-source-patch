@@ -1,6 +1,6 @@
 {
   "name": "@sparkleideas/ruflo-source-patch",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "publishConfig": {
     "access": "public"
   },
@@ -37,6 +37,6 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "node test/sequence-fuzz.mjs $(mktemp -d) && node test/plugin-notify.mjs $(mktemp -d) && node test/reporting.mjs $(mktemp -d) && node test/untested.mjs $(mktemp -d)"
+    "test": "node test/sequence-fuzz.mjs $(mktemp -d) && node test/plugin-notify.mjs $(mktemp -d) && node test/reporting.mjs $(mktemp -d) && node test/untested.mjs $(mktemp -d) && node test/concurrency.mjs $(mktemp -d)"
   }
 }
