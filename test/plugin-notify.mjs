@@ -247,6 +247,10 @@ console.log('✔ notifier (N1 silent when healthy, N2 announces, N3 rate-limited
       node: process.execPath,
       script: path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs'),
       intervalSec: 300,
+      // A label that is NEVER a real launchd job, so the authoritative probe (ADR-021) resolves it as
+      // NOT loaded deterministically — the "stale heartbeat + genuinely dropped" case these tests want,
+      // with no dependence on the real machine's launchd state.
+      label: 'com.sparkleideas.ruflo-source-patch.monitor.test-sandbox',
       ...o,
     }));
   };
@@ -259,7 +263,8 @@ console.log('✔ notifier (N1 silent when healthy, N2 announces, N3 rate-limited
   if (notify() !== '') fail('H1: warned about a monitor that was never installed');        // H1
 
   meta({}); beat(3 * 60 * 60 * 1000); fs.rmSync(path.join(STATE, 'notify-state.json'), { force: true });
-  if (!/has not run/.test(notify())) fail('H2: a monitor that has not ticked for 3h was not reported');  // H2
+  // Stale heartbeat AND the (fake) job is not loaded — a genuine drop, so it is reported.
+  if (!/NOT loaded/.test(notify())) fail('H2: a monitor that is stale AND not loaded was not reported');  // H2
 
   meta({ node: '/nonexistent/node/bin/node' }); fs.rmSync(path.join(STATE, 'notify-state.json'), { force: true });
   if (!/interpreter is GONE/.test(notify())) fail('H3: a vanished node interpreter was not reported');   // H3
@@ -267,4 +272,29 @@ console.log('✔ notifier (N1 silent when healthy, N2 announces, N3 rate-limited
   meta({ script: '/gone/monitor-run.mjs' }); fs.rmSync(path.join(STATE, 'notify-state.json'), { force: true });
   if (!/job script is missing/.test(notify())) fail('H4: a missing job script was not reported');        // H4
 }
-console.log('✔ monitor liveness (H1 silent when absent, H2 stale, H3 dead interpreter, H4 missing script)');
+console.log('✔ monitor liveness (H1 silent when absent, H2 stale+not-loaded reported, H3 dead interpreter, H4 missing script)');
+
+// HL — the AUTHORITATIVE disambiguation (ADR-021), tested directly with an injected probe so both
+// branches run without a real launchd job: a stale heartbeat is "down" ONLY when the scheduler confirms
+// the job is not loaded; a stale-but-loaded job (idle/slept — the lunch case) is SILENT.
+{
+  const health = await import(`file://${path.join(REPO, 'lib', 'cwd', 'health.mjs')}`);
+  freshSandbox();
+  fs.mkdirSync(STATE, { recursive: true });
+  fs.writeFileSync(path.join(STATE, 'monitor.json'), JSON.stringify({
+    node: process.execPath, script: path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs'), intervalSec: 300, label: 'x',
+  }));
+  fs.writeFileSync(path.join(STATE, 'heartbeat'), 'x');
+  const stale = Date.now() + 60 * 60 * 1000;    // pretend "now" is an hour after the last beat
+  if (health.monitorHealthProblems(stale, () => true).length !== 0) {
+    fail('HL1 a stale-but-LOADED monitor (idle/slept — lunch) was flagged; the probe must silence it');
+  }
+  if (!health.monitorHealthProblems(stale, () => false).some((p) => /NOT loaded/.test(p))) {
+    fail('HL2 a stale AND not-loaded monitor (genuinely dropped) was NOT reported');
+  }
+  const fresh = Date.now();                       // heartbeat fresh -> never probe, never flag
+  if (health.monitorHealthProblems(fresh, () => { throw new Error('probed on a fresh heartbeat'); }).length !== 0) {
+    fail('HL3 a healthy (fresh-heartbeat) monitor was flagged, or the expensive probe ran on the hot path');
+  }
+  console.log('✔ monitor liveness probe (HL1 loaded+stale is silent, HL2 not-loaded+stale reported, HL3 fresh never probes)');
+}

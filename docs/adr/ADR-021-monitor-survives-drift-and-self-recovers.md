@@ -36,11 +36,18 @@ Three changes, together making a drop from ANY cause survivable, recoverable, an
    that launcher exists and actually runs (`node --version`); otherwise it keeps `process.execPath`, and
    the existing "interpreter GONE" heal still covers it. nvm has no standalone shim, so it falls back.
 
-2. **The prompt hook recovers a down monitor.** The UserPromptSubmit hook already checks liveness cheaply
-   (a heartbeat and two path checks, no subprocess). When (and only when) that check says the monitor is
-   not running, the hook now UNCONDITIONALLY re-bootstraps it (`recoverMonitor()`) and announces the
-   recovery. It runs from the live Claude Code process, never from the launchd job, so it is not a
-   self-bootout. Healthy prompts are unchanged: no heavy import, no launchctl.
+2. **The prompt hook recovers a down monitor, and the heartbeat is a GATE, not the verdict.** The
+   UserPromptSubmit hook checks liveness cheaply (path checks plus a heartbeat mtime, no subprocess).
+   The heartbeat alone cannot tell a DROPPED job from an idle/slept one (both stop it), so the old design
+   guessed with a 30-minute threshold and still false-alarmed after a lunch break. Now: a fresh heartbeat
+   is definitely alive (do nothing); a heartbeat older than `2 × interval` (two consecutive missed ticks,
+   one interval of margin over normal jitter, since the hook only runs while you are ACTIVE and ticks are
+   firing) triggers the ONE authoritative question (`launchctl list` / `crontab -l`, run only here, never
+   on a healthy prompt), which distinguishes death from sleep. Only a job that is genuinely NOT loaded is
+   "down": the hook then UNCONDITIONALLY re-bootstraps it (`recoverMonitor()`) and announces it, from the
+   live Claude Code process (never the launchd job, so not a self-bootout). A loaded-but-stale job (slept)
+   is silent, and is never auto-kicked. On any probe uncertainty it assumes alive, so it never
+   false-recovers.
 
 3. **Instrument the failure.** The plist redirects the job's stderr+stdout to `monitor-stderr.log`, so a
    crash before `monitor-run.mjs`'s try/catch is CAPTURED. Recovery and session-start heal outcomes
@@ -52,15 +59,17 @@ Three changes, together making a drop from ANY cause survivable, recoverable, an
 ### Positive
 
 - A version-manager node upgrade no longer kills the monitor: the shim path survives it.
-- A drop from any cause self-recovers within the staleness window plus one prompt, with no user action,
-  and says so instead of dying silently.
+- A drop from any cause self-recovers within `2 × interval` plus one prompt, with no user action, and says
+  so instead of dying silently.
+- The sleep/idle false alarm is GONE: a slept-but-loaded monitor (the lunch case) is silent, because the
+  authoritative probe, not a timer, decides. The magic 30-minute floor is deleted.
 - A crash-on-launch is recorded rather than vanishing, so a real user report is diagnosable.
 
 ### Negative
 
-- Recovery latency is bounded by the deliberately generous staleness threshold (6 intervals / 30 min
-  floor, to avoid false alarms from a slept laptop), so a drop is auto-healed within roughly that window,
-  not instantly. Still vastly better than "never, until a session restart".
+- Recovery is auto but not instant: a genuine drop is caught within `2 × interval` (10 min at the default)
+  plus one prompt, since the cheap heartbeat gate has to go stale before the authoritative probe runs.
+  Vastly better than "never, until a session restart".
 - The prompt hook now touches launchd on the down path, a heavier but rare branch; the common (healthy)
   path stays free.
 - The shim resolves the manager's GLOBAL node, which may differ from the version originally pinned. Any

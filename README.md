@@ -901,19 +901,23 @@ Every warning above is delivered by the monitor. So if the **monitor** is dead, 
 quiet, and quiet is exactly what healthy looks like. That's the one failure a watchdog can never
 report on itself, and it voids every guarantee on this page.
 
-The prompt hook therefore checks the monitor's own liveness, from a heartbeat plus two path checks.
-There is no subprocess: `installMonitor` records what it scheduled in `monitor.json`, so verification
-costs an `existsSync` and one `mtime`. Three ways it can be dead:
+The prompt hook therefore checks the monitor's own liveness. On a healthy prompt it costs an `existsSync`
+and one `mtime`, no subprocess: `installMonitor` records what it scheduled in `monitor.json`. Three ways
+it can be dead:
 
-- **Its node interpreter is gone.** Version managers pin an absolute path, so a node upgrade deletes
-  the interpreter out from under the job while launchd still reports it as scheduled.
+- **Its node interpreter is gone.** A version manager pinned a per-version path and a `node` upgrade
+  deleted it (largely closed now: the schedule runs the manager's stable shim, ADR-021).
 - **Its job script is missing.** The schedule points at a file we've since moved.
-- **It simply isn't running.** No tick in hours: an unloaded launchd job, a removed crontab line,
-  permissions, a crash loop.
+- **It simply isn't running.** An unloaded launchd job, a removed crontab line, a crash loop.
 
-A user who never installed a monitor is never nagged about not having one. The staleness threshold is
-deliberately generous (6 intervals, 30-min floor): a laptop that slept through six ticks is not a
-broken monitor, and a false alarm trains you to ignore a true one.
+The heartbeat is a **cheap gate, not the verdict.** A stale heartbeat is ambiguous: the job dropped, OR
+the machine merely idled/slept (the lunch break). The old design guessed with a generous 30-minute
+threshold and still false-alarmed after lunch. Now, when (and only when) the heartbeat is older than
+two intervals (10 min at the default; two consecutive missed ticks, since the hook only runs while you're
+active and ticks are firing), it asks the scheduler **itself**, once: `launchctl list` / `crontab -l`.
+That one authoritative question tells a dropped job (recover) from a slept one (stay silent), so the
+sleep false alarm is gone and a real drop is caught in ~10 minutes rather than 30. A user who never
+installed a monitor is never nagged about not having one.
 
 **And it does not just warn: it brings the monitor back.** A dead tick cannot repair itself, so a
 dropped launchd/cron job used to stay dead until someone restarted Claude Code. The prompt hook is the
