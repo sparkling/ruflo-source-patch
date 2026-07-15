@@ -77,7 +77,9 @@ fi
 # Must be a ruflo/Claude project already.
 if [[ ! -e "$PROJECT_DIR/CLAUDE.md" && ! -d "$PROJECT_DIR/.claude" && ! -e "$PROJECT_DIR/.mcp.json" ]]; then
   die "'$PROJECT_DIR' doesn't look like a ruflo/Claude project (no CLAUDE.md, .claude/, or .mcp.json).
-       Run 'npx ruflo init --full' there first, then re-run this script."
+       Run 'npx ruflo init --with-embeddings' there first, then re-run this script.
+       (Or, for a fresh dual project, use ruflo-new-dual.sh instead — it does this step for you.)
+       Avoid 'ruflo init --full': it bundles ~260 files the ruflo/* plugins already provide (#2640)."
 fi
 
 # Idempotency: our CLAUDE.md starts with the import line.

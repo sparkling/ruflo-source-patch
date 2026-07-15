@@ -153,7 +153,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it gives you |
 |--------|-------------------|
 | **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
-| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** `ruflo init --full` bundles ~260 files that ~100% duplicate the installed plugins. This deletes the duplicates and the double-firing hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
+| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** *Every* `ruflo init` bundles ~196 to 260 `.claude/{skills,commands,agents}` files (default preset, not just `--full`) that ~100% duplicate the installed plugins. Removes the bundle and, event-aware, the genuinely double-firing hooks (`PreToolUse`/`PostToolUse`/`PreCompact`), keeping `helpers/` and project-only hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
 
 [**What each script does, and how to run it →**](#the-script-targets-in-detail)
 
@@ -615,31 +615,36 @@ only in the file that platform reads. Nothing to keep in sync, so nothing drifts
 ~/.ruflo-source-patch/dual/ruflo-add-codex.sh [project-dir] [--template <t>] [--force]
 ```
 
-`ruflo-new-dual.sh` runs `ruflo init` with the **default** preset, deliberately, and not `--full`, which
-bundles the ~260 duplicate files that `dedupe` exists to remove. It also uses `npx --yes` so a missing
-`@claude-flow/codex` doesn't abort the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)),
-and it gitignores the root `.env` that `ruflo init` leaves **tracked**
-([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
+`ruflo-new-dual.sh` runs `ruflo init` with the **default** preset (`--with-embeddings`), not `--full`. The
+default **still** bundles the plugin-duplicated `.claude/{skills,commands,agents}` (~196 files; `--full`
+just adds more), so `dedupe` is needed either way. It also uses `npx --yes` so a missing `@claude-flow/codex`
+doesn't abort the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)), and it gitignores the
+root `.env` that `ruflo init` leaves **tracked** ([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
 
 ### `dedupe`
 
 Deletes what the installed plugins already give you.
 
-`ruflo init --full` bundles roughly **260** skill/command/agent files into `.claude/`. Of those, ~**100%**
-of the agents and commands, and ~**97%** of the skills, are *already provided* by the installed `ruflo/*`
-plugins ([#2640](https://github.com/ruvnet/ruflo/issues/2640)). The project's `settings.json` also
-registers lifecycle hooks that duplicate the plugin hooks, so `post-edit` and `session-end` **fire
-twice**.
+**Every** `ruflo init` bundles the `.claude/{skills,commands,agents}` files, default preset included, not
+just `--full` (~**196** on default: 30 skills + 148 commands + 18 agents; ~**260** on `--full`). Of those,
+~**100%** of the agents and commands, and ~**97%** of the skills, are *already provided* by the installed
+`ruflo/*` plugins ([#2640](https://github.com/ruvnet/ruflo/issues/2640)). The project's `settings.json` also
+registers lifecycle hooks. The ones for events the plugin `hooks.json` also defines (`PreToolUse`,
+`PostToolUse`, `PreCompact`) **fire twice** on POSIX ([#2132](https://github.com/ruvnet/ruflo/issues/2132)).
 
 ```bash
-~/.ruflo-source-patch/dedupe-bundle/ruflo-dedupe-bundle.sh <project-dir> [--strip-dup-hooks] [--dry-run]
+~/.ruflo-source-patch/dedupe-bundle/ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--bundle-only] [--dry-run]
 ```
 
 **Start with `--dry-run`.** It prints exactly what it would remove and touches nothing.
 
-It is conservative by construction: an item is removed **only when a plugin actually provides it**, so
-anything project-unique is kept. Everything it removes is backed up first. `--strip-dup-hooks` is opt-in
-because that one edits your `settings.json`.
+By **default** it removes the bundle **and** strips the duplicate hooks. It is conservative by construction:
+
+- a bundle item is removed **only when a plugin actually provides it** (project-unique items kept);
+- a hook is stripped **only for events the plugin `hooks.json` also defines** (`UserPromptSubmit` routing,
+  `SessionStart/End`, `Subagent*`, `Notification`, and auto-memory are **kept**, since no plugin replaces them);
+- **`.claude/helpers/` is never touched** (init writes all ~43; no plugin replaces them);
+- bundle removals are backed up first. Use `--keep-dup-hooks` / `--bundle-only` to skip the hook step.
 
 ## The monitor
 
