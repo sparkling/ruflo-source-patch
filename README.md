@@ -915,6 +915,15 @@ A user who never installed a monitor is never nagged about not having one. The s
 deliberately generous (6 intervals, 30-min floor): a laptop that slept through six ticks is not a
 broken monitor, and a false alarm trains you to ignore a true one.
 
+**And it does not just warn: it brings the monitor back.** A dead tick cannot repair itself, so a
+dropped launchd/cron job used to stay dead until someone restarted Claude Code. The prompt hook is the
+one process that runs constantly, so when (and only when) its cheap liveness check finds the monitor
+down, it re-registers it right there and says so. On a healthy prompt it still touches nothing. Two
+further hardenings close the common causes (ADR-021): the schedule is registered against a
+version-manager's **stable shim** (`mise/shims/node`, not `.../installs/node/24.14.1/bin/node`) so a node
+upgrade no longer deletes the interpreter out from under it; and the job's stderr is captured to
+`monitor-stderr.log`, so a crash that dies before it can log is recorded instead of vanishing.
+
 ### It found two real bugs on its first run
 
 Not a hypothetical, so it is worth stating plainly what it caught within minutes of existing.
@@ -1163,9 +1172,11 @@ step 4's `agentdb_hierarchical-store` param/key-charset mismatch, left unpatched
 - Covers the **npx cache** and **global installs** (`npm i -g`, the root reported by `npm
   root -g`). If `@claude-flow/cli` isn't installed in one of those, that location is simply
   skipped. A custom npm prefix can be pointed at with `RUFLO_GLOBAL_ROOT`.
-- The scheduled job records an absolute `node` path. Version managers pin that per version
-  (mise: `.../installs/node/24.14.1/bin/node`), so upgrading node breaks it. `monitor status`
-  detects this and reports `BROKEN`; re-run `monitor install` to re-pin.
+- The scheduled job runs a **version-stable** `node` where one exists: under a version manager it is
+  registered against the shim (`mise/shims/node`, `.volta/bin/node`), which survives a node upgrade
+  (ADR-021). Only a manager without a standalone shim (nvm) still records a per-version path, and there
+  the liveness check reports the interpreter as gone and the prompt hook re-registers with the current
+  node on the next prompt.
 - A copy fetched mid-session runs unpatched until the next monitor tick (≤ 5 min).
 - **The one failure mode with no automated guard.** Anchors are exact literal strings, never line
   numbers, so nothing drifts by offset. An anchor that stops matching is `skip:anchor-not-found`; one that

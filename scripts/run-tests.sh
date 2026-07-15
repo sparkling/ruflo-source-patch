@@ -13,6 +13,11 @@ cd "$(dirname "$0")/.."
 # Unguarded, running the test suite would reach the network and reinstall the developer's own tool from
 # whatever is published. The self-update tests lift this locally and put it back.
 export RSP_NO_SELF_UPDATE=1
+# The UserPromptSubmit hook (notify.mjs) now RE-BOOTSTRAPS a monitor it finds dead (ADR-021). That touches
+# launchctl, which is machine-global and NOT sandboxed by HOME — a test driving the hook with a "down"
+# monitor would register a real launchd job pointing at a sandbox path. This keeps the hook a pure reporter
+# in tests; recovery itself is proven end-to-end and by recoverMonitor's unit test (RC1).
+export RSP_NO_MONITOR_RECOVER=1
 
 SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs monitor-internals mcp-prefix)
 tmp=$(mktemp -d); pids=(); fail=0

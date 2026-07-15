@@ -100,7 +100,30 @@ mon.uninstallMonitor();
 if (fs.existsSync(path.join(STATE, 'monitor.json'))) fail('MI4 uninstallMonitor left monitor.json behind — the notifier will nag about a monitor you removed');
 if (fs.existsSync(path.join(STATE, 'heartbeat'))) fail('MI4 uninstallMonitor left the heartbeat behind');
 
-console.log('✔ monitor internals (MI1 valid plist, MI2 interval honoured + clamped, MI3 cron strips ONLY our line, MI4 uninstall drops meta + heartbeat)');
+// MI5 — the plist captures the job's stderr. A node that dies before monitor-run.mjs's try/catch (a
+// vanished interpreter, a module load error) writes NOWHERE without this, and a dead watchdog stays
+// invisible — the exact failure this package hunts (ADR-021).
+if (!/<key>StandardErrorPath<\/key>/.test(plist)) fail('MI5 the plist has no StandardErrorPath — a crash-on-launch would vanish without a trace');
+
+// ND — VERSION-STABLE node resolution (ADR-021). A version manager pins node at a per-version path that
+// vanishes on upgrade; resolveStableNode() prefers the manager's stable shim when it exists AND runs.
+const ndTmp = fs.mkdtempSync(path.join(HOME, 'nd-'));
+const ndExec = path.join(ndTmp, 'mise', 'installs', 'node', '1.2.3', 'bin', 'node');
+const ndShim = path.join(ndTmp, 'mise', 'shims', 'node');
+fs.mkdirSync(path.dirname(ndExec), { recursive: true }); fs.writeFileSync(ndExec, '');
+fs.mkdirSync(path.dirname(ndShim), { recursive: true }); fs.writeFileSync(ndShim, '');
+if (mon.resolveStableNode(ndExec, () => true).node !== ndShim) fail('ND1 a present, working shim was NOT preferred over the version-pinned path');
+if (mon.resolveStableNode(ndExec, () => false).node !== ndExec) fail('ND2 a shim that does not RUN must fall back to the exec path, not brick the monitor');
+fs.rmSync(ndShim, { force: true });
+if (mon.resolveStableNode(ndExec, () => true).node !== ndExec) fail('ND3 an ABSENT shim must fall back to the exec path');
+if (mon.resolveStableNode('/usr/local/bin/node', () => true).node !== '/usr/local/bin/node') fail('ND4 a plain (non-manager) node path must be used as-is');
+
+// RC — recoverMonitor refuses to resurrect a monitor the user never installed (no meta = no-op, no
+// launchctl). MI4 above removed monitor.json, so nothing is installed here.
+const rc = mon.recoverMonitor();
+if (rc.attempted !== false || rc.reason !== 'not-installed') fail(`RC1 recoverMonitor touched launchd for an uninstalled monitor: ${JSON.stringify(rc)}`);
+
+console.log('✔ monitor internals (MI1 valid plist, MI2 interval honoured + clamped, MI3 cron strips ONLY our line, MI4 uninstall drops meta + heartbeat, MI5 stderr captured, ND1-4 version-stable node, RC1 recover no-ops when uninstalled)');
 
 // ─── SC: the two shell scripts nobody had ever run ───────────────────────────
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });

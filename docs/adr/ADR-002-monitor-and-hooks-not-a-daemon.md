@@ -2,6 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-15 (ADR-021): the UserPromptSubmit notifier now also RE-BOOTSTRAPS a monitor it finds dead (a dead tick cannot repair itself); it still only reports everything else.
 **Deciders**: Henrik Pettersen
 **Tags**: runtime, monitor, safety
 
