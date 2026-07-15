@@ -11,28 +11,35 @@
 #      The default preset is leaner. To strip the remaining plugin-duplicated
 #      bundle, run the sibling `ruflo-dedupe-bundle.sh` afterward. Never pass
 #      --start-all to this step — see step 3 for why.
-#   2. `ruflo memory init --force` — ALWAYS runs. Creates the AgentDB/hybrid
-#      memory database (`agentdb.rvf`, `.swarm/memory.db`, `.claude/memory.db`).
-#      `--force` is used because it's harmless immediately after a fresh init
-#      (nothing real to lose yet) and is sometimes needed to actually complete
-#      (see step 3 ordering note).
-#   3. If start-all (default ON — see below): `ruflo swarm init` then
-#      `ruflo daemon start` (backgrounds itself by default). Kept SEPARATE
-#      from step 1's `ruflo init` and run AFTER step 2's memory init, not
-#      folded into `ruflo init --start-all`. Confirmed 2026-07-13 by direct
-#      test, twice:
-#        (a) neither `init --with-embeddings` alone NOR `init --with-embeddings
-#            --start-all` creates `agentdb.rvf` — both leave only a baseline
-#            `ruvector.db`. `--start-all`'s own "Initializing memory
-#            database... ✓ Memory initialized" step is a DIFFERENT, more
-#            limited init than the standalone `ruflo memory init` CLI command.
-#        (b) once a daemon from `--start-all` is already running against the
-#            project, a SUBSEQUENT `ruflo memory init --force` still does not
-#            produce `agentdb.rvf` (the daemon appears to hold/own the AgentDB
-#            lifecycle at that point) — even though the identical command
-#            reliably creates `agentdb.rvf` when run BEFORE any daemon exists.
-#      Net effect: memory init must complete before the daemon starts, not
-#      folded into the same `ruflo init --start-all` call and not run after.
+#   2. `ruflo memory init --force` — ALWAYS runs. Creates the memory database and
+#      the HNSW index (`.swarm/memory.db`, `.claude/memory.db`, `ruvector.db`).
+#      `--force` is harmless immediately after a fresh init (nothing real to lose).
+#
+#      NOTE, corrected 2026-07-14 against @claude-flow/cli 3.29.0. This used to
+#      claim `memory init` creates `agentdb.rvf`, and built an elaborate ordering
+#      rule around that file. TWO THINGS WERE WRONG WITH THAT.
+#
+#      1. 3.29.0 does not create `agentdb.rvf` at all. Verified clean-room: fresh
+#         project, no daemon alive, `memory init --force` -> no `.rvf` anywhere.
+#      2. MORE IMPORTANTLY, ITS PRESENCE NEVER PROVED ANYTHING. Older CLIs did
+#         write one, and every such file on this machine is 162 BYTES: the `SFVR`
+#         magic header, a version, and nothing else. Byte-identical across every
+#         project. An empty stub. It would sit there looking like success whether
+#         memory worked or not, while the real store (`.swarm/memory.db`, tens of
+#         MB) lived elsewhere entirely.
+#
+#      That is the exact failure this package exists to hunt: a check whose
+#      success condition has no relationship to the thing it claims to verify.
+#
+#      VERIFY MEMORY BY EXERCISING IT, NOT BY LOOKING FOR A FILE:
+#        ruflo memory store --key probe --value hello --namespace patterns
+#        ruflo memory search --query hello --namespace patterns      # must return it
+#      A store/search round-trip is the only thing that proves memory works.
+#   3. If start-all (default ON): `ruflo swarm init` then `ruflo daemon start`
+#      (backgrounds itself). Kept SEPARATE from step 1's `ruflo init` and run
+#      AFTER step 2's memory init. The ordering is retained deliberately: memory
+#      init before the daemon is harmless, and a daemon that owns the memory
+#      lifecycle before init has run is a race we have no reason to invite.
 #   4. Convert to single-source dual via the sibling `ruflo-add-codex.sh` (adds
 #      Codex tooling + the merged AGENTS.md canonical / CLAUDE.md=@AGENTS.md model,
 #      #2635/#2636/#2637/#2638 all handled there).

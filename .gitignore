@@ -2,3 +2,31 @@
 *.rsp-backup
 *.tgz
 node_modules/
+
+# Codex local configuration
+.codex/
+
+# Claude Flow runtime data
+.claude-flow/data/
+.claude-flow/logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# ruflo-add-codex:gitignore — secrets + runtime
+.claude-flow/sessions/
+*.bak
+
+# dual-init test footprint (ran ruflo-new-dual.sh on this repo to validate the script;
+# the generated bundle + runtime are not part of the tool's source)
+.agents/
+.claude/
+.claude-flow/
+.swarm/
+ruvector.db
+agentdb.rvf
+.mcp.json
+/AGENTS.md
+/CLAUDE.md
