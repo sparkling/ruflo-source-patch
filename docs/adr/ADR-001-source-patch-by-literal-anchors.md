@@ -33,6 +33,11 @@ Anchor count is the safety rule:
 - more than 1 with an explicit `all: true`: apply to all, deliberately (e.g. `process.cwd()` at several
   call sites in one file)
 
+An edit may also be marked `optional`, which makes zero occurrences of an `all` edit a deliberate no-op
+rather than a skip, for a file that legitimately does not use that anchor. Uniqueness and the ambiguity
+refusal are unchanged, and an entry of only optional edits must still match at least one of them. See
+ADR-017.
+
 Every apply **rebuilds the file from a pristine backup**: `pristine (.rsp-backup) -> fragments -> edits`.
 The file is always exactly "pristine plus the entries currently asked for", which makes install and
 uninstall of any subset trivially correct and idempotent, and lets a stale patched version be replaced
@@ -67,4 +72,5 @@ match, write nothing.
 ## Links
 
 - [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md)
+- [ADR-017](ADR-017-optional-anchors-and-the-hidden-alias-layout.md)
 - `lib/cwd/patch-library.mjs`

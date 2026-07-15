@@ -749,3 +749,99 @@ const said = notify();
 if (!said) fail('N a monitor tick that found a problem left the next prompt silent');
 
 console.log('✔ notifier (a problem found by the monitor is announced on the next prompt)');
+
+// ─── OA: an OPTIONAL anchor's absence must not drop the PRESENT sibling ───────
+// Four entries (commands-agent/hooks/neural, ruvector-lora-adapter) anchor TWO independent state
+// dirs — `.claude-flow` and `.swarm` — and a given upstream build may write only one of them
+// (measured: neural.js at 4×.claude-flow / 0×.swarm in one release). The bug: the absent sibling
+// marked the WHOLE entry `skip:anchor-not-found`, so the PRESENT sibling's call sites shipped
+// unpatched — real cwd drift, wearing the label of a moved anchor. `optional: true` fixes it: the
+// present dir patches, the absent one is a no-op, and (require-any) a file anchoring NEITHER still
+// screams. These tests are the mutation guard: revert the filter or entryApplied fix and OA1/OA2 go red.
+const NEURAL = '@claude-flow/cli/dist/src/commands/neural.js';
+const CF = "process.cwd(), '.claude-flow'";
+const SW = "process.cwd(), '.swarm'";
+const CF_DONE = "__rufloResolveRoot(process.cwd()), '.claude-flow'";
+const SW_DONE = "__rufloResolveRoot(process.cwd()), '.swarm'";
+const neuralPristine = pristineBytes(path.join(REAL, NEURAL)).toString('utf8');
+if (!neuralPristine.includes(CF) || !neuralPristine.includes(SW)) {
+  fail(`OA fixture: ${NEURAL} on this machine does not contain BOTH paired anchors, so the "one absent"\n`
+    + '  scenario cannot be constructed here. Pick another paired entry (agent/hooks/lora-adapter) whose\n'
+    + '  vendor file still carries both `.claude-flow` and `.swarm`.');
+}
+// strip one anchor by rewriting ONLY its literal, leaving the file otherwise intact
+const without = (src, anchor) => src.split(anchor).join(anchor.replace('process.cwd()', 'ELSEWHERE()'));
+
+// OA1 — `.swarm` absent, `.claude-flow` present: the .claude-flow sites MUST patch, silently and
+// completely, and neither the log nor the byte-check (monitor check) may report a problem.
+freshSandbox();
+fs.writeFileSync(vendor(NEURAL), without(neuralPristine, SW));
+const oa1 = cli(['cwd', 'install']);
+const oa1file = fs.readFileSync(vendor(NEURAL), 'utf8');
+if (!oa1file.includes(CF_DONE)) fail(`OA1 the PRESENT .claude-flow anchor was left unpatched when .swarm was absent:\n${out(oa1)}`);
+if (/skip:anchor-not-found .*commands-neural/.test(out(oa1))) fail(`OA1 an absent OPTIONAL sibling was reported as a moved anchor:\n${out(oa1)}`);
+if (cli(['monitor', 'check']).status !== 0) fail(`OA1 monitor check reports drift though the entry is fully applied for this build:\n${out(cli(['monitor', 'check']))}`);
+
+// OA2 — the mirror: `.claude-flow` absent, `.swarm` present.
+freshSandbox();
+fs.writeFileSync(vendor(NEURAL), without(neuralPristine, CF));
+const oa2 = cli(['cwd', 'install']);
+if (!fs.readFileSync(vendor(NEURAL), 'utf8').includes(SW_DONE)) fail(`OA2 the PRESENT .swarm anchor was left unpatched when .claude-flow was absent:\n${out(oa2)}`);
+if (/skip:anchor-not-found .*commands-neural/.test(out(oa2))) fail(`OA2 an absent OPTIONAL sibling was reported as a moved anchor:\n${out(oa2)}`);
+if (cli(['monitor', 'check']).status !== 0) fail('OA2 monitor check reports drift though the entry is fully applied for this build');
+
+// OA3 — NEVER HIDE DRIFT. A paired file that anchors NEITHER dir is not a benign no-op: the file we
+// patch BECAUSE it writes state no longer does. It must be loud (skip:anchor-not-found), reach the
+// notifier, fail the gate, and leave the file pristine — the exact opposite of OA1/OA2.
+freshSandbox();
+fs.writeFileSync(vendor(NEURAL), without(without(neuralPristine, CF), SW));
+const oa3 = cli(['cwd', 'install']);
+if (!/skip:anchor-not-found .*commands-neural/.test(out(oa3))) fail(`OA3 a file anchoring NEITHER state dir was NOT reported — optional went too far:\n${out(oa3)}`);
+if (fs.readFileSync(vendor(NEURAL), 'utf8').includes('__rufloResolveRoot')) fail('OA3 a skipped entry still wrote patched bytes');
+if (cli(['monitor', 'check']).status === 0) fail('OA3 monitor check passed a file that anchors none of its state dirs');
+if (!isProblem(`skip:anchor-not-found state/commands-neural (${vendor(NEURAL)}) — no state-dir anchor present`)) {
+  fail('OA3 the require-any skip does not match the shared problem predicate — the notifier will never announce it');
+}
+
+console.log('✔ optional anchors (OA1 present .claude-flow patches when .swarm absent, OA2 the mirror, OA3 a file anchoring NEITHER still screams + fails the gate)');
+
+// ─── AL: the npm hidden-alias package layout must be COVERED, not silenced ────
+// npx installs a full second copy of a package under `@scope/.pkg-<hash>` when versions must coexist.
+// discover() joined `@claude-flow/cli` literally and never found it, so that copy — daemon.js and all —
+// shipped UNPATCHED, and scanUncoveredBuilds correctly flagged it. The wrong fix is to silence the
+// warning; the right one is scopedAliasPaths(), which reaches the alias dir so it is actually patched,
+// AFTER which identifying it by package.json `name` (not the dir string) stops the now-false warning.
+freshSandbox();
+const aliasRoot = path.join(nm, '@claude-flow', '.cli-TESTHASH01');
+fs.mkdirSync(path.join(aliasRoot, 'dist', 'src', 'memory'), { recursive: true });
+fs.mkdirSync(path.join(aliasRoot, 'dist', 'src', 'commands'), { recursive: true });
+fs.writeFileSync(path.join(aliasRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '9.9.9' }));
+fs.writeFileSync(path.join(aliasRoot, 'dist', 'src', 'memory', 'memory-initializer.js'),
+  pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/memory/memory-initializer.js')));
+fs.writeFileSync(path.join(aliasRoot, 'dist', 'src', 'commands', 'daemon.js'), 'export function daemon() {}\n');
+// a STRANGER wearing the same `.cli-` prefix but a foreign package name — must NOT be patched, and
+// must STILL be flagged uncovered (proves disambiguation is by name, and the detector still bites).
+const evilRoot = path.join(nm, '@claude-flow', '.cli-EVILHASH9');
+fs.mkdirSync(path.join(evilRoot, 'dist', 'src', 'memory'), { recursive: true });
+fs.mkdirSync(path.join(evilRoot, 'dist', 'src', 'commands'), { recursive: true });
+fs.writeFileSync(path.join(evilRoot, 'package.json'), JSON.stringify({ name: '@stranger/cli', version: '6.6.6' }));
+fs.writeFileSync(path.join(evilRoot, 'dist', 'src', 'memory', 'memory-initializer.js'),
+  pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/memory/memory-initializer.js')));
+fs.writeFileSync(path.join(evilRoot, 'dist', 'src', 'commands', 'daemon.js'), 'export function daemon() {}\n');
+
+cli(['cwd', 'install']);
+
+// AL1 — the alias copy (name @claude-flow/cli) is genuinely PATCHED, not merely un-warned.
+if (!fs.readFileSync(path.join(aliasRoot, 'dist', 'src', 'memory', 'memory-initializer.js'), 'utf8').includes('__rufloResolveRoot')) {
+  fail('AL1 the npm hidden-alias copy was NOT patched — discover() still misses the `.pkg-<hash>` layout');
+}
+// AL2 — a foreign package sharing the `.cli-` prefix is left alone (name disambiguation, not prefix).
+if (fs.readFileSync(path.join(evilRoot, 'dist', 'src', 'memory', 'memory-initializer.js'), 'utf8').includes('__rufloResolveRoot')) {
+  fail('AL2 a `.cli-` dir whose package.json name is @stranger/cli was patched — alias matching trusts the prefix, not the name');
+}
+const alChk = cli(['monitor', 'check']);
+// AL3 — the covered alias is no longer falsely flagged; the stranger STILL is (by its real name).
+if (/uncovered ruflo CLI: @claude-flow\/cli\b/.test(out(alChk))) fail(`AL3 the now-patched alias dir is still reported uncovered:\n${out(alChk)}`);
+if (!/uncovered ruflo CLI:.*@stranger\/cli/.test(out(alChk))) fail(`AL3 a genuinely uncovered daemon-spawning CLI is NOT flagged:\n${out(alChk)}`);
+
+console.log('✔ alias-dir coverage (AL1 `.cli-<hash>` copy is patched, AL2 a foreign name sharing the prefix is untouched, AL3 covered stops warning while a real stranger still does)');

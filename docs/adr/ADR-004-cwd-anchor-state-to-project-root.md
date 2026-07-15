@@ -80,3 +80,4 @@ anchor that leaked, whatever form it took. The SessionStart hook reports them, a
 - Upstream: [ruvnet/ruflo#2633](https://github.com/ruvnet/ruflo/issues/2633)
 - Prior art: `sparkling/ruflo` ADR-0100 (`bb9e56dec`), ADR-0137 (`627b6cf14`)
 - [ADR-005](ADR-005-daemon-dedup-at-the-project-root.md)
+- [ADR-017](ADR-017-optional-anchors-and-the-hidden-alias-layout.md): the paired `.claude-flow` / `.swarm` anchors are optional per build, and the hidden-alias package layout is covered
