@@ -1,11 +1,68 @@
 # ruflo-source-patch
 
-> Multi-agent orchestration project (Claude Flow / ruflo).
+> A zero-dependency Node CLI that source-patches the installed `ruflo` / `@claude-flow/cli` (and its
+> `ruflo-adr` / `ruvnet-brain` plugins) by exact literal anchors, and keeps the patches applied across
+> npx re-fetches via a SessionStart hook plus a launchd/cron monitor. The governing thesis: **a failure
+> must never look like success.** Architecture and rationale live in [`docs/adr/`](docs/adr/).
 >
 > **This file (`AGENTS.md`) is the single CANONICAL, shared instruction source for
 > BOTH OpenAI Codex and Claude Code.** Codex reads it directly; Claude Code imports
 > it via `@AGENTS.md` at the top of `CLAUDE.md`. Edit SHARED instructions HERE.
 > Claude-Code-only guidance lives in `CLAUDE.md` (below its `@AGENTS.md` line).
+
+## Commands
+
+All via `npx github:sparkling/ruflo-source-patch <target> <action>` (a global install exposes the same as
+`ruflo-source-patch <target> <action>`). Actions are `install | uninstall | status` unless noted.
+
+### Everything at once
+
+```bash
+npx github:sparkling/ruflo-source-patch all install      # every patch + plugin target + the monitor
+npx github:sparkling/ruflo-source-patch all uninstall    # revert them all + bring the monitor down
+npx github:sparkling/ruflo-source-patch all status       # the full readout in one call
+```
+
+`make install` / `make uninstall` (clone path) just delegate to `all`, so both paths run identical code.
+
+### Patch targets (`@claude-flow/cli`)
+
+```bash
+npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/.swarm + durable state to the project root (#2633)
+npx github:sparkling/ruflo-source-patch daemon install    # one daemon per project root, not per subdirectory (#2633/#2407/#2484)
+npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock (#2621) + WAL-coherent reads (#2584)
+```
+
+### Plugin patches (`ruflo-adr`, `ruvnet-brain`)
+
+```bash
+npx github:sparkling/ruflo-source-patch adr-template install      # adr-create writes metadata adr-index can parse (#2659)
+npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
+npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
+npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12)
+```
+
+### Keep it live (actions add `run | check`)
+
+```bash
+npx github:sparkling/ruflo-source-patch monitor install   # schedule the launchd/cron re-apply
+npx github:sparkling/ruflo-source-patch monitor check     # exit 1 if anything has drifted
+```
+
+### Script targets (project scaffolding; action adds `run <args…>`)
+
+```bash
+npx github:sparkling/ruflo-source-patch dual run <project>          # single-source dual Claude Code + Codex (alias: dual)
+npx github:sparkling/ruflo-source-patch dedupe run . --dry-run      # preview the ~260 files init --full duplicates (alias: dedupe)
+```
+
+`run` materializes the current script and executes it, forwarding your args, with no separate `install` step.
+
+### Repair a sprawled project
+
+```bash
+npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemons + remove subdir .claude-flow/.swarm
+```
 
 ## Rules
 

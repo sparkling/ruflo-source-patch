@@ -65,28 +65,31 @@ involved. No npmjs.org account, no local Verdaccio, nothing to stand up. Pick on
 
 ```bash
 # straight from GitHub (recommended; nothing to clone, always current)
-npx github:sparkling/ruflo-source-patch cwd install
+npx github:sparkling/ruflo-source-patch all install       # every patch + plugin target + the monitor
 
-# or clone + one command for the full setup (every patch + adr-reindex + the monitor)
+# or clone (identical result — `make install` just calls `all install`)
 git clone https://github.com/sparkling/ruflo-source-patch && cd ruflo-source-patch
-make install          # cwd+daemon+memory + adr-template+adr-index + adr-reindex + monitor
+make install
 make uninstall        # revert everything and remove the package
 ```
 
-`make install` applies every **patch** target (the three CLI ones and the `ruflo-adr` plugin
-ones), plus `adr-reindex`, and schedules the monitor.
+`all install` applies every **patch** target (the three CLI ones and the `ruflo-adr` /
+`ruvnet-brain` plugin ones) and schedules the monitor that keeps them live. It is the one-shot the
+`Makefile` used to own alone; now the npx path has it too, and `make install` delegates to it so the
+two can never list a different set. `all uninstall` / `all status` do the reverse and the readout.
 
 The **script targets stay opt-in**, because they change *your projects* rather than the library.
-They are also the most immediately useful thing here, so don't skip past them:
+They are also the most immediately useful thing here, so don't skip past them, and `run` executes
+one directly, no separate install step:
 
 ```bash
-npx github:sparkling/ruflo-source-patch dual install     # one instruction file for Claude Code + Codex
-npx github:sparkling/ruflo-source-patch dedupe install    # delete the ~260 files `init --full` duplicates
+npx github:sparkling/ruflo-source-patch dual run <project>       # one instruction file for Code + Codex
+npx github:sparkling/ruflo-source-patch dedupe run . --dry-run   # preview the ~260 files init --full duplicates
 ```
 
 See [The script targets in detail](#the-script-targets-in-detail).
 
-To pick targets individually instead:
+To pick patch targets individually instead of `all`:
 
 ```bash
 npx github:sparkling/ruflo-source-patch cwd install
@@ -94,7 +97,7 @@ npx github:sparkling/ruflo-source-patch daemon install
 npx github:sparkling/ruflo-source-patch memory install
 npx github:sparkling/ruflo-source-patch monitor install   # keeps them applied
 
-npx github:sparkling/ruflo-source-patch cwd status        # what's live?
+npx github:sparkling/ruflo-source-patch all status        # what's live, everything at once
 npx github:sparkling/ruflo-source-patch memory uninstall  # drop one, keep the rest
 ```
 

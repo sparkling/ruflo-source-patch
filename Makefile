@@ -9,40 +9,22 @@ VERSION  := $(shell node -e "console.log(require('./package.json').version)")
 
 .PHONY: help install uninstall test install-global link unlink pack publish-local unpublish-local whoami
 
-# One command: global-install the package, apply every patch target — the three CLI ones
-# AND the two ruflo-adr plugin ones — materialize adr-reindex, and schedule the monitor
-# that keeps them applied. This is the whole setup.
+# One command: global-install the package, then `all install` — every patch target (the three
+# CLI ones AND the ruflo-adr plugin ones), and the monitor that keeps them applied.
 #
-# adr-reindex ships with the ADR pair on purpose: the patched importer's ORPHANS message
-# tells you to run that script, and an instruction pointing at a file that was never
-# installed is the same silent lie this package exists to kill. The other script targets
-# (dual, dedupe) are project scaffolding, not fixes — they stay opt-in.
+# `all` is the SINGLE source of truth for the target set: the Makefile used to hand-list seven
+# `ruflo-source-patch <t> install` lines, which drifted from the CLI's own list. Now both the clone
+# path (`make install`) and the npx path (`npx … all install`) run the exact same code, and a test
+# pins `all` to PATCH_TARGETS + the plugin set so they cannot diverge again.
 install: install-global
-	ruflo-source-patch cwd install
-	ruflo-source-patch daemon install
-	ruflo-source-patch memory install
-	ruflo-source-patch adr-template install
-	ruflo-source-patch adr-index install
-	ruflo-source-patch adr-reindex install
-	ruflo-source-patch verify-interface install
-	ruflo-source-patch monitor install
+	ruflo-source-patch all install
 	@echo ""
-	@echo "done — cwd + daemon + memory + adr-template + adr-index + verify-interface patched,"
-	@echo "       adr-reindex installed,"
-	@echo "       monitor scheduled. Verify: ruflo-source-patch monitor check"
+	@echo "done — all patch targets applied + monitor scheduled. Verify: ruflo-source-patch monitor check"
 
-# The inverse: remove every target this Makefile's `install` added (the last patch target
-# removed also drops the SessionStart hook), then uninstall the global package. Leaves the
-# machine as it was.
+# The inverse. `all uninstall` reverts every patch target and brings the monitor down (the last patch
+# target removed also drops the SessionStart hook); then uninstall the global package.
 uninstall:
-	-ruflo-source-patch monitor uninstall
-	-ruflo-source-patch verify-interface uninstall
-	-ruflo-source-patch adr-reindex uninstall
-	-ruflo-source-patch adr-index uninstall
-	-ruflo-source-patch adr-template uninstall
-	-ruflo-source-patch memory uninstall
-	-ruflo-source-patch daemon uninstall
-	-ruflo-source-patch cwd uninstall
+	-ruflo-source-patch all uninstall
 	npm uninstall -g $(PKG) 2>/dev/null || true
 	@echo "done — patches reverted, hook + monitor removed, package uninstalled"
 

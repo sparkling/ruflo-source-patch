@@ -204,7 +204,22 @@ const after = fs.readdirSync(path.join(p2, '.claude', 'skills'));
 if (JSON.stringify(before) !== JSON.stringify(after)) fail('SH2 dedupe --dry-run DELETED FILES from the project');
 if (!fs.existsSync(path.join(p2, '.claude', 'skills', 'some-skill', 'SKILL.md'))) fail('SH2 --dry-run destroyed a project-unique skill');
 
-console.log('✔ shell scripts (SH1 all three parse, SH2 dedupe --dry-run deletes nothing)');
+// SH3 — the `run` ACTION: one step instead of install + hunt-for-the-path + bash. `dedupe-bundle run
+// <dir> --dry-run` must materialize the CURRENT script, exec it, and forward the args — so the dry-run
+// still touches nothing, driven entirely through the CLI.
+const p3 = path.join(SB, 'proj3');
+fs.mkdirSync(path.join(p3, '.claude', 'skills', 'keep'), { recursive: true });
+execFileSync('git', ['init', '-q'], { cwd: p3 });
+fs.writeFileSync(path.join(p3, '.claude', 'skills', 'keep', 'SKILL.md'), 'mine\n');
+fs.writeFileSync(path.join(p3, '.claude', 'settings.json'), '{}');
+// remove the materialized copy first, to prove `run` materializes on its own (no prior `install`).
+fs.rmSync(path.join(STATE, 'dedupe-bundle'), { recursive: true, force: true });
+const runRes = cli(['dedupe-bundle', 'run', p3, '--dry-run']);
+if (!/removed|kept|DRY-RUN/i.test(out(runRes))) fail(`SH3 \`dedupe-bundle run --dry-run\` produced no script output:\n${out(runRes)}`);
+if (!fs.existsSync(path.join(STATE, 'dedupe-bundle', 'ruflo-dedupe-bundle.sh'))) fail('SH3 `run` did not materialize the script on demand');
+if (!fs.existsSync(path.join(p3, '.claude', 'skills', 'keep', 'SKILL.md'))) fail('SH3 `run … --dry-run` DELETED a project file — args not forwarded, or dry-run ignored');
+
+console.log('✔ shell scripts (SH1 all three parse, SH2 dedupe --dry-run deletes nothing, SH3 `run` materializes on demand + forwards args)');
 
 // ─── CW: the project-root resolver, EXECUTED (not grepped) ───────────────────
 //

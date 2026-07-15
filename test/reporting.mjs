@@ -633,24 +633,41 @@ console.log('✔ ambiguous anchors (A1 a duplicated anchor is refused, not guess
 
   const { PATCH_TARGETS } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'patch-library.mjs')}`);
   const { PLUGIN_TARGETS } = await import(`file://${path.join(REPO, 'lib', 'plugin-registry.mjs')}`);
-  const mustInstall = [...PATCH_TARGETS, ...PLUGIN_TARGETS];
 
-  // M1 — every patch and plugin target is installed by `make install`. Script targets are deliberately
-  // opt-in (they change your PROJECTS, not the library), so they are not required here.
-  const missingInstall = mustInstall.filter((t) => !new RegExp(`ruflo-source-patch ${t} install\\b`).test(installBlock));
-  if (missingInstall.length) {
-    fail(`M1 \`make install\` does not install: ${missingInstall.join(', ')}\n`
-      + '   Every patch/plugin target must be in the Makefile, or `make install` is lying about what it does.');
+  // M1 — `make install`/`uninstall` DELEGATE to `all`. The Makefile used to hand-list seven target
+  // lines that drifted from the code twice (the ADR patches, then verify-interface). Now there is one
+  // source of truth: `all`, whose set is BUILT from PATCH_TARGETS + the plugin keys (see M2), so the
+  // Makefile cannot list a different set than the code — it lists no set at all.
+  if (!/ruflo-source-patch all install\b/.test(installBlock)) {
+    fail('M1 `make install` does not delegate to `all install` — the one-shot must have a single source of truth');
+  }
+  if (!/ruflo-source-patch all uninstall\b/.test(uninstallBlock)) {
+    fail('M1 `make uninstall` does not delegate to `all uninstall`');
   }
 
-  // M2 — and `make uninstall` removes every one of them. An uninstall that leaves targets behind has
-  // not uninstalled the package; it has just stopped admitting to them.
-  const missingUninstall = mustInstall.filter((t) => !new RegExp(`ruflo-source-patch ${t} uninstall\\b`).test(uninstallBlock));
-  if (missingUninstall.length) {
-    fail(`M2 \`make uninstall\` does not remove: ${missingUninstall.join(', ')}`);
-  }
+  // M2 — BEHAVIOURAL, and stronger than the old grep: `all install` actually records EVERY patch target
+  // in state.json, and `all uninstall` removes them. The old test proved the Makefile CONTAINED a line;
+  // this proves the command DOES the thing. (Plugin targets discover real plugins the sandbox does not
+  // stub, so their coverage is guaranteed by construction — `all` iterates the real PATCH_TARGETS +
+  // Object.keys(PLUGIN_PATCH_TARGETS) — and asserted here on the patch set that IS installable in a box.)
+  freshSandbox();
+  cli(['all', 'install']);
+  let recorded = [];
+  try { recorded = JSON.parse(fs.readFileSync(path.join(STATE, 'state.json'), 'utf8')).patchTargets || []; } catch { /* none */ }
+  const missing = PATCH_TARGETS.filter((t) => !recorded.includes(t));
+  if (missing.length) fail(`M2 \`all install\` did not install every patch target — missing: ${missing.join(', ')} (state=[${recorded}])`);
 
-  console.log(`✔ make install (M1 installs all ${mustInstall.length} patch/plugin targets, M2 uninstall removes them all)`);
+  cli(['all', 'uninstall']);
+  let left = [];
+  try { left = JSON.parse(fs.readFileSync(path.join(STATE, 'state.json'), 'utf8')).patchTargets || []; } catch { /* none */ }
+  if (left.length) fail(`M2 \`all uninstall\` left patch targets behind: ${left.join(', ')}`);
+
+  // M3 — `all` REFUSES a nonsense action rather than silently doing nothing.
+  const badAll = cli(['all', 'frobnicate']);
+  if (badAll.status === 0) fail('M3 `all frobnicate` exited 0 — an unknown action must fail');
+  if (!/install \| uninstall \| status/.test(out(badAll))) fail('M3 `all` did not name its valid actions on a bad one');
+
+  console.log(`✔ make install (M1 delegates to \`all\`, M2 \`all install\` records every patch target + \`all uninstall\` clears them, M3 bad action refused)`);
 }
 
 // ─── RB: a re-baseline tells you WHAT TO DO, not just what happened ──────────

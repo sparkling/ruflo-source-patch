@@ -72,6 +72,9 @@ function usage() {
 Usage:
   npx github:sparkling/ruflo-source-patch <target> <action>
 
+Everything at once              (actions: install | uninstall | status)
+  ${pad('all')}every patch + plugin target + the monitor, in one command (== make install)
+
 Patch targets                  (actions: install | uninstall | status)
   ${pad('cwd')}${TARGET_INFO.cwd}
   ${pad('daemon')}${TARGET_INFO.daemon}
@@ -93,21 +96,22 @@ Keep it live                   (actions: install | uninstall | status | run | ch
 Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemons]
   ${pad('cleanup')}kill a project's stray daemons + remove subdir .claude-flow/.swarm
 
-Script targets                 (actions: install | uninstall | status)
+Script targets                 (actions: install | uninstall | status | run <args…>)
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
   ${pad('dedupe-bundle')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (alias: dedupe)
+  ${pad('')}\`run\` materializes the script and executes it, forwarding your args
 
-Every target installs/uninstalls on its own. The usual setup:
-  npx github:sparkling/ruflo-source-patch cwd install
-  npx github:sparkling/ruflo-source-patch daemon install
-  npx github:sparkling/ruflo-source-patch memory install
-  npx github:sparkling/ruflo-source-patch monitor install    # keep them live
+The whole setup, in one line:
+  npx github:sparkling/ruflo-source-patch all install        # every target + monitor
+
+Run a script directly (no separate install step):
+  npx github:sparkling/ruflo-source-patch dedupe-bundle run . --dry-run
+  npx github:sparkling/ruflo-source-patch dual run <project-path>
 
 Other:
   npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest
-  npx github:sparkling/ruflo-source-patch memory status
+  npx github:sparkling/ruflo-source-patch all status         # every target at once
   npx github:sparkling/ruflo-source-patch monitor check      # exit 1 if anything drifted
-  npx github:sparkling/ruflo-source-patch dedupe-bundle install
   npx github:sparkling/ruflo-source-patch cleanup . --dry-run
 
 Working with ADRs? Install all three — they cover the whole round-trip:
@@ -198,16 +202,53 @@ if (PATCH_TARGETS.includes(target) || PLUGIN_PATCH_TARGETS[target]) {
 }
 
 let ok;
-if (target === 'monitor') {
+if (target === 'all') {
+  // The one-shot the Makefile used to own alone. `make install` requires cloning the repo; the npx
+  // path — which is the PRIMARY one (self-update pulls tags, ADR-015) — had no equivalent, so a user
+  // had to run seven targets by hand. `all` covers every PATCH + PLUGIN target and the monitor, in a
+  // fixed order, and is pinned by a test to the SAME sets `make install` uses so the two cannot drift.
+  //
+  // adr-reindex is included deliberately, NOT special-cased: on a current CLI it installs and then
+  // RETIRES ITSELF on proof (ADR-009/014); on an older one it stays. Either way `all` does the right
+  // thing without knowing which case it is.
+  if (!['install', 'init', 'uninstall', 'remove', 'status'].includes(action)) {
+    console.error(`[ruflo-source-patch] \`all\` supports: install | uninstall | status (got "${action}")`);
+    process.exit(1);
+  }
+  const { readState, isRetired } = await import('../lib/cwd/state.mjs');
+  const st = readState();
+  let bad = 0;
+
+  // The three CLI patch targets compose in ONE file-rebuild, so patchCommand takes them as a set —
+  // one call, one status table (looping them would re-render the whole table per target).
+  if (!patchCommand(PATCH_TARGETS, action)) bad++;
+
+  // The plugin targets are independent, and adr-reindex can be RETIRED. Loop them, and never let `all`
+  // resurrect a retired target on install — the single-target path refuses this, so `all` must not be a
+  // back door around it. (uninstall/status still touch it, harmlessly.)
+  for (const t of Object.keys(PLUGIN_PATCH_TARGETS)) {
+    if ((action === 'install' || action === 'init') && isRetired(t, st)) {
+      console.log(`[${t}] retired — skipped (upstream now does this; \`${t} status\` for why)`);
+      continue;
+    }
+    if (!PLUGIN_PATCH_TARGETS[t](action)) bad++;
+  }
+
+  // The monitor keeps them live; on uninstall it comes down too; status reports it alongside.
+  monitorCommand(action === 'install' || action === 'init' ? 'install'
+    : action === 'uninstall' || action === 'remove' ? 'uninstall' : 'status');
+  ok = bad === 0;
+} else if (target === 'monitor') {
   ok = monitorCommand(action);
 } else if (PATCH_TARGETS.includes(target)) {
   ok = patchCommand([target], action);
 } else if (PLUGIN_PATCH_TARGETS[target]) {
   ok = PLUGIN_PATCH_TARGETS[target](action);
 } else if (SCRIPT_TARGETS[target]) {
-  ok = scriptCommand(target, action);
+  // `run` forwards everything after the action to the script (e.g. `dedupe-bundle run . --dry-run`).
+  ok = scriptCommand(target, action, process.argv.slice(4));
 } else {
-  const known = [...PATCH_TARGETS, ...Object.keys(PLUGIN_PATCH_TARGETS), 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
+  const known = ['all', ...PATCH_TARGETS, ...Object.keys(PLUGIN_PATCH_TARGETS), 'monitor', 'cleanup', ...Object.keys(SCRIPT_TARGETS)].join(' | ');
   console.error(`[ruflo-source-patch] unknown target "${target}" (expected: ${known})`);
   usage();
   process.exit(1);
