@@ -2,6 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-15: "sandbox everything" had a machine-global gap. The launchd label is a constant, not covered by HOME, so the suite's uninstallMonitor booted the real monitor agent. Gated behind RSP_NO_LAUNCHCTL (ADR-021 point 5).
 **Deciders**: Henrik Pettersen
 **Tags**: testing, core, safety
 

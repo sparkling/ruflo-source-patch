@@ -18,6 +18,11 @@ export RSP_NO_SELF_UPDATE=1
 # monitor would register a real launchd job pointing at a sandbox path. This keeps the hook a pure reporter
 # in tests; recovery itself is proven end-to-end and by recoverMonitor's unit test (RC1).
 export RSP_NO_MONITOR_RECOVER=1
+# NO TEST MAY TOUCH REAL launchd/cron. The launchd LABEL is a constant, not sandboxed by HOME, so a
+# sandboxed uninstallMonitor()/installMonitor() would bootout the developer's (or a `npm test` user's) REAL
+# monitor agent — the actual cause of the drops this project hunted. This no-ops the mutating launchctl/
+# crontab calls; the plist/meta/heartbeat FILE logic still runs, so coverage is unchanged.
+export RSP_NO_LAUNCHCTL=1
 
 SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs monitor-internals mcp-prefix)
 tmp=$(mktemp -d); pids=(); fail=0

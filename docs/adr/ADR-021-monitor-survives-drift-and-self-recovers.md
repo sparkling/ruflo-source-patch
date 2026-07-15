@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-07-15: heartbeat is now a GATE with an authoritative launchctl/crontab probe (no 30-min floor, no sleep false-alarm); and the plist is ProcessType Standard, not Background, so the job is not opted into the aggressive power management the drop evidence pointed at.
+**Updated**: 2026-07-15: heartbeat is now a GATE with an authoritative launchctl/crontab probe (no 30-min floor, no sleep false-alarm); the plist is ProcessType Standard, not Background. AND the actual cause of the recurring drops was FOUND (point 5): the test suite booted out the real launchd agent, because the label is a constant not sandboxed by HOME. That is the fix that matters; ProcessType/power-management was a wrong lead, kept only as a minor hardening.
 **Deciders**: Henrik Pettersen
 
 **Tags**: monitor, runtime, safety
@@ -63,7 +63,18 @@ Three changes, together making a drop from ANY cause survivable, recoverable, an
    stats per interval, so normal scheduling costs nothing, and a watchdog that must fire on time should
    not be telling the OS it is fine to defer. This reduces drop FREQUENCY; recovery (2) still covers
    whatever slips through. The exact launchd bootout is not recorded in any accessible log, so this is a
-   measurement-backed mitigation of the most-likely cause, not a proven root-cause fix.
+   measurement-backed mitigation, not a proven root-cause fix. (Point 5 is the proven cause.)
+
+5. **The tests must never touch real launchd/cron.** This is the ACTUAL cause of the recurring drops, and
+   the wrong lead was worth catching: the launchd `MONITOR_LABEL` is a module constant, NOT sandboxed by
+   `HOME_BASE`, so a test that sandboxes `HOME` and calls `uninstallMonitor()` (MI4 does) or
+   `installMonitor()` still runs `launchctl bootout gui/$UID/<real label>` and boots out the DEVELOPER'S
+   real monitor agent, or a user's if they run `npm test` from a clone. Reproduced: agent loaded, run the
+   sandboxed suite, agent gone. Every crash-hunt symptom fit (unloaded, not crashed, no logout/sleep)
+   because it WAS booted out, by our own tests. `RSP_NO_LAUNCHCTL=1` (set by run-tests.sh and at the top of
+   the suite) no-ops every mutating launchctl/crontab call; the plist/meta/heartbeat FILE logic still runs,
+   so coverage is unchanged. This is a re-assertion of ADR-016's sandbox rule for the one piece of state
+   that is not addressed by `HOME`: the launchd label is machine-global. MI6 guards it.
 
 ## Consequences
 

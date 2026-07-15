@@ -29,6 +29,10 @@ const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
 process.env.RUFLO_SOURCE_PATCH_HOME = HOME;      // <- BEFORE any lib/ module is loaded
+// This suite calls uninstallMonitor() (MI4) IN-PROCESS. The launchd label is a constant, not sandboxed by
+// HOME, so without this it would `launchctl bootout` the developer's REAL monitor agent. Belt to
+// run-tests.sh's suspenders, so a standalone `node test/monitor-internals.mjs` is safe too.
+process.env.RSP_NO_LAUNCHCTL = '1';
 // The CLI-root vars too, and for the same reason. paths.mjs freezes GLOBAL_ROOTS/NPX_ROOT at module
 // load, so a lib/ module imported IN-PROCESS below (adr-reindex's patcher does, to find out whether the
 // installed CLI has `memory purge`) would otherwise read the developer's REAL npx cache and global root.
@@ -127,7 +131,21 @@ if (mon.resolveStableNode('/usr/local/bin/node', () => true).node !== '/usr/loca
 const rc = mon.recoverMonitor();
 if (rc.attempted !== false || rc.reason !== 'not-installed') fail(`RC1 recoverMonitor touched launchd for an uninstalled monitor: ${JSON.stringify(rc)}`);
 
-console.log('✔ monitor internals (MI1 valid plist, MI2 interval honoured + clamped, MI3 cron strips ONLY our line, MI4 uninstall drops meta + heartbeat, MI5 stderr captured, ND1-4 version-stable node, RC1 recover no-ops when uninstalled)');
+// MI6 — install/uninstall exercise the FILE flow but NEVER touch real launchd (RSP_NO_LAUNCHCTL, set at
+// the top). The launchd label is a constant, NOT sandboxed by HOME, so without the gate this very suite
+// bootout's the developer's (or a `npm test` user's) REAL monitor agent — proven: it did, repeatedly, and
+// it was the actual cause of the drops. The plist must land in the SANDBOX, and install must succeed
+// without a real launchctl. Guard it forever.
+fs.mkdirSync(path.join(STATE, 'lib', 'cwd'), { recursive: true });
+fs.writeFileSync(path.join(STATE, 'lib', 'cwd', 'monitor-run.mjs'), '// stub\n');
+const mi6Install = mon.installMonitor();
+if (!mi6Install.ok) fail(`MI6 installMonitor failed under the launchctl gate (would it have touched real launchd?): ${mi6Install.why}`);
+const sandboxPlist = path.join(HOME, 'Library', 'LaunchAgents', 'com.sparkleideas.ruflo-source-patch.monitor.plist');
+if (!fs.existsSync(sandboxPlist)) fail('MI6 the plist was not written under the SANDBOX HOME — install is not HOME-isolated');
+mon.uninstallMonitor();
+if (fs.existsSync(sandboxPlist)) fail('MI6 uninstallMonitor left the sandbox plist behind');
+
+console.log('✔ monitor internals (MI1 valid plist, MI2 interval honoured + clamped, MI3 cron strips ONLY our line, MI4 uninstall drops meta + heartbeat, MI5 stderr captured, ND1-4 version-stable node, RC1 recover no-ops, MI6 install/uninstall never touch real launchd)');
 
 // ─── SC: the two shell scripts nobody had ever run ───────────────────────────
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
