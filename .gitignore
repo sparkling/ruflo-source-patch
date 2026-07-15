@@ -28,3 +28,11 @@ agentdb.rvf
 
 # .codex = local overrides (add-codex.sh convention: .agents/config.toml is the committed project config)
 .codex/
+.claude/.bundle-backup/
+
+# .claude runtime state (memory DB + proven-config harness output; regenerated, not source)
+.claude/memory.db
+.claude/memory.db-shm
+.claude/memory.db-wal
+.claude/proven-config.json
+.claude/.proven-config-version
