@@ -40,6 +40,7 @@ npx github:sparkling/ruflo-source-patch adr-template install      # adr-create w
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12)
+npx github:sparkling/ruflo-source-patch mcp-prefix install         # rewrite bundled mcp__claude-flow__* refs to mcp__plugin_ruflo-core_ruflo__* — dead under plugin loading (#2685)
 ```
 
 ### Keep it live (actions add `run | check`)

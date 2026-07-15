@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 # whatever is published. The self-update tests lift this locally and put it back.
 export RSP_NO_SELF_UPDATE=1
 
-SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs monitor-internals)
+SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs monitor-internals mcp-prefix)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

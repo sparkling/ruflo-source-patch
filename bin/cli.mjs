@@ -49,6 +49,7 @@ import { adrTemplateCommand } from '../lib/adr-template/commands.mjs';
 import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
 import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
+import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
@@ -63,6 +64,9 @@ const PLUGIN_PATCH_TARGETS = {
   'adr-reindex': adrReindexCommand,
   // ruvnet-brain, not ruflo-adr — same machinery, different plugin.
   'verify-interface': verifyInterfaceCommand,
+  // Spans ALL ruflo plugins: rewrites bundled mcp__claude-flow__* refs to the plugin-namespaced
+  // form so they resolve under plugin loading (#2685). Same machinery, widest blast radius.
+  'mcp-prefix': mcpPrefixCommand,
 };
 
 function usage() {
@@ -89,6 +93,10 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
   ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
+
+Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
+  ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
+  ${pad('')}  under plugin loading — rewrites them to \`mcp__plugin_ruflo-core_ruflo__*\` (#2685)
 
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update/plugin-update overwrites them
