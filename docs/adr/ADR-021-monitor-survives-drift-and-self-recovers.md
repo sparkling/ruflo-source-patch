@@ -2,6 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
+**Updated**: 2026-07-15: heartbeat is now a GATE with an authoritative launchctl/crontab probe (no 30-min floor, no sleep false-alarm); and the plist is ProcessType Standard, not Background, so the job is not opted into the aggressive power management the drop evidence pointed at.
 **Deciders**: Henrik Pettersen
 
 **Tags**: monitor, runtime, safety
@@ -53,6 +54,16 @@ Three changes, together making a drop from ANY cause survivable, recoverable, an
    crash before `monitor-run.mjs`'s try/catch is CAPTURED. Recovery and session-start heal outcomes
    (`RECOVERED` / `RECOVER-FAILED` / `HEALED` / `HEAL-FAILED`) are logged, the captured crash is surfaced
    on recovery, and `healMonitor`'s error is no longer swallowed.
+
+4. **Do not advertise the watchdog as throttleable.** The plist was `ProcessType=Background` +
+   `LowPriorityIO`, which opts the job into macOS's most aggressive power management (App Nap, timer
+   coalescing, deferral). After ruling out crash, logout, reboot and full sleep, that configuration is the
+   one factor the drop evidence points at: the agent was unloaded during an idle low-power window on a job
+   flagged as deferrable. It is now `ProcessType=Standard` with no `LowPriorityIO`. The tick is a few
+   stats per interval, so normal scheduling costs nothing, and a watchdog that must fire on time should
+   not be telling the OS it is fine to defer. This reduces drop FREQUENCY; recovery (2) still covers
+   whatever slips through. The exact launchd bootout is not recorded in any accessible log, so this is a
+   measurement-backed mitigation of the most-likely cause, not a proven root-cause fix.
 
 ## Consequences
 

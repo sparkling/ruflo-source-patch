@@ -64,6 +64,10 @@ if (!/<key>StartInterval<\/key><integer>600<\/integer>/.test(plist.replace(/\s+/
   fail(`MI1 the plist does not carry the requested 600s interval:\n${plist}`);
 }
 if (!plist.includes('<key>RunAtLoad</key>')) fail('MI1 the plist has no RunAtLoad — the monitor would not start until the first interval elapsed');
+// A watchdog must NOT advertise itself as throttleable. ProcessType=Background opts into App Nap / timer
+// coalescing / deferral, the configurable factor the drop evidence pointed at (ADR-021). Must be Standard.
+if (/<key>ProcessType<\/key><string>Background<\/string>/.test(plist) || /<key>LowPriorityIO<\/key>/.test(plist)) fail('MI1 the plist marks the monitor Background/LowPriorityIO — that invites the very throttling that drops it');
+if (!/<key>ProcessType<\/key><string>Standard<\/string>/.test(plist)) fail('MI1 the plist ProcessType is not Standard — the monitor should be scheduled normally, not deprioritised');
 
 // MI2 — RSP_MONITOR_INTERVAL is honoured, and CLAMPED. A 1-second monitor would hammer the machine;
 // a garbage value must fall back rather than produce NaN in the plist.
