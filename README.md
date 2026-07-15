@@ -812,6 +812,17 @@ That re-syncs the stable copy, re-registers the hook and the schedule. The new c
 **next tick**: the child rewrites `~/.ruflo-source-patch/lib` while the current process already holds its
 modules in memory, which is the same "effective next tick" rule `healStableLib()` follows.
 
+**New targets adopt themselves, if you asked for everything.** `all install` records a "keep me on the
+complete, current set" contract, and in that mode the tick runs `all install` at the new tag instead of
+`monitor install`. So a target *introduced* in a later release records itself into `state.json` and applies
+on its own, with no manual step (ADR-019). That is the whole premise: install once, stay patched, including
+fixes that did not exist when you installed. A **cherry-picked** install is left exactly as it is: it runs
+`monitor install`, its recorded set unchanged, and nothing it did not ask for is added. Any single-target
+`uninstall` drops you out of the contract, because the moment you curate a subset you have stopped asking
+for everything. (Retirement still applies: `all install` skips a target already superseded on your machine,
+ADR-014.) One transition wrinkle: an `all` install that predates this flag adopts automatically only after
+you run `all install` once more to set it, then never again.
+
 **Not the SessionStart hook.** I built it there first, and it was the same mistake the monitor exists to
 fix: the hook fires only when a session *starts*, and people leave Claude Code running for days. A patch
 that upstream's restructuring has turned from redundant into actively **wrong** would keep re-applying

@@ -223,7 +223,7 @@ if (target === 'all') {
     console.error(`[ruflo-source-patch] \`all\` supports: install | uninstall | status (got "${action}")`);
     process.exit(1);
   }
-  const { readState, isRetired } = await import('../lib/cwd/state.mjs');
+  const { readState, isRetired, setAllMode } = await import('../lib/cwd/state.mjs');
   const st = readState();
   let bad = 0;
 
@@ -245,6 +245,10 @@ if (target === 'all') {
   // The monitor keeps them live; on uninstall it comes down too; status reports it alongside.
   monitorCommand(action === 'install' || action === 'init' ? 'install'
     : action === 'uninstall' || action === 'remove' ? 'uninstall' : 'status');
+  // Record (or clear) the "track the complete set" contract. This is the ONE bit the self-update reads to
+  // decide whether a target introduced in a later release adopts itself (ADR-019). `status` leaves it be.
+  if (action === 'install' || action === 'init') setAllMode(true);
+  else if (action === 'uninstall' || action === 'remove') setAllMode(false);
   ok = bad === 0;
 } else if (target === 'monitor') {
   ok = monitorCommand(action);
@@ -260,6 +264,16 @@ if (target === 'all') {
   console.error(`[ruflo-source-patch] unknown target "${target}" (expected: ${known})`);
   usage();
   process.exit(1);
+}
+
+// Uninstalling ONE target is a deviation from "everything, kept live": the moment you curate a subset,
+// stop tracking the complete set, or the next self-update's `all install` would just re-add what you
+// removed (ADR-019). Installing one target does NOT clear it — adding to a set you already track is no
+// deviation. `all uninstall` clears it via its own branch above.
+if ((action === 'uninstall' || action === 'remove')
+    && (PATCH_TARGETS.includes(target) || PLUGIN_PATCH_TARGETS[target])) {
+  const { setAllMode } = await import('../lib/cwd/state.mjs');
+  setAllMode(false);
 }
 
 if (!ok) {

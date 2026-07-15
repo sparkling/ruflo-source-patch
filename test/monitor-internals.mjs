@@ -365,6 +365,31 @@ const brokenInstall = await up.selfUpdate({
 if (brokenInstall.updated) fail('UP6 a FAILED install reported success');
 if (!brokenInstall.error) fail('UP6 a failed install was swallowed — the user would never know they are stale');
 
+// UP8 — ALL MODE adopts new targets. A machine that ran `all install` (state.all === true) must upgrade by
+// re-running `all install`, NOT `monitor install`, so a target introduced in the newer tag records itself
+// into state.json and applies — the framework's whole "just let it run" premise (ADR-019).
+stateMod.setAllMode(true);
+let ranSpec = null; let ranSub = null;
+const adopt = await up.selfUpdate({
+  fetchJson: async () => ([{ name: 'v999.0.0' }]),
+  run: (spec, sub) => { ranSpec = spec; ranSub = sub; },
+});
+if (!adopt.updated) fail('UP8 all-mode: a newer tag did not update');
+if (!/#v999\.0\.0$/.test(ranSpec || '')) fail(`UP8 all-mode did not pin the tag — ran: ${ranSpec}`);
+if (!ranSub || ranSub.join(' ') !== 'all install') fail(`UP8 all-mode must run \`all install\` to adopt new targets — ran sub: ${JSON.stringify(ranSub)}`);
+
+// UP9 — a CURATED install (state.all === false) upgrades by `monitor install`, exactly as before: its
+// recorded set is left alone and nothing it did not ask for is installed. This is the guard that stops
+// auto-adoption from ever installing a target onto a machine that cherry-picked.
+stateMod.setAllMode(false);
+ranSub = null;
+const curated = await up.selfUpdate({
+  fetchJson: async () => ([{ name: 'v999.0.0' }]),
+  run: (spec, sub) => { ranSub = sub; },
+});
+if (!curated.updated) fail('UP9 curated: a newer tag did not update');
+if (!ranSub || ranSub.join(' ') !== 'monitor install') fail(`UP9 a curated install must run \`monitor install\`, never adopt — ran sub: ${JSON.stringify(ranSub)}`);
+
 // UP7 — the kill switch. The suite depends on it (no test may reach the network or run npx), and so does
 // anyone who wants to pin their install.
 process.env.RSP_NO_SELF_UPDATE = '1';
@@ -373,4 +398,4 @@ const off = await up.selfUpdate({ fetchJson: async () => ([{ name: 'v999.0.0' }]
 if (off.updated || ran) fail('UP7 RSP_NO_SELF_UPDATE=1 did not disable self-update');
 if (KILL === undefined) delete process.env.RSP_NO_SELF_UPDATE; else process.env.RSP_NO_SELF_UPDATE = KILL;
 
-console.log('✔ self-update (UP1 numeric compare, UP2 immutable SEMVER TAGS only — never a branch, UP3 forward only, UP4 installs the pinned tag, UP5 offline keeps the working version, UP6 a failed install is reported not swallowed, UP7 kill switch)');
+console.log('✔ self-update (UP1 numeric compare, UP2 immutable SEMVER TAGS only — never a branch, UP3 forward only, UP4 installs the pinned tag, UP5 offline keeps the working version, UP6 a failed install is reported not swallowed, UP7 kill switch, UP8 all-mode adopts via `all install`, UP9 curated stays `monitor install`)');
