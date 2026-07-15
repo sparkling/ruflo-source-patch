@@ -15,7 +15,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync, execFileSync } from 'node:child_process';
+import { spawnSync, execFileSync, spawn } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
 
 const SB = process.argv[2];
@@ -219,7 +219,117 @@ if (!/removed|kept|DRY-RUN/i.test(out(runRes))) fail(`SH3 \`dedupe-bundle run --
 if (!fs.existsSync(path.join(STATE, 'dedupe-bundle', 'ruflo-dedupe-bundle.sh'))) fail('SH3 `run` did not materialize the script on demand');
 if (!fs.existsSync(path.join(p3, '.claude', 'skills', 'keep', 'SKILL.md'))) fail('SH3 `run … --dry-run` DELETED a project file — args not forwarded, or dry-run ignored');
 
-console.log('✔ shell scripts (SH1 all three parse, SH2 dedupe --dry-run deletes nothing, SH3 `run` materializes on demand + forwards args)');
+// SH4 — MCP dedup. A project-local standalone ruflo/claude-flow .mcp.json server DUPLICATES the
+// plugin-provided one (two writers on one .swarm/memory.db, #2621). dedupe removes ONLY that server,
+// matched by COMMAND SIGNATURE, KEEPS the others, and deletes the file if it empties. A FAKE plugin dir
+// via RUFLO_PLUGIN_DIR keeps this hermetic (not dependent on the developer's real plugin cache).
+const fakePlug = path.join(SB, 'fakeplug', 'ruflo');
+fs.mkdirSync(path.join(fakePlug, 'ruflo-core', 'skills', 'foo'), { recursive: true });
+fs.writeFileSync(path.join(fakePlug, 'ruflo-core', 'skills', 'foo', 'SKILL.md'), 'x\n');
+fs.writeFileSync(path.join(fakePlug, 'ruflo-core', '.mcp.json'),
+  JSON.stringify({ mcpServers: { ruflo: { command: 'npx', args: ['-y', '@claude-flow/cli@latest', 'mcp', 'start'] } } }));
+const mcpEnv = { ...process.env, HOME, RUFLO_PLUGIN_DIR: fakePlug };
+const mkProj = (name, mcp) => {
+  const d = path.join(SB, name);
+  fs.mkdirSync(path.join(d, '.claude'), { recursive: true });
+  execFileSync('git', ['init', '-q'], { cwd: d });
+  fs.writeFileSync(path.join(d, '.claude', 'settings.json'), '{}');
+  fs.writeFileSync(path.join(d, '.mcp.json'), JSON.stringify(mcp));
+  return d;
+};
+const srv = (d) => Object.keys(JSON.parse(fs.readFileSync(path.join(d, '.mcp.json'), 'utf8')).mcpServers || {});
+
+// SH4a — removes the standalone server, KEEPS ruv-swarm; and --dry-run is inert first.
+const p4 = mkProj('proj4', { mcpServers: {
+  'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'], autoStart: false },
+  'ruv-swarm':   { command: 'npx', args: ['-y', 'ruv-swarm', 'mcp', 'start'], optional: true },
+} });
+const p4before = fs.readFileSync(path.join(p4, '.mcp.json'), 'utf8');
+spawnSync('bash', [dedupe, p4, '--dry-run'], { encoding: 'utf8', env: mcpEnv });
+if (fs.readFileSync(path.join(p4, '.mcp.json'), 'utf8') !== p4before) fail('SH4a dedupe --dry-run MODIFIED .mcp.json');
+spawnSync('bash', [dedupe, p4, '--no-backup'], { encoding: 'utf8', env: mcpEnv });
+if (!fs.existsSync(path.join(p4, '.mcp.json'))) fail('SH4a .mcp.json was deleted — a non-ruflo server (ruv-swarm) must survive, so the file must not empty');
+if (srv(p4).includes('claude-flow')) fail('SH4a the standalone claude-flow server was not removed');
+if (!srv(p4).includes('ruv-swarm')) fail('SH4a dedupe removed ruv-swarm too — it must keep non-ruflo servers');
+
+// SH4b — a .mcp.json whose ONLY server is the standalone ruflo one is DELETED (true plugin-only).
+const p5 = mkProj('proj5', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'] } } });
+spawnSync('bash', [dedupe, p5, '--no-backup'], { encoding: 'utf8', env: mcpEnv });
+if (fs.existsSync(path.join(p5, '.mcp.json'))) fail('SH4b a .mcp.json with only the standalone server should be deleted, but it survived');
+
+// SH4c — the "provided?" gate. With NO plugin MCP server the project registration is a real choice, not a
+// duplicate, and must be LEFT ALONE. This is the guard that stops the removal from being unconditional.
+const barePlug = path.join(SB, 'bareplug', 'ruflo');
+fs.mkdirSync(path.join(barePlug, 'ruflo-core', 'skills', 'foo'), { recursive: true });
+fs.writeFileSync(path.join(barePlug, 'ruflo-core', 'skills', 'foo', 'SKILL.md'), 'x\n'); // a skill, but NO plugin .mcp.json
+const p6 = mkProj('proj6', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'] } } });
+spawnSync('bash', [dedupe, p6, '--no-backup'], { encoding: 'utf8', env: { ...process.env, HOME, RUFLO_PLUGIN_DIR: barePlug } });
+if (!fs.existsSync(path.join(p6, '.mcp.json')) || !srv(p6).includes('claude-flow'))
+  fail('SH4c dedupe removed the standalone server though the plugin provides none — the prune is not gated on "plugin provides MCP"');
+
+// SH5 — stopping the orphaned server is the DEFAULT (removing the registration otherwise leaves a second
+// writer on memory.db until restart). It SIGTERMs the server, guarded so the plugin server (same command)
+// is never touched, and --keep-server opts out. The env-less SKIP, dry-run, and opt-out paths are hermetic;
+// the real kill needs a process whose env the OS exposes to another process, which macOS `ps e` does NOT do
+// for a synthetic process (only real ones), so the live-kill assertions run on Linux via /proc and are
+// announced-as-skipped on Darwin rather than silently dropped.
+const stopEnv = { ...process.env, HOME, RUFLO_PLUGIN_DIR: fakePlug };
+
+// SH5a — a removed entry with NO distinctive env yields no marker: its server can't be told apart from the
+// plugin server, so nothing is killed and the report SAYS SO (never a silent no-op, never a guess). No flag:
+// stopping is the default.
+const s5a = mkProj('stop5a', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'] } } });
+const r5a = spawnSync('bash', [dedupe, s5a, '--no-backup'], { encoding: 'utf8', env: stopEnv });
+if (!/NOT stopped|no distinctive/i.test(out(r5a))) fail(`SH5a an env-less entry must report the server can't be identified, not silently skip:\n${out(r5a)}`);
+
+// SH5b — --dry-run signals NOTHING and still reports (stop is default). Any real ruflo server on the machine
+// is spared by the containment guard (its cwd is not inside this sandbox project), which this exercises.
+const s5b = mkProj('stop5b', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'], env: { CLAUDE_FLOW_MODE: 'v3' } } } });
+const b5before = fs.readFileSync(path.join(s5b, '.mcp.json'), 'utf8');
+const r5b = spawnSync('bash', [dedupe, s5b, '--no-backup', '--dry-run'], { encoding: 'utf8', env: stopEnv });
+if (fs.readFileSync(path.join(s5b, '.mcp.json'), 'utf8') !== b5before) fail('SH5b --dry-run MODIFIED .mcp.json');
+if (!/server:/i.test(out(r5b))) fail(`SH5b --dry-run produced no server report:\n${out(r5b)}`);
+
+// SH5d — --keep-server opts out: the registration is still removed, but no server line is emitted and the
+// keep-server note is. Hermetic, all platforms.
+const s5d = mkProj('stop5d', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'], env: { CLAUDE_FLOW_MODE: 'v3' } } } });
+const r5d = spawnSync('bash', [dedupe, s5d, '--no-backup', '--keep-server'], { encoding: 'utf8', env: stopEnv });
+if (/^\s*server:/im.test(out(r5d))) fail(`SH5d --keep-server still ran the stop-server path (emitted a "server:" line):\n${out(r5d)}`);
+if (!/keeps running until you restart/i.test(out(r5d))) fail(`SH5d --keep-server did not warn the server is left running:\n${out(r5d)}`);
+
+// SH5c — the real kill + both guards + the --keep-server opt-out, on Linux (where /proc exposes env).
+if (process.platform === 'linux') {
+  const argv0 = 'ruflo mcp start';
+  const spawnFake = (cwd, extraEnv) => spawn('sleep', ['60'], { cwd, argv0, detached: true, stdio: 'ignore', env: { ...process.env, ...extraEnv } });
+  const alive = (p) => { try { process.kill(p.pid, 0); return true; } catch { return false; } };
+  const wait = (ms) => spawnSync('sleep', [String(ms / 1000)]);
+  const s5c = mkProj('stop5c', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'], env: { CLAUDE_FLOW_MODE: 'v3' } } } });
+  const outside = path.join(SB, 'stop5c-outside'); fs.mkdirSync(outside, { recursive: true });
+  const target = spawnFake(s5c, { CLAUDE_FLOW_MODE: 'v3' });                 // in-project + marker -> KILL (default)
+  const pluginish = spawnFake(s5c, { CLAUDE_FLOW_MCP_TRANSPORT: 'stdio' });  // in-project, plugin env -> SPARE
+  const elsewhere = spawnFake(outside, { CLAUDE_FLOW_MODE: 'v3' });          // marker but out-of-tree -> SPARE
+  wait(500);
+  spawnSync('bash', [dedupe, s5c, '--no-backup'], { encoding: 'utf8', env: stopEnv });  // no flag: default stop
+  wait(500);
+  const tKilled = !alive(target), pAlive = alive(pluginish), eAlive = alive(elsewhere);
+  for (const p of [target, pluginish, elsewhere]) { try { process.kill(p.pid); } catch {} }
+  if (!tKilled) fail('SH5c the in-project standalone server (env marker) was NOT stopped by default');
+  if (!pAlive) fail('SH5c the plugin server (same command, plugin env) was killed — the env guard failed');
+  if (!eAlive) fail('SH5c a server in ANOTHER directory was killed — the containment guard failed');
+  // --keep-server must leave a matching server alone
+  const s5k = mkProj('stop5k', { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'], env: { CLAUDE_FLOW_MODE: 'v3' } } } });
+  const keep = spawnFake(s5k, { CLAUDE_FLOW_MODE: 'v3' });
+  wait(500);
+  spawnSync('bash', [dedupe, s5k, '--no-backup', '--keep-server'], { encoding: 'utf8', env: stopEnv });
+  wait(500);
+  const keptAlive = alive(keep); try { process.kill(keep.pid); } catch {}
+  if (!keptAlive) fail('SH5c --keep-server killed the server anyway');
+  console.log('✔   SH5c (linux) default kill: in-project marked server stopped, plugin + out-of-tree spared, --keep-server leaves it running');
+} else {
+  console.log(`✔   SH5c SKIPPED on ${process.platform} (ps cannot expose a synthetic process’s env; live kill validated against the real server by hand)`);
+}
+
+console.log('✔ shell scripts (SH1 all parse, SH2 dry-run deletes nothing, SH3 `run` materializes+forwards, SH4 MCP dedup removes the standalone server/keeps others/deletes-when-empty/gated on the plugin, SH5 stop-server is default: reports when it cannot identify, dry-run inert, --keep-server opts out, guarded real kill)');
 
 // ─── CW: the project-root resolver, EXECUTED (not grepped) ───────────────────
 //

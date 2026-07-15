@@ -62,18 +62,32 @@ hooks. The ones for events the plugin `hooks.json` also defines (`PreToolUse`, `
 **fire twice** on POSIX, because the plugin's `ruflo-hook.sh` is authoritative and the local copies are only
 the Windows-override path ([#2132](https://github.com/ruvnet/ruflo/issues/2132)).
 
+It also removes a duplicate **MCP registration**: `ruflo init` writes a project-local `.mcp.json` standalone
+ruflo server, but the `ruflo-core` plugin already provides it, so the project copy is a second writer on one
+`.swarm/memory.db` ([#2621](https://github.com/ruvnet/ruflo/issues/2621)). dedupe strips it (by command
+*signature*, keeping `ruv-swarm` / `flow-nexus`; the file is deleted if it empties) and, by **default**,
+SIGTERMs its now-orphaned process, guarded like [`cleanup`](../cwd/README.md): only a process whose real cwd
+is inside the project AND whose env carries the removed entry's `CLAUDE_FLOW_*` marker, so the plugin server
+(same command) is never touched.
+
 ```bash
-ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--bundle-only] [--dry-run]
+ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--keep-dup-mcp|--keep-server|--bundle-only] [--dry-run]
 ```
 
-By **default** it removes the bundle **and** strips the duplicate hooks (EVENT-AWARE: only the events the
-plugins actually provide). `--keep-dup-hooks` / `--bundle-only` skip the hook step.
+By **default** it removes the bundle, strips the duplicate hooks (EVENT-AWARE: only the events the plugins
+actually provide), removes the standalone MCP registration and stops its server. `--keep-dup-hooks` skips the
+hook step, `--keep-dup-mcp` leaves `.mcp.json` alone, `--keep-server` leaves the process running, and
+`--bundle-only` does the `.claude` bundle only.
 
 ### Conservative by construction
 
 - A bundle item is removed **only when a plugin actually provides it**; project-unique items are kept.
 - A hook is stripped **only for events the plugin `hooks.json` also defines**. `UserPromptSubmit` (routing),
   `SessionStart/End`, `Subagent*`, `Notification`, and the auto-memory hooks are **kept** (no plugin replaces them).
+- The MCP server is removed **only when the plugin actually provides one**, matched by command signature so a
+  server keyed `ruflo` that runs something else is safe. The process is stopped **only** on the two guards
+  (cwd inside the project + the removed entry's env marker); no marker means it can't be told apart from the
+  plugin server, so nothing is killed and it says so.
 - **`.claude/helpers/` is never touched**. `ruflo init` writes all ~43 of them, and no plugin replaces them.
-- Bundle removals are backed up first (or rely on git with `--no-backup`).
+- Removals are backed up first (or rely on git with `--no-backup`).
 Start with `--dry-run`.

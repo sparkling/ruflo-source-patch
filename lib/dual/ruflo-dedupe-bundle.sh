@@ -22,14 +22,26 @@
 #   By DEFAULT removes what the installed ruflo/* plugins already provide:
 #     * the .claude/{skills,commands,agents} bundle, AND
 #     * settings.json lifecycle hooks for events the plugin hooks.json ALSO
-#       defines (EVENT-AWARE: PreToolUse/PostToolUse/PreCompact/Stop today).
+#       defines (EVENT-AWARE: PreToolUse/PostToolUse/PreCompact/Stop today), AND
+#     * a project-local .mcp.json's standalone ruflo/claude-flow server, which the
+#       ruflo-core plugin ALREADY provides (a second server on the same root =
+#       two writers on one .swarm/memory.db, ruvnet/ruflo#2621). Other servers
+#       (ruv-swarm, flow-nexus, ...) are KEPT; the file is deleted if it empties, AND
+#     * the RUNNING standalone MCP server that registration spawned (SIGTERM), so the
+#       second writer is gone now, not just after a restart. GUARDED: only a process
+#       whose REAL cwd is inside the project AND whose env carries the removed entry's
+#       CLAUDE_FLOW_* marker is signalled, so the plugin server (same command) is never
+#       touched; if it can't be told apart, nothing is killed and it says so.
 #   KEEPS everything init installs that the plugins do NOT cover: the
 #   UserPromptSubmit routing hook, SessionStart/End, Subagent/Notification hooks,
 #   the auto-memory hooks, and ALL .claude/helpers/ (init writes them; no plugin
 #   replaces them). Helpers are never pruned.
-#     --keep-dup-hooks    Don't touch settings.json hooks (bundle only)
-#     --bundle-only       Alias for --keep-dup-hooks
+#     --keep-dup-hooks    Don't touch settings.json hooks
+#     --keep-dup-mcp      Don't touch .mcp.json (keep the standalone ruflo server)
+#     --keep-server       Don't SIGTERM the standalone MCP server (leave it running)
+#     --bundle-only       Only the .claude bundle (implies --keep-dup-hooks, --keep-dup-mcp, --keep-server)
 #     --strip-dup-hooks   (Deprecated no-op — hook stripping is now the default)
+#     --stop-server       (No-op — stopping the server is now the default; kept for scripts)
 #     --dry-run           Report what WOULD be removed; change nothing
 #     --force             Overwrite an existing backup dir
 #     --quiet             Less output
@@ -41,6 +53,8 @@ set -euo pipefail
 
 PROJECT_DIR=""
 STRIP_HOOKS=1
+STRIP_MCP=1
+STOP_SERVER=1
 DRY=0
 FORCE=0
 NO_BACKUP=0
@@ -51,12 +65,15 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --strip-dup-hooks) STRIP_HOOKS=1; shift ;;   # deprecated: now the default
     --keep-dup-hooks)  STRIP_HOOKS=0; shift ;;
-    --bundle-only)     STRIP_HOOKS=0; shift ;;
+    --keep-dup-mcp)    STRIP_MCP=0; shift ;;
+    --stop-server)     STOP_SERVER=1; shift ;;   # deprecated: now the default
+    --keep-server)     STOP_SERVER=0; shift ;;
+    --bundle-only)     STRIP_HOOKS=0; STRIP_MCP=0; STOP_SERVER=0; shift ;;
     --dry-run)         DRY=1; shift ;;
     --force)           FORCE=1; shift ;;
     --no-backup)       NO_BACKUP=1; shift ;;   # rely on git for recovery; skip .bundle-backup
     --quiet)           QUIET="--quiet"; shift ;;
-    -h|--help)         sed -n '2,30p' "$0"; exit 0 ;;
+    -h|--help)         sed -n '2,44p' "$0"; exit 0 ;;
     -*)                echo "Unknown option: $1" >&2; exit 2 ;;
     *)                 PROJECT_DIR="$1"; shift ;;
   esac
@@ -184,6 +201,100 @@ if [[ $STRIP_HOOKS -eq 1 && -f "$CL/settings.json" ]]; then
   fi
 fi
 
+# ---- prune the duplicate ruflo/claude-flow MCP registration (DEFAULT) --------
+# The ruflo-core plugin ALREADY provides the ruflo MCP server (under plugin
+# loading it is namespaced mcp__plugin_ruflo-core_ruflo__*). A project-local
+# .mcp.json that ALSO registers a standalone `ruflo mcp start` /
+# `@claude-flow/cli … mcp start` server spawns a SECOND server against the same
+# project root: two writers on one .swarm/memory.db (ruvnet/ruflo#2621). Remove
+# ONLY that server — keyed `claude-flow` OR `ruflo`, matched by COMMAND SIGNATURE
+# not by key, so an unrelated server keyed `ruflo` is never touched — and keep
+# every other server. Delete the file if it empties. Acts ONLY when the plugin
+# set genuinely provides a ruflo MCP server, mirroring the "provided?" gate the
+# skills/commands/agents prune uses; otherwise the standalone registration is not
+# a duplicate and is left alone.
+mcp_note=""; mcp_empty=0; MCP_MARKERS=()
+if [[ $STRIP_MCP -eq 1 && -f "$PROJECT_DIR/.mcp.json" ]]; then
+  # Does the plugin set ship a ruflo MCP server at all? The plugin's own server is
+  # `npx @claude-flow/cli@latest` with mcp mode via env (CLAUDE_FLOW_MCP_TRANSPORT),
+  # NOT explicit `mcp start` args — so this gate matches on the ruflo/claude-flow
+  # reference alone, not on "mcp"/"start" (that stricter shape is the PROJECT side).
+  PLUG_PROVIDES_MCP=0
+  while IFS= read -r mf; do
+    if node -e 'const j=require(process.argv[1]);const s=j.mcpServers||{};process.exit(Object.values(s).some(v=>/(ruflo|@claude-flow\/cli)/.test(String(v&&v.command||"")+" "+((v&&v.args)||[]).join(" ")))?0:1)' "$mf" 2>/dev/null; then
+      PLUG_PROVIDES_MCP=1; break
+    fi
+  done < <(find "$PLUG_DIR" -name '.mcp.json' 2>/dev/null)
+  if [[ $PLUG_PROVIDES_MCP -eq 0 ]]; then
+    say "  (no ruflo MCP server provided by plugins under $PLUG_DIR — .mcp.json left alone, not a duplicate)"
+  else
+    [[ $DRY -eq 0 && $NO_BACKUP -eq 0 ]] && cp "$PROJECT_DIR/.mcp.json" "$BK/.mcp.json"
+    DRY=$DRY node -e '
+      const fs=require("fs");
+      const p=process.argv[1];
+      let j; try{ j=JSON.parse(fs.readFileSync(p,"utf8")); }catch{ console.error("MCP_REMOVED=0"); process.exit(0); }
+      const s=(j&&j.mcpServers)||{}; const removed=[]; const markers=[];
+      const isRufloStandalone=(v)=>{ const a=(v&&v.args||[]).join(" "); return /\bmcp\b/.test(a)&&/\bstart\b/.test(a)&&/(ruflo|@claude-flow\/cli)/.test(String(v&&v.command||"")+" "+a); };
+      for(const k of Object.keys(s)){ if(isRufloStandalone(s[k])){
+        removed.push(k);
+        // Env markers that identify THIS entry\x27s server process and distinguish it from the plugin
+        // server (which sets CLAUDE_FLOW_MCP_TRANSPORT, never these). Only CLAUDE_FLOW_* pairs qualify.
+        const e=(s[k].env)||{}; for(const [ek,ev] of Object.entries(e)){ if(/^CLAUDE_FLOW_/.test(ek)&&ek!=="CLAUDE_FLOW_MCP_TRANSPORT"&&ev) markers.push(ek+"="+ev); }
+        delete s[k];
+      } }
+      if(removed.length===0){ console.error("MCP_REMOVED=0"); process.exit(0); }
+      const empty=Object.keys(s).length===0;
+      if(process.env.DRY!=="1"){ if(empty) fs.unlinkSync(p); else fs.writeFileSync(p, JSON.stringify(j,null,2)+"\n"); }
+      console.error("MCP_REMOVED="+removed.length+" MCP_KEYS="+removed.join(",")+(empty?" MCP_EMPTIED=1":""));
+      for(const m of markers) console.error("MCP_MARKER="+m);
+    ' "$PROJECT_DIR/.mcp.json" 2>/tmp/.ddb-mcp.$$ || true
+    mcp_note="$(grep -o 'MCP_REMOVED=[0-9]*' /tmp/.ddb-mcp.$$ 2>/dev/null | cut -d= -f2)"
+    grep -q 'MCP_EMPTIED=1' /tmp/.ddb-mcp.$$ 2>/dev/null && mcp_empty=1 || true
+    MCP_MARKERS=(); while IFS= read -r mk; do [[ -n "$mk" ]] && MCP_MARKERS+=("$mk"); done < <(sed -n 's/^MCP_MARKER=//p' /tmp/.ddb-mcp.$$ 2>/dev/null)
+    rm -f /tmp/.ddb-mcp.$$
+  fi
+fi
+
+# ---- --stop-server: SIGTERM the now-orphaned standalone MCP server(s) --------
+# This is the ONLY part of dedupe that signals a process, so it carries cleanup's
+# (ADR-013) discipline. A killed candidate must pass BOTH guards, and any doubt skips:
+#   (1) CONTAINMENT — its REAL (symlink-resolved) cwd is the project root or beneath it;
+#   (2) DISTINGUISHABILITY — its env carries a CLAUDE_FLOW_* marker from the REMOVED
+#       entry. The plugin server runs the SAME `npx … mcp start` command, so command
+#       matching alone is not enough; the marker is what tells them apart. A removed
+#       entry with no such env yields no marker -> nothing is killed, and it says so.
+# --dry-run signals nothing; it reports what it WOULD stop. $HOME / / are refused.
+stop_note=""
+if [[ $STOP_SERVER -eq 1 && "${mcp_note:-0}" -gt 0 ]]; then
+  if [[ ${#MCP_MARKERS[@]} -eq 0 ]]; then
+    stop_note="skip:no-marker"
+  else
+    ROOT_REAL="$(cd "$PROJECT_DIR" && pwd -P)"
+    case "$ROOT_REAL" in "$HOME"|"/"|"") die "refusing --stop-server against '$ROOT_REAL' (too broad)";; esac
+    stopped=0
+    for pid in $(pgrep -f 'ruflo mcp start|@claude-flow/cli.*mcp|cli\.js mcp' 2>/dev/null || true); do
+      pcwd="$(lsof -a -d cwd -p "$pid" -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)"
+      [[ -z "$pcwd" && -r "/proc/$pid/cwd" ]] && pcwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+      [[ -n "$pcwd" ]] || continue
+      pcwd_real="$(cd "$pcwd" 2>/dev/null && pwd -P || true)"; [[ -n "$pcwd_real" ]] || continue
+      case "$pcwd_real" in "$ROOT_REAL"|"$ROOT_REAL"/*) : ;; *) continue ;; esac   # (1) containment
+      penv="$(ps eww -o command= -p "$pid" 2>/dev/null || true)"
+      [[ -z "$penv" && -r "/proc/$pid/environ" ]] && penv="$(tr '\0' ' ' < "/proc/$pid/environ" 2>/dev/null || true)"
+      match=0; for mk in "${MCP_MARKERS[@]}"; do case "$penv" in *"$mk"*) match=1; break;; esac; done
+      [[ $match -eq 1 ]] || continue                                              # (2) distinguishability
+      if [[ $DRY -eq 1 ]]; then
+        say "  would SIGTERM pid $pid — orphaned standalone MCP server (cwd $pcwd_real)"
+      else
+        kill "$pid" 2>/dev/null && say "  SIGTERM pid $pid — orphaned standalone MCP server (cwd $pcwd_real)" || true
+      fi
+      stopped=$((stopped+1))
+    done
+    stop_note="$stopped"
+  fi
+fi
+
+# ---- report -----------------------------------------------------------------
+
 # ---- report -----------------------------------------------------------------
 say ""
 say "$([[ $DRY -eq 1 ]] && echo '[DRY-RUN] would remove' || echo 'Removed') plugin-duplicated bundle entries:"
@@ -191,6 +302,14 @@ say "  skills:   $removed_s removed, $kept_s kept (project-only)"
 say "  commands: $removed_c removed, $kept_c kept"
 say "  agents:   $removed_a removed, $kept_a kept"
 [[ $STRIP_HOOKS -eq 1 ]] && say "  hooks:    ${hooks_note:-0} plugin-covered hook entries $([[ $DRY -eq 1 ]] && echo 'would be' || echo '') removed (routing/session/subagent/auto-memory KEPT)"
+[[ $STRIP_MCP -eq 1 ]] && say "  mcp:      ${mcp_note:-0} standalone ruflo/claude-flow server(s) $([[ $DRY -eq 1 ]] && echo 'would be' || echo '') removed from .mcp.json$([[ $mcp_empty -eq 1 ]] && echo " (file $([[ $DRY -eq 1 ]] && echo 'would be ' || echo '')deleted — now empty)" || echo "; other servers KEPT")"
+if [[ $STOP_SERVER -eq 1 ]]; then
+  if [[ "$stop_note" == "skip:no-marker" ]]; then
+    say "  server:   NOT stopped — the removed registration set no distinctive CLAUDE_FLOW_* env, so its process can't be told apart from the plugin server; restart Claude Code to drop it"
+  else
+    say "  server:   ${stop_note:-0} orphaned standalone MCP server process(es) $([[ $DRY -eq 1 ]] && echo 'would be ' || echo '')stopped (cwd inside the project + env match; plugin server untouched)"
+  fi
+fi
 if [[ $DRY -eq 0 && $NO_BACKUP -eq 0 ]]; then
   say ""; say "Backup: $BK  (restore with: cp -R \"$BK\"/* \"$CL\"/)."
 elif [[ $DRY -eq 0 && $NO_BACKUP -eq 1 ]]; then
@@ -198,5 +317,11 @@ elif [[ $DRY -eq 0 && $NO_BACKUP -eq 1 ]]; then
 fi
 if [[ $STRIP_HOOKS -eq 0 ]]; then
   say ""; say "Note: --keep-dup-hooks/--bundle-only set — plugin-covered hook events may DOUBLE-FIRE (project + plugin)."
+fi
+if [[ $STRIP_MCP -eq 0 ]]; then
+  say ""; say "Note: --keep-dup-mcp/--bundle-only set — a standalone ruflo .mcp.json server may run ALONGSIDE the plugin's (two writers on one memory.db, #2621)."
+fi
+if [[ $STOP_SERVER -eq 0 && $STRIP_MCP -eq 1 ]]; then
+  say ""; say "Note: --keep-server/--bundle-only set — the standalone MCP server keeps running until you restart Claude Code (a second writer on memory.db until then, #2621)."
 fi
 exit 0

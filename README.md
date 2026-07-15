@@ -162,7 +162,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it gives you |
 |--------|-------------------|
 | **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
-| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** *Every* `ruflo init` bundles ~196 to 260 `.claude/{skills,commands,agents}` files (default preset, not just `--full`) that ~100% duplicate the installed plugins. Removes the bundle and, event-aware, the genuinely double-firing hooks (`PreToolUse`/`PostToolUse`/`PreCompact`), keeping `helpers/` and project-only hooks. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
+| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** *Every* `ruflo init` bundles ~196 to 260 `.claude/{skills,commands,agents}` files (default preset, not just `--full`) that ~100% duplicate the installed plugins. Removes the bundle and, event-aware, the genuinely double-firing hooks (`PreToolUse`/`PostToolUse`/`PreCompact`), plus the standalone `.mcp.json` ruflo server the plugin already provides (a second writer on `memory.db`, [#2621](https://github.com/ruvnet/ruflo/issues/2621)) and, by default, its running process. Keeps `helpers/`, project-only hooks, and non-ruflo servers. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
 
 [**What each script does, and how to run it →**](#the-script-targets-in-detail)
 
@@ -641,19 +641,34 @@ just `--full` (~**196** on default: 30 skills + 148 commands + 18 agents; ~**260
 registers lifecycle hooks. The ones for events the plugin `hooks.json` also defines (`PreToolUse`,
 `PostToolUse`, `PreCompact`) **fire twice** on POSIX ([#2132](https://github.com/ruvnet/ruflo/issues/2132)).
 
+It also reaps a **duplicate MCP registration**. `ruflo init` writes a project-local `.mcp.json` that
+registers a *standalone* ruflo server (keyed `claude-flow` or `ruflo`), but the `ruflo-core` plugin already
+provides that server (namespaced `mcp__plugin_ruflo-core_ruflo__*`). Under plugin loading the project copy is
+a second server on the same root: **two writers on one `.swarm/memory.db`**
+([#2621](https://github.com/ruvnet/ruflo/issues/2621)). dedupe removes it (matched by command *signature*, so
+`ruv-swarm` / `flow-nexus` and any unrelated server are **kept**; the file is deleted if it empties), and by
+**default** also **SIGTERMs the now-orphaned server process** so the second writer is gone immediately, not
+just after a restart.
+
 ```bash
-~/.ruflo-source-patch/dedupe-bundle/ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--bundle-only] [--dry-run]
+~/.ruflo-source-patch/dedupe-bundle/ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--keep-dup-mcp|--keep-server|--bundle-only] [--dry-run]
 ```
 
-**Start with `--dry-run`.** It prints exactly what it would remove and touches nothing.
+**Start with `--dry-run`.** It prints exactly what it would remove and stop, and touches nothing.
 
-By **default** it removes the bundle **and** strips the duplicate hooks. It is conservative by construction:
+By **default** it removes the bundle, strips the duplicate hooks, removes the standalone MCP registration and
+stops its server. It is conservative by construction:
 
 - a bundle item is removed **only when a plugin actually provides it** (project-unique items kept);
 - a hook is stripped **only for events the plugin `hooks.json` also defines** (`UserPromptSubmit` routing,
   `SessionStart/End`, `Subagent*`, `Notification`, and auto-memory are **kept**, since no plugin replaces them);
+- the MCP server is removed **only when the plugin actually provides one**, and the process is SIGTERMed
+  **only** if its real cwd is inside the project **and** its env carries the removed entry's `CLAUDE_FLOW_*`
+  marker, so the **plugin server (same command) is never touched**; if it can't be told apart, nothing is
+  killed and it says so (the same containment discipline as [`cleanup`](#cleanup));
 - **`.claude/helpers/` is never touched** (init writes all ~43; no plugin replaces them);
-- bundle removals are backed up first. Use `--keep-dup-hooks` / `--bundle-only` to skip the hook step.
+- removals are backed up first. `--keep-dup-hooks` skips the hook step, `--keep-dup-mcp` leaves `.mcp.json`
+  alone, `--keep-server` leaves the process running, and `--bundle-only` does the `.claude` bundle only.
 
 ## The monitor
 
