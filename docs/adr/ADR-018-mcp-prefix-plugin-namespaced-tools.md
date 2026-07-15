@@ -2,6 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
+**Updated**: 2026-07-15 (ADR-020): the sweep crossed files adr-template/adr-index own and corrupted their shared backup; discovery is now a positive prefix signal and overlaps compose from one pristine.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, mcp
 
