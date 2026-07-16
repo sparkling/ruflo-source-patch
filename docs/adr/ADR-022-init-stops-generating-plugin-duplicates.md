@@ -55,7 +55,7 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   deployment; on a genuine plugin-off machine it would suppress a registration that is actually needed.
   The predicate for that is "do you run plugins?", which no probe can answer, so it is a stated deployment
   assumption rather than a measured one, unlike the anchor checks.
-- It disables the bundle wholesale, so the ~0–3% of init-written items with no plugin counterpart are no
+- It disables the bundle wholesale, so the roughly 0 to 3% of init-written items with no plugin counterpart are no
   longer generated either. On a plugin-always setup the plugins (and the `dual` template) cover these.
 
 ### Neutral
