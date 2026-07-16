@@ -87,6 +87,7 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('cwd')}${TARGET_INFO.cwd}
   ${pad('daemon')}${TARGET_INFO.daemon}
   ${pad('memory')}${TARGET_INFO.memory}
+  ${pad('init')}${TARGET_INFO.init}
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)

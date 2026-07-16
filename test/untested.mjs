@@ -456,3 +456,42 @@ if (found.some((d) => d === path.join(leakProj, '.claude-flow') || d === path.jo
 if (found.some((d) => d.includes('node_modules'))) fail('LK3 it reported a .claude-flow inside node_modules');
 
 console.log('✔ leak detector (LK1 a stray subdir state dir is found, LK2 the root\'s own is not, LK3 node_modules ignored)');
+
+// ─── II: the `init` patch target, driven against REAL vendor bytes in a fake CLI ──────────────────
+//
+// `init` patches @claude-flow/cli's init generators so `ruflo init`/`doctor` stop GENERATING what the
+// plugins already provide — the durable complement to `plugin-only`, which only removes it after the fact.
+// Behavioural: copy the REAL vendor files into a sandbox CLI, run `init install`, and assert the three
+// bundle COPY GATES are disabled (so copySkills/copyCommands/copyAgents never fire) and the standalone
+// claude-flow .mcp.json emission is off — while HELPERS stay enabled — then uninstall restores byte-for-byte.
+{
+  freshSandbox();
+  const { findVendorRoot } = await import(`file://${path.join(REPO, 'test', 'fixtures.mjs')}`);
+  const initSrc = path.join(findVendorRoot(), '@claude-flow', 'cli', 'dist', 'src', 'init');
+  const fakeInit = path.join(nm, '@claude-flow', 'cli', 'dist', 'src', 'init');
+  fs.mkdirSync(fakeInit, { recursive: true });
+  fs.writeFileSync(path.join(nm, '@claude-flow', 'cli', 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0' }));
+  const gen = path.join(fakeInit, 'mcp-generator.js'), exe = path.join(fakeInit, 'executor.js');
+  fs.copyFileSync(path.join(initSrc, 'mcp-generator.js'), gen);
+  fs.copyFileSync(path.join(initSrc, 'executor.js'), exe);
+  const genPristine = fs.readFileSync(gen, 'utf8'), exePristine = fs.readFileSync(exe, 'utf8');
+
+  const r = cli(['init', 'install']);
+  if (r.status !== 0) fail(`II1 init install failed:\n${out(r)}`);
+  const g = fs.readFileSync(gen, 'utf8'), e = fs.readFileSync(exe, 'utf8');
+  if (!/if \(false && config\.claudeFlow\)/.test(g)) fail('II1 init did not disable the standalone claude-flow .mcp.json emission');
+  for (const c of ['skills', 'commands', 'agents']) {
+    if (!new RegExp(`if \\(false && options\\.components\\.${c}\\)`).test(e)) fail(`II1 init did not disable the ${c} bundle gate`);
+  }
+  if (/if \(false && options\.components\.helpers\)/.test(e)) fail('II1 init disabled HELPERS — those are kept, no plugin replaces them');
+
+  for (const [name, f] of [['mcp-generator.js', gen], ['executor.js', exe]]) {
+    const chk = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
+    if (chk.status !== 0) fail(`II2 ${name} does not parse after patching:\n${out(chk)}`);
+  }
+
+  cli(['init', 'uninstall']);
+  if (fs.readFileSync(gen, 'utf8') !== genPristine) fail('II3 init uninstall did not restore mcp-generator.js byte-for-byte');
+  if (fs.readFileSync(exe, 'utf8') !== exePristine) fail('II3 init uninstall did not restore executor.js byte-for-byte');
+  console.log('✔ init target (II1 disables the claude-flow .mcp.json emission + skills/commands/agents bundle gates, HELPERS kept, II2 both files still parse, II3 uninstall restores byte-for-byte)');
+}

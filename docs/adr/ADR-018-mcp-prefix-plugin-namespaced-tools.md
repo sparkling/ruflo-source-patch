@@ -75,6 +75,11 @@ across the bundled text files under the `ruflo` marketplace's plugin trees
 - Does not touch the CLI init generators (`settings-generator.js`, `mcp-generator.js`) that emit the same
   bare prefix into USER project files: those serve projects where the plugin may be OFF and the standalone
   `claude-flow` registration is correct, so that prefix is genuinely environment-dependent and out of scope.
+  **Revised by ADR-022 (2026-07-16):** on a PLUGIN-ALWAYS deployment there is no plugin-off case (and the
+  CLI has no flag or detection for one; `mcp.claudeFlow` is hardcoded `true`), so the standalone is never
+  correct there. The `init` target now DOES patch `mcp-generator.js` (and `executor.js`) to stop init
+  regenerating what `plugin-only` removes. It is opt-in via install like any target; the "out of scope"
+  above still holds for anyone who genuinely runs plugin-off.
 - Superseded the moment upstream fixes ruvnet/ruflo#2685 (bundled refs become namespace-agnostic or
   plugin-prefixed); the anchor stops matching and `status` reports `0` to patch.
 

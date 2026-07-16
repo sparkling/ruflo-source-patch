@@ -86,4 +86,5 @@ are refused.
 
 - Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the plugin-namespaced server the MCP prune defers to)
 - [ADR-006](ADR-006-memory-write-lock-and-wal-coherent-reads.md) (#2621, the two-writers race the MCP prune closes), [ADR-013](ADR-013-cleanup-repair-a-sprawled-project.md) (the process-signaling discipline `--stop-server` reuses)
+- [ADR-022](ADR-022-init-stops-generating-plugin-duplicates.md) (the `init` target: the durable complement that stops `ruflo init` regenerating what this removes)
 - `lib/dual/ruflo-dedupe-bundle.sh`
