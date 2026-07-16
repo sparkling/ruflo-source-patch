@@ -54,7 +54,7 @@ npx github:sparkling/ruflo-source-patch monitor check     # exit 1 if anything h
 
 ```bash
 npx github:sparkling/ruflo-source-patch dual run <project>          # single-source dual Claude Code + Codex (alias: dual)
-npx github:sparkling/ruflo-source-patch dedupe run . --dry-run      # preview the ~260 files init --full duplicates (alias: dedupe)
+npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run  # strip the ~260 duplicated files + hooks + MCP registration (aliases: dedupe, dedupe-bundle)
 ```
 
 `run` materializes the current script and executes it, forwarding your args, with no separate `install` step.

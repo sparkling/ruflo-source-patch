@@ -35,7 +35,7 @@ keep the rest.
   - [verify-interface](#verify-interface)
 - [The script targets in detail](#the-script-targets-in-detail)
   - [dual](#dual)
-  - [dedupe](#dedupe)
+  - [plugin-only (dedupe)](#plugin-only-dedupe)
 - [The monitor](#the-monitor)
 - [How you find out when a patch stops working](#how-you-find-out-when-a-patch-stops-working)
 - [How a patch retires itself](#how-a-patch-retires-itself)
@@ -84,7 +84,7 @@ one directly, no separate install step:
 
 ```bash
 npx github:sparkling/ruflo-source-patch dual run <project>       # one instruction file for Code + Codex
-npx github:sparkling/ruflo-source-patch dedupe run . --dry-run   # preview the ~260 files init --full duplicates
+npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run   # strip the ~260 duplicated files + hooks + MCP registration
 ```
 
 See [The script targets in detail](#the-script-targets-in-detail).
@@ -591,7 +591,7 @@ scripts; you run them by hand, on a project, when you want them.
 
 ```bash
 npx github:sparkling/ruflo-source-patch dual install      # or: dual-codex-claude
-npx github:sparkling/ruflo-source-patch dedupe install     # or: dedupe-bundle
+npx github:sparkling/ruflo-source-patch plugin-only install   # aliases: dedupe, dedupe-bundle
 ```
 
 They land in `~/.ruflo-source-patch/<target>/` and stay there. `status` byte-compares them against the
@@ -630,9 +630,12 @@ just adds more), so `dedupe` is needed either way. It also uses `npx --yes` so a
 doesn't abort the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)), and it gitignores the
 root `.env` that `ruflo init` leaves **tracked** ([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
 
-### `dedupe`
+### plugin-only (dedupe)
 
-Deletes what the installed plugins already give you.
+Makes a project defer entirely to the installed plugins. **Renamed from `dedupe` / `dedupe-bundle`** (both
+still work as aliases) because it now does more than slim the bundle: it also strips the duplicate MCP
+registration in both channels and stops the redundant server. Deletes what the installed plugins already
+give you.
 
 **Every** `ruflo init` bundles the `.claude/{skills,commands,agents}` files, default preset included, not
 just `--full` (~**196** on default: 30 skills + 148 commands + 18 agents; ~**260** on `--full`). Of those,

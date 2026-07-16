@@ -52,7 +52,11 @@ import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
-const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle' };
+// `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
+// bundle, double-firing hooks, the standalone MCP registration in both channels, and stops its server).
+// `dedupe` / `dedupe-bundle` stay as aliases; the internal key + materialized dir stay `dedupe-bundle` so
+// existing installs and the monitor's byte-compare are undisturbed.
+const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle', 'plugin-only': 'dedupe-bundle' };
 
 // Plugin patches — same shape as PATCH_TARGETS, but they patch the installed
 // `ruflo-adr` plugin rather than @claude-flow/cli, so they dispatch separately.
@@ -106,14 +110,14 @@ Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemon
 
 Script targets                 (actions: install | uninstall | status | run <args…>)
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
-  ${pad('dedupe-bundle')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (alias: dedupe)
+  ${pad('plugin-only')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (aliases: dedupe, dedupe-bundle)
   ${pad('')}\`run\` materializes the script and executes it, forwarding your args
 
 The whole setup, in one line:
   npx github:sparkling/ruflo-source-patch all install        # every target + monitor
 
 Run a script directly (no separate install step):
-  npx github:sparkling/ruflo-source-patch dedupe-bundle run . --dry-run
+  npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run
   npx github:sparkling/ruflo-source-patch dual run <project-path>
 
 Other:
