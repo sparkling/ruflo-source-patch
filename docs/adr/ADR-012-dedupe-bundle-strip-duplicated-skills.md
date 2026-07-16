@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-16: dedupe now also reaps a project-local `.mcp.json`'s standalone ruflo/claude-flow MCP server, which the `ruflo-core` plugin already provides (SH4), and by DEFAULT SIGTERMs the now-orphaned server process under cleanup's containment discipline (`--keep-server` opts out) (SH5). Same "defer to the plugins" thesis, extended from files/hooks to the MCP registration and its running process.
+**Updated**: 2026-07-16: dedupe now also reaps a project-local `.mcp.json`'s standalone ruflo/claude-flow MCP server, which the `ruflo-core` plugin already provides (SH4); the SAME registration in `~/.claude.json` `projects[<dir>].mcpServers`, the second channel, keeping non-ruflo and `ssh`-remote servers (SH6); and by DEFAULT SIGTERMs the now-orphaned server process under cleanup's containment discipline (`--keep-server` opts out) (SH5). Same "defer to the plugins" thesis, extended from files/hooks to the MCP registration (both channels) and its running process.
 **Deciders**: Henrik Pettersen
 **Tags**: script-target, hygiene
 
@@ -19,6 +19,11 @@ registration of the ruflo MCP server (keyed `claude-flow` or `ruflo`, `npx … r
 `ruflo-core` plugin ALREADY provides that server (namespaced `mcp__plugin_ruflo-core_ruflo__*`), so under
 plugin loading the project registration is a duplicate that spawns a SECOND server against the same project
 root: two writers on one `.swarm/memory.db` (#2621, the exact race the `memory` target guards, ADR-006).
+
+There are TWO places that registration can live, and both are cleaned: the project's own `.mcp.json`, and
+`~/.claude.json` under `projects[<dir>].mcpServers` (Claude Code's per-project MCP config in the shared global
+file). A REMOTE entry there (command `ssh`, e.g. a server on another host) is a real capability, not a local
+duplicate, so the global prune matches only a LOCAL `npx` invocation and leaves remotes alone.
 
 ## Decision
 

@@ -65,10 +65,11 @@ the Windows-override path ([#2132](https://github.com/ruvnet/ruflo/issues/2132))
 It also removes a duplicate **MCP registration**: `ruflo init` writes a project-local `.mcp.json` standalone
 ruflo server, but the `ruflo-core` plugin already provides it, so the project copy is a second writer on one
 `.swarm/memory.db` ([#2621](https://github.com/ruvnet/ruflo/issues/2621)). dedupe strips it (by command
-*signature*, keeping `ruv-swarm` / `flow-nexus`; the file is deleted if it empties) and, by **default**,
-SIGTERMs its now-orphaned process, guarded like [`cleanup`](../cwd/README.md): only a process whose real cwd
-is inside the project AND whose env carries the removed entry's `CLAUDE_FLOW_*` marker, so the plugin server
-(same command) is never touched.
+*signature*, keeping `ruv-swarm` / `flow-nexus`; the file is deleted if it empties) from **both** channels
+(the project `.mcp.json` and `~/.claude.json`'s `projects[<dir>].mcpServers`, where an `ssh` **remote** is a
+real capability, not a duplicate, and is kept). By **default** it also SIGTERMs its now-orphaned process,
+guarded like [`cleanup`](../cwd/README.md). Only a process whose real cwd is inside the project AND whose env
+carries the removed entry's `CLAUDE_FLOW_*` marker is signalled, so the plugin server (same command) is never touched.
 
 ```bash
 ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--keep-dup-mcp|--keep-server|--bundle-only] [--dry-run]

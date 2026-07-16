@@ -329,7 +329,41 @@ if (process.platform === 'linux') {
   console.log(`✔   SH5c SKIPPED on ${process.platform} (ps cannot expose a synthetic process’s env; live kill validated against the real server by hand)`);
 }
 
-console.log('✔ shell scripts (SH1 all parse, SH2 dry-run deletes nothing, SH3 `run` materializes+forwards, SH4 MCP dedup removes the standalone server/keeps others/deletes-when-empty/gated on the plugin, SH5 stop-server is default: reports when it cannot identify, dry-run inert, --keep-server opts out, guarded real kill)');
+// SH6 — the SECOND MCP channel: ~/.claude.json projects[<dir>].mcpServers. Same duplicate, same signature
+// match, same plugin-provides gate. A REMOTE (ssh) entry is a real capability, not a local duplicate, and
+// is KEPT. Hermetic via the RSP_CLAUDE_JSON override.
+const gjson = path.join(SB, 'fake-claude.json');
+const mkGlobalProj = (name) => { const d = mkProj(name, { mcpServers: {} }); fs.rmSync(path.join(d, '.mcp.json')); return d; };
+const s6 = mkGlobalProj('gj6');
+fs.writeFileSync(gjson, JSON.stringify({ projects: { [s6]: { mcpServers: {
+  'claude-flow': { command: 'npx', args: ['-y', 'claude-flow@latest', 'mcp', 'start'] },
+  'ruv-swarm':   { command: 'npx', args: ['-y', 'ruv-swarm', 'mcp', 'start'] },
+  'remote-hz':   { command: 'ssh', args: ['hz', 'npx', '@claude-flow/cli@latest', 'mcp', 'start'] },
+} } } }));
+const gEnv = { ...process.env, HOME, RUFLO_PLUGIN_DIR: fakePlug, RSP_CLAUDE_JSON: gjson };
+const gsrv = () => Object.keys(JSON.parse(fs.readFileSync(gjson, 'utf8')).projects[s6].mcpServers);
+
+// SH6a — dry-run inert on the global config
+const g6before = fs.readFileSync(gjson, 'utf8');
+spawnSync('bash', [dedupe, s6, '--no-backup', '--dry-run'], { encoding: 'utf8', env: gEnv });
+if (fs.readFileSync(gjson, 'utf8') !== g6before) fail('SH6a --dry-run MODIFIED ~/.claude.json');
+
+// SH6b — real: claude-flow removed from the project's global entry, ruv-swarm + the ssh REMOTE kept
+spawnSync('bash', [dedupe, s6, '--no-backup'], { encoding: 'utf8', env: gEnv });
+const g = gsrv();
+if (g.includes('claude-flow')) fail('SH6b the standalone claude-flow entry in ~/.claude.json was not removed');
+if (!g.includes('ruv-swarm')) fail('SH6b ruv-swarm was removed from ~/.claude.json — must keep non-ruflo servers');
+if (!g.includes('remote-hz')) fail('SH6b the ssh REMOTE server was removed — a remote is a real capability, not a local duplicate');
+
+// SH6c — gated: with NO plugin MCP server, the global entry is a real choice and is left alone
+const s6c = mkGlobalProj('gj6c');
+const gjson2 = path.join(SB, 'fake-claude2.json');
+fs.writeFileSync(gjson2, JSON.stringify({ projects: { [s6c]: { mcpServers: { 'claude-flow': { command: 'npx', args: ['-y', 'claude-flow@latest', 'mcp', 'start'] } } } } }));
+spawnSync('bash', [dedupe, s6c, '--no-backup'], { encoding: 'utf8', env: { ...process.env, HOME, RUFLO_PLUGIN_DIR: barePlug, RSP_CLAUDE_JSON: gjson2 } });
+if (!JSON.parse(fs.readFileSync(gjson2, 'utf8')).projects[s6c].mcpServers['claude-flow'])
+  fail('SH6c removed the ~/.claude.json entry though the plugin provides no MCP server — the global prune is not gated');
+
+console.log('✔ shell scripts (SH1 all parse, SH2 dry-run deletes nothing, SH3 `run` materializes+forwards, SH4 .mcp.json dedup, SH5 stop-server default+guarded, SH6 the ~/.claude.json channel: removes the dup, keeps non-ruflo + ssh-remote, dry-run inert, gated on the plugin)');
 
 // ─── CW: the project-root resolver, EXECUTED (not grepped) ───────────────────
 //

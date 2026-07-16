@@ -213,45 +213,82 @@ fi
 # set genuinely provides a ruflo MCP server, mirroring the "provided?" gate the
 # skills/commands/agents prune uses; otherwise the standalone registration is not
 # a duplicate and is left alone.
-mcp_note=""; mcp_empty=0; MCP_MARKERS=()
-if [[ $STRIP_MCP -eq 1 && -f "$PROJECT_DIR/.mcp.json" ]]; then
-  # Does the plugin set ship a ruflo MCP server at all? The plugin's own server is
-  # `npx @claude-flow/cli@latest` with mcp mode via env (CLAUDE_FLOW_MCP_TRANSPORT),
-  # NOT explicit `mcp start` args — so this gate matches on the ruflo/claude-flow
-  # reference alone, not on "mcp"/"start" (that stricter shape is the PROJECT side).
+mcp_note=""; mcp_empty=0; gmcp_note=0; MCP_MARKERS=()
+CLAUDE_JSON="${RSP_CLAUDE_JSON:-$HOME/.claude.json}"
+if [[ $STRIP_MCP -eq 1 ]]; then
+  # Does the plugin set ship a ruflo MCP server at all? Gate for BOTH channels below.
+  # The plugin's own server is `npx @claude-flow/cli@latest` with mcp mode via env
+  # (CLAUDE_FLOW_MCP_TRANSPORT), NOT explicit `mcp start` args — so this gate matches on
+  # the ruflo/claude-flow reference alone, not on "mcp"/"start" (that stricter shape is
+  # the PROJECT side).
   PLUG_PROVIDES_MCP=0
   while IFS= read -r mf; do
     if node -e 'const j=require(process.argv[1]);const s=j.mcpServers||{};process.exit(Object.values(s).some(v=>/(ruflo|@claude-flow\/cli)/.test(String(v&&v.command||"")+" "+((v&&v.args)||[]).join(" ")))?0:1)' "$mf" 2>/dev/null; then
       PLUG_PROVIDES_MCP=1; break
     fi
   done < <(find "$PLUG_DIR" -name '.mcp.json' 2>/dev/null)
+
   if [[ $PLUG_PROVIDES_MCP -eq 0 ]]; then
-    say "  (no ruflo MCP server provided by plugins under $PLUG_DIR — .mcp.json left alone, not a duplicate)"
+    { [[ -f "$PROJECT_DIR/.mcp.json" ]] || grep -q '"mcpServers"' "$CLAUDE_JSON" 2>/dev/null; } && \
+      say "  (no ruflo MCP server provided by plugins under $PLUG_DIR — MCP registrations left alone, not duplicates)"
   else
-    [[ $DRY -eq 0 && $NO_BACKUP -eq 0 ]] && cp "$PROJECT_DIR/.mcp.json" "$BK/.mcp.json"
-    DRY=$DRY node -e '
-      const fs=require("fs");
-      const p=process.argv[1];
-      let j; try{ j=JSON.parse(fs.readFileSync(p,"utf8")); }catch{ console.error("MCP_REMOVED=0"); process.exit(0); }
-      const s=(j&&j.mcpServers)||{}; const removed=[]; const markers=[];
-      const isRufloStandalone=(v)=>{ const a=(v&&v.args||[]).join(" "); return /\bmcp\b/.test(a)&&/\bstart\b/.test(a)&&/(ruflo|@claude-flow\/cli)/.test(String(v&&v.command||"")+" "+a); };
-      for(const k of Object.keys(s)){ if(isRufloStandalone(s[k])){
-        removed.push(k);
-        // Env markers that identify THIS entry\x27s server process and distinguish it from the plugin
-        // server (which sets CLAUDE_FLOW_MCP_TRANSPORT, never these). Only CLAUDE_FLOW_* pairs qualify.
-        const e=(s[k].env)||{}; for(const [ek,ev] of Object.entries(e)){ if(/^CLAUDE_FLOW_/.test(ek)&&ek!=="CLAUDE_FLOW_MCP_TRANSPORT"&&ev) markers.push(ek+"="+ev); }
-        delete s[k];
-      } }
-      if(removed.length===0){ console.error("MCP_REMOVED=0"); process.exit(0); }
-      const empty=Object.keys(s).length===0;
-      if(process.env.DRY!=="1"){ if(empty) fs.unlinkSync(p); else fs.writeFileSync(p, JSON.stringify(j,null,2)+"\n"); }
-      console.error("MCP_REMOVED="+removed.length+" MCP_KEYS="+removed.join(",")+(empty?" MCP_EMPTIED=1":""));
-      for(const m of markers) console.error("MCP_MARKER="+m);
-    ' "$PROJECT_DIR/.mcp.json" 2>/tmp/.ddb-mcp.$$ || true
-    mcp_note="$(grep -o 'MCP_REMOVED=[0-9]*' /tmp/.ddb-mcp.$$ 2>/dev/null | cut -d= -f2)"
-    grep -q 'MCP_EMPTIED=1' /tmp/.ddb-mcp.$$ 2>/dev/null && mcp_empty=1 || true
-    MCP_MARKERS=(); while IFS= read -r mk; do [[ -n "$mk" ]] && MCP_MARKERS+=("$mk"); done < <(sed -n 's/^MCP_MARKER=//p' /tmp/.ddb-mcp.$$ 2>/dev/null)
-    rm -f /tmp/.ddb-mcp.$$
+    # (A) project-local .mcp.json
+    if [[ -f "$PROJECT_DIR/.mcp.json" ]]; then
+      [[ $DRY -eq 0 && $NO_BACKUP -eq 0 ]] && cp "$PROJECT_DIR/.mcp.json" "$BK/.mcp.json"
+      DRY=$DRY node -e '
+        const fs=require("fs");
+        const p=process.argv[1];
+        let j; try{ j=JSON.parse(fs.readFileSync(p,"utf8")); }catch{ console.error("MCP_REMOVED=0"); process.exit(0); }
+        const s=(j&&j.mcpServers)||{}; const removed=[]; const markers=[];
+        const isRufloStandalone=(v)=>{ const a=(v&&v.args||[]).join(" "); return /\bmcp\b/.test(a)&&/\bstart\b/.test(a)&&/(ruflo|@claude-flow\/cli)/.test(String(v&&v.command||"")+" "+a); };
+        for(const k of Object.keys(s)){ if(isRufloStandalone(s[k])){
+          removed.push(k);
+          const e=(s[k].env)||{}; for(const [ek,ev] of Object.entries(e)){ if(/^CLAUDE_FLOW_/.test(ek)&&ek!=="CLAUDE_FLOW_MCP_TRANSPORT"&&ev) markers.push(ek+"="+ev); }
+          delete s[k];
+        } }
+        if(removed.length===0){ console.error("MCP_REMOVED=0"); process.exit(0); }
+        const empty=Object.keys(s).length===0;
+        if(process.env.DRY!=="1"){ if(empty) fs.unlinkSync(p); else fs.writeFileSync(p, JSON.stringify(j,null,2)+"\n"); }
+        console.error("MCP_REMOVED="+removed.length+" MCP_KEYS="+removed.join(",")+(empty?" MCP_EMPTIED=1":""));
+        for(const m of markers) console.error("MCP_MARKER="+m);
+      ' "$PROJECT_DIR/.mcp.json" 2>/tmp/.ddb-mcp.$$ || true
+      mcp_note="$(grep -o 'MCP_REMOVED=[0-9]*' /tmp/.ddb-mcp.$$ 2>/dev/null | cut -d= -f2)"
+      grep -q 'MCP_EMPTIED=1' /tmp/.ddb-mcp.$$ 2>/dev/null && mcp_empty=1 || true
+      while IFS= read -r mk; do [[ -n "$mk" ]] && MCP_MARKERS+=("$mk"); done < <(sed -n 's/^MCP_MARKER=//p' /tmp/.ddb-mcp.$$ 2>/dev/null)
+      rm -f /tmp/.ddb-mcp.$$
+    fi
+    # (B) the SECOND channel: ~/.claude.json  projects[<dir>].mcpServers. Claude Code also
+    # stores per-project MCP servers here. Same duplicate, same signature match. This file is
+    # the shared GLOBAL config and is NOT recoverable via git, so it is ALWAYS backed up (even
+    # under --no-backup) and written atomically (temp -> rename). A REMOTE entry (command `ssh`,
+    # e.g. an `ssh host … mcp start`) is a real capability, not a local duplicate, so the match
+    # requires command `npx` and is left alone otherwise.
+    if [[ -f "$CLAUDE_JSON" ]]; then
+      [[ $DRY -eq 0 ]] && cp "$CLAUDE_JSON" "$CLAUDE_JSON.rsp-bak"
+      DRY=$DRY node -e '
+        const fs=require("fs");
+        const p=process.argv[1], dir=process.argv[2], dirReal=process.argv[3];
+        let j; try{ j=JSON.parse(fs.readFileSync(p,"utf8")); }catch{ console.error("GMCP_REMOVED=0"); process.exit(0); }
+        const projs=j.projects||{};
+        const key=[dir,dirReal].find(k=>projs[k]&&projs[k].mcpServers&&Object.keys(projs[k].mcpServers).length);
+        if(!key){ console.error("GMCP_REMOVED=0"); process.exit(0); }
+        const s=projs[key].mcpServers; const removed=[]; const markers=[];
+        const isLocalRufloStandalone=(v)=>{ if(String(v&&v.command||"")!=="npx") return false; const a=(v&&v.args||[]).join(" "); return /\bmcp\b/.test(a)&&/\bstart\b/.test(a)&&/(ruflo|claude-flow)/.test(a); };
+        for(const k of Object.keys(s)){ if(isLocalRufloStandalone(s[k])){
+          removed.push(k);
+          const e=(s[k].env)||{}; for(const [ek,ev] of Object.entries(e)){ if(/^CLAUDE_FLOW_/.test(ek)&&ek!=="CLAUDE_FLOW_MCP_TRANSPORT"&&ev) markers.push(ek+"="+ev); }
+          delete s[k];
+        } }
+        if(removed.length===0){ console.error("GMCP_REMOVED=0"); process.exit(0); }
+        if(process.env.DRY!=="1"){ const t=p+".ddb-tmp"; fs.writeFileSync(t, JSON.stringify(j,null,2)+"\n"); fs.renameSync(t,p); }
+        console.error("GMCP_REMOVED="+removed.length+" GMCP_KEYS="+removed.join(","));
+        for(const m of markers) console.error("MCP_MARKER="+m);
+      ' "$CLAUDE_JSON" "$PROJECT_DIR" "$(cd "$PROJECT_DIR" && pwd -P)" 2>/tmp/.ddb-gmcp.$$ || true
+      gmcp_note="$(grep -o 'GMCP_REMOVED=[0-9]*' /tmp/.ddb-gmcp.$$ 2>/dev/null | cut -d= -f2)"
+      [[ "${gmcp_note:-0}" == "0" && $DRY -eq 0 ]] && rm -f "$CLAUDE_JSON.rsp-bak"   # nothing changed -> no backup kept
+      while IFS= read -r mk; do [[ -n "$mk" ]] && MCP_MARKERS+=("$mk"); done < <(sed -n 's/^MCP_MARKER=//p' /tmp/.ddb-gmcp.$$ 2>/dev/null)
+      rm -f /tmp/.ddb-gmcp.$$
+    fi
   fi
 fi
 
@@ -265,7 +302,7 @@ fi
 #       entry with no such env yields no marker -> nothing is killed, and it says so.
 # --dry-run signals nothing; it reports what it WOULD stop. $HOME / / are refused.
 stop_note=""
-if [[ $STOP_SERVER -eq 1 && "${mcp_note:-0}" -gt 0 ]]; then
+if [[ $STOP_SERVER -eq 1 ]] && (( ${mcp_note:-0} + ${gmcp_note:-0} > 0 )); then
   if [[ ${#MCP_MARKERS[@]} -eq 0 ]]; then
     stop_note="skip:no-marker"
   else
@@ -303,6 +340,7 @@ say "  commands: $removed_c removed, $kept_c kept"
 say "  agents:   $removed_a removed, $kept_a kept"
 [[ $STRIP_HOOKS -eq 1 ]] && say "  hooks:    ${hooks_note:-0} plugin-covered hook entries $([[ $DRY -eq 1 ]] && echo 'would be' || echo '') removed (routing/session/subagent/auto-memory KEPT)"
 [[ $STRIP_MCP -eq 1 ]] && say "  mcp:      ${mcp_note:-0} standalone ruflo/claude-flow server(s) $([[ $DRY -eq 1 ]] && echo 'would be' || echo '') removed from .mcp.json$([[ $mcp_empty -eq 1 ]] && echo " (file $([[ $DRY -eq 1 ]] && echo 'would be ' || echo '')deleted — now empty)" || echo "; other servers KEPT")"
+[[ $STRIP_MCP -eq 1 && "${gmcp_note:-0}" != "0" ]] && say "  global:   ${gmcp_note} standalone server(s) $([[ $DRY -eq 1 ]] && echo 'would be' || echo '') removed from ~/.claude.json (this project's entry); other servers KEPT"
 if [[ $STOP_SERVER -eq 1 ]]; then
   if [[ "$stop_note" == "skip:no-marker" ]]; then
     say "  server:   NOT stopped — the removed registration set no distinctive CLAUDE_FLOW_* env, so its process can't be told apart from the plugin server; restart Claude Code to drop it"

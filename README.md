@@ -646,9 +646,11 @@ registers a *standalone* ruflo server (keyed `claude-flow` or `ruflo`), but the 
 provides that server (namespaced `mcp__plugin_ruflo-core_ruflo__*`). Under plugin loading the project copy is
 a second server on the same root: **two writers on one `.swarm/memory.db`**
 ([#2621](https://github.com/ruvnet/ruflo/issues/2621)). dedupe removes it (matched by command *signature*, so
-`ruv-swarm` / `flow-nexus` and any unrelated server are **kept**; the file is deleted if it empties), and by
-**default** also **SIGTERMs the now-orphaned server process** so the second writer is gone immediately, not
-just after a restart.
+`ruv-swarm` / `flow-nexus` and any unrelated server are **kept**; the file is deleted if it empties) from
+**both** places it can live. That means the project's `.mcp.json` **and** `~/.claude.json`'s
+`projects[<dir>].mcpServers` (Claude Code's per-project MCP config in the global file, where a **remote**
+`ssh` server is a real capability, not a duplicate, and is kept). By **default** it also **SIGTERMs the
+now-orphaned server process** so the second writer is gone immediately, not just after a restart.
 
 ```bash
 ~/.ruflo-source-patch/dedupe-bundle/ruflo-dedupe-bundle.sh <project-dir> [--keep-dup-hooks|--keep-dup-mcp|--keep-server|--bundle-only] [--dry-run]
