@@ -50,6 +50,7 @@ import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
 import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
+import { designWallCommand } from '../lib/design-wall/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -71,6 +72,9 @@ const PLUGIN_PATCH_TARGETS = {
   // Spans ALL ruflo plugins: rewrites bundled mcp__claude-flow__* refs to the plugin-namespaced
   // form so they resolve under plugin loading (#2685). Same machinery, widest blast radius.
   'mcp-prefix': mcpPrefixCommand,
+  // ruvnet-brain again, a different script: its design-grade commit gate never checks which repo
+  // it is running in before demanding a visual design ritual for a plain README.md commit.
+  'design-wall': designWallCommand,
 };
 
 function usage() {
@@ -98,6 +102,8 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
   ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
+  ${pad('design-wall')}its design-grade commit gate never checks which repo it's running in —
+  ${pad('')}  an unrelated repo's plain README.md commit trips the same visual-design wall
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

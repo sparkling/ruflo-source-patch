@@ -92,5 +92,104 @@ applyComposed(['mcp-prefix']);
 check('RB1 the NEW upstream content is patched', read(upd).includes('mcp__plugin_ruflo-core_ruflo__fresh') && read(upd).includes('v2 NEW'));
 check('RB2 the stale v1 backup did not clobber the update', !read(upd).includes('v1 '));
 
+// ── PR: POISONED-BACKUP RECOVERY (the real bug: a whole-plugin backup wipe left mcp-prefix's own
+// edits genuinely applied but unrecoverable, and — because the composed engine correctly refuses to
+// touch a file it cannot verify — permanently blocked adr-template's still-pending edit on the SAME
+// file. Measured live: 294 files, and the adr-template test suite's own P1 case among them). ──
+
+// PR1: mcp-prefix ALONE, backup poisoned (emptied) after a real patch — recovery must reconstruct
+// the true pristine via reverse + round-trip, restore the backup, and leave the (already-correct)
+// live file untouched. Uninstall afterward must restore byte-identical TRUE vendor, proving the
+// recovered pristine was not merely plausible but exactly right.
+const pr1 = write(path.join(CACHE, 'ruflo-pr1', '0.1.0', 'x.md'), 'call mcp__claude-flow__memory_store twice: mcp__claude-flow__memory_store\n');
+const pr1Vendor = read(pr1);
+applyComposed(['mcp-prefix']);
+check('PR1a mcp-prefix patched pr1 normally', read(pr1).includes('mcp__plugin_ruflo-core_ruflo__memory_store') && !read(pr1).includes('mcp__claude-flow__'));
+fs.writeFileSync(bak(pr1), ''); // simulate the backup-wipe event
+const pr1Before = read(pr1);
+const a2 = applyComposed(['mcp-prefix']);
+check('PR1b no skip:poisoned-backup reported once recovery succeeds', !a2.log.some((l) => l.includes('skip:poisoned-backup') && l.includes('/ruflo-pr1/')));
+check('PR1c a recovered-pristine line was logged', a2.log.some((l) => l.startsWith('recovered-pristine') && l.includes('/ruflo-pr1/')));
+check('PR1d the live file is untouched (it was already correctly patched)', read(pr1) === pr1Before);
+check('PR1e the backup now holds the TRUE original vendor bytes, not a guess', fs.existsSync(bak(pr1)) && read(bak(pr1)) === pr1Vendor);
+reconcile([], ['mcp-prefix']);
+check('PR1f uninstall from the RECOVERED backup restores byte-identical true vendor', read(pr1) === pr1Vendor);
+
+// PR2: the ACTUAL measured bug. mcp-prefix has already patched a file adr-template ALSO claims but has
+// NOT yet edited (adr-template's anchor is still the buggy, unpatched form). Backup poisoned. Recovery
+// must unblock adr-template's pending edit on the SAME apply, exactly like the real adr-create/SKILL.md.
+const SKILL2 = path.join(CACHE, 'ruflo-adr', '0.4.2', 'skills', 'adr-create', 'SKILL.md');
+const skill2Vendor = '# adr-create\n\n'
+  + '   - **Status**: proposed\n'
+  + "   - **Date**: <today's date YYYY-MM-DD>\n"
+  + '   - **Deciders**: <leave blank for author to fill>\n'
+  + '   - **Tags**: <leave blank>\n\n'
+  + 'Then call mcp__claude-flow__memory_store.\n';
+write(SKILL2, skill2Vendor);
+applyComposed(['mcp-prefix']); // mcp-prefix alone first — adr-template not installed yet, matches the real timeline
+check('PR2a mcp-prefix alone patched refs, adr-template edits absent', read(SKILL2).includes('mcp__plugin_ruflo-core_ruflo__memory_store') && read(SKILL2).includes('   - **Status**: proposed'));
+fs.writeFileSync(bak(SKILL2), ''); // the backup-wipe event
+const c3 = applyComposed(['adr-template', 'mcp-prefix']); // NOW both are installed, matching real state
+check('PR2b adr-template applied=true, not stuck behind the poisoned backup (this IS the measured P1 bug)', read(SKILL2).includes('   **Status**: proposed') && !read(SKILL2).includes('   - **Status**: proposed'));
+check('PR2c mcp-prefix refs remain correctly rewritten', read(SKILL2).includes('mcp__plugin_ruflo-core_ruflo__memory_store'));
+check('PR2d recovered-pristine logged for SKILL2', c3.log.some((l) => l.startsWith('recovered-pristine') && l.includes('/adr-create/SKILL.md') && l.includes('0.4.2')));
+check('PR2e the recovered backup is the TRUE vendor bytes (buggy status form, bare mcp prefix)', read(bak(SKILL2)) === skill2Vendor);
+reconcile([], ['adr-template', 'mcp-prefix']);
+check('PR2f uninstalling both restores byte-identical TRUE vendor', read(SKILL2) === skill2Vendor);
+
+// PR3: TWO targets have ALREADY applied to the same file (genuinely ambiguous — which one would
+// un-compose first?) and the backup is poisoned. Recovery must REFUSE, not guess; the ordinary
+// skip:poisoned-backup report fires and the live file is left exactly as it was.
+const SKILL3 = path.join(CACHE, 'ruflo-adr', '0.4.3', 'skills', 'adr-create', 'SKILL.md');
+const skill3Vendor = skill2Vendor;
+write(SKILL3, skill3Vendor);
+applyComposed(['adr-template', 'mcp-prefix']); // BOTH apply this time — both isPatched() become true
+check('PR3a fixture: both targets genuinely applied', read(SKILL3).includes('   **Status**: proposed') && read(SKILL3).includes('mcp__plugin_ruflo-core_ruflo__'));
+const skill3Patched = read(SKILL3);
+fs.writeFileSync(bak(SKILL3), '');
+const a3 = applyComposed(['adr-template', 'mcp-prefix']);
+check('PR3b two-claimant poisoning is REFUSED, not guessed at', a3.log.some((l) => l.startsWith('skip:poisoned-backup') && l.includes('0.4.3')));
+check('PR3c no recovered-pristine line for this file', !a3.log.some((l) => l.startsWith('recovered-pristine') && l.includes('0.4.3')));
+check('PR3d the live file is untouched — no wrong bytes written', read(SKILL3) === skill3Patched);
+
+// PR4: resolvePristine's round-trip safety net itself, tested directly against the `{candidate,
+// verify}` contract — proves the guarantee holds regardless of what any future target's `reverse`
+// might return, not just mcp-prefix's (which is provably well-behaved and can't easily be coaxed
+// into producing a bad candidate through the real engine).
+{
+  const { resolvePristine } = await import('../lib/pristine.mjs');
+
+  // PR4a — a WRONG candidate (verify does not reproduce current): refused, never silently accepted.
+  const pr4a = write(path.join(SANDBOX, 'pr4a-standalone.txt'), 'AAA\n');
+  const patchFn = (s) => s.replace('AAA', 'BBB');
+  fs.writeFileSync(pr4a, patchFn('AAA\n'));
+  const ra = resolvePristine(pr4a, patchFn, {
+    isOurs: (src) => src.includes('BBB'),
+    recoverPoisoned: () => ({ candidate: 'WRONG GUESS\n', verify: (c) => patchFn(c) }), // won't reproduce current
+  });
+  check('PR4a a candidate whose verify does not reproduce current is REFUSED (poisoned), never silently accepted', ra.poisoned === true && ra.pristine === null && !ra.recovered);
+
+  // PR4b — a CORRECT candidate, verified with a NARROWLY-SCOPED function (not the full patchFn):
+  // accepted. This is exactly the shape plugin-compose.mjs relies on — verify scoped to only the
+  // transform that actually produced `current`, which can differ from the full active composition.
+  const pr4b = write(path.join(SANDBOX, 'pr4b-standalone.txt'), 'AAA\n');
+  fs.writeFileSync(pr4b, patchFn('AAA\n'));
+  const rb = resolvePristine(pr4b, patchFn, {
+    isOurs: (src) => src.includes('BBB'),
+    recoverPoisoned: () => ({ candidate: 'AAA\n', verify: (c) => patchFn(c) }), // reproduces current exactly
+  });
+  check('PR4b a candidate whose scoped verify DOES reproduce current is ACCEPTED and backed up', rb.recovered === true && rb.pristine === 'AAA\n' && fs.readFileSync(`${pr4b}.rsp-backup`, 'utf8') === 'AAA\n');
+
+  // PR4c — recoverPoisoned returns a bare string (old contract) or omits verify: treated as no
+  // candidate. The contract is {candidate, verify} or null — nothing else is trusted.
+  const pr4c = write(path.join(SANDBOX, 'pr4c-standalone.txt'), 'AAA\n');
+  fs.writeFileSync(pr4c, patchFn('AAA\n'));
+  const rc = resolvePristine(pr4c, patchFn, {
+    isOurs: (src) => src.includes('BBB'),
+    recoverPoisoned: () => 'AAA\n', // bare string — not the {candidate, verify} shape
+  });
+  check('PR4c a bare-string return (not {candidate, verify}) is treated as no recovery offered', rc.poisoned === true && !rc.recovered);
+}
+
 if (fail) { console.log('\n✘ test/mcp-prefix.mjs FAILED'); process.exit(1); }
 console.log('\n✓ mcp-prefix + composition: all checks passed');

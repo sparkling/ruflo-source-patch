@@ -39,6 +39,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 | `state.mjs` | What is installed, and what has **retired**. Every mutation is a read-modify-write, and it now holds a **cross-process lock** (see below). |
 | `update-check.mjs` | Self-update, from **immutable semver tags** and never a branch. On the tick, not the hook: sessions run for days, so a hook-gated update leaves an invalidated patch re-applying itself for a week. Forward only; a failed install keeps the working version and says so. |
 | `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. `strayStateDirs()` is also the LEAK DETECTOR the SessionStart hook reports from: a state dir in a subdirectory is an anchor that leaked, whatever form it took. |
+| `stale-writer.mjs` | The other process-signaller (ADR-023). Detects a ruflo MCP client/daemon still writing `memory.db` with old code, which the in-file write lock can never reach. **Kills every `pre-patch` writer** (daemon and MCP client alike) to force fresh code, guarded like cleanup (only a positively-resolved ruflo writer). A killed MCP client needs a manual `/mcp` reconnect afterward; that warning is pushed through `problems.mjs`'s `addProblems()` so it reaches the user's next prompt in any session. `unpatched` writers are never killed (a respawn would gain nothing). `RSP_NO_STALE_WRITER_KILL` disables every kill. |
 
 ## The one that bites
 

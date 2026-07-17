@@ -23,8 +23,13 @@ export RSP_NO_MONITOR_RECOVER=1
 # monitor agent — the actual cause of the drops this project hunted. This no-ops the mutating launchctl/
 # crontab calls; the plist/meta/heartbeat FILE logic still runs, so coverage is unchanged.
 export RSP_NO_LAUNCHCTL=1
+# Suites run in PARALLEL. The monitor tick now auto-restarts stale memory writers (ADR-023) by
+# scanning the whole machine, so a tick-exercising suite would SIGTERM another suite's fake
+# writers. Disable the kill globally; the stale-writer suite deletes this in-process to exercise
+# the real kill against only its OWN fakes. Same discipline as RSP_NO_LAUNCHCTL above.
+export RSP_NO_STALE_WRITER_KILL=1
 
-SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs monitor-internals mcp-prefix)
+SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs stale-writer monitor-internals mcp-prefix design-wall)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

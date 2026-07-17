@@ -152,6 +152,52 @@ if (fs.existsSync(`${target}.rsp-lock`)) fail('ML3 the injected lock leaked its 
 
 console.log('✔ memory write lock (ML 2 processes × 40 read-modify-writes lose nothing, ML2 reentrant, ML3 no leaked lockfile)');
 
+// ─── IG: the injected INTEGRITY GATE actually refuses a torn image ───────────
+// We inject __rufloIntegrityCheck (ADR-023) so a whole-file flush can never land on an
+// already-torn memory.db and overwrite the damage as if the store were empty. Asserting the
+// STRING is present proves nothing — run the real fragment against crafted SQLite headers.
+const igSrc = lib.FRAGMENTS?.integrityGate?.src;
+const reqSrc = lib.FRAGMENTS?.req?.src;
+if (!igSrc || !reqSrc) fail('IG the integrityGate/req fragment is not exported from patch-library — cannot test the code we inject');
+
+const igMod = path.join(SB, 'ig.mjs');
+fs.writeFileSync(igMod, `${reqSrc}\n${igSrc}\nexport { __rufloIntegrityCheck };\n`);
+const { __rufloIntegrityCheck } = await import(`file://${igMod}`);
+
+// A SQLite file whose header we control. Consistent by default; pass totalBytes to tear it.
+function sqliteFile(pageSize, pageCount, { changeCounter = 1, versionValidFor = 1, totalBytes = null, magic = true } = {}) {
+  const size = totalBytes != null ? totalBytes : pageSize * pageCount;
+  const buf = Buffer.alloc(Math.max(size, 100));
+  if (magic) buf.write('SQLite format 3\0', 'latin1');
+  buf.writeUInt16BE(pageSize === 65536 ? 1 : pageSize, 16);
+  buf.writeUInt32BE(changeCounter, 24);
+  buf.writeUInt32BE(pageCount, 28);
+  buf.writeUInt32BE(versionValidFor, 92);
+  return buf.subarray(0, size);
+}
+const allowed = (p) => { try { __rufloIntegrityCheck(p); return true; } catch (e) { if (e && e.__rufloIntegrity) return false; throw e; } };
+const dbPath = (name) => { const q = path.join(SB, name); return q; };
+const writeDb = (name, buf) => { const q = dbPath(name); fs.writeFileSync(q, buf); return q; };
+
+// IG1 — a consistent image is ALLOWED (no false positive; this is the common case).
+if (!allowed(writeDb('ok.db', sqliteFile(4096, 4)))) fail('IG1 a healthy, self-consistent SQLite image was REFUSED — false positive would block every legitimate write');
+// IG2 — the header declares 4 pages but the file is half that: a torn/truncated flush. REFUSED.
+if (allowed(writeDb('torn.db', sqliteFile(4096, 4, { totalBytes: 8192 })))) fail('IG2 a truncated image (header says 16384 bytes, file is 8192) was ALLOWED — the gate would let a flush overwrite the damage');
+// IG3 — a fractional tail (not a whole number of pages) with a non-authoritative header. REFUSED.
+if (allowed(writeDb('frac.db', sqliteFile(4096, 0, { changeCounter: 1, versionValidFor: 2, totalBytes: 4097 })))) fail('IG3 a mid-page-truncated image (4097 bytes, page size 4096) was ALLOWED');
+// IG4 — no SQLite magic on a non-trivial file: not a database at all. REFUSED.
+if (allowed(writeDb('nomagic.db', sqliteFile(4096, 4, { magic: false })))) fail('IG4 a file with no SQLite magic header was ALLOWED');
+// IG5 — smaller than a header. REFUSED.
+if (allowed(writeDb('tiny.db', Buffer.alloc(50)))) fail('IG5 a 50-byte file (smaller than a SQLite header) was ALLOWED');
+// IG6 — a non-.db path is never our concern; ALLOWED (ignored).
+if (!allowed(writeDb('notes.json', Buffer.from('not a db')))) fail('IG6 a non-.db path was REFUSED — the gate must only guard *.db');
+// IG7 — a missing file is a legitimate FIRST write; ALLOWED.
+if (!allowed(dbPath('does-not-exist.db'))) fail('IG7 a missing file (first write) was REFUSED — init could never create the store');
+// IG8 — an empty file is init's to fill; ALLOWED.
+if (!allowed(writeDb('empty.db', Buffer.alloc(0)))) fail('IG8 an empty (0-byte) file was REFUSED — a fresh store could never be initialised');
+
+console.log('✔ memory integrity gate (IG1 consistent allowed, IG2 truncated refused, IG3 fractional refused, IG4 no-magic refused, IG5 sub-header refused, IG6 non-db ignored, IG7 first-write allowed, IG8 empty allowed)');
+
 // ─── PG: one throwing plugin patcher must not blind the watchdog ─────────────
 
 freshSandbox();

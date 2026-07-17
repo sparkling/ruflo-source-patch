@@ -114,7 +114,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`cwd`** | **Silent data loss.** `.claude-flow` holds the learning state (autopilot, `neural/`, `metrics/`, `agentdb`, `memory.db`) and it is anchored to raw `process.cwd()`. Under an agent the cwd drifts and *sticks*, so state is written to a subdirectory nothing will ever read again. `loadState()` does not error: it returns **defaults** and writes a fresh file. The system quietly resets to zero, and it looks exactly like normal operation. Anchors the resolver, the callees and the implicit-relative constants; plus a leak detector, because completeness cannot be proven | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
-| **`memory`** | `.swarm/memory.db` durability. A cross-process **write lock** (concurrent writers silently *drop* writes) and **WAL-coherent reads** (sql.js reads a stale image) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
+| **`memory`** | `.swarm/memory.db` durability. A cross-process **write lock** (concurrent writers silently *drop* writes), **WAL-coherent reads** (sql.js reads a stale image), an **integrity gate** (refuse a whole-file flush over an already-torn image instead of overwriting the damage), and a **stale-writer guard** (the monitor kills every pre-patch writer, daemon *and* MCP client, to force fresh code, and pushes a loud, unmissable warning for each killed MCP client since reconnecting one needs a manual `/mcp` step afterward; `RSP_NO_STALE_WRITER_KILL` disables the kill) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022) | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) |
 
 ### Plugin patches
@@ -152,6 +152,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`mcp-prefix`** | **The plugins' own tools are dead under plugin loading.** Every `ruflo` plugin bundles skills/agents/commands/hooks that name the MCP tools `mcp__claude-flow__*`. That prefix resolves **only** when the server is registered *standalone* under the key `claude-flow` ([#2206](https://github.com/ruvnet/ruflo/issues/2206)). Used **as a plugin** (the marketplace path), Claude Code namespaces the plugin's bundled server, so the same tools are exposed as `mcp__plugin_ruflo-core_ruflo__*`. Per Claude Code's own MCP docs, *"a hook matcher written against the bare server key … never fires for a plugin-bundled server,"* so the bundled `allowed-tools` globs grant nothing and prompt tool names name tools that don't exist. The platform **won't** bridge it ([anthropics/claude-code#29360](https://github.com/anthropics/claude-code/issues/29360) and [#15145](https://github.com/anthropics/claude-code/issues/15145) are both *closed as not planned*). Measured: **3,482 refs across 474 files in ~30 packages**; only `ruflo-core` ships a server, so the plugin-namespaced name is uniformly `mcp__plugin_ruflo-core_ruflo__*`. Rewrites the bare prefix to it. Correct where it takes effect (the files load only when the plugin is enabled, and then that prefix resolves), inert where it doesn't. It does **not** touch the CLI init generators that emit the same prefix into *your project* files, where that prefix is right for standalone-registered projects, so it's genuinely environment-dependent and out of scope | [#2685](https://github.com/ruvnet/ruflo/issues/2685) |
+| **`design-wall`** | **A visual-design gate that gates everyone else's repos too.** `ruvnet-brain`'s `design-wall.sh` blocks `git commit` on a staged `README.md`/`explainer/`/`console/` file until a fresh design-grade stamp is recorded, a sound idea for ruvnet-brain's OWN visual surfaces, applied to every other repository on the machine as well, since `${CLAUDE_PROJECT_DIR:-.}` is never checked for identity before requiring the ritual. Measured: blocked a plain-markdown README commit in an unrelated CLI tool's repo. Reads the project's git origin and requires it to actually name `ruvnet-brain`/`stuinfla` before any stamp is required; ruvnet-brain's own commits are still gated exactly as before | [stuinfla/ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) |
 
 ### Script targets
 
@@ -335,6 +336,48 @@ image. `PRAGMA wal_checkpoint(TRUNCATE)` now runs before any `*.db` read, so the
 > shared-memory *lock index*, and unlinking it while another process holds a connection splits the
 > two onto different lock state, manufacturing the unsynchronised writers this exists to prevent.
 > After a `TRUNCATE` checkpoint the WAL is zero-length and replays nothing, so it's redundant.
+
+#### The integrity gate (ADR-023)
+
+The lock stops two *cooperating, patched* writers from clobbering each other, and the atomic flush
+([#2584](https://github.com/ruvnet/ruflo/issues/2584)) stops a reader seeing a torn image. Neither
+covers a flush landing on a DB that is **already** torn: sql.js opens a truncated image without
+error, loses the missing pages, and the mutator re-exports the shrunken image over the original, an
+acked write that has silently destroyed the store (`no such table: memory_entries` on a
+multi-megabyte file is the measured symptom). This is what corrupted `semantic-product-mock`. So
+under the lock, just before each write flush, a pure-buffer check reads the 100-byte SQLite header
+and verifies it is self-consistent (magic, a power-of-two page size, and `page_size * page_count`
+equal to the file size when the header's page count is authoritative). A torn image is **refused**
+(the write throws) rather than overwritten. `ensureSchemaColumns`, the init and repair path, is left
+ungated so recovery of a fresh or half-built DB is never blocked.
+
+#### The stale-writer guard (ADR-023)
+
+The lock and the gate live *inside* the patched module, so they protect only a process that actually
+loaded it. A long-running ruflo MCP client or daemon that started before the patch, or that runs an
+npx cache copy the patch never reached, keeps flushing the old way from memory. No source edit can
+reach it. That stale image, flushed back over a healthy file, is the corruption mechanism. So
+`stale-writer.mjs` detects such a writer, resolving its `@claude-flow/cli` root from either the
+daemon's direct path **or** the plugin MCP client's `.bin/cli` symlink (missing the symlink was a real
+blind spot: a live box read zero stale while five MCP clients ran pre-patch). What it *does* depends on
+whether the on-disk copy is actually patched:
+
+- **A `pre-patch` writer** (copy patched, process older) is **killed**, daemon or MCP client alike, to
+  force it onto patched code. A daemon respawns invisibly on next use. An MCP client does not: Claude
+  Code will not reconnect a killed stdio server on its own (validated live, see the fragment comment
+  in `stale-writer.mjs`), so reloading one needs a SECOND, manual step in that exact session afterward:
+  `/mcp` -> Reconnect, or `/reload-plugins`. Reconnect alone on a still-alive stale process is a no-op,
+  which is why the kill has to happen first. **This is a deliberate trade the user chose**: forcing
+  fresh code onto every writer, at the cost of an MCP outage in each affected session until the user
+  notices and clears it. Every such kill is pushed into the shared problem feed (`addProblems`), so it
+  surfaces on the user's very next prompt in *any* session, naming the killed pid(s) and the fix.
+- **An `unpatched` writer** (copy has *no* lock, patch couldn't apply): **never auto-killed**, because a
+  respawn (daemon, or MCP client even after a manual reconnect) would just reload the same unpatched
+  copy. That's patch drift, gaining nothing from a kill; the fix is re-anchoring (the drift machinery
+  already flags it).
+
+`RSP_NO_STALE_WRITER_KILL` keeps detection but disables every kill; `monitor run` triggers a recovery
+on demand, visible directly in that terminal.
 
 #### The cost, stated plainly
 
@@ -1154,8 +1197,9 @@ this machine*, which is the only form of the question that can be acted on.
 |-------|-----------------------|------------------|
 | [#2666](https://github.com/ruvnet/ruflo/issues/2666) **fixed in CLI 3.29.0** | `ruflo-adr` had **no way to reconcile a deleted ADR**. The orphan row survived every import, and `adr-verify` certified it as healthy (an orphan has no dangling ref and forms no cycle). Upsert converges; it can never reap. Fixed by `ruflo-adr` 0.4.0's `/adr-reindex` plus the `memory purge` hard-delete in `@claude-flow/cli` 3.29.0. **On a pre-3.29.0 CLI the command is absent, the unknown subcommand exits 0, and their reindex reports `purged` having purged nothing** | `adr-reindex` (superseded on 3.29.0+) |
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) **closed, not fully fixed** | Whole-file read-modify-write on `memory.db`: a daemon or MCP server holding a stale in-memory image flushes it back and resurrects deleted rows. `dc01598` adds a `withMemoryDbLock`, but **only `purgeNamespace` calls it**, and upstream's own comment says so: *"This does NOT fully close #2621 … that requires every memory.db writer to respect the same lock."* Every other writer is still unlocked | `memory` |
-| [ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) | `verify-interface.sh`'s PreToolUse gate is **unopenable**: its tool regex swallows any hyphenated binary name (`ruflo-source-patch …` → `ruflo …`) and matches inside plain English prose (`another ruflo process is writing` → `ruflo process is`), while the documented `RUVNET_SKIP_INTERFACE_CHECK=1` override is read from the hook's own environment, where a caller can never set it. **Upstream adopted v1 of our patch into 2.7.x but left the issue open**, and the prose false positive shipped with it | `verify-interface` |
-| [ruvnet-brain#13](https://github.com/stuinfla/ruvnet-brain/issues/13) | The same hook parses its JSON payload with a **regex**, and `[^"]*` cannot cross a quote, so a command containing an escaped `"` is **truncated at the first one**. `bash -c "ruflo memory search"` reaches the gate as `bash -c \` and runs unchecked. It also *hides* false positives, so a `MATCH_RE` fix verified with a quoted test command looks like it works whatever it does. **Not patched here**: it is upstream's payload parsing, not the match | (none: reported, not worked around) |
+| [ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) **fixed in 3.2.9, target retired** | `verify-interface.sh`'s PreToolUse gate was **unopenable**: its tool regex swallowed any hyphenated binary name (`ruflo-source-patch …` → `ruflo …`) and matched inside plain English prose (`another ruflo process is writing` → `ruflo process is`), while the documented `RUVNET_SKIP_INTERFACE_CHECK=1` override was read from the hook's own environment, where a caller could never set it. **Upstream shipped its own complete rewrite in v3.2.9** (commit `bfc2d36`): real JSON parsing and a command-position-anchored matcher with a working override | `verify-interface` (retired, ADR-010) |
+| [ruvnet-brain#13](https://github.com/stuinfla/ruvnet-brain/issues/13) **fixed in 3.2.9** | The same hook parsed its JSON payload with a **regex**, and `[^"]*` could not cross a quote, so a command containing an escaped `"` was **truncated at the first one**. `bash -c "ruflo memory search"` reached the gate as `bash -c \` and ran unchecked. **Fixed by the same v3.2.9 rewrite**: the payload is now parsed as real JSON | `verify-interface` (retired, ADR-010) |
+| [ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) | `design-wall.sh`'s commit gate never checks **which repository** it is running in before requiring a design-grade stamp. A plain README commit in an entirely unrelated repo trips the identical visual-design ritual meant for ruvnet-brain's own explainer/console surfaces. Reads the project's git origin and requires it to actually name `ruvnet-brain`/`stuinfla` first | `design-wall` |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation. `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | `ruflo init` (CLAUDE.md) and `codex init` (AGENTS.md) generate divergent instruction files | `dual-codex-claude` |

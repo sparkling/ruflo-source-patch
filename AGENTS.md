@@ -30,7 +30,7 @@ npx github:sparkling/ruflo-source-patch all status       # the full readout in o
 ```bash
 npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/.swarm + durable state to the project root (#2633)
 npx github:sparkling/ruflo-source-patch daemon install    # one daemon per project root, not per subdirectory (#2633/#2407/#2484)
-npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock (#2621) + WAL-coherent reads (#2584)
+npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock (#2621) + WAL-coherent reads (#2584) + integrity gate (refuse a torn-image flush) + stale-writer guard: kills every pre-patch writer, daemon AND MCP client, to force fresh code; a killed MCP client needs a manual /mcp reconnect after, so it warns loudly, machine-wide (#2621/ADR-023; RSP_NO_STALE_WRITER_KILL disables the kill)
 ```
 
 ### Plugin patches (`ruflo-adr`, `ruvnet-brain`)
@@ -39,8 +39,9 @@ npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock
 npx github:sparkling/ruflo-source-patch adr-template install      # adr-create writes metadata adr-index can parse (#2659)
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
-npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12)
+npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # rewrite bundled mcp__claude-flow__* refs to mcp__plugin_ruflo-core_ruflo__* — dead under plugin loading (#2685)
+npx github:sparkling/ruflo-source-patch design-wall install        # scope ruvnet-brain's design-grade commit gate to its own repo — it fires on ANY repo's README otherwise (ruvnet-brain#17)
 ```
 
 ### Keep it live (actions add `run | check`)

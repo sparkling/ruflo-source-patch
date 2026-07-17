@@ -67,7 +67,7 @@ const ENTRY_PROBE = {
   'cwd/cli-core-getProjectCwd': { rel: '@claude-flow/cli-core/dist/src/mcp-tools/types.js', needle: 'return __rufloResolveRoot(process.cwd());' },
   'daemon/command-root': { rel: '@claude-flow/cli/dist/src/commands/daemon.js', needle: 'const daemon = getDaemon(__rufloResolveRoot(process.cwd()));' },
   'memory/wal-coherent-reads': { rel: '@claude-flow/cli/dist/src/fs-secure.js', needle: '__rufloCheckpointWal(path);' },
-  'memory/write-lock': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: 'storeEntry = __rufloGuard(storeEntry);' },
+  'memory/write-lock': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: 'storeEntry = __rufloGuard(storeEntry, true);' },
   // `state` anchors the DURABLE stores (autopilot/neural/metrics/agentdb). Without it in the fuzz, the
   // target could be installed, uninstalled or half-applied by any sequence and nothing would notice.
   'state/autopilot': { rel: '@claude-flow/cli/dist/src/autopilot-state.js', needle: "export const STATE_DIR = __rufloResolveRoot(process.cwd()) + '/.claude-flow/data';" },

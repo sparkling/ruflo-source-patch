@@ -2,6 +2,10 @@
 
 [← ruflo-source-patch](../../README.md)
 
+**RETIRED 2026-07-17** (see ADR-010). `ruvnet-brain` v3.2.9 (commit `bfc2d36`) shipped its own complete
+fix for both #12 and #13; `lib/supersede.mjs` retires this target automatically once the installed
+copies carry it. Kept below for history and for anyone still on a pre-3.2.9 install.
+
 A gate that cannot be opened.
 
 Patches the **`ruvnet-brain`** plugin (not `ruflo-adr`), specifically its PreToolUse hook,

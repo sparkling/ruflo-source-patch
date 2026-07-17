@@ -19,6 +19,17 @@ import path from 'node:path';
 import os from 'node:os';
 import url from 'node:url';
 import { PATCH_MARKER } from '../lib/cwd/paths.mjs';
+// HAZARD FOR CALLERS: this pulls in paths.mjs's HOME_BASE (a module-level constant, frozen at
+// import time from RUFLO_SOURCE_PATCH_HOME) transitively through every patcher plugin-compose.mjs
+// composes. Every EXISTING caller of this file is safe: none of them ever call a HOME_BASE-dependent
+// function (discover(), applyComposed(), reconcile()...) in THEIR OWN process — they only use
+// pristineBytes()/findVendorRoot() (which deliberately read the REAL machine, unaffected either way)
+// and do all actual patching in a SPAWNED CHILD process (bin/cli.mjs with a sandboxed env), which
+// reads its own environment fresh. If you add a caller that composes/patches IN-PROCESS (like
+// test/mcp-prefix.mjs and test/design-wall.mjs do), it MUST set RUFLO_SOURCE_PATCH_HOME and then
+// DYNAMICALLY `await import('./fixtures.mjs')` — never a static top-of-file import — or it will
+// silently operate against THIS MACHINE'S REAL files instead of its sandbox. Measured live.
+import { isOurs as composedIsOurs } from '../lib/plugin-compose.mjs';
 
 /** The repo root, from this file's own location. Never an absolute path typed by hand. */
 export const REPO = path.dirname(path.dirname(url.fileURLToPath(import.meta.url)));
@@ -74,8 +85,15 @@ export function findPluginRoot() {
 const looksPatched = {
   marker: (buf) => buf.includes(PATCH_MARKER),
   adrIndex: (buf) => buf.includes('ruflo-source-patch (#2660)'),
-  adrTemplate: (buf) => buf.includes('   **Status**: proposed'),
+  // NOT `buf.includes('   **Status**: proposed')` alone — that only catches adr-template's OWN
+  // signature. adr-create/SKILL.md is composed by mcp-prefix too (ADR-020), and a file mcp-prefix
+  // patched but adr-template never touched would pass this narrow check as "clean vendor" — which
+  // is exactly what let a genuinely-patched fixture masquerade as pristine and mask the
+  // poisoned-backup bug (plugin-notify.mjs's P1). The composed `isOurs` (lib/plugin-compose.mjs)
+  // is an OR across every composing target's own isPatched, so it catches either.
+  adrTemplate: (buf) => composedIsOurs(buf),
   verifyInterface: (buf) => buf.includes('(^|[[:space:]]|[;&|(])($TOOLS)'),
+  designWall: (buf) => buf.includes('ORIGIN=$(git -C') && buf.includes('*"ruvnet-brain"*'),
 };
 
 /**

@@ -20,6 +20,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+import { VI_FIX_MARKERS } from '../lib/supersede.mjs';
 
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
@@ -450,12 +451,27 @@ const brainScript = path.join(brainDir, 'verify-interface.sh');
 // (pristineBytes refuses a patched file with no backup, so it can never fabricate a baseline).
 const REAL_BRAIN = path.join(HOME_REAL, '.claude', 'plugins', 'marketplaces', 'ruvnet-brain', 'plugin', 'scripts', 'verify-interface.sh');
 
-if (!fs.existsSync(REAL_BRAIN) && !fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
+// `verify-interface` is RETIRED (ADR-010): ruvnet-brain v3.2.9+ ships its own independent rewrite
+// (real JSON parsing, not our regex approach at all), and our patch is uninstalled wherever that
+// fix is present. `pristineBytes()`'s "is this patched" check only recognises OUR OWN signature, so
+// on a machine where our patch is retired and upstream's rewrite is what's actually installed, it
+// cannot tell "upstream's own fix" apart from "a genuinely buggy, unpatched vendor copy" — both lack
+// our v2 regex string — and would hand V1 a fixture that LOOKS like vendor pristine but is actually
+// already fixed, making the block-prose assertion below fail for the right underlying reason (there
+// is no bug left to reproduce) reported the wrong way (as a broken fixture). Check for upstream's OWN
+// fix markers explicitly and skip with the true reason instead.
+let viFixtureBytes = null;
+if (fs.existsSync(REAL_BRAIN) || fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
+  viFixtureBytes = pristineBytes(REAL_BRAIN, 'verifyInterface').toString('utf8');
+}
+if (viFixtureBytes === null) {
   console.log('· verify-interface (SKIPPED — the ruvnet-brain plugin is not installed)');
+} else if (viFixtureBytes.includes(VI_FIX_MARKERS.JSON_PARSE) && viFixtureBytes.includes(VI_FIX_MARKERS.OVERRIDE_ON_CMD)) {
+  console.log('· verify-interface (SKIPPED — ruvnet-brain shipped its own fix upstream, v3.2.9+; our patch is retired, ADR-010; no buggy vendor copy is available on this machine to test against)');
 } else {
   freshSandbox();
   fs.mkdirSync(brainDir, { recursive: true });
-  fs.writeFileSync(brainScript, pristineBytes(REAL_BRAIN, 'verifyInterface'));
+  fs.writeFileSync(brainScript, viFixtureBytes);
   fs.chmodSync(brainScript, 0o755);
 
   // The gate exits 0 immediately when the model-router profile is absent — so without this file the

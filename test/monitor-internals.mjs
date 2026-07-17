@@ -341,6 +341,77 @@ if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
 
 console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN, SU2 never retires into a hole, SU3 retires on proof + records evidence + announces without crying wolf, SU4 terminal, SU5 install refuses and says why)');
 
+// ─── SU-VI: verify-interface's own self-retirement (stuinfla/ruvnet-brain#12/#13) ─────────────
+//
+// Real machine, real bug, measured 2026-07-17: discover() walks EVERY cache/<version> dir that has
+// ever existed, which for a plugin updated many times over months means checking 9+ dead, permanently
+// unloadable leftovers forever — the predicate would NEVER retire. `installed_plugins.json` names the
+// one version Claude Code can actually load, so the predicate scopes to that PLUS the marketplace
+// checkout, and falls back to checking every discovered copy if the manifest can't be read.
+const viFixed = 'CMD=$(printf \'%s\' "$INPUT" | "$NODE_BIN" -e \'JSON.parse(...)\')\n'
+  + '[[ $CMD =~ (^|[[:space:]])RUVNET_SKIP_INTERFACE_CHECK=1([[:space:]]|$) ]] && exit 0\n';
+const viBuggy = 'field() { local re="\\"$1\\"[[:space:]]*:[[:space:]]*\\"([^\\"]*)\\""; }\n'
+  + '[ "${RUVNET_SKIP_INTERFACE_CHECK:-0}" = "1" ] && exit 0\n'; // old env-based override, #12's actual bug
+
+const viMarketplace = path.join(HOME, '.claude', 'plugins', 'marketplaces', 'ruvnet-brain', 'plugin', 'scripts', 'verify-interface.sh');
+const viActiveCache = path.join(HOME, '.claude', 'plugins', 'cache', 'ruvnet-brain', 'ruvnet-brain', '3.3.0', 'scripts', 'verify-interface.sh');
+const viOrphanCache = path.join(HOME, '.claude', 'plugins', 'cache', 'ruvnet-brain', 'ruvnet-brain', '2.7.1', 'scripts', 'verify-interface.sh');
+const viManifest = path.join(HOME, '.claude', 'plugins', 'installed_plugins.json');
+const writeVI = (p, s) => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); };
+const writeManifest = (installPath) => {
+  fs.mkdirSync(path.dirname(viManifest), { recursive: true });
+  fs.writeFileSync(viManifest, JSON.stringify({ plugins: { 'ruvnet-brain@ruvnet-brain': [{ installPath }] } }));
+};
+const installViOnly = () => { stateMod.writeState({ patchTargets: [], pluginTargets: ['verify-interface'], retired: {} }); };
+
+// VI1 — marketplace fixed, active cache still buggy: keep. Proves BOTH loadable copies must be fixed.
+writeVI(viMarketplace, viFixed);
+writeVI(viActiveCache, viBuggy);
+writeManifest(path.dirname(path.dirname(viActiveCache)));
+installViOnly();
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('verify-interface')) {
+  fail('VI1 retired verify-interface while the ACTIVE cache copy still has the old bug — a real machine would still need our patch there');
+}
+
+// VI2 — an ORPHANED, permanently-unloadable cache dir (not the active version) still has the old bug,
+// but the marketplace + the ACTUAL active copy are both fixed: must still retire. This is the exact
+// refinement that makes the predicate usable in practice instead of permanently inert.
+writeVI(viActiveCache, viFixed);
+writeVI(viOrphanCache, viBuggy); // an old, unloadable leftover from a past /plugin update
+installViOnly();
+const retiredVI = cmds.applyInstalled();
+const stVI2 = stateMod.readState();
+if (stVI2.pluginTargets.includes('verify-interface')) {
+  fail('VI2 an orphaned, permanently-unloadable cache dir blocked retirement — the predicate is now practically inert on any machine with plugin-update history');
+}
+if (!stVI2.retired['verify-interface']) fail('VI2 retired but recorded no evidence — the next install would just put it back');
+if (!/#13/.test(stVI2.retired['verify-interface'].evidence || '') && !fs.readFileSync(viMarketplace, 'utf8').includes(viFixed)) {
+  fail(`VI2 no usable evidence recorded: ${JSON.stringify(stVI2.retired['verify-interface'])}`);
+}
+if (!retiredVI.log.some((l) => /^retired verify-interface/.test(l))) {
+  fail('VI2 retirement was never announced');
+}
+if (cmds.problemsIn(retiredVI).some((l) => /^retired /.test(l))) {
+  fail('VI2 a retirement was reported as a PROBLEM — the exact "crying wolf over good news" bug SU3 already guards for adr-reindex');
+}
+// The orphaned copy — genuinely never loadable again — must be left exactly as found; retiring never
+// touches files outside what it actually reasoned about.
+if (fs.readFileSync(viOrphanCache, 'utf8') !== viBuggy) {
+  fail('VI2 retiring touched the orphaned cache copy it explicitly excluded from its own reasoning');
+}
+
+// VI3 — the manifest is missing/unreadable: fall back to checking EVERY discovered copy, the
+// conservative default. An unfixed orphaned copy must then correctly keep the target live.
+fs.rmSync(viManifest, { force: true });
+installViOnly();
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('verify-interface')) {
+  fail('VI3 retired with NO installed_plugins.json to resolve the active version — must fall back to checking every copy, and the orphaned one is still buggy');
+}
+
+console.log('✔ verify-interface self-retirement (VI1 keeps when the active copy still has the bug, VI2 an orphaned unloadable copy does not block retirement + evidence recorded + announced without crying wolf + orphan left untouched, VI3 falls back to checking every copy when the manifest is unreadable)');
+
 // ─── UP: self-update from immutable tags ─────────────────────────────────────
 //
 // The monitor tick pulls a newer TAG of this package. It is the only thing that carries a new

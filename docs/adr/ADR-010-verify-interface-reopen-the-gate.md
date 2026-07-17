@@ -1,9 +1,15 @@
 # ADR-010: verify-interface: reopen ruvnet-brain's unopenable PreToolUse gate
 
-**Status**: accepted
+**Status**: superseded
 **Date**: 2026-07-14
+**Updated**: 2026-07-17. RETIRED: `ruvnet-brain` shipped its own complete rewrite in v3.2.9 (commit
+`bfc2d36`): real JSON parsing (closes #13) and a command-position-anchored matcher with a working
+override checked against the command string (closes #12). Verified against the two installed copies
+this machine can actually load (the marketplace checkout and the active cache version, per
+`installed_plugins.json`), and both carry the fix. `lib/supersede.mjs` now retires this target
+automatically wherever that holds; see "Retirement", below.
 **Deciders**: Henrik Pettersen
-**Tags**: patch-target, plugin, ruvnet-brain
+**Tags**: patch-target, plugin, ruvnet-brain, retired
 
 ## Context
 
@@ -59,7 +65,22 @@ so every edit carries TWO anchors: the original buggy line, and v1's own output.
   regex, so any command containing an escaped quote is truncated at the first one. The gate is blind to
   quoted text, which both hides false positives and misses real invocations.
 
+## Retirement (2026-07-17)
+
+`SUPERSEDED_BY['verify-interface']` (`lib/supersede.mjs`) checks two functional, code-level markers from
+the real fix (a real JSON-parser invocation, and the override checked against `$CMD` rather than the
+hook's own environment) against the marketplace checkout and whichever cache version
+`installed_plugins.json` names as actually installed. `discover()`'s own file list includes every
+`cache/<version>` directory ever downloaded, which for a plugin with update history accumulates
+permanently unloadable leftovers forever; checking the fix against ALL of them would keep this
+predicate live indefinitely on any real machine, so the check deliberately scopes to what Claude Code
+can actually load and falls back to checking everything only if the manifest can't be resolved.
+
+Retiring restores our edits from the composed engine's own backup (`plugin-compose.mjs`'s `reconcile`),
+which only ever touches files carrying our marker; upstream's replacement is never at risk.
+
 ## Links
 
 - Upstream: [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13)
-- `lib/verify-interface/`
+- The fix: v3.2.9, commit `bfc2d36`
+- `lib/verify-interface/`, `lib/supersede.mjs`

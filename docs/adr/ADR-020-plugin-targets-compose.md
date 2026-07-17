@@ -2,6 +2,13 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
+**Updated**: 2026-07-17. The manual recovery this ADR's own Negative section describes (six poisoned
+backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
+an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
+and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
+a `reverse` (its substitution is a pure, invertible literal replace), so a poisoned backup on a file it
+patched now self-heals on the next apply instead of requiring another one-off manual fix. See
+`lib/pristine.mjs`, `lib/plugin-compose.mjs`.
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
