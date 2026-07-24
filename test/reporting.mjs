@@ -20,7 +20,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
-import { VI_FIX_MARKERS } from '../lib/supersede.mjs';
+import { VI_FIX_MARKERS, hasFixMarker } from '../lib/supersede.mjs';
 
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
@@ -466,7 +466,7 @@ if (fs.existsSync(REAL_BRAIN) || fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
 }
 if (viFixtureBytes === null) {
   console.log('· verify-interface (SKIPPED — the ruvnet-brain plugin is not installed)');
-} else if (viFixtureBytes.includes(VI_FIX_MARKERS.JSON_PARSE) && viFixtureBytes.includes(VI_FIX_MARKERS.OVERRIDE_ON_CMD)) {
+} else if (hasFixMarker(viFixtureBytes, VI_FIX_MARKERS.JSON_PARSE) && hasFixMarker(viFixtureBytes, VI_FIX_MARKERS.OVERRIDE_ON_CMD)) {
   console.log('· verify-interface (SKIPPED — ruvnet-brain shipped its own fix upstream, v3.2.9+; our patch is retired, ADR-010; no buggy vendor copy is available on this machine to test against)');
 } else {
   freshSandbox();
