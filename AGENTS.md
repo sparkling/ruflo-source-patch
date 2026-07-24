@@ -42,6 +42,7 @@ npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-re
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # rewrite bundled mcp__claude-flow__* refs to mcp__plugin_ruflo-core_ruflo__* — dead under plugin loading (#2685)
 npx github:sparkling/ruflo-source-patch design-wall install        # scope ruvnet-brain's design-grade commit gate to its own repo — it fires on ANY repo's README otherwise (ruvnet-brain#17)
+npx github:sparkling/ruflo-source-patch memory-health install      # fix the Onboarding Console's memory-health card scoring the WRONG project (background refresh spawned with the plugin's own cwd)
 ```
 
 ### Keep it live (actions add `run | check`)
