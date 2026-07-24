@@ -2,6 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
+**Updated**: 2026-07-25 — third edit added: suppress the skills.sh registration, which imports the whole `ruvnet/ruflo` repo into `.agents/skills/` (97MB, 384 `SKILL.md`) and exhausts the host agent's skill budget ([#2777](https://github.com/ruvnet/ruflo/issues/2777)). Same principle, new file (`commands/init.js`), so it belongs to this target rather than a new one.
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -27,7 +28,7 @@ plugin-off setups. That reasoning does not hold on a deployment that has no plug
 ## Decision
 
 Add an `init` patch target to `@claude-flow/cli`, patched at the callee like the other CLI targets, that
-disables generation of the plugin-duplicated artifacts. Two files, four edits:
+disables generation of the plugin-duplicated artifacts. Three files, five edits:
 
 - `init/mcp-generator.js`: disable the standalone `claude-flow` `.mcp.json` emission. The guard
   `if (config.claudeFlow)` occurs three times (config + two add-command branches), so the anchor pins the
@@ -35,8 +36,19 @@ disables generation of the plugin-duplicated artifacts. Two files, four edits:
 - `init/executor.js`: disable the three bundle copy gates (`copySkills` / `copyCommands` / `copyAgents`).
   HELPERS ARE KEPT (init writes all ~43; no plugin replaces them), exactly as `plugin-only` keeps them.
   `settings` / `statusline` / `runtime` / `claudeMd` are untouched.
+- `commands/init.js` (added 2026-07-25, [#2777](https://github.com/ruvnet/ruflo/issues/2777)): suppress
+  `maybeInstallSkillsSh()`, which runs `npx --yes skills add ruvnet/ruflo --skill ruflo --yes`. Upstream's own
+  fix commit (`23abe26b9`) claims it "installs ONLY the platform skill (~1 file)"; measured, it lands **97MB
+  and 384 `SKILL.md`** — the whole repository, because `vercel-labs/skills` copies `dirname(SKILL.md)`
+  recursively and ruflo's canonical `SKILL.md` sits at the repo root. Codex then truncates every skill
+  description to fit its 2% skills budget, so the project's own skills are degraded to host a copy of ruflo.
+  Deleting the import is not a remedy: upstream's idempotency gate keys on `.agents/skills/ruflo` existing, so
+  the next `init` re-clones it. Independently, it is an **unpinned `npx --yes` fetch-and-execute** of a
+  dependency declared in no `package.json`, with both consent prompts pre-answered. Anchored on the first
+  guard inside the `try`, not the function signature — a signature is one rename from drifting.
 
-The edits are `if (X)` → `if (false && X)`, which keeps the referenced symbol used, is a minimal unique
+The edits are `if (X)` → `if (false && X)` (and, for the skills.sh guard, an unconditional early
+`return`), which keeps the referenced symbol used, is a minimal unique
 anchor, and reverts to byte-identical on uninstall. It composes into `all` like any patch target, so a
 plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
