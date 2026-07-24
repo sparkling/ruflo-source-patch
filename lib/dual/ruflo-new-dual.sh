@@ -43,6 +43,12 @@
 #   4. Convert to single-source dual via the sibling `ruflo-add-codex.sh` (adds
 #      Codex tooling + the merged AGENTS.md canonical / CLAUDE.md=@AGENTS.md model,
 #      #2635/#2636/#2637/#2638 all handled there).
+#   5. Sweep the plugin-duplicated bundle via `ruflo-dedupe-bundle.sh` (ON by default,
+#      --no-dedupe to skip). `ruflo init` writes plugin-covered HOOK entries even when the
+#      `init` patch target is applied — that target scopes itself to the .mcp.json server and
+#      the skills/commands/agents bundle — so without this step a FRESH scaffold ships hooks
+#      that double-fire against the plugins' own hooks.json (#2640). This used to be a sentence
+#      in this comment block telling you to run it yourself, which is not a step, it is a hope.
 #
 # start-all is ON BY DEFAULT: it launches ruflo's background DAEMON, which
 # runs interval workers that spawn headless sessions and consume tokens
@@ -50,9 +56,10 @@
 # daemon/swarm (memory still gets initialized regardless, via step 2 above).
 #
 # Usage:
-#   ruflo-new-dual.sh <project-dir> [--no-start-all] [--template <t>] [--force] [--quiet]
+#   ruflo-new-dual.sh <project-dir> [--no-start-all] [--no-dedupe] [--template <t>] [--force] [--quiet]
 #     <project-dir>  Where to create the project (must be empty or new, unless --force)
 #     --no-start-all Skip daemon + swarm auto-start (token-burning daemon; default is ON)
+#     --no-dedupe    Skip step 5's plugin-duplication sweep (default is ON — see step 5)
 #     --template     Codex skills template: minimal | default  (default: default)
 #     --force        Init into a non-empty dir / overwrite existing config
 #     --quiet        Less output
@@ -61,9 +68,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ADD_CODEX="$SCRIPT_DIR/ruflo-add-codex.sh"
+# Step 5 (see header). TWO layouts, both real, so resolve rather than assume: in-repo the dedupe
+# script is a SIBLING in lib/dual/, but `install` materializes the two targets into SEPARATE dirs
+# (~/.ruflo-source-patch/dual/ and .../dedupe-bundle/). Hard-coding either one silently disables
+# step 5 in the other layout — the same class of miss as anchoring on one spelling of a fix.
+DEDUPE=""
+for _c in "$SCRIPT_DIR/ruflo-dedupe-bundle.sh" "$SCRIPT_DIR/../dedupe-bundle/ruflo-dedupe-bundle.sh"; do
+  [[ -f "$_c" ]] && { DEDUPE="$_c"; break; }
+done
 
 PROJECT_DIR=""
 START_ALL=1
+DEDUPE_ON=1
 TEMPLATE="default"
 FORCE=0
 QUIET=""
@@ -72,6 +88,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --start-all)    START_ALL=1; shift ;;   # accepted for back-compat; already the default
     --no-start-all) START_ALL=0; shift ;;
+    --dedupe)       DEDUPE_ON=1; shift ;;   # accepted for symmetry; already the default
+    --no-dedupe)    DEDUPE_ON=0; shift ;;
     --template)     TEMPLATE="${2:?--template needs a value}"; shift 2 ;;
     --force)        FORCE=1; shift ;;
     --quiet)        QUIET="--quiet"; shift ;;
@@ -132,6 +150,26 @@ CONV_FLAGS=(--template "$TEMPLATE")
 [[ -n "$QUIET" ]]   && CONV_FLAGS+=(--quiet)
 say "==> converting to single-source dual (Codex + merged templates)"
 "$ADD_CODEX" "$PROJECT_DIR" "${CONV_FLAGS[@]}"
+
+# ---- 5. sweep the plugin-duplicated bundle (#2640) --------------------------
+# This used to be a SENTENCE IN A COMMENT — "run the sibling ruflo-dedupe-bundle.sh afterward" —
+# which is not a step, it is a hope. A script whose entire job is "produce a correct fresh dual
+# project" cannot knowingly leave duplication behind and document the remedy where no user will
+# read it: `ruflo init` still writes plugin-covered HOOK entries even with the `init` patch applied
+# (that target scopes itself to the .mcp.json server and the skills/commands/agents bundle), so a
+# fresh scaffold double-fired every one of them against the plugins' own hooks.json. Default ON,
+# --no-dedupe to opt out: on a project this script created seconds ago there is nothing of the
+# user's to lose, and the sweep keeps routing/session/subagent/auto-memory hooks regardless.
+if [[ $DEDUPE_ON -eq 1 ]]; then
+  if [[ -n "$DEDUPE" ]]; then
+    say "==> sweeping plugin-duplicated bundle entries (#2640)"
+    DD_FLAGS=(); [[ -n "$QUIET" ]] && DD_FLAGS+=(--quiet)
+    # Non-fatal: the project is already usable, and a failed sweep must not read as a failed scaffold.
+    bash "$DEDUPE" "$PROJECT_DIR" "${DD_FLAGS[@]}" || say "warning: dedupe sweep failed — project is usable; run \`plugin-only run $PROJECT_DIR\` by hand"
+  else
+    say "warning: dedupe script not found next to $SCRIPT_DIR — run \`ruflo-source-patch plugin-only run $PROJECT_DIR\` to strip plugin-duplicated hooks"
+  fi
+fi
 
 say ""
 say "Fresh single-source dual project ready: $PROJECT_DIR"
