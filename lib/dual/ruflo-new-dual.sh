@@ -121,22 +121,8 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 # ---- 1. ruflo init (Claude Code side) — NEVER pass --start-all here ---------
 INIT_FLAGS=(--with-embeddings)   # default preset, NOT --full (see #2640)
 [[ $FORCE -eq 1 ]] && INIT_FLAGS+=(--force)
-# RUFLO_NO_SKILLS_SH=1: `ruflo init` otherwise runs `npx skills add ruvnet/ruflo --skill ruflo`,
-# which — despite `--skill` naming ONE skill — lands the ENTIRE ruvnet/ruflo repo in
-# .agents/skills/ruflo/. Measured on a fresh scaffold: 97MB, 384 SKILL.md files, against 4 real
-# ones at 8K each. Codex then truncates every skill description to fit its 2% skills budget, so
-# the project's OWN skills get degraded by the import. Upstream's own comment concedes it "clones
-# the whole ruvnet/ruflo repo (~50MB)" and pings a leaderboard while doing it.
-#
-# Skipped by default here because this script's users install the ruflo PLUGINS, which already
-# carry those skills — the import is pure duplication that costs budget. Set RUFLO_SKILLS_SH=1 to
-# opt back in. Env var, not the --no-skills-sh flag: an unknown env var is inert on every CLI
-# version, an unknown flag is a hard error on the ones that predate it.
-SKILLS_SH_ENV=(RUFLO_NO_SKILLS_SH=1)
-if [[ "${RUFLO_SKILLS_SH:-0}" == "1" ]]; then SKILLS_SH_ENV=(); fi
-
 say "==> ruflo init ${INIT_FLAGS[*]}   (in $PROJECT_DIR)"
-if ! ( cd "$PROJECT_DIR" && env ${SKILLS_SH_ENV[@]+"${SKILLS_SH_ENV[@]}"} npx --yes ruflo init "${INIT_FLAGS[@]}" $QUIET ); then
+if ! ( cd "$PROJECT_DIR" && npx --yes ruflo init "${INIT_FLAGS[@]}" $QUIET ); then
   die "ruflo init failed. See output above."
 fi
 
