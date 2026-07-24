@@ -29,7 +29,7 @@ export RSP_NO_LAUNCHCTL=1
 # the real kill against only its OWN fakes. Same discipline as RSP_NO_LAUNCHCTL above.
 export RSP_NO_STALE_WRITER_KILL=1
 
-SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs stale-writer monitor-internals mcp-prefix design-wall)
+SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs stale-writer monitor-internals mcp-prefix design-wall memory-health)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

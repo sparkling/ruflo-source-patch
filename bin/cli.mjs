@@ -51,6 +51,7 @@ import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
 import { designWallCommand } from '../lib/design-wall/commands.mjs';
+import { memoryHealthCommand } from '../lib/memory-health/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -75,6 +76,9 @@ const PLUGIN_PATCH_TARGETS = {
   // ruvnet-brain again, a different script: its design-grade commit gate never checks which repo
   // it is running in before demanding a visual design ritual for a plain README.md commit.
   'design-wall': designWallCommand,
+  // ruvnet-brain a THIRD time: its Onboarding Console's background cache refresh spawns with the
+  // plugin's own cwd instead of the server's, so the memory-health card scores the wrong project.
+  'memory-health': memoryHealthCommand,
 };
 
 function usage() {
@@ -104,6 +108,8 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
   ${pad('design-wall')}its design-grade commit gate never checks which repo it's running in —
   ${pad('')}  an unrelated repo's plain README.md commit trips the same visual-design wall
+  ${pad('memory-health')}its Onboarding Console scores the PLUGIN's own dir's memory store, not
+  ${pad('')}  your project's — a cache-refresh child spawns with the wrong cwd
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

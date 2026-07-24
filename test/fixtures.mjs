@@ -94,6 +94,7 @@ const looksPatched = {
   adrTemplate: (buf) => composedIsOurs(buf),
   verifyInterface: (buf) => buf.includes('(^|[[:space:]]|[;&|(])($TOOLS)'),
   designWall: (buf) => buf.includes('ORIGIN=$(git -C') && buf.includes('*"ruvnet-brain"*'),
+  memoryHealth: (buf) => buf.includes('the refresh child must inherit') && buf.includes('cwd: process.cwd() });'),
 };
 
 /**
@@ -105,7 +106,8 @@ const looksPatched = {
  *   3. a PATCHED file with no backup is NOT a baseline, and we refuse it. Using it would make
  *      the suite green while testing the patch against itself.
  *
- * `kind` picks the recogniser: 'marker' (CLI targets), 'adrIndex', or 'adrTemplate'.
+ * `kind` picks the recogniser: 'marker' (CLI targets), 'adrIndex', 'adrTemplate', 'verifyInterface',
+ * 'designWall', or 'memoryHealth'.
  */
 export function pristineBytes(file, kind = 'marker') {
   const backup = `${file}.rsp-backup`;
