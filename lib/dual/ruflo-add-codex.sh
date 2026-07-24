@@ -115,6 +115,40 @@ if ! npx --yes @claude-flow/codex init --path "$PROJECT_DIR" --template "$TEMPLA
        *.bak). Resolve the issue and re-run."
 fi
 
+# ---- 2b. Register ruvnet-brain's MCP server for Codex ------------------------
+# ruvnet-brain ships a working MCP server (search_ruvnet), a `.codex/` directory, 5 skills and 4
+# commands — and registers NONE of it with Codex. Its installer's 21 `codex` references all READ
+# ~/.codex/auth.json to classify the user's subscription for cost-routing; nothing ever writes
+# ~/.codex/config.toml. So on a Codex host the brain is entirely absent, while `--doctor` reports
+# "Grounding PROVEN" (true for Claude Code, silent about Codex). stuinfla/ruvnet-brain#42.
+#
+# Its own plugin/.mcp.json cannot be copied verbatim: it uses `${CLAUDE_PLUGIN_ROOT}`, a Claude Code
+# variable Codex does not expand. We resolve the absolute path instead.
+#
+# The MARKETPLACE checkout is preferred over plugins/cache/<version>/: the cache path changes on
+# every /plugin update, which would leave a stale absolute path in config.toml after each upgrade.
+# Idempotent, and skipped entirely when the plugin isn't installed. Never fatal — a project that
+# converts fine without the brain must not fail because the brain is absent.
+BRAIN_MCP=""
+for _b in "$HOME/.claude/plugins/marketplaces/ruvnet-brain/plugin/mcp/server.mjs"; do
+  [[ -f "$_b" ]] && { BRAIN_MCP="$_b"; break; }
+done
+if [[ -n "$BRAIN_MCP" ]]; then
+  CODEX_CFG="$HOME/.codex/config.toml"
+  if [[ -f "$CODEX_CFG" ]] && grep -q '^\[mcp_servers\.ruvnet-brain\]' "$CODEX_CFG" 2>/dev/null; then
+    say "    ruvnet-brain MCP already registered for Codex — skipping"
+  else
+    mkdir -p "$(dirname "$CODEX_CFG")"
+    # Appending a table at EOF is safe in TOML: a table ends where the next header begins.
+    {
+      printf '\n[mcp_servers.ruvnet-brain]\n'
+      printf 'command = "node"\n'
+      printf 'args = ["%s"]\n' "$BRAIN_MCP"
+    } >> "$CODEX_CFG"
+    say "    registered ruvnet-brain MCP for Codex (search_ruvnet now available there) — #42"
+  fi
+fi
+
 # ---- 3. Install the single-source instruction files -------------------------
 # Substitute __PROJECT__ via Node's replaceAll with a FUNCTION replacer, which is
 # truly literal for any project name. (sed AND bash `${//}` both treat `&` in the

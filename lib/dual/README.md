@@ -50,6 +50,19 @@ leaves **tracked** ([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
 
 `templates/` holds the `AGENTS.md` / `CLAUDE.md` bodies both scripts write.
 
+Both scripts also **register `ruvnet-brain`'s MCP server for Codex** when that plugin is installed, because
+its own installer never does. ruvnet-brain ships a working MCP server (`search_ruvnet`), a `.codex/`
+directory, 5 skills and 4 commands, and wires **none** of it to Codex: all 21 `codex` references in its
+`bin/install.mjs` merely *read* `~/.codex/auth.json` to classify the user's subscription for cost-routing,
+and nothing ever writes `~/.codex/config.toml`. So on a Codex host the brain is entirely absent while
+`--doctor` still reports "Grounding PROVEN", which is true for Claude Code and silent about Codex
+([ruvnet-brain#42](https://github.com/stuinfla/ruvnet-brain/issues/42)).
+
+Its own `plugin/.mcp.json` cannot be reused verbatim: it uses `${CLAUDE_PLUGIN_ROOT}`, a Claude Code
+variable Codex does not expand, so the absolute path is resolved instead. The **marketplace** checkout is
+preferred over `plugins/cache/<version>/`, whose path changes on every `/plugin update` and would leave a
+stale absolute path behind after each upgrade. Idempotent, skipped when the plugin is absent, never fatal.
+
 ## `dedupe`
 
 Delete what the plugins already give you.
