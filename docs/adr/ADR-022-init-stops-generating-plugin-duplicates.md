@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-25 — third edit added: suppress the skills.sh registration, which imports the whole `ruvnet/ruflo` repo into `.agents/skills/` (97MB, 384 `SKILL.md`) and exhausts the host agent's skill budget ([#2777](https://github.com/ruvnet/ruflo/issues/2777)). Same principle, new file (`commands/init.js`), so it belongs to this target rather than a new one.
+**Updated**: 2026-07-25. Third edit added, suppressing the skills.sh registration, which imports the whole `ruvnet/ruflo` repo into `.agents/skills/` (97MB, 384 `SKILL.md`) and exhausts the host agent's skill budget ([#2777](https://github.com/ruvnet/ruflo/issues/2777)). Same principle in a new file (`commands/init.js`), so it belongs to this target rather than a new one.
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -39,13 +39,13 @@ disables generation of the plugin-duplicated artifacts. Three files, five edits:
 - `commands/init.js` (added 2026-07-25, [#2777](https://github.com/ruvnet/ruflo/issues/2777)): suppress
   `maybeInstallSkillsSh()`, which runs `npx --yes skills add ruvnet/ruflo --skill ruflo --yes`. Upstream's own
   fix commit (`23abe26b9`) claims it "installs ONLY the platform skill (~1 file)"; measured, it lands **97MB
-  and 384 `SKILL.md`** — the whole repository, because `vercel-labs/skills` copies `dirname(SKILL.md)`
+  and 384 `SKILL.md`**, which is the whole repository. `vercel-labs/skills` copies `dirname(SKILL.md)`
   recursively and ruflo's canonical `SKILL.md` sits at the repo root. Codex then truncates every skill
   description to fit its 2% skills budget, so the project's own skills are degraded to host a copy of ruflo.
   Deleting the import is not a remedy: upstream's idempotency gate keys on `.agents/skills/ruflo` existing, so
   the next `init` re-clones it. Independently, it is an **unpinned `npx --yes` fetch-and-execute** of a
   dependency declared in no `package.json`, with both consent prompts pre-answered. Anchored on the first
-  guard inside the `try`, not the function signature — a signature is one rename from drifting.
+  guard inside the `try`, not the function signature, because a signature is one rename from drifting.
 
 The edits are `if (X)` → `if (false && X)` (and, for the skills.sh guard, an unconditional early
 `return`), which keeps the referenced symbol used, is a minimal unique
