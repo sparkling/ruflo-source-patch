@@ -44,24 +44,44 @@ platform reads. Nothing to keep in sync, so nothing drifts.
 `ruflo-new-dual.sh` uses the **default** `ruflo init` preset (`--with-embeddings`), not `--full`. Note the
 default **still bundles** the plugin-duplicated `.claude/{skills,commands,agents}` (~196 files, verified
 against `@claude-flow/cli` 3.28.0 on 2026-07-15). `--full` just adds more, and either way `dedupe` is
-needed afterward. It also uses `npx --yes` so a missing `@claude-flow/codex` doesn't abort the whole init
-([#2635](https://github.com/ruvnet/ruflo/issues/2635)), and gitignores the root `.env` that `ruflo init`
-leaves **tracked** ([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
+needed; the fresh-project script runs it by default and `--no-dedupe` opts out. The Codex conversion fetches the exact audited
+`@claude-flow/codex@3.0.1` adapter with `npx --yes`, so a missing local adapter package does not abort
+the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)).
 
 `templates/` holds the `AGENTS.md` / `CLAUDE.md` bodies both scripts write.
 
-Both scripts also **register `ruvnet-brain`'s MCP server for Codex** when that plugin is installed, because
-its own installer never does. ruvnet-brain ships a working MCP server (`search_ruvnet`), a `.codex/`
-directory, 5 skills and 4 commands, and wires **none** of it to Codex: all 21 `codex` references in its
-`bin/install.mjs` merely *read* `~/.codex/auth.json` to classify the user's subscription for cost-routing,
-and nothing ever writes `~/.codex/config.toml`. So on a Codex host the brain is entirely absent while
-`--doctor` still reports "Grounding PROVEN", which is true for Claude Code and silent about Codex
-([ruvnet-brain#42](https://github.com/stuinfla/ruvnet-brain/issues/42)).
+The adapter runs behind a private, failing `codex` shim. It therefore cannot add, replace, or remove the
+user's real `ruflo` MCP registration. After initialization, the wrapper calls the Codex executable it
+resolved before installing the shim, selects the target project with `-C`, and runs `mcp add` only when
+`mcp get ruflo` says the exact entry is absent.
+
+Both scripts retain a **legacy fallback** that registers `ruvnet-brain`'s MCP server for Codex when an
+installed Brain release predates its native fix. Current Brain source owns the persistent server copy,
+managed config block, and live doctor handshake
+([ruvnet-brain#42](https://github.com/stuinfla/ruvnet-brain/issues/42)); this compatibility layer first
+asks Codex's own MCP registry and does nothing when Brain is already registered. It works only when the
+marketplace checkout actually contains `plugin/mcp/server.mjs`; it cannot repair a Brain npm artifact
+that omitted that file ([ruvnet-brain#43](https://github.com/stuinfla/ruvnet-brain/issues/43)).
 
 Its own `plugin/.mcp.json` cannot be reused verbatim: it uses `${CLAUDE_PLUGIN_ROOT}`, a Claude Code
 variable Codex does not expand, so the absolute path is resolved instead. The **marketplace** checkout is
 preferred over `plugins/cache/<version>/`, whose path changes on every `/plugin update` and would leave a
 stale absolute path behind after each upgrade. Idempotent, skipped when the plugin is absent, never fatal.
+
+The scripts do **not** install `.codex/skills/*/skill.toml`: that shape was inferred from a
+MetaHarness-local convention, not a Codex discovery contract, and is inert. An upgrade removes only the
+four byte-exact project manifests this package historically shipped, plus the obsolete package-owned
+materialized `codex-skills` directory. Customized files are preserved.
+
+The conversion treats `.agents/config.toml`, `.codex/AGENTS.override.md`, `.codex/config.toml`, and
+`.gitignore` as user-owned adapter boundaries. Pre-existing bytes are restored exactly and
+adapter-created copies are removed. `AGENTS.md` and `CLAUDE.md` have the same rollback guarantee on
+adapter failure or interruption; the adapter runs in a separate process group, so descendants are
+stopped before restoration. Supported `.agents/skills` written before an adapter failure may remain.
+Only a successful conversion replaces the instruction files with the templates. Symlinked protected
+ancestors and instruction-backup destinations are refused. After restoration, the wrapper preserves existing
+`.gitignore` rules and appends only its marker-owned `.env`, runtime, and `*.bak` entries. Claude's MCP
+server remains owned by the installed `ruflo-core` plugin rather than a second standalone registration.
 
 ## `dedupe`
 

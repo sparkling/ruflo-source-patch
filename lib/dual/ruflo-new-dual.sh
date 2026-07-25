@@ -3,14 +3,14 @@
 # ruflo-new-dual.sh — Create a FRESH single-source dual (Claude Code + Codex)
 # ruflo project from scratch.
 #
-# Four steps, in this order deliberately:
+# Five steps, in this order deliberately:
 #   1. `ruflo init --with-embeddings`  (the Claude Code side: .claude/,
 #      .mcp.json, embeddings). Uses the DEFAULT preset, NOT --full: --full
 #      bundles ~260 skill/command/agent files that 97-100% DUPLICATE the
 #      installed ruflo/* plugins and double-fire hooks (ruvnet/ruflo#2640).
-#      The default preset is leaner. To strip the remaining plugin-duplicated
-#      bundle, run the sibling `ruflo-dedupe-bundle.sh` afterward. Never pass
-#      --start-all to this step — see step 3 for why.
+#      The default preset is leaner. Step 5 strips the remaining
+#      plugin-duplicated bundle by default. Never pass --start-all to this step
+#      — see step 3 for why.
 #   2. `ruflo memory init --force` — ALWAYS runs. Creates the memory database and
 #      the HNSW index (`.swarm/memory.db`, `.claude/memory.db`, `ruvector.db`).
 #      `--force` is harmless immediately after a fresh init (nothing real to lose).
@@ -165,9 +165,10 @@ if [[ $DEDUPE_ON -eq 1 ]]; then
     say "==> sweeping plugin-duplicated bundle entries (#2640)"
     DD_FLAGS=(); [[ -n "$QUIET" ]] && DD_FLAGS+=(--quiet)
     # Non-fatal: the project is already usable, and a failed sweep must not read as a failed scaffold.
-    bash "$DEDUPE" "$PROJECT_DIR" "${DD_FLAGS[@]}" || say "warning: dedupe sweep failed — project is usable; run \`plugin-only run $PROJECT_DIR\` by hand"
+    bash "$DEDUPE" "$PROJECT_DIR" "${DD_FLAGS[@]}" \
+      || echo "warning: dedupe sweep failed — project is usable; run \`plugin-only run $PROJECT_DIR\` by hand" >&2
   else
-    say "warning: dedupe script not found next to $SCRIPT_DIR — run \`ruflo-source-patch plugin-only run $PROJECT_DIR\` to strip plugin-duplicated hooks"
+    echo "warning: dedupe script not found next to $SCRIPT_DIR — run \`ruflo-source-patch plugin-only run $PROJECT_DIR\` to strip plugin-duplicated hooks" >&2
   fi
 fi
 

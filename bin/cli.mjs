@@ -102,8 +102,8 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
   ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
-  ${pad('design-wall')}its design-grade commit gate never checks which repo it's running in —
-  ${pad('')}  an unrelated repo's plain README.md commit trips the same visual-design wall
+  ${pad('design-wall')}legacy issue #17 repo-scope fix — self-retires only after the active
+  ${pad('')}  upstream gate parses and passes an allow-unrelated/block-own behavior probe
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
@@ -185,6 +185,22 @@ if (!action) {
 // STALE-LIB gate would be unreachable, a check that cannot fail. Read-only commands observe;
 // mutating commands repair. (The monitor repairs too, on its own tick — see stable.mjs.)
 const READ_ONLY = new Set(['status', 'check']);
+let releasePatchMutationLock = null;
+const MUTATES_SHARED_PATCH_STATE = !READ_ONLY.has(action)
+  && (target === 'all'
+    || PATCH_TARGETS.includes(target)
+    || Boolean(PLUGIN_PATCH_TARGETS[target])
+    || (target === 'monitor' && action === 'run'));
+if (MUTATES_SHARED_PATCH_STATE) {
+  try {
+    const state = await import('../lib/cwd/state.mjs');
+    releasePatchMutationLock = state.acquirePatchMutationLock();
+    process.once('exit', () => releasePatchMutationLock?.());
+  } catch (err) {
+    console.error(`[ruflo-source-patch] ${err?.message || err}`);
+    process.exit(1);
+  }
+}
 try {
   if (!READ_ONLY.has(action)) {
     const { readState, isEmpty } = await import('../lib/cwd/state.mjs');

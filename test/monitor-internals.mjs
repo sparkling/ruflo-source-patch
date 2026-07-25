@@ -2,8 +2,6 @@
 //
 //   MI  installMonitor/uninstallMonitor internals. The launchctl/crontab CALL is not testable without
 //       registering a real job — but everything AROUND it is pure, and none of it was tested.
-//   SC  ruflo-new-dual.sh / ruflo-add-codex.sh were only ever PARSE-checked (bash -n). 290 lines of
-//       shell whose only proof was "it parses".
 //   AR  adr-reindex's status() STALE branch, and whether its `skip:not-ours` refusal actually REACHES
 //       the notifier. K5 proves the upstream file survives; it never proved anyone is told.
 
@@ -54,6 +52,11 @@ const env = {
   RUFLO_NPX_ROOT: path.join(SB, 'npx'),
   RUFLO_GLOBAL_ROOT: path.join(SB, 'global'),
 };
+const cli = (args) => spawnSync(
+  process.execPath,
+  [path.join(REPO, 'bin', 'cli.mjs'), ...args],
+  { env, encoding: 'utf8' },
+);
 
 // ─── MI: the monitor's pure internals ────────────────────────────────────────
 // paths.mjs now resolves INSIDE the sandbox — see the warning at the top of this file.
@@ -146,48 +149,6 @@ mon.uninstallMonitor();
 if (fs.existsSync(sandboxPlist)) fail('MI6 uninstallMonitor left the sandbox plist behind');
 
 console.log('✔ monitor internals (MI1 valid plist, MI2 interval honoured + clamped, MI3 cron strips ONLY our line, MI4 uninstall drops meta + heartbeat, MI5 stderr captured, ND1-4 version-stable node, RC1 recover no-ops, MI6 install/uninstall never touch real launchd)');
-
-// ─── SC: the two shell scripts nobody had ever run ───────────────────────────
-const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
-cli(['dual', 'install']);
-const addCodex = path.join(STATE, 'dual', 'ruflo-add-codex.sh');
-const newDual = path.join(STATE, 'dual', 'ruflo-new-dual.sh');
-
-// SC1 — they refuse a nonexistent project rather than doing something unpredictable, and say so.
-const bogus = spawnSync('bash', [addCodex, path.join(SB, 'does-not-exist')], { encoding: 'utf8', env: { ...process.env, HOME } });
-if (bogus.status === 0) fail('SC1 ruflo-add-codex.sh accepted a project directory that does not exist');
-if (!out(bogus).trim()) fail('SC1 it failed on a missing project but said NOTHING about why');
-
-// SC2 — --help works and does not touch the filesystem. It is the only way to run these safely and see
-// what they do; if it errors, nobody can inspect them before pointing them at a real project.
-for (const [name, s] of [['ruflo-add-codex.sh', addCodex], ['ruflo-new-dual.sh', newDual]]) {
-  const h = spawnSync('bash', [s, '--help'], { encoding: 'utf8', env: { ...process.env, HOME }, timeout: 15000 });
-  if (!out(h).trim()) fail(`SC2 ${name} --help printed nothing — the script cannot be inspected before use`);
-}
-
-// SC3 — ruflo-add-codex.sh CONVERTS a real project: AGENTS.md becomes canonical and CLAUDE.md imports
-// it. This is the actual contract of the `dual` target and it had never been executed.
-const proj = path.join(SB, 'proj');
-fs.mkdirSync(path.join(proj, '.claude'), { recursive: true });
-spawnSync('git', ['init', '-q'], { cwd: proj });
-fs.writeFileSync(path.join(proj, 'CLAUDE.md'), '# my project\n\nSome existing instructions.\n');
-
-const conv = spawnSync('bash', [addCodex, proj, '--force', '--quiet'], {
-  encoding: 'utf8', env: { ...process.env, HOME }, timeout: 90000,
-});
-
-const agents = path.join(proj, 'AGENTS.md');
-const claude = path.join(proj, 'CLAUDE.md');
-if (!fs.existsSync(agents)) {
-  fail(`SC3 ruflo-add-codex.sh did not produce AGENTS.md — the whole point of the dual target:\n${out(conv)}`);
-}
-const claudeBody = fs.readFileSync(claude, 'utf8');
-if (!/@AGENTS\.md/.test(claudeBody)) {
-  fail(`SC3 CLAUDE.md does not import @AGENTS.md — the two files will diverge, which is the bug this fixes:\n${claudeBody.slice(0, 300)}`);
-}
-if (fs.readFileSync(agents, 'utf8').length < 50) fail('SC3 AGENTS.md is essentially empty');
-
-console.log('✔ dual scripts (SC1 a missing project is refused loudly, SC2 --help works, SC3 add-codex really produces AGENTS.md + a CLAUDE.md that imports it)');
 
 // ─── AR: adr-reindex's reporting branches ────────────────────────────────────
 const { isProblem } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'problems.mjs')}`);

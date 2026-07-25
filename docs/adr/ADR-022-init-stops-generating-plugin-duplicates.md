@@ -59,7 +59,8 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 - `ruflo init` / `doctor` stop re-adding the duplicates, so `plugin-only` is a one-time cleanup rather than
   a recurring chore. The two are complements: `plugin-only` removes what exists, `init` stops it recurring.
 - Verified against real vendor bytes (II1 to II3): the emission and all three bundle gates are disabled,
-  helpers stay enabled, both files still parse, and uninstall restores byte-for-byte.
+  the skills.sh registration is suppressed, helpers stay enabled, all three files still parse, and uninstall
+  restores byte-for-byte.
 
 ### Negative
 

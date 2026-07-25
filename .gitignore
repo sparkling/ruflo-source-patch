@@ -3,7 +3,7 @@
 *.tgz
 node_modules/
 
-# Codex local configuration
+# This repository's local Codex files (other projects may intentionally track .codex/config.toml)
 .codex/
 
 # Claude Flow runtime data
@@ -26,8 +26,6 @@ node_modules/
 ruvector.db
 agentdb.rvf
 
-# .codex = local overrides (add-codex.sh convention: .agents/config.toml is the committed project config)
-.codex/
 .claude/.bundle-backup/
 
 # .claude runtime state (memory DB + proven-config harness output; regenerated, not source)

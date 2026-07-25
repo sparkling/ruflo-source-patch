@@ -20,14 +20,18 @@ const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
 const REAL = findVendorRoot();
+const lib = await import(`file://${path.join(REPO, 'lib', 'cwd', 'patch-library.mjs')}`);
 
-const FILES = [
-  '@claude-flow/cli/dist/src/fs-secure.js',
-  '@claude-flow/cli/dist/src/memory/memory-initializer.js',
-  '@claude-flow/cli/dist/src/commands/daemon.js',
-  '@claude-flow/cli/dist/src/services/daemon-autostart.js',
-  '@claude-flow/cli-core/dist/src/mcp-tools/types.js',
-];
+const TARGETS = ['cwd', 'daemon', 'memory'];
+// Keep this oracle tied to the shipped table: every CURRENT @claude-flow file touched by these
+// targets belongs in the race, including the many cwd state writers. The @sparkleideas legacy
+// daemon entry has its own synthesized acceptance test below and is not part of the current CLI.
+const FILES = [...new Set(lib.ENTRIES
+  .filter((entry) => TARGETS.includes(entry.target) && entry.suffix[0] === '@claude-flow')
+  .map((entry) => entry.suffix.join('/')))]
+  .filter((rel) => fs.existsSync(path.join(REAL, rel)));
+const PRISTINE = new Map(FILES.map((rel) => [rel, pristineBytes(path.join(REAL, rel))]));
+const DAEMON_AUTOSTART_REL = '@claude-flow/cli/dist/src/services/daemon-autostart.js';
 const nm = path.join(SB, 'npx', 'h', 'node_modules');
 const vendor = (rel) => path.join(nm, rel);
 
@@ -37,7 +41,7 @@ function freshSandbox() {
   fs.writeFileSync(path.join(HOME, '.claude', 'settings.json'), '{}');
   for (const rel of FILES) {
     fs.mkdirSync(path.dirname(vendor(rel)), { recursive: true });
-    fs.writeFileSync(vendor(rel), pristineBytes(path.join(REAL, rel)));
+    fs.writeFileSync(vendor(rel), PRISTINE.get(rel));
   }
 }
 
@@ -51,35 +55,213 @@ const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.m
 const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
 const out = (r) => `${r.stdout || ''}${r.stderr || ''}`;
 
-// ─── CC: concurrent installs must not lose a target ──────────────────────────
+function requireCompleteStatus(label) {
+  const status = cli(['cwd', 'status']);
+  if (status.status !== 0) fail(`CC3 ${label}: status failed:\n${out(status)}`);
+  const text = out(status);
+  for (const targetName of TARGETS) {
+    const match = text.match(new RegExp(`✔\\s+${targetName}\\s+(\\d+)\\/(\\d+)\\s+file\\(s\\) patched`));
+    if (!match) fail(`CC3 ${label}: status has no installed ratio for ${targetName}:\n${text}`);
+    const patched = Number(match[1]);
+    const total = Number(match[2]);
+    if (total <= 0 || patched !== total) {
+      fail(`CC3 ${label}: ${targetName} is only ${patched}/${total} patched:\n${text}`);
+    }
+  }
+  return text;
+}
 
-let lost = 0;
+function installedSnapshot(label) {
+  const snapshot = new Map();
+  for (const rel of FILES) {
+    const file = vendor(rel);
+    const backup = `${file}.rsp-backup`;
+    if (!fs.existsSync(file)) fail(`CC3 ${label}: patched file disappeared: ${rel}`);
+    if (!fs.existsSync(backup)) fail(`CC3 ${label}: pristine backup is missing: ${rel}`);
+    const fileBytes = fs.readFileSync(file);
+    const backupBytes = fs.readFileSync(backup);
+    if (fileBytes.length === 0) fail(`CC3 ${label}: concurrent apply truncated ${rel}`);
+    if (backupBytes.length === 0) fail(`CC3 ${label}: pristine backup is empty: ${rel}`);
+    if (!backupBytes.equals(PRISTINE.get(rel))) {
+      fail(`CC3 ${label}: backup is not byte-identical to pristine vendor bytes: ${rel}`);
+    }
+    snapshot.set(rel, { fileBytes, backupBytes });
+  }
+  return snapshot;
+}
+
+function mutationArtifacts() {
+  const found = [];
+  for (const name of ['state.json.lock', 'state.json.mutation.lock', 'state.json.mutation.lock.recovery']) {
+    const file = path.join(STATE, name);
+    if (fs.existsSync(file)) found.push(file);
+  }
+  const pending = [nm, STATE];
+  while (pending.length) {
+    const dir = pending.pop();
+    let children = [];
+    try { children = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const child of children) {
+      const file = path.join(dir, child.name);
+      if (child.isDirectory()) pending.push(file);
+      else if (child.name.includes('.rsp-tmp-') || child.name.includes('.candidate-')) found.push(file);
+    }
+  }
+  return found;
+}
+
+function requireNoMutationArtifacts(label) {
+  const found = mutationArtifacts();
+  if (found.length) fail(`CC2 ${label}: lock/temp artifacts were left behind:\n${found.join('\n')}`);
+}
+
+function concurrentInstall(targetName) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), targetName, 'install'], {
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let settled = false;
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, 45000);
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ targetName, stdout, stderr, timedOut, ...result });
+    };
+    child.once('error', (error) => settle({ code: null, signal: null, error }));
+    child.once('close', (code, signal) => settle({ code, signal }));
+  });
+}
+
+if (!FILES.includes(DAEMON_AUTOSTART_REL)) {
+  fail(`CC fixture table does not include the current daemon-autostart entry: ${DAEMON_AUTOSTART_REL}`);
+}
+for (const targetName of TARGETS) {
+  if (!lib.ENTRIES.some((entry) => entry.target === targetName
+    && entry.suffix[0] === '@claude-flow'
+    && FILES.includes(entry.suffix.join('/')))) {
+    fail(`CC fixture table has no current vendor file for ${targetName}`);
+  }
+}
+
+const invalidTimeout = spawnSync(process.execPath, [
+  '--input-type=module',
+  '--eval',
+  `import(${JSON.stringify(`file://${path.join(REPO, 'lib', 'cwd', 'state.mjs')}`)}).then((m) => process.stdout.write(String(m.PATCH_LOCK_TIMEOUT_MS)))`,
+], { env: { ...env, RSP_PATCH_LOCK_TIMEOUT_MS: 'banana' }, encoding: 'utf8' });
+if (invalidTimeout.status !== 0 || invalidTimeout.stdout !== '30000') {
+  fail(`CC0 invalid RSP_PATCH_LOCK_TIMEOUT_MS did not fall back to 30000ms:\n${out(invalidTimeout)}`);
+}
+
+// A dead owner is recovered once, under a second guard. All three contenders must still serialize;
+// the stale observation that prompted recovery is never permission to delete a successor's live lock.
+freshSandbox();
+fs.mkdirSync(STATE, { recursive: true });
+fs.writeFileSync(path.join(STATE, 'state.json.mutation.lock'), `${JSON.stringify({
+  pid: 2147483647, token: 'dead-owner', startedAt: new Date(0).toISOString(),
+})}\n`);
+const recovered = await Promise.all(TARGETS.map(concurrentInstall));
+if (recovered.some((child) => child.timedOut || child.code !== 0 || child.signal || child.error)) {
+  fail(`CC1 dead-owner recovery did not serialize all contenders:\n${recovered.map(out).join('\n')}`);
+}
+requireCompleteStatus('dead-owner recovery');
+requireNoMutationArtifacts('dead-owner recovery');
+
+// Malformed ownership is not "provably dead": timeout loudly instead of stealing it by age.
+freshSandbox();
+fs.mkdirSync(STATE, { recursive: true });
+fs.writeFileSync(path.join(STATE, 'state.json.mutation.lock'), 'not valid ownership metadata\n');
+const malformed = spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), 'cwd', 'install'], {
+  env: { ...env, RSP_PATCH_LOCK_TIMEOUT_MS: '1000' }, encoding: 'utf8',
+});
+if (malformed.status === 0 || !/timed out|refusing/.test(out(malformed))) {
+  fail(`CC1 malformed lock was stolen or failed silently:\n${out(malformed)}`);
+}
+
+// SessionStart remains non-blocking, but a live lock timeout must be visible rather than swallowed.
+fs.writeFileSync(path.join(STATE, 'state.json.mutation.lock'), `${JSON.stringify({
+  pid: process.pid, token: 'live-owner', startedAt: new Date().toISOString(),
+})}\n`);
+const hook = spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'session-start.mjs')], {
+  env: { ...env, RSP_PATCH_LOCK_TIMEOUT_MS: '1000' }, encoding: 'utf8',
+});
+if (hook.status !== 0 || !/ATTENTION.*not re-applied|re-apply failed/s.test(out(hook))) {
+  fail(`CC1 SessionStart lock timeout was silent or blocked startup:\n${out(hook)}`);
+}
+
+// A torn/corrupt desired-state image must not be reinterpreted as "nothing installed".
+freshSandbox();
+fs.mkdirSync(STATE, { recursive: true });
+fs.writeFileSync(path.join(STATE, 'state.json'), '{"patchTargets":');
+const corruptState = cli(['cwd', 'install']);
+if (corruptState.status === 0 || !/cannot read .*state\.json/.test(out(corruptState))) {
+  fail(`CC1 corrupt desired state was treated as an empty successful install:\n${out(corruptState)}`);
+}
+for (const rel of FILES) {
+  if (!fs.readFileSync(vendor(rel)).equals(PRISTINE.get(rel)) || fs.existsSync(`${vendor(rel)}.rsp-backup`)) {
+    fail(`CC1 corrupt desired state still mutated vendor bytes: ${rel}`);
+  }
+}
+requireNoMutationArtifacts('corrupt desired state');
+
+// ─── CC: concurrent installs must match a fresh sequential installation ─────
+
+// Build the byte-for-byte oracle from the same pristine vendor files, but with the mutations serialized
+// explicitly. A non-empty file or a checkmark is not enough: the concurrent outcome must be identical.
+freshSandbox();
+for (const targetName of TARGETS) {
+  const result = cli([targetName, 'install']);
+  if (result.status !== 0) fail(`CC3 sequential ${targetName} install failed:\n${out(result)}`);
+}
+const expectedState = fs.readFileSync(path.join(STATE, 'state.json'));
+requireCompleteStatus('sequential oracle');
+const expectedFiles = installedSnapshot('sequential oracle');
+requireNoMutationArtifacts('sequential oracle');
+
 const RUNS = 8;
 for (let i = 0; i < RUNS; i++) {
   freshSandbox();
   // eslint-disable-next-line no-await-in-loop
-  await Promise.all(['cwd', 'daemon', 'memory'].map((t) => new Promise((res) => {
-    spawn(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), t, 'install'], { env, stdio: 'ignore' })
-      .on('exit', res);
-  })));
-
-  let st = { patchTargets: [] };
-  try { st = JSON.parse(fs.readFileSync(path.join(STATE, 'state.json'), 'utf8')); } catch { /* none */ }
-  if ((st.patchTargets || []).length !== 3) {
-    lost++;
-    console.log(`  run ${i}: state.json = [${(st.patchTargets || []).sort()}]`);
+  const children = await Promise.all(TARGETS.map(concurrentInstall));
+  for (const child of children) {
+    if (child.timedOut || child.code !== 0 || child.signal || child.error) {
+      fail(`CC run ${i + 1}: ${child.targetName} install failed`
+        + ` (code=${child.code}, signal=${child.signal}, timedOut=${child.timedOut}):\n`
+        + `${child.stdout}${child.stderr}${child.error ? `\n${child.error.message}` : ''}`);
+    }
   }
-}
-if (lost) {
-  fail(`CC ${lost}/${RUNS} concurrent installs LOST a target from state.json.\n`
-    + '   That is not a bookkeeping slip: the monitor re-applies FROM state.json, so a dropped target\n'
-    + '   is one the next tick actively UN-PATCHES. This is ruflo #2621 in our own state file.');
+
+  const actualState = fs.readFileSync(path.join(STATE, 'state.json'));
+  if (!actualState.equals(expectedState)) {
+    fail(`CC run ${i + 1}: concurrent state differs from the sequential oracle:\n${actualState}`);
+  }
+  requireCompleteStatus(`run ${i + 1}`);
+  const actualFiles = installedSnapshot(`run ${i + 1}`);
+  for (const rel of FILES) {
+    const expected = expectedFiles.get(rel);
+    const actual = actualFiles.get(rel);
+    if (!actual.fileBytes.equals(expected.fileBytes)) {
+      fail(`CC3 run ${i + 1}: patched vendor bytes differ from the sequential oracle: ${rel}`);
+    }
+    if (!actual.backupBytes.equals(expected.backupBytes)) {
+      fail(`CC3 run ${i + 1}: backup bytes differ from the sequential oracle: ${rel}`);
+    }
+  }
+  requireNoMutationArtifacts(`run ${i + 1}`);
 }
 
-// CC2 — the lock file is not left behind. A stale lock would freeze every future write for 15s.
-if (fs.existsSync(path.join(STATE, 'state.json.lock'))) fail('CC2 the state lock was left behind after the writes completed');
-
-console.log(`✔ concurrency (CC ${RUNS} runs of 3 simultaneous installs, no target lost; CC2 no stale lock)`);
+console.log(`✔ concurrency (CC ${RUNS} runs of 3 simultaneous installs match a fresh sequential state + ${FILES.length} vendor/backup byte oracle; every status ratio complete; CC2 no lock/temp artifacts)`);
 
 // ─── ML: the injected memory WRITE LOCK actually works ───────────────────────
 // The highest-value missing test in the package. We inject this lock to fix ruflo #2621 — "50 acked,
@@ -88,7 +270,6 @@ console.log(`✔ concurrency (CC ${RUNS} runs of 3 simultaneous installs, no tar
 // Run the real fragment: two processes doing a read-modify-write of a shared file, each incrementing a
 // counter 40 times, exactly the shape storeEntry() has. Without a lock the interleaving loses writes.
 
-const lib = await import(`file://${path.join(REPO, 'lib', 'cwd', 'patch-library.mjs')}`);
 const memLockSrc = lib.FRAGMENTS?.memLock?.src;
 if (!memLockSrc) fail('ML the memLock fragment is not exported from patch-library — cannot test the code we inject');
 
@@ -217,7 +398,7 @@ if (!havePlugin) {
 fs.chmodSync(pluginSkill, 0o000);
 
 // ...and simultaneously break a CLI anchor, so there is a CLI-side problem found EARLIER in the same tick.
-fs.writeFileSync(vendor(FILES[3]), 'export function unrelated() {}\n');
+fs.writeFileSync(vendor(DAEMON_AUTOSTART_REL), 'export function unrelated() {}\n');
 
 const tick = spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
 fs.chmodSync(pluginSkill, 0o644);

@@ -36,7 +36,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 | `problems.mjs` | **One** definition of "a line a human must see." Used by the hook, the monitor log, and the notifier. It was three copies, and they had all drifted the same way. |
 | `health.mjs` | Watches the watchman. A dead monitor is indistinguishable from a healthy system, the most dangerous state a watchdog can be in, and one it cannot report on itself. |
 | `notify.mjs` | UserPromptSubmit. SessionStart is too late: a new ruflo version can land in the npx cache **mid-session**. |
-| `state.mjs` | What is installed, and what has **retired**. Every mutation is a read-modify-write, and it now holds a **cross-process lock** (see below). |
+| `state.mjs` | What is installed, and what has **retired**. A small lock protects each `state.json` read-modify-write; an outer fail-closed lock makes **state change + vendor-file rebuild** one transaction (see below). |
 | `update-check.mjs` | Self-update, from **immutable semver tags** and never a branch. On the tick, not the hook: sessions run for days, so a hook-gated update leaves an invalidated patch re-applying itself for a week. Forward only; a failed install keeps the working version and says so. |
 | `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. `strayStateDirs()` is also the LEAK DETECTOR the SessionStart hook reports from: a state dir in a subdirectory is an anchor that leaked, whatever form it took. |
 | `stale-writer.mjs` | The other process-signaller (ADR-023). Detects a ruflo MCP client/daemon still writing `memory.db` with old code, which the in-file write lock can never reach. **Kills every `pre-patch` writer** (daemon and MCP client alike) to force fresh code, guarded like cleanup (only a positively-resolved ruflo writer). A killed MCP client needs a manual `/mcp` reconnect afterward; that warning is pushed through `problems.mjs`'s `addProblems()` so it reaches the user's next prompt in any session. `unpatched` writers are never killed (a respawn would gain nothing). `RSP_NO_STALE_WRITER_KILL` disables every kill. |
@@ -63,9 +63,19 @@ is one the next monitor tick **actively un-patches**. A concurrent install didn'
 It silently reverted a patch that was already applied.
 
 That is precisely [#2621](https://github.com/ruvnet/ruflo/issues/2621), last-writer-wins silently
-dropping writes, the bug this package exists to fix in `memory.db`. It now takes the same lock we inject
-into ruflo: `O_EXCL` create, steal after 15s, proceed unlocked after 5s rather than refuse to run. 12/12
-lost → 0/12.
+dropping writes, the bug this package exists to fix in `memory.db`. Each state mutation now takes the
+same `O_EXCL` lock pattern we inject into ruflo. But that alone was not enough: after serializing
+`state.json`, concurrent commands still rebuilt the same vendor file and `.rsp-backup`, and one
+measured run entered a non-terminating kernel copy against an in-flight zero-byte backup.
+
+The outer `state.json.mutation.lock` now covers the whole transaction: change the desired set, then
+make disk match it. Foreground commands, SessionStart, and the monitor share it. Complete ownership
+metadata is published atomically; dead-owner removal is itself serialized by a recovery claim and
+re-checks the original token. A malformed or indeterminate claim is never stolen by age. Timeout
+**fails closed** and SessionStart reports it without blocking startup. `state.json` and pristine
+backups use temp + fsync + rename, so a killed owner cannot expose a torn authoritative input.
+The concurrency test verifies dead-owner recovery, malformed-owner refusal, final state, final vendor
+bytes, non-empty backups, and complete lock/temp cleanup.
 
 ## `cleanup` was silently broken on macOS
 

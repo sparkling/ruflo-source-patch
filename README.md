@@ -152,7 +152,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`mcp-prefix`** | **The plugins' own tools are dead under plugin loading.** Every `ruflo` plugin bundles skills/agents/commands/hooks that name the MCP tools `mcp__claude-flow__*`. That prefix resolves **only** when the server is registered *standalone* under the key `claude-flow` ([#2206](https://github.com/ruvnet/ruflo/issues/2206)). Used **as a plugin** (the marketplace path), Claude Code namespaces the plugin's bundled server, so the same tools are exposed as `mcp__plugin_ruflo-core_ruflo__*`. Per Claude Code's own MCP docs, *"a hook matcher written against the bare server key … never fires for a plugin-bundled server,"* so the bundled `allowed-tools` globs grant nothing and prompt tool names name tools that don't exist. The platform **won't** bridge it ([anthropics/claude-code#29360](https://github.com/anthropics/claude-code/issues/29360) and [#15145](https://github.com/anthropics/claude-code/issues/15145) are both *closed as not planned*). Measured: **3,482 refs across 474 files in ~30 packages**; only `ruflo-core` ships a server, so the plugin-namespaced name is uniformly `mcp__plugin_ruflo-core_ruflo__*`. Rewrites the bare prefix to it. Correct where it takes effect (the files load only when the plugin is enabled, and then that prefix resolves), inert where it doesn't. It does **not** touch the CLI init generators that emit the same prefix into *your project* files, where that prefix is right for standalone-registered projects, so it's genuinely environment-dependent and out of scope | [#2685](https://github.com/ruvnet/ruflo/issues/2685) |
-| **`design-wall`** | **A visual-design gate that gates everyone else's repos too.** `ruvnet-brain`'s `design-wall.sh` blocks `git commit` on a staged `README.md`/`explainer/`/`console/` file until a fresh design-grade stamp is recorded, a sound idea for ruvnet-brain's OWN visual surfaces, applied to every other repository on the machine as well, since `${CLAUDE_PROJECT_DIR:-.}` is never checked for identity before requiring the ritual. Measured: blocked a plain-markdown README commit in an unrelated CLI tool's repo. Reads the project's git origin and requires it to actually name `ruvnet-brain`/`stuinfla` before any stamp is required; ruvnet-brain's own commits are still gated exactly as before | [stuinfla/ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) |
+| **`design-wall`** | **Retired when the active upstream fix is verified.** Older `ruvnet-brain` copies applied their README/explainer/console wall to every repository. The historical patch scoped it by origin. Current upstream versions ship a stronger plugin-manifest identity gate; this target requires its anchors and valid shell syntax, then executes the real hook against staged README commits in unrelated and ruvnet-brain fixture repos. Only `allow` outside plus `block` inside permits byte-safe cleanup and terminal retirement. Unknown or old copies keep the patch | [stuinfla/ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) |
 
 ### Script targets
 
@@ -662,7 +662,7 @@ only in the file that platform reads. Nothing to keep in sync, so nothing drifts
 
 ```bash
 # a NEW dual project, from scratch
-~/.ruflo-source-patch/dual/ruflo-new-dual.sh <project-dir> [--no-start-all] [--template <t>] [--force]
+~/.ruflo-source-patch/dual/ruflo-new-dual.sh <project-dir> [--no-start-all] [--no-dedupe] [--template <t>] [--force]
 
 # convert an EXISTING ruflo/Claude Code project
 ~/.ruflo-source-patch/dual/ruflo-add-codex.sh [project-dir] [--template <t>] [--force]
@@ -670,9 +670,20 @@ only in the file that platform reads. Nothing to keep in sync, so nothing drifts
 
 `ruflo-new-dual.sh` runs `ruflo init` with the **default** preset (`--with-embeddings`), not `--full`. The
 default **still** bundles the plugin-duplicated `.claude/{skills,commands,agents}` (~196 files; `--full`
-just adds more), so `dedupe` is needed either way. It also uses `npx --yes` so a missing `@claude-flow/codex`
-doesn't abort the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)), and it gitignores the
-root `.env` that `ruflo init` leaves **tracked** ([#2637](https://github.com/ruvnet/ruflo/issues/2637)).
+just adds more), so the fresh-project script runs the plugin-only sweep by default (`--no-dedupe`
+opts out). The conversion fetches the exact audited
+`@claude-flow/codex@3.0.1` adapter with `npx --yes`, so a missing local adapter package does not abort the
+whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)).
+
+The adapter runs behind a failing private `codex` shim, so it cannot overwrite the user's MCP registry.
+Afterward, the wrapper calls the original Codex executable with `-C <project>` and adds `ruflo` only when
+that exact entry is absent. Existing `.agents/config.toml`, `.codex/AGENTS.override.md`,
+`.codex/config.toml`, and `.gitignore` bytes are restored; adapter-created copies are removed.
+`AGENTS.md` and `CLAUDE.md` are also restored on failure or interruption. After stripping the adapter's
+ignore edits, the wrapper preserves existing rules and appends only its marker-owned `.env`, runtime,
+and `*.bak` rules. It does not
+install inferred `.codex/skills/*/skill.toml` manifests, and Claude uses the plugin-owned MCP server
+rather than a duplicate standalone registration.
 
 ### plugin-only (dedupe)
 
@@ -1147,7 +1158,7 @@ sequences × 6 steps over `{adr-template, adr-index} × {install, uninstall, sta
 | **N1 to N4** | the notifier: silent when healthy · announces the break · rate-limits · self-clears when fixed |
 | **H1 to H4** | monitor liveness: silent when no monitor installed · stale heartbeat · dead interpreter · missing script |
 
-The remaining five suites cover **every path where a failure could be mistaken for success**, which,
+The remaining suites cover **every path where a failure could be mistaken for success**, which,
 for a package that is almost entirely notification paths, is the only thing that matters. They exist
 because the first two stayed green through a round of fixes they were green *before*: they pinned the old
 invariants, and an untested notification path rots without anyone noticing.
@@ -1159,9 +1170,9 @@ invariants, and an untested notification path rots without anyone noticing.
 | **A1 to A2** | an **ambiguous anchor** is refused, never guessed at. Uniqueness is a property of *upstream's* code (a measurement, not a promise), so it is checked on every apply |
 | **RB1 to RB5** | a **re-baseline hands over instructions**, not just a warning: the real `diff` command, what to look for in the new code, and how to back the patch out. And an *ordinary* problem does **not** print the essay |
 | **V1 to V7** | **`verify-interface`**, behavioural rather than textual. The unpatched fixture really does block (else all of it is vacuous, and V1 caught exactly that on its first run) · the false positives are gone · **an unread interface still blocks** · and a **partial apply writes nothing**, because these five edits are interdependent |
-| **CC · ML** | **concurrency.** Three simultaneous installs lost a target in **12 runs out of 12** before `state.json` got a lock. And **ML executes the injected memory write lock** rather than grepping for it: two processes × 40 read-modify-writes. With the lock: 80. Stubbed out: **38**, the exact shape of the "50 acked, 25 on disk" bug it exists to prevent |
+| **CC · ML** | **concurrency.** Three simultaneous installs lost a target in **12 runs out of 12** before `state.json` got a lock. Serializing state alone still let vendor rebuilds race, so one fail-closed transaction now covers state + disk. CC verifies atomically published ownership, guarded dead-owner recovery, malformed-owner refusal, SessionStart reporting, final state/bytes, non-empty backups, and cleanup. **ML executes the injected memory write lock** rather than grepping for it: two processes × 40 read-modify-writes. With the lock: 80. Stubbed out: **38**, the exact shape of the "50 acked, 25 on disk" bug it exists to prevent |
 | **CL · K** | **`cleanup`**, the only command that removes directories and signals processes. `--dry-run` deletes nothing · the project's own state **survives** · `$HOME` is refused · and **K3: another project's daemon survives.** Real processes, real `pgrep`/`lsof`/`ps` |
-| **SS · MI · SC** | the **SessionStart hook** actually re-applying to a fresh npx copy (never executed before) · the plist, cron spec and interval clamp · and the `dual` scripts really producing an `AGENTS.md` that `CLAUDE.md` imports |
+| **SS · MI · DH** | the **SessionStart hook** actually re-applying to a fresh npx copy · the plist, cron spec and interval clamp · and the offline `dual` host-boundary harness proving policy/MCP preservation, rollback, migration, and symlink refusal |
 
 **Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
 discipline has now caught **six vacuous tests**, ones that passed with the guard deleted, and were
@@ -1199,14 +1210,14 @@ this machine*, which is the only form of the question that can be acted on.
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) **closed, not fully fixed** | Whole-file read-modify-write on `memory.db`: a daemon or MCP server holding a stale in-memory image flushes it back and resurrects deleted rows. `dc01598` adds a `withMemoryDbLock`, but **only `purgeNamespace` calls it**, and upstream's own comment says so: *"This does NOT fully close #2621 … that requires every memory.db writer to respect the same lock."* Every other writer is still unlocked | `memory` |
 | [ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) **fixed in 3.2.9, target retired** | `verify-interface.sh`'s PreToolUse gate was **unopenable**: its tool regex swallowed any hyphenated binary name (`ruflo-source-patch …` → `ruflo …`) and matched inside plain English prose (`another ruflo process is writing` → `ruflo process is`), while the documented `RUVNET_SKIP_INTERFACE_CHECK=1` override was read from the hook's own environment, where a caller could never set it. **Upstream shipped its own complete rewrite in v3.2.9** (commit `bfc2d36`): real JSON parsing and a command-position-anchored matcher with a working override | `verify-interface` (retired, ADR-010) |
 | [ruvnet-brain#13](https://github.com/stuinfla/ruvnet-brain/issues/13) **fixed in 3.2.9** | The same hook parsed its JSON payload with a **regex**, and `[^"]*` could not cross a quote, so a command containing an escaped `"` was **truncated at the first one**. `bash -c "ruflo memory search"` reached the gate as `bash -c \` and ran unchecked. **Fixed by the same v3.2.9 rewrite**: the payload is now parsed as real JSON | `verify-interface` (retired, ADR-010) |
-| [ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) | `design-wall.sh`'s commit gate never checks **which repository** it is running in before requiring a design-grade stamp. A plain README commit in an entirely unrelated repo trips the identical visual-design ritual meant for ruvnet-brain's own explainer/console surfaces. Reads the project's git origin and requires it to actually name `ruvnet-brain`/`stuinfla` first | `design-wall` |
+| [ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) **fixed upstream; target retires on local proof** | Older `design-wall.sh` copies never checked **which repository** they were guarding. Current upstream resolves the project and requires its own plugin-manifest identity (with a structure fallback) before any wall check. The predicate validates anchors and syntax, then proves the installed hook allows an unrelated staged README commit and still blocks ruvnet-brain's own before standing down | `design-wall` (retired when proven, ADR-024) |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation. `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
 | [#2777](https://github.com/ruvnet/ruflo/issues/2777) | `ruflo init` imports the **entire `ruvnet/ruflo` repo** into `.agents/skills/ruflo/`, measuring **97MB and 384 `SKILL.md`** (`Cargo.toml`, `crates/`, `docs/`, `agentdb.rvf`), where upstream's own fix commit claims "**~1 file**". `--skill ruflo` narrows *registration* (`skills-lock.json` records one entry) but not *materialisation*. `vercel-labs/skills` copies `dirname(SKILL.md)` recursively, and ruflo's canonical `SKILL.md` sits at the **repo root**, so that dirname *is* the repository. The host agent then spends its skill budget on the import. Codex reports *"Skill descriptions were shortened to fit the 2% skills context budget."* Deleting it does not help, because the idempotency gate keys on the directory existing, so the next `init` re-clones. It is also an **unpinned `npx --yes` fetch-and-execute** of an undeclared dependency | `init` |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | `ruflo init` (CLAUDE.md) and `codex init` (AGENTS.md) generate divergent instruction files | `dual-codex-claude` |
-| [#2637](https://github.com/ruvnet/ruflo/issues/2637) | `ruflo init` gitignores only a nested `.claude-flow/.gitignore`; root `.env` is left tracked | `dual-codex-claude` (its `.gitignore` step) |
+| [#2637](https://github.com/ruvnet/ruflo/issues/2637) | `ruflo init` gitignores only a nested `.claude-flow/.gitignore`; root `.env` is left tracked | `dual-codex-claude` strips adapter-owned edits, preserves existing rules, and appends its marker-owned `.env`/runtime rules |
 | [#2636](https://github.com/ruvnet/ruflo/issues/2636) | `ruflo init --dual` produces a Codex-primary layout (thin CLAUDE.md stub) | `dual-codex-claude` |
-| [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (uses `npx --yes`) |
+| [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (fetches audited `@claude-flow/codex@3.0.1` with `npx --yes`) |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634) | `codex init --template full` generates ~100 placeholder stub skills | `dual-codex-claude` (default template only) |
 | [#2659](https://github.com/ruvnet/ruflo/issues/2659) | `ruflo-adr`'s own `adr-create` template writes bullet-list metadata that `adr-index`'s parser can't read (Status/Date/Tags silently come back empty/Unknown) | `adr-template` |
 | [#2660](https://github.com/ruvnet/ruflo/issues/2660) | `adr-index` **cannot update a changed ADR**, the one thing its own SKILL.md advertises. Both namespaces are insert-only: deterministic keys collide so records stay **frozen**; random edge keys never collide so edges **duplicate** every run (3 → 6 → 9). A `UNIQUE` failure (exit 1) is counted as a stored record, so both are reported as success | `adr-index`, `adr-reindex` |

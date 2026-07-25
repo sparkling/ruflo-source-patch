@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **seven suites, 30 groups**. No framework, no dependencies.
+`npm test` runs **eleven suites**. No framework, no dependencies.
 
 ## Contents
 
@@ -20,7 +20,11 @@
 | `untested.mjs` | The SessionStart hook body, `cleanup`'s directory half, the script targets, the shell scripts. All of them had *zero* coverage until it was measured rather than assumed. |
 | `concurrency.mjs` | Concurrent installs; the **injected memory write lock actually executing**; the plugin-throw guard; the uncovered-build detector; the legacy daemon entry. |
 | `cleanup-procs.mjs` | `cleanup`'s **kill** half. Real processes, real `pgrep`/`lsof`/`ps`. |
-| `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup; the `dual` shell scripts actually running; `adr-reindex`'s reporting branches. |
+| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including dry-run and kill-switch boundaries. |
+| `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup, and `adr-reindex`'s reporting branches. |
+| `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
+| `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |
+| `design-wall.mjs` | The real hook behavior and fail-closed retirement of the legacy design-wall patch. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
 ## Three rules, all learned the hard way

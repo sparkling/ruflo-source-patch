@@ -100,7 +100,7 @@ const looksPatched = {
  * The pristine bytes for one vendor file.
  *
  * Order matters, and the last branch is the point of the whole module:
- *   1. a .rsp-backup is pristine BY CONSTRUCTION — that is what a backup is.
+ *   1. a non-empty .rsp-backup with no local patch signature is the best available pristine.
  *   2. a file our patch is not in is pristine.
  *   3. a PATCHED file with no backup is NOT a baseline, and we refuse it. Using it would make
  *      the suite green while testing the patch against itself.
@@ -109,11 +109,18 @@ const looksPatched = {
  */
 export function pristineBytes(file, kind = 'marker') {
   const backup = `${file}.rsp-backup`;
-  if (fs.existsSync(backup)) return fs.readFileSync(backup);
+  const patched = looksPatched[kind] || looksPatched.marker;
+  if (fs.existsSync(backup)) {
+    const buf = fs.readFileSync(backup);
+    if (!buf.length || patched(buf.toString('utf8'))) {
+      die(`${backup}\n  is empty or still carries a local patch signature, so it is not a valid pristine fixture.\n`
+        + '  Reinstall the affected package/plugin before running acceptance tests.');
+    }
+    return buf;
+  }
   if (!fs.existsSync(file)) die(`missing vendor fixture: ${file}`);
 
   const buf = fs.readFileSync(file);
-  const patched = looksPatched[kind] || looksPatched.marker;
   if (patched(buf.toString('utf8'))) {
     die(`${file}\n  is PATCHED and has no .rsp-backup, so there is no pristine baseline to test against.\n`
       + '  Using it would silently test the patch against itself and pass.\n'

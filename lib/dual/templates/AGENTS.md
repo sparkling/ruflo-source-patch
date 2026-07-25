@@ -131,7 +131,7 @@ npm run build && npm test
 
 - **Skill syntax**: invoke skills with `$skill-name`. (Claude Code uses `/skill-name`; see `CLAUDE.md`.)
 - **Execution model**: `claude-flow` = LEDGER (coordinates memory, routing, swarm state); **Codex = EXECUTOR** (writes code, runs tests, creates files). Coordination commands return instantly, so DON'T STOP after them; continue immediately with the next implementation step.
-- Codex config lives in `.agents/config.toml` (project) and `.codex/config.toml` (local overrides, gitignored).
+- Codex instructions live in `AGENTS.md`. Trusted projects may also have `.codex/config.toml`; approval and sandbox policy are user-owned. Scaffolding must not create, replace, or weaken them.
 
 ## Links
 

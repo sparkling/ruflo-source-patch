@@ -68,6 +68,8 @@ The rule itself, and its rationale, are in `AGENTS.md`.
 ## Setup
 
 ```bash
-claude mcp add claude-flow -- npx -y ruflo@latest mcp start
 npx ruflo@latest doctor --fix
 ```
+
+The installed `ruflo-core` plugin owns its Claude MCP server. Do not add a
+second standalone `claude-flow` server: both would write the same project state.

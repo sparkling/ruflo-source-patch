@@ -41,7 +41,7 @@ npx github:sparkling/ruflo-source-patch adr-index install         # adr-index co
 npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # rewrite bundled mcp__claude-flow__* refs to mcp__plugin_ruflo-core_ruflo__* — dead under plugin loading (#2685)
-npx github:sparkling/ruflo-source-patch design-wall install        # scope ruvnet-brain's design-grade commit gate to its own repo — it fires on ANY repo's README otherwise (ruvnet-brain#17)
+npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate
 ```
 
 ### Keep it live (actions add `run | check`)
@@ -190,7 +190,7 @@ npm run build && npm test
 
 - **Skill syntax**: invoke skills with `$skill-name`. (Claude Code uses `/skill-name`; see `CLAUDE.md`.)
 - **Execution model**: `claude-flow` = LEDGER (coordinates memory, routing, swarm state); **Codex = EXECUTOR** (writes code, runs tests, creates files). Coordination commands return instantly, so DON'T STOP after them; continue immediately with the next implementation step.
-- Codex config lives in `.agents/config.toml` (project) and `.codex/config.toml` (local overrides, gitignored).
+- Codex instructions live in `AGENTS.md`. Trusted projects may also have `.codex/config.toml`; approval and sandbox policy are user-owned. Do not generate, overwrite, or weaken them.
 
 ## Links
 

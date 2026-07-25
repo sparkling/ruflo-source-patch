@@ -1,7 +1,8 @@
 # ADR-024: design-wall: scope ruvnet-brain's commit gate to its own repo
 
-**Status**: accepted
+**Status**: superseded upstream; local target self-retires
 **Date**: 2026-07-17
+**Updated**: 2026-07-25
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, ruvnet-brain
 
@@ -41,6 +42,24 @@ stamp. An unrelated repository's commit is no longer touched by this gate at all
 
 Single literal edit, applied to the marketplace checkout and every cached version (`design-wall.sh`
 carries no version-drift risk the way `verify-interface.sh` did, one shape, one anchor).
+
+## Supersession
+
+ruvnet-brain now ships its own stronger issue #17 fix. `design-wall.sh` resolves the project root,
+accepts it as ruvnet-brain only when `plugin/.claude-plugin/plugin.json` names `ruvnet-brain` (with a
+console/explainer/design-grade structure fallback), and exits before every wall check otherwise.
+This avoids the local patch's forge-specific origin-name heuristic.
+
+The `design-wall` target now resolves every active copy from the installed-plugin manifest and
+physically bounds it to the ruvnet-brain roots. For a still-patched copy, it proves and tests the
+saved upstream bytes in a temporary script directory, so the legacy origin wrapper cannot help the
+replacement pass. The two fixture repositories anti-correlate identity signals: a manifest-negative
+repo has a misleading ruvnet-brain origin, while a manifest-positive repo has an unrelated origin.
+The first must be allowed and the second blocked through the real JSON-on-stdin hook interface.
+
+Only when every copy passes does a mutating re-apply remove a byte-proven local composition, repeat
+the proof, and record retirement. Missing/indeterminate active metadata, symlink escapes, malformed
+shell, wrong behavior, concurrent changes, or unsafe restoration all keep the patch.
 
 ## Consequences
 
