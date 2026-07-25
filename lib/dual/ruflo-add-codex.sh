@@ -136,7 +136,7 @@ done
 if [[ -n "$BRAIN_MCP" ]]; then
   CODEX_CFG="$HOME/.codex/config.toml"
   if [[ -f "$CODEX_CFG" ]] && grep -q '^\[mcp_servers\.ruvnet-brain\]' "$CODEX_CFG" 2>/dev/null; then
-    say "    ruvnet-brain MCP already registered for Codex — skipping"
+    say "    ruvnet-brain MCP already registered for Codex, skipping"
   else
     mkdir -p "$(dirname "$CODEX_CFG")"
     # Appending a table at EOF is safe in TOML: a table ends where the next header begins.
@@ -145,7 +145,43 @@ if [[ -n "$BRAIN_MCP" ]]; then
       printf 'command = "node"\n'
       printf 'args = ["%s"]\n' "$BRAIN_MCP"
     } >> "$CODEX_CFG"
-    say "    registered ruvnet-brain MCP for Codex (search_ruvnet now available there) — #42"
+    say "    registered ruvnet-brain MCP for Codex, search_ruvnet now available there (#42)"
+  fi
+fi
+
+# ---- 2c. Install .codex/skills/<name>/skill.toml dispatch manifests ----------
+# Registering the MCP servers makes the TOOLS reachable. It does not make them DISCOVERABLE:
+# Codex sees a flat tool list with no prompted args and no synopsis. rUv's own repos solve this
+# with thin TOML manifests that dispatch to an MCP tool
+# (agent-harness-generator/.codex/skills/repo-genome/skill.toml, and the same files in
+# metaharness), and validate them in __tests__/codex-skills.test.ts. Neither `ruflo init` nor
+# `codex init` emits any: they write `.agents/skills/<n>/SKILL.md` prose skills only, so the
+# entire MCP surface of both servers arrives in Codex undescribed.
+#
+# CURATED ON PURPOSE. `ruflo` alone exposes several hundred tools. Wrapping them all would
+# rebuild the exact failure this package just patched out in `init`: an import so large the host
+# agent truncates every skill description to fit its budget (#2777). Four manifests, chosen for
+# the operations a Codex session actually reaches for, is the whole point.
+#
+# Arg names, required flags and defaults are copied from each server's live `tools/list`, never
+# assumed. Guessing an interface is what verify-interface exists to stop.
+CODEX_SKILLS_SRC="$SCRIPT_DIR/codex-skills"
+if [[ -d "$CODEX_SKILLS_SRC" ]]; then
+  _written=0 _skipped=0
+  for _sk in "$CODEX_SKILLS_SRC"/*/; do
+    _name="$(basename "$_sk")"
+    # search-ruvnet dispatches to the brain's server; pointless without the brain installed.
+    [[ "$_name" == "search-ruvnet" && -z "$BRAIN_MCP" ]] && continue
+    _dest="$PROJECT_DIR/.codex/skills/$_name"
+    if [[ -f "$_dest/skill.toml" && $FORCE -eq 0 ]]; then
+      _skipped=$((_skipped + 1)); continue   # never clobber a customised manifest
+    fi
+    mkdir -p "$_dest"
+    cp "$_sk/skill.toml" "$_dest/skill.toml"
+    _written=$((_written + 1))
+  done
+  if [[ $_written -gt 0 || $_skipped -gt 0 ]]; then
+    say "    wrote $_written Codex skill manifest(s) to .codex/skills/$([[ $_skipped -gt 0 ]] && echo " ($_skipped kept, already customised)")"
   fi
 fi
 

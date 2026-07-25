@@ -1,0 +1,39 @@
+# Codex skill: ground an answer in rUv's real source before asserting.
+#
+# Wraps ruvnet-brain's `search_ruvnet` MCP tool. Written by ruflo-add-codex.sh because
+# ruvnet-brain's own installer never registers anything with Codex (stuinfla/ruvnet-brain#42):
+# it ships the server, a .codex/ dir, 5 skills and 4 commands, and wires none of them.
+#
+# Shape follows rUv's own Codex manifests (agent-harness-generator/.codex/skills/repo-genome).
+# Arg names + required flags are taken from the server's live tools/list, not assumed.
+
+[skill]
+name = "search-ruvnet"
+version = "0.1.0"
+description = "Search rUv's real source across 34 RuvNet repos (ruflo, RuVector/RVF, AgentDB, SPARC, agentic-flow, metaharness, …). Returns whole documents labelled with the repo + file path they came from, so a capability claim can cite a source instead of a training prior. Use before asserting what any RuvNet tool can or cannot do."
+author = "sparkling"
+homepage = "https://github.com/sparkling/ruflo-source-patch"
+license = "MIT"
+
+[dispatch]
+type = "mcp_tool"
+server = "ruvnet-brain"
+tool = "search_ruvnet"
+
+[command]
+name = "search-ruvnet"
+synopsis = "Ground a RuvNet claim in real source, with the repo/path cited."
+
+[[args]]
+name = "query"
+prompt = "Natural-language question or keywords about any part of RuvNet"
+required = true
+
+[[args]]
+name = "k"
+prompt = "Number of documents to return"
+required = false
+default = "6"
+
+[catalog]
+tags = ["ruvnet", "grounding", "search", "source-of-truth", "ruvnet-brain"]
