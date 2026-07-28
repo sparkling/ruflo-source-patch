@@ -69,6 +69,9 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
+- Patch only installed npm/npx package or plugin bytes through a named, issue-backed patch target. NEVER alter RuvNet Brain's native operating plane: do not disable, delay, pin, redirect, shadow, replace, or bypass its downloads, background updater, `active.json`, immutable version store, cache/KB, MCP, hooks, or self-learning runtime.
+- NEVER add Brain environment guards or local runtime substitutes. This includes `RUVNET_BRAIN_IMPORT_ONLY`, dev overrides, manual mirrors/caches, replacement update jobs, or frozen version-specific entrypoints. Never delete or move Brain update/cache assets unless the user explicitly requests that exact upstream-supported operation.
+- A patch must coexist with Brain's unmodified native update behavior and be reapplied only after the native update completes. If it cannot, stop and ask the user; do not install a workaround.
 - NEVER create files unless absolutely necessary; prefer editing existing files
 - NEVER create documentation files unless explicitly requested
 - NEVER save working files or tests to root; use `/src`, `/tests`, `/docs`, `/config`, `/scripts`
