@@ -122,8 +122,8 @@ Actions: `install` · `uninstall` · `status`
 
 ### Plugin patches
 
-Two installed Claude Code plugins get patched, not just `@claude-flow/cli`. Same shape as the
-patch targets above, same actions, same pristine-backup discipline.
+Installed plugin copies get patched, not just `@claude-flow/cli`. Same shape as the patch targets
+above, same actions, and the same fail-closed ownership/pristine discipline.
 
 #### ruflo-adr
 
@@ -146,6 +146,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`ruflo-hooks-schema`** | Ruflo's canonical `ruflo-core` has two Codex incompatibilities: its manifest ships unsupported `_note` metadata, and its PreToolUse shim always emits Cursor's bare `{"permission":"allow"}` response, which Codex rejects. In Codex's marketplace and active cache only, replaces the bounded JSON header and removes that one exact stdout statement while preserving all seven registrations and the Ruflo telemetry call. Retires only when both copies have a native strict manifest and both `modify-bash` / `modify-file` execution probes produce Codex-valid output | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) |
+| **`ruflo-codex-skills`** | Ruflo ships `commands/ruflo-status.md` for Claude Code, but Codex exposes plugin workflows as skills and current `ruflo-core` has no equivalent. Adds one read-only `ruflo-core:ruflo-status` skill to the active Codex cache; it runs `doctor` plus `status` and leaves `doctor --fix` explicit | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
 
 #### ruvnet-brain
 
@@ -157,6 +158,12 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`verify-interface`** | Its PreToolUse gate blocks a rUv CLI call until you have read that command's `--help`. A good idea that **cannot be opened**. The tool regex `($TOOLS)[@a-z0-9.-]*` absorbs `@latest` *and* any hyphenated **binary name**, so `ruflo-source-patch adr-index status` (a different tool) reads as the `ruflo` CLI and the gate demands `ruflo adr-index status --help`, a command that does not exist. It also matches inside **English prose**: `another ruflo process is writing` parses as `ruflo process is`, so an `echo` or a heredoc that merely *describes* the tool is blocked. And the documented override (`RUVNET_SKIP_INTERFACE_CHECK=1`) is read from the *hook's* environment, where a caller can never set it. The patch absorbs only a `@version`, requires the tool to be in **command position** (a boundary, then any wrappers, then the tool), and honours the override on the command. **The gate still blocks an unread interface.** Fixed, not disabled. **Upstream adopted v1 of this patch into `ruvnet-brain` 2.7.x while #12 stayed open**, prose bug included, so each edit carries two anchors | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) |
 | **`flywheel-daily`** | `ground-ruvnet.sh` used to emit the flywheel-off advisory on every prompt. The compatibility patch claims it once per local day/project. Upstream fixed #53 in `d447802`; this target now selects only active Brain copies, executes the real hook through repeat/day/project/enabled/eight-way-concurrency probes, and retires itself only when that independent replacement is runnable locally | [stuinfla/ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) |
+| **`brain-codex-skills`** | Codex 0.145 silently skips Brain's `rvbc` and `whats-new` command migrations because their rendered skills exceed its 4,000-byte migration ceiling. The three aliases it does migrate are also incomplete: two tell Codex to read a sibling `rvbc.md` that is not packaged, and `configure` relies on Claude-only path state. Adds native `ruvnet-brain:rvbc` / `ruvnet-brain:whats-new` skills and makes those three active-cache aliases self-contained. Brain's shared marketplace, updater, immutable versions, and runtime remain untouched | [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) |
+
+Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
+these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
+`$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`. A new Codex session is required after install
+because the session loads its skill inventory at startup.
 
 #### all ruflo plugins
 
@@ -1244,8 +1251,10 @@ this machine*, which is the only form of the question that can be acted on.
 | [ruvnet-brain#13](https://github.com/stuinfla/ruvnet-brain/issues/13) **fixed in 3.2.9** | The same hook parsed its JSON payload with a **regex**, and `[^"]*` could not cross a quote, so a command containing an escaped `"` was **truncated at the first one**. `bash -c "ruflo memory search"` reached the gate as `bash -c \` and ran unchecked. **Fixed by the same v3.2.9 rewrite**: the payload is now parsed as real JSON | `verify-interface` (retired, ADR-010) |
 | [ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) **fixed upstream; target retires on local proof** | Older `design-wall.sh` copies never checked **which repository** they were guarding. Current upstream resolves the project and requires its own plugin-manifest identity (with a structure fallback) before any wall check. The predicate validates anchors and syntax, then proves the installed hook allows an unrelated staged README commit and still blocks ruvnet-brain's own before standing down | `design-wall` (retired when proven, ADR-024) |
 | [ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) **fixed upstream; target retires on local proof** | Upstream commit `d447802` moved cadence into the hook with an atomic per-project/local-day claim. The local predicate requires the independent code markers and proves real same-day 1/0, next-day, cross-project, enabled-flywheel and eight-way concurrent behavior before removing the patch | `flywheel-daily` (retired when proven) |
+| [ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) | Codex's 4,000-byte command-migration limit silently drops `rvbc` and `whats-new`; the three aliases that survive are not self-contained under Codex and can reference an unpackaged sibling or Claude-only path state | `brain-codex-skills` |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation. `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
+| [#2821](https://github.com/ruvnet/ruflo/issues/2821) | `ruflo-core` ships `ruflo-status` only as a Claude command. Codex's plugin inventory contains the four native Ruflo skills but no read-only status equivalent | `ruflo-codex-skills` |
 | [#2801](https://github.com/ruvnet/ruflo/issues/2801) **registration fixed in v3.32.24 / `@claude-flow/codex` 3.0.2; manifest still rejected** | Current Codex initialization installs `ruflo-core@ruflo` and prints the required `/hooks` trust message, so the redundant initializer edit was removed. The installed manifest still carries unsupported `_note` keys, making #2801's “seven handlers appear” criterion false until [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) lands cleanly | `ruflo-codex-hooks` (existing systems only), `ruflo-hooks-schema` |
 | [#2816](https://github.com/ruvnet/ruflo/issues/2816) | `ruflo-hook.cjs` always emits Cursor's bare `{"permission":"allow"}` after both PreToolUse branches. Codex requires empty stdout for unconditional success or a nested `hookSpecificOutput`, so every Bash/Edit hook reports invalid JSON even though Ruflo telemetry completed | `ruflo-hooks-schema` |
 | [#2777](https://github.com/ruvnet/ruflo/issues/2777) **fixed in v3.32.10** | Current Ruflo writes one bounded platform `SKILL.md` directly and repairs the historical whole-repository layout. The `init` patch now suppresses only legacy bytes that still execute the external `npx skills add` import; the upstream bounded path runs untouched | `init` (legacy compatibility only) |

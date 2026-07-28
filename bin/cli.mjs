@@ -12,9 +12,9 @@
 //   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
 //
-// Plugin patches (changes to the installed `ruflo-adr` plugin, not @claude-flow/cli — same
-// install/uninstall/status shape, different target file). Together they cover the whole ADR
-// round-trip: what adr-create WRITES, what adr-index READS BACK IN, and what neither can REAP.
+// Plugin patches (changes to installed plugin copies, not @claude-flow/cli — same
+// install/uninstall/status shape, different target files). The ADR trio covers the whole round-trip:
+// what adr-create WRITES, what adr-index READS BACK IN, and what neither can REAP.
 //   adr-template   adr-create's own template writes bullet-list metadata that
 //                  adr-index's parser can't read (#2659)
 //   adr-index      adr-index can't update a CHANGED ADR: records are frozen by a
@@ -55,6 +55,9 @@ import { designWallCommand } from '../lib/design-wall/commands.mjs';
 import { flywheelDailyCommand } from '../lib/flywheel-daily/commands.mjs';
 import { codexHooksCommand } from '../lib/codex-hooks/commands.mjs';
 import { rufloHooksSchemaCommand } from '../lib/ruflo-hooks-schema/commands.mjs';
+import {
+  brainCodexSkillsCommand, rufloCodexSkillsCommand,
+} from '../lib/codex-skills/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -63,8 +66,8 @@ const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'ru
 // existing installs and the monitor's byte-compare are undisturbed.
 const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle', 'plugin-only': 'dedupe-bundle' };
 
-// Plugin patches — same shape as PATCH_TARGETS, but they patch the installed
-// `ruflo-adr` plugin rather than @claude-flow/cli, so they dispatch separately.
+// Plugin patches — same shape as PATCH_TARGETS, but they patch installed plugin
+// copies rather than @claude-flow/cli, so they dispatch separately.
 const PLUGIN_PATCH_TARGETS = {
   'adr-template': adrTemplateCommand,
   'adr-index': adrIndexCommand,
@@ -75,6 +78,8 @@ const PLUGIN_PATCH_TARGETS = {
   'verify-interface': verifyInterfaceCommand,
   // Codex rejects Ruflo's manifest metadata and its Cursor-only PreToolUse response (#2816).
   'ruflo-hooks-schema': rufloHooksSchemaCommand,
+  // Codex discovers plugin workflows as namespaced skills, not Claude's command files.
+  'ruflo-codex-skills': rufloCodexSkillsCommand,
   // Spans ALL ruflo plugins: rewrites bundled mcp__claude-flow__* refs to the plugin-namespaced
   // form so they resolve under plugin loading (#2685). Same machinery, widest blast radius.
   'mcp-prefix': mcpPrefixCommand,
@@ -85,6 +90,7 @@ const PLUGIN_PATCH_TARGETS = {
   'flywheel-daily': flywheelDailyCommand,
   // ruvnet-brain's installer wires only MCP for Codex; this adds its user-global lifecycle plugin.
   'codex-hooks': codexHooksCommand,
+  'brain-codex-skills': brainCodexSkillsCommand,
 };
 
 function usage() {
@@ -111,6 +117,7 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 
 Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
+  ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
@@ -119,6 +126,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('')}  upstream gate parses and passes an allow-unrelated/block-own behavior probe
   ${pad('flywheel-daily')}show the flywheel opt-in advisory once per local day/project (#53)
   ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
+  ${pad('brain-codex-skills')}restore namespaced Console + what's-new command parity in Codex (#56)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

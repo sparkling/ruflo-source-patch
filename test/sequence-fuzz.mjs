@@ -47,7 +47,11 @@ const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: path.join(SB, 'home'), RU
   // developer's real global node_modules — so on any machine with a global @claude-flow/cli the suite
   // would patch, restore and re-baseline the REAL install (and R1a/R1c would poison its backups),
   // invisibly, because every assertion probes only sandbox paths.
-  RUFLO_GLOBAL_ROOT: path.join(SB, 'global') };
+  RUFLO_GLOBAL_ROOT: path.join(SB, 'global'),
+  // `cwd status` prints the complete plugin table. Do not let 480 randomized CLI steps inspect the
+  // developer's real Codex registry; no plugin is installed in this sandbox, so a fail-fast CLI is
+  // the truthful boundary and keeps the property test about the CLI patch targets it owns.
+  RSP_CODEX_BIN: '/usr/bin/false' };
 const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], { env, encoding: 'utf8' });
 
 // Import the entry table so we can assert per-entry, independent of apply().

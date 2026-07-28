@@ -2,13 +2,15 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-07-17. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-07-28. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
 a `reverse` (its substitution is a pure, invertible literal replace), so a poisoned backup on a file it
 patched now self-heals on the next apply instead of requiring another one-off manual fix. See
-`lib/pristine.mjs`, `lib/plugin-compose.mjs`.
+`lib/pristine.mjs`, `lib/plugin-compose.mjs`. Cache-local Codex skill targets are also explicitly
+outside composition: their additive files use exact ownership, while Brain's three generated aliases
+each retain their own pristine because no other target claims those files.
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -62,8 +64,10 @@ A shared composition engine (`lib/plugin-compose.mjs`) owns every plugin-patched
 - mcp-prefix's discovery is now a POSITIVE signal (a file carrying the bare or the plugin-form prefix), not
   "any file with a sibling `.rsp-backup`", which is what let it hijack the surgical targets' files.
 
-`adr-reindex` is NOT part of this: it ADDS a skill file rather than patching a vendor one, so it keeps its
-own patcher.
+`adr-reindex` and the native files created by `ruflo-codex-skills` / `brain-codex-skills` are NOT part
+of this: they ADD skill files rather than patching a shared vendor file, so they keep their own exact
+ownership checks. Brain's three migrated aliases are edited vendor-generated files, but no other target
+claims them; each therefore uses the shared pristine helper directly rather than the composition engine.
 
 ## Consequences
 
@@ -86,6 +90,8 @@ own patcher.
 ### Neutral
 
 - Descriptors expose `editCount` so the composed log keeps the "N/5 edits" wording status and tests read.
+- Additive/disjoint targets still share desired-state tracking, SessionStart re-apply, monitor coverage,
+  atomic writes, and fail-closed restoration; only their per-file composition model differs.
 
 ## Links
 
