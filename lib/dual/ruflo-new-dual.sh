@@ -163,9 +163,10 @@ say "==> converting to single-source dual (Codex + merged templates)"
 if [[ $DEDUPE_ON -eq 1 ]]; then
   if [[ -n "$DEDUPE" ]]; then
     say "==> sweeping plugin-duplicated bundle entries (#2640)"
-    DD_FLAGS=(); [[ -n "$QUIET" ]] && DD_FLAGS+=(--quiet)
     # Non-fatal: the project is already usable, and a failed sweep must not read as a failed scaffold.
-    bash "$DEDUPE" "$PROJECT_DIR" "${DD_FLAGS[@]}" \
+    # QUIET is always either empty or the single flag --quiet. Expanding it unquoted deliberately
+    # passes zero or one argument and avoids Bash 3.2's `set -u` failure on an empty array expansion.
+    bash "$DEDUPE" "$PROJECT_DIR" $QUIET \
       || echo "warning: dedupe sweep failed — project is usable; run \`plugin-only run $PROJECT_DIR\` by hand" >&2
   else
     echo "warning: dedupe script not found next to $SCRIPT_DIR — run \`ruflo-source-patch plugin-only run $PROJECT_DIR\` to strip plugin-duplicated hooks" >&2

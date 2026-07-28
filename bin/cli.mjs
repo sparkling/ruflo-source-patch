@@ -35,6 +35,7 @@
 // Script targets (materialize scripts; no patching, no hook):
 //   dual-codex-claude   single-source dual Claude Code + Codex project toolkit
 //   dedupe-bundle       slim a .claude bundle left behind by `ruflo init --full` (#2640)
+//   ruflo-codex-hooks   register canonical Ruflo lifecycle hooks in an existing Codex install (#2801)
 //
 // There is no `all` and no bare-action default: every invocation names its target. An
 // `all` that silently meant "the three patch targets, but not the monitor and not the
@@ -51,7 +52,9 @@ import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
 import { designWallCommand } from '../lib/design-wall/commands.mjs';
+import { flywheelDailyCommand } from '../lib/flywheel-daily/commands.mjs';
 import { codexHooksCommand } from '../lib/codex-hooks/commands.mjs';
+import { rufloHooksSchemaCommand } from '../lib/ruflo-hooks-schema/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -70,12 +73,16 @@ const PLUGIN_PATCH_TARGETS = {
   'adr-reindex': adrReindexCommand,
   // ruvnet-brain, not ruflo-adr — same machinery, different plugin.
   'verify-interface': verifyInterfaceCommand,
+  // Ruflo's canonical hooks are installed for Codex by #2801, but Codex rejects their metadata keys.
+  'ruflo-hooks-schema': rufloHooksSchemaCommand,
   // Spans ALL ruflo plugins: rewrites bundled mcp__claude-flow__* refs to the plugin-namespaced
   // form so they resolve under plugin loading (#2685). Same machinery, widest blast radius.
   'mcp-prefix': mcpPrefixCommand,
   // ruvnet-brain again, a different script: its design-grade commit gate never checks which repo
   // it is running in before demanding a visual design ritual for a plain README.md commit.
   'design-wall': designWallCommand,
+  // The prompt hook owns cadence; Claude and Codex share one atomic daily claim per project.
+  'flywheel-daily': flywheelDailyCommand,
   // ruvnet-brain's installer wires only MCP for Codex; this adds its user-global lifecycle plugin.
   'codex-hooks': codexHooksCommand,
 };
@@ -102,16 +109,20 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
   ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
 
+Plugin patches (ruflo-core)    (actions: install | uninstall | status)
+  ${pad('ruflo-hooks-schema')}make the canonical hook manifest parse under Codex (#2801 / PR #2800)
+
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
   ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
   ${pad('design-wall')}legacy issue #17 repo-scope fix — self-retires only after the active
   ${pad('')}  upstream gate parses and passes an allow-unrelated/block-own behavior probe
+  ${pad('flywheel-daily')}show the flywheel opt-in advisory once per local day/project (#53)
   ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
-  ${pad('')}  under plugin loading — rewrites them to \`mcp__plugin_ruflo-core_ruflo__*\` (#2685)
+  ${pad('')}  under plugin loading — legacy #2685 rewrite; self-retires on local upstream proof
 
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update/plugin-update overwrites them
@@ -122,6 +133,7 @@ Repair a project                 npx … cleanup [dir] [--dry-run] [--all-daemon
 Script targets                 (actions: install | uninstall | status | run <args…>)
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
   ${pad('plugin-only')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (aliases: dedupe, dedupe-bundle)
+  ${pad('ruflo-codex-hooks')}${SCRIPT_TARGETS['ruflo-codex-hooks'].blurb}
   ${pad('')}\`run\` materializes the script and executes it, forwarding your args
 
 The whole setup, in one line:
@@ -130,6 +142,7 @@ The whole setup, in one line:
 Run a script directly (no separate install step):
   npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run
   npx github:sparkling/ruflo-source-patch dual run <project-path>
+  npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run
 
 Other:
   npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest

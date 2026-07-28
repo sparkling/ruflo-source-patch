@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-25. Third edit added, suppressing the skills.sh registration, which imports the whole `ruvnet/ruflo` repo into `.agents/skills/` (97MB, 384 `SKILL.md`) and exhausts the host agent's skill budget ([#2777](https://github.com/ruvnet/ruflo/issues/2777)). Same principle in a new file (`commands/init.js`), so it belongs to this target rather than a new one.
+**Updated**: 2026-07-28. Ruflo #2777 is fixed upstream. #2801's initializer registration landed, so the redundant Codex lifecycle source edit has been removed, but Ruflo's canonical hook manifest still fails Codex's strict schema; `ruflo-hooks-schema` covers that separate installed-plugin defect pending PR #2800. The legacy external skill-import guard remains shape-gated for older installed CLIs. `ruflo-codex-hooks` remains an explicit repair for systems initialized before v3.32.24.
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -28,7 +28,8 @@ plugin-off setups. That reasoning does not hold on a deployment that has no plug
 ## Decision
 
 Add an `init` patch target to `@claude-flow/cli`, patched at the callee like the other CLI targets, that
-disables generation of the plugin-duplicated artifacts. Three files, five edits:
+disables generation of the plugin-duplicated artifacts.
+Three files, five edits:
 
 - `init/mcp-generator.js`: disable the standalone `claude-flow` `.mcp.json` emission. The guard
   `if (config.claudeFlow)` occurs three times (config + two add-command branches), so the anchor pins the
@@ -36,20 +37,14 @@ disables generation of the plugin-duplicated artifacts. Three files, five edits:
 - `init/executor.js`: disable the three bundle copy gates (`copySkills` / `copyCommands` / `copyAgents`).
   HELPERS ARE KEPT (init writes all ~43; no plugin replaces them), exactly as `plugin-only` keeps them.
   `settings` / `statusline` / `runtime` / `claudeMd` are untouched.
-- `commands/init.js` (added 2026-07-25, [#2777](https://github.com/ruvnet/ruflo/issues/2777)): suppress
-  `maybeInstallSkillsSh()`, which runs `npx --yes skills add ruvnet/ruflo --skill ruflo --yes`. Upstream's own
-  fix commit (`23abe26b9`) claims it "installs ONLY the platform skill (~1 file)"; measured, it lands **97MB
-  and 384 `SKILL.md`**, which is the whole repository. `vercel-labs/skills` copies `dirname(SKILL.md)`
-  recursively and ruflo's canonical `SKILL.md` sits at the repo root. Codex then truncates every skill
-  description to fit its 2% skills budget, so the project's own skills are degraded to host a copy of ruflo.
-  Deleting the import is not a remedy: upstream's idempotency gate keys on `.agents/skills/ruflo` existing, so
-  the next `init` re-clones it. Independently, it is an **unpinned `npx --yes` fetch-and-execute** of a
-  dependency declared in no `package.json`, with both consent prompts pre-answered. Anchored on the first
-  guard inside the `try`, not the function signature, because a signature is one rename from drifting.
+- `commands/init.js` (legacy compatibility for [#2777](https://github.com/ruvnet/ruflo/issues/2777)):
+  suppress `maybeInstallSkillsSh()` only when the vendor bytes still execute
+  `npx --yes skills add ruvnet/ruflo --skill ruflo --yes`, which imported 97MB and 384 `SKILL.md`.
+  Ruflo 3.32.10+'s bounded in-process platform-skill materialization does not contain that feature
+  gate, so the local edit stands down per file and leaves the upstream repair untouched.
 
-The edits are `if (X)` → `if (false && X)` (and, for the skills.sh guard, an unconditional early
-`return`), which keeps the referenced symbol used, is a minimal unique
-anchor, and reverts to byte-identical on uninstall. It composes into `all` like any patch target, so a
+The suppression edits are `if (X)` → `if (false && X)` (and, on legacy #2777 bytes, an unconditional
+early `return`). Every edit reverts to byte-identical on uninstall. It composes into `all` like any patch target, so a
 plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 ## Consequences
@@ -58,9 +53,14 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 - `ruflo init` / `doctor` stop re-adding the duplicates, so `plugin-only` is a one-time cleanup rather than
   a recurring chore. The two are complements: `plugin-only` removes what exists, `init` stops it recurring.
-- Verified against real vendor bytes (II1 to II3): the emission and all three bundle gates are disabled,
-  the skills.sh registration is suppressed, helpers stay enabled, all three files still parse, and uninstall
-  restores byte-for-byte.
+- Ruflo v3.32.24 / `@claude-flow/codex` 3.0.2 now installs the canonical lifecycle plugin itself,
+  so the redundant #2801 initializer edit is retired. The plugin's shipped `_note` metadata is still
+  rejected by Codex before any handler loads; the separate `ruflo-hooks-schema` target normalizes
+  only Codex's installed copies pending upstream PR #2800. `ruflo-codex-hooks` remains the one-shot
+  registration repair for systems initialized earlier.
+- Verified against real vendor bytes (II1 to II4): the emission and all three bundle gates are disabled,
+  legacy #2777 bytes are suppressed while bounded upstream bytes remain active, all files still parse,
+  and uninstall restores byte-for-byte.
 
 ### Negative
 
@@ -80,5 +80,5 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 - [ADR-012](ADR-012-dedupe-bundle-strip-duplicated-skills.md) (`plugin-only`, the after-the-fact removal this complements)
 - [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md) (whose "generators out of scope" this revises), [ADR-019](ADR-019-all-mode-adopts-new-targets.md)
-- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration)
+- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration), [#2777](https://github.com/ruvnet/ruflo/issues/2777), [#2801](https://github.com/ruvnet/ruflo/issues/2801) (registration landed; handler-load acceptance still false), and [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) (strict hook-manifest schema)
 - `lib/cwd/patch-library.mjs` (target `init`)

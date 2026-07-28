@@ -22,7 +22,7 @@
 #     `.gitignore` edits are stripped before our narrow, marker-owned rules.
 #
 # NOTE (global side effect): after the adapter finishes, this script uses Codex's
-# own MCP registry to add `ruflo` only when that exact entry is absent. The
+# user-global MCP registry to add `ruflo` only when that exact entry is absent. The
 # adapter never sees the real `codex` executable, so it cannot overwrite or
 # remove a user-managed registration, including under --force.
 #
@@ -379,38 +379,6 @@ else
         say "    registered ruflo MCP for Codex"
       else
         echo "warning: could not register the absent ruflo MCP entry; existing Codex registry content was not overwritten" >&2
-      fi
-    fi
-  fi
-fi
-
-# ---- 2b. Legacy fallback: register ruvnet-brain's MCP server for Codex -------
-# Current Brain installers own this registration (stuinfla/ruvnet-brain#42).
-# This is compatibility for older marketplace installs only. It can use the
-# stable marketplace server file when that file is actually packaged; it cannot
-# repair an npm artifact that omitted plugin/mcp/server.mjs.
-#
-# Its own plugin/.mcp.json cannot be copied verbatim: it uses `${CLAUDE_PLUGIN_ROOT}`, a Claude Code
-# variable Codex does not expand. We resolve the absolute path instead.
-#
-# The MARKETPLACE checkout is preferred over plugins/cache/<version>/: the cache path changes on
-# every /plugin update, which would leave a stale absolute path in config.toml after each upgrade.
-# Idempotent, and skipped entirely when the plugin isn't installed. Never fatal — a project that
-# converts fine without the brain must not fail because the brain is absent.
-BRAIN_MCP="$HOME/.claude/plugins/marketplaces/ruvnet-brain/plugin/mcp/server.mjs"
-[[ -f "$BRAIN_MCP" ]] || BRAIN_MCP=""
-if [[ -n "$BRAIN_MCP" ]]; then
-  if [[ -n "$_real_codex" ]]; then
-    if _codex_mcp_get ruvnet-brain; then
-      say "    ruvnet-brain MCP already registered for Codex, skipping"
-    else
-      _mcp_state=$?
-      if [[ $_mcp_state -eq 1 ]]; then
-        if "$_real_codex" -C "$PROJECT_DIR" mcp add ruvnet-brain -- node "$BRAIN_MCP" >/dev/null 2>&1; then
-          say "    registered legacy ruvnet-brain MCP path for Codex (#42)"
-        else
-          echo "warning: ruvnet-brain MCP registration failed; existing registry content was not overwritten" >&2
-        fi
       fi
     fi
   fi

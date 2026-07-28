@@ -184,12 +184,199 @@ check('PR3d the live file is untouched — no wrong bytes written', read(SKILL3)
   // candidate. The contract is {candidate, verify} or null — nothing else is trusted.
   const pr4c = write(path.join(SANDBOX, 'pr4c-standalone.txt'), 'AAA\n');
   fs.writeFileSync(pr4c, patchFn('AAA\n'));
-  const rc = resolvePristine(pr4c, patchFn, {
+const rc = resolvePristine(pr4c, patchFn, {
     isOurs: (src) => src.includes('BBB'),
     recoverPoisoned: () => 'AAA\n', // bare string — not the {candidate, verify} shape
   });
   check('PR4c a bare-string return (not {candidate, verify}) is treated as no recovery offered', rc.poisoned === true && !rc.recovered);
 }
 
+// ── HS: Ruflo's canonical hook manifest must parse under Codex's strict schema (#2801/#2800) ──
+{
+  const {
+    handlerCount, isNativeSchema, MARKER,
+  } = await import('../lib/ruflo-hooks-schema/patcher.mjs');
+  const { writeState, readState } = await import('../lib/cwd/state.mjs');
+  const { retireSuperseded } = await import('../lib/supersede.mjs');
+
+  const hook = (command) => ({ type: 'command', command });
+  const hooks = {
+    PreToolUse: [
+      { matcher: 'Bash', hooks: [hook('pre-bash')] },
+      { matcher: 'Write|Edit|MultiEdit', hooks: [hook('pre-file')] },
+    ],
+    PostToolUse: [
+      { matcher: 'Bash', hooks: [hook('post-bash')] },
+      { matcher: 'Write|Edit|MultiEdit', hooks: [hook('post-file')] },
+    ],
+    PreCompact: [
+      { matcher: 'manual', hooks: [hook('compact-manual')] },
+      { matcher: 'auto', hooks: [hook('compact-auto')] },
+    ],
+    Stop: [{ hooks: [hook('stop')] }],
+  };
+  const hooksLines = JSON.stringify({ hooks }, null, 2).split('\n').slice(1, -1).join('\n');
+  const invalid = `{
+  "_note": "resilient hook shim",
+  "_platform_note": "cross-platform Node bootstrap",
+${hooksLines}
+}
+`;
+  const native = `{
+  "description": "upstream strict Codex schema",
+${hooksLines}
+}
+`;
+  const codexPlugin = path.join(
+    SANDBOX, '.codex', '.tmp', 'marketplaces', 'ruflo', 'plugins', 'ruflo-core',
+  );
+  const hsFiles = [
+    path.join(codexPlugin, 'hooks', 'hooks.json'),
+    path.join(
+      SANDBOX, '.codex', 'plugins', 'cache', 'ruflo', 'ruflo-core',
+      '0.2.4', 'hooks', 'hooks.json',
+    ),
+  ];
+  write(path.join(codexPlugin, '.claude-plugin', 'plugin.json'), '{"name":"ruflo-core","version":"0.2.4"}\n');
+  for (const file of hsFiles) write(file, invalid);
+
+  const beforeHooks = JSON.stringify(JSON.parse(invalid).hooks);
+  const beforeSuffix = invalid.slice(invalid.indexOf('  "hooks": {'));
+  const hsApply = applyComposed(['ruflo-hooks-schema']);
+  check('HS1 both active Codex manifests are patched atomically',
+    hsApply.patched === 2 && hsApply.incomplete === 0 && hsApply.errors === 0);
+  check('HS2 only Codex-supported top-level keys remain and all seven handlers survive',
+    hsFiles.every((file) => {
+      const source = read(file);
+      const keys = Object.keys(JSON.parse(source));
+      return keys.join(',') === 'description,hooks'
+        && source.includes(MARKER)
+        && handlerCount(source) === 7;
+    }));
+  check('HS3 the complete hooks body is byte-for-byte unchanged',
+    hsFiles.every((file) => read(file).slice(read(file).indexOf('  "hooks": {')) === beforeSuffix)
+      && hsFiles.every((file) => JSON.stringify(JSON.parse(read(file)).hooks) === beforeHooks));
+  check('HS4 apply is idempotent', applyComposed(['ruflo-hooks-schema']).patched === 0);
+  const hsRestore = reconcile([], ['ruflo-hooks-schema']);
+  check('HS5 uninstall restores both vendor manifests byte-for-byte',
+    hsRestore.errors === 0
+      && hsFiles.every((file) => read(file) === invalid)
+      && hsFiles.every((file) => !fs.existsSync(bak(file))));
+
+  const unknown = invalid.replace('  "_platform_note":', '  "_surprise":');
+  fs.writeFileSync(hsFiles[0], unknown);
+  const refused = applyComposed(['ruflo-hooks-schema']);
+  check('HS6 an unknown upstream header is loud and left untouched',
+    refused.incomplete === 1
+      && read(hsFiles[0]) === unknown
+      && refused.log.some((line) => line.includes('known-invalid-header-with-seven-handlers')));
+  reconcile([], ['ruflo-hooks-schema']);
+  for (const file of hsFiles) write(file, invalid);
+
+  applyComposed(['ruflo-hooks-schema']);
+  for (const file of hsFiles) fs.writeFileSync(file, native);
+  writeState({ patchTargets: [], pluginTargets: ['ruflo-hooks-schema'], retired: {}, all: false });
+  const retired = retireSuperseded(readState());
+  const retiredState = readState();
+  check('HS7 native marketplace+cache proof retires the target without replacing upstream bytes',
+    retired.retired === 1
+      && !retiredState.pluginTargets.includes('ruflo-hooks-schema')
+      && retiredState.retired['ruflo-hooks-schema']?.issue === 'https://github.com/ruvnet/ruflo/issues/2801'
+      && hsFiles.every((file) => read(file) === native)
+      && hsFiles.every((file) => !fs.existsSync(bak(file)))
+      && hsFiles.every((file) => isNativeSchema(read(file))));
+}
+
+// ── MR: #2685 retirement uses Git HEAD, not stale same-output backups ──
+{
+  const { execFileSync } = await import('node:child_process');
+  const {
+    ANCHOR, REPLACEMENT, unpatchOnly,
+  } = await import('../lib/mcp-prefix/patcher.mjs');
+  const { runPluginCommand } = await import('../lib/plugin-command.mjs');
+  const { evaluate, retireSuperseded } = await import('../lib/supersede.mjs');
+  const { readState, writeState } = await import('../lib/cwd/state.mjs');
+
+  const market = path.join(SANDBOX, '.claude', 'plugins', 'marketplaces', 'ruflo');
+  const cache = path.join(SANDBOX, '.claude', 'plugins', 'cache', 'ruflo');
+  fs.rmSync(market, { recursive: true, force: true });
+  fs.rmSync(cache, { recursive: true, force: true });
+
+  const researcherRel = path.join('plugins', 'ruflo-core', 'agents', 'researcher.md');
+  const discoverRel = path.join('plugins', 'ruflo-core', 'skills', 'discover-plugins', 'SKILL.md');
+  const smokeRel = path.join('plugins', 'ruflo-metaharness', 'scripts', 'smoke.sh');
+  const standaloneRel = path.join('.agents', 'skills', 'standalone', 'SKILL.md');
+  const nativeRef = `call ${REPLACEMENT}memory_search\n`;
+  const smoke = `grep '${ANCHOR}metaharness_similarity' generated.md\n`;
+  const standalone = `standalone mode calls ${ANCHOR}memory_search\n`;
+  write(path.join(market, researcherRel), nativeRef);
+  write(path.join(market, discoverRel), nativeRef);
+  write(path.join(market, smokeRel), smoke);
+  write(path.join(market, standaloneRel), standalone);
+  execFileSync('git', ['init', '-q'], { cwd: market });
+  execFileSync('git', ['config', 'user.email', 'test@example.invalid'], { cwd: market });
+  execFileSync('git', ['config', 'user.name', 'test'], { cwd: market });
+  execFileSync('git', ['add', '.'], { cwd: market });
+  execFileSync('git', ['commit', '-qm', 'fixture: upstream namespace migration'], { cwd: market });
+
+  const activeRoot = path.join(cache, 'ruflo-core', '9.9.9');
+  const activeFiles = [
+    write(path.join(activeRoot, 'agents', 'researcher.md'), nativeRef),
+    write(path.join(activeRoot, 'skills', 'discover-plugins', 'SKILL.md'), nativeRef),
+  ];
+  const inactiveFile = write(
+    path.join(cache, 'ruflo-legacy', '1.0.0', 'skills', 'legacy', 'SKILL.md'),
+    `legacy cache calls ${ANCHOR}memory_search\n`,
+  );
+  const marketNativeFiles = [path.join(market, researcherRel), path.join(market, discoverRel)];
+  // Simulate the measured state: the live bytes now equal upstream HEAD, but an older local patch
+  // left a bare-prefix backup beside them. Token presence alone cannot distinguish the two.
+  for (const file of [...activeFiles, ...marketNativeFiles]) {
+    fs.writeFileSync(bak(file), unpatchOnly(read(file)));
+  }
+  write(path.join(SANDBOX, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify({
+    plugins: {
+      'ruflo-core@ruflo': [{
+        scope: 'user',
+        installPath: activeRoot,
+        version: '9.9.9',
+      }],
+    },
+  }));
+  writeState({ patchTargets: [], pluginTargets: ['mcp-prefix'], retired: {}, all: false });
+  applyComposed(['mcp-prefix']);
+
+  const mrVerdict = evaluate('mcp-prefix');
+  check('MR1 current Git HEAD plus exact local compositions proves #2685 superseded',
+    mrVerdict.state === 'superseded');
+  if (mrVerdict.state !== 'superseded') console.log(`  MR1 detail: ${JSON.stringify(mrVerdict)}`);
+  const mrRetired = retireSuperseded(readState());
+  const mrState = readState();
+  check('MR2 retirement preserves native functional refs and restores over-broad standalone/test refs',
+    mrRetired.retired === 1
+      && !mrState.pluginTargets.includes('mcp-prefix')
+      && mrState.retired['mcp-prefix']?.issue === 'https://github.com/ruvnet/ruflo/issues/2685'
+      && [...activeFiles, ...marketNativeFiles].every((file) => read(file) === nativeRef)
+      && read(inactiveFile) === `legacy cache calls ${ANCHOR}memory_search\n`
+      && read(path.join(market, smokeRel)) === smoke
+      && read(path.join(market, standaloneRel)) === standalone);
+  if (mrRetired.retired !== 1) console.log(`  MR2 detail: ${JSON.stringify(mrRetired)}`);
+  check('MR3 every mcp-prefix backup is removed after the proven reconcile',
+    [...activeFiles, ...marketNativeFiles, inactiveFile, path.join(market, smokeRel), path.join(market, standaloneRel)]
+      .every((file) => !fs.existsSync(bak(file))));
+  const statusLines = [];
+  const originalLog = console.log;
+  try {
+    console.log = (line) => statusLines.push(String(line));
+    runPluginCommand('mcp-prefix', 'status');
+  } finally {
+    console.log = originalLog;
+  }
+  check('MR4 retired status reports terminal evidence instead of suggesting reinstall',
+    statusLines.some((line) => line.includes('RETIRED on'))
+      && statusLines.some((line) => line.includes('upstream: https://github.com/ruvnet/ruflo/issues/2685'))
+      && !statusLines.some((line) => line.includes('mcp-prefix install')));
+}
+
 if (fail) { console.log('\n✘ test/mcp-prefix.mjs FAILED'); process.exit(1); }
-console.log('\n✓ mcp-prefix + composition: all checks passed');
+console.log('\n✓ mcp-prefix + hook-schema composition: all checks passed');

@@ -29,7 +29,9 @@ import { PATCH_MARKER } from '../lib/cwd/paths.mjs';
 // test/mcp-prefix.mjs and test/design-wall.mjs do), it MUST set RUFLO_SOURCE_PATCH_HOME and then
 // DYNAMICALLY `await import('./fixtures.mjs')` — never a static top-of-file import — or it will
 // silently operate against THIS MACHINE'S REAL files instead of its sandbox. Measured live.
-import { isOurs as composedIsOurs } from '../lib/plugin-compose.mjs';
+import { descriptor as adrTemplateDescriptor } from '../lib/adr-template/patcher.mjs';
+import { descriptor as mcpPrefixDescriptor } from '../lib/mcp-prefix/patcher.mjs';
+import { readState } from '../lib/cwd/state.mjs';
 
 /** The repo root, from this file's own location. Never an absolute path typed by hand. */
 export const REPO = path.dirname(path.dirname(url.fileURLToPath(import.meta.url)));
@@ -44,19 +46,40 @@ const die = (msg) => {
  * The npx hash is content-addressed and changes whenever the dependency set does, so it can only
  * ever be discovered, never written down.
  */
-export function findVendorRoot() {
+function vendorRoots() {
   const roots = [];
   const npx = path.join(os.homedir(), '.npm', '_npx');
   try {
     for (const h of fs.readdirSync(npx)) roots.push(path.join(npx, h, 'node_modules'));
   } catch { /* no npx cache */ }
-  roots.push(path.join(path.dirname(path.dirname(process.execPath)), 'lib', 'node_modules'));
+  const globalRoot = path.join(path.dirname(path.dirname(process.execPath)), 'lib', 'node_modules');
+  roots.push(globalRoot);
+  roots.push(path.join(globalRoot, 'ruflo', 'node_modules'));
+  return roots;
+}
 
-  const found = roots.find((r) => fs.existsSync(path.join(r, '@claude-flow', 'cli', 'dist')));
+export function findVendorRoot() {
+  const found = vendorRoots().find((r) => fs.existsSync(path.join(r, '@claude-flow', 'cli', 'dist')));
   if (!found) {
     die('@claude-flow/cli is not installed anywhere this test can find.\n'
       + '  The fuzz suite patches REAL vendor bytes — it needs them present.\n'
       + '  Fix:  npx @claude-flow/cli@latest --version');
+  }
+  return found;
+}
+
+/** Find a real CLI copy whose pristine form contains every requested exact anchor. */
+export function findVendorRootWith(relativeFile, anchors) {
+  const found = vendorRoots().find((root) => {
+    const file = path.join(root, '@claude-flow', 'cli', relativeFile);
+    const candidate = fs.existsSync(`${file}.rsp-backup`) ? `${file}.rsp-backup` : file;
+    if (!fs.existsSync(candidate)) return false;
+    const source = fs.readFileSync(candidate, 'utf8');
+    if (source.includes(PATCH_MARKER) || source.includes('ruflo-source-patch(init)')) return false;
+    return anchors.every((anchor) => source.includes(anchor));
+  });
+  if (!found) {
+    die(`no installed @claude-flow/cli has ${relativeFile} with the required pristine anchors`);
   }
   return found;
 }
@@ -84,14 +107,18 @@ export function findPluginRoot() {
 // is recognised by a string only its patch introduces.
 const looksPatched = {
   marker: (buf) => buf.includes(PATCH_MARKER),
+  // The init entries are edits-only, so composePrelude() emits no generic PATCH_MARKER.
+  // Their literal replacement marker is the only honest way to reject a patched baseline.
+  init: (buf) => buf.includes('ruflo-source-patch(init)'),
   adrIndex: (buf) => buf.includes('ruflo-source-patch (#2660)'),
   // NOT `buf.includes('   **Status**: proposed')` alone — that only catches adr-template's OWN
   // signature. adr-create/SKILL.md is composed by mcp-prefix too (ADR-020), and a file mcp-prefix
   // patched but adr-template never touched would pass this narrow check as "clean vendor" — which
   // is exactly what let a genuinely-patched fixture masquerade as pristine and mask the
-  // poisoned-backup bug (plugin-notify.mjs's P1). The composed `isOurs` (lib/plugin-compose.mjs)
-  // is an OR across every composing target's own isPatched, so it catches either.
-  adrTemplate: (buf) => composedIsOurs(buf),
+  // poisoned-backup bug (plugin-notify.mjs's P1). Once mcp-prefix is terminally retired, however,
+  // its replacement token is native upstream content and is no longer a local patch signature.
+  adrTemplate: (buf) => adrTemplateDescriptor.isPatched(buf)
+    || (readState().pluginTargets.includes('mcp-prefix') && mcpPrefixDescriptor.isPatched(buf)),
   verifyInterface: (buf) => buf.includes('(^|[[:space:]]|[;&|(])($TOOLS)'),
   designWall: (buf) => buf.includes('ORIGIN=$(git -C') && buf.includes('*"ruvnet-brain"*'),
 };

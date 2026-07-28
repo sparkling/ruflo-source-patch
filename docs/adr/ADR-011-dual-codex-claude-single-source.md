@@ -40,15 +40,15 @@ runs the adapter with a failing private `codex` shim. The adapter runs in its ow
 interruption terminates and waits for descendants before restoration. Existing instruction-backup
 symlinks are refused as well. On failure or interruption it restores all pre-existing protected bytes
 and removes adapter-created protected files; supported `.agents/skills` produced before an adapter
-failure may remain. On success, only then are the two instruction templates written. The real Codex executable, resolved before the shim and called with
-`-C <project>`, checks `mcp get ruflo` and adds the exact entry only when absent. Existing registry
-entries are never used as an update target.
+failure may remain. On success, only then are the two instruction templates written. The real Codex
+executable, resolved before the shim, checks Codex's user-global MCP registry and adds the exact entry
+only when absent. `-C <project>` selects the CLI invocation working directory; it does not make the
+registration project-scoped or persist a server `cwd`. Existing registry entries are never used as an
+update target.
 
 The wrapper removes the adapter's `.gitignore` rewrite, then preserves every existing byte and appends
 only its marker-owned `.env`, runtime, and `*.bak` rules. It no longer installs inferred
-`.codex/skills/*/skill.toml` manifests and removes only byte-exact historical copies. The Brain MCP
-fallback uses the same non-overwriting registry rule and only a marketplace `plugin/mcp/server.mjs`
-that actually exists. It cannot repair a Brain npm artifact that omitted that file.
+`.codex/skills/*/skill.toml` manifests and removes only byte-exact historical copies.
 
 ## Consequences
 
@@ -61,15 +61,15 @@ that actually exists. It cannot repair a Brain npm artifact that omitted that fi
 - Root `.env` and generated backup/runtime paths receive explicit marker-owned ignore rules.
 - Adapter failure and interruption restore the pre-run instruction files rather than leaving a partial
   conversion.
-- A user-managed `ruflo` or `ruvnet-brain` MCP registration is preserved.
+- A user-managed `ruflo` MCP registration is preserved.
 - No inferred `.codex/skills/*/skill.toml` manifests are installed; Codex discovery uses documented
   `SKILL.md` and MCP surfaces.
 
 ### Negative
 
-- Registering an absent `ruflo` or legacy `ruvnet-brain` MCP entry remains a Codex-owned configuration
-  side effect. The wrapper documents it, scopes the CLI call with `-C`, and never overwrites an existing
-  exact name.
+- Registering an absent `ruflo` MCP entry remains a Codex-owned, user-global configuration side
+  effect. Each Codex host launches its own stdio child, which inherits that host's project cwd because
+  the global definition stores no fixed `cwd`.
 - The wrapper deliberately adds its small ignore block after restoring repository-owned bytes.
 
 ### Neutral

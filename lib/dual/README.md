@@ -9,6 +9,7 @@ not the library. `install` just materializes them to `~/.ruflo-source-patch/<tar
 
 - [Why `status` byte-compares them](#why-status-byte-compares-them)
 - [`dual`](#dual)
+- [`ruflo-codex-hooks`](#ruflo-codex-hooks)
 - [`dedupe`](#dedupe)
 
 ## Why `status` byte-compares them
@@ -52,21 +53,9 @@ the whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)).
 
 The adapter runs behind a private, failing `codex` shim. It therefore cannot add, replace, or remove the
 user's real `ruflo` MCP registration. After initialization, the wrapper calls the Codex executable it
-resolved before installing the shim, selects the target project with `-C`, and runs `mcp add` only when
-`mcp get ruflo` says the exact entry is absent.
-
-Both scripts retain a **legacy fallback** that registers `ruvnet-brain`'s MCP server for Codex when an
-installed Brain release predates its native fix. Current Brain source owns the persistent server copy,
-managed config block, and live doctor handshake
-([ruvnet-brain#42](https://github.com/stuinfla/ruvnet-brain/issues/42)); this compatibility layer first
-asks Codex's own MCP registry and does nothing when Brain is already registered. It works only when the
-marketplace checkout actually contains `plugin/mcp/server.mjs`; it cannot repair a Brain npm artifact
-that omitted that file ([ruvnet-brain#43](https://github.com/stuinfla/ruvnet-brain/issues/43)).
-
-Its own `plugin/.mcp.json` cannot be reused verbatim: it uses `${CLAUDE_PLUGIN_ROOT}`, a Claude Code
-variable Codex does not expand, so the absolute path is resolved instead. The **marketplace** checkout is
-preferred over `plugins/cache/<version>/`, whose path changes on every `/plugin update` and would leave a
-stale absolute path behind after each upgrade. Idempotent, skipped when the plugin is absent, never fatal.
+resolved before installing the shim and runs `mcp add` only when the **user-global** registry says the
+exact entry is absent. `-C` selects the CLI invocation cwd; it does not make the registry entry
+project-scoped or store a fixed server `cwd`.
 
 The scripts do **not** install `.codex/skills/*/skill.toml`: that shape was inferred from a
 MetaHarness-local convention, not a Codex discovery contract, and is inert. An upgrade removes only the
@@ -82,6 +71,19 @@ Only a successful conversion replaces the instruction files with the templates. 
 ancestors and instruction-backup destinations are refused. After restoration, the wrapper preserves existing
 `.gitignore` rules and appends only its marker-owned `.env`, runtime, and `*.bak` entries. Claude's MCP
 server remains owned by the installed `ruflo-core` plugin rather than a second standalone registration.
+
+## `ruflo-codex-hooks`
+
+One-shot repair for an existing Codex installation ([ruvnet/ruflo#2801](https://github.com/ruvnet/ruflo/issues/2801)):
+
+```bash
+npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run
+```
+
+It registers the canonical `ruvnet/ruflo` marketplace and installs `ruflo-core@ruflo` through Codex's
+plugin CLI. It preserves disabled and unrelated plugin state, refuses a marketplace-name collision, and
+never invokes `codex mcp`. Ruflo v3.32.24 / `@claude-flow/codex` 3.0.2 handles new initializations
+upstream; this script remains for systems initialized earlier.
 
 ## `dedupe`
 

@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **eleven suites**. No framework, no dependencies.
+`npm test` runs **fifteen suites**. No framework, no dependencies.
 
 ## Contents
 
@@ -25,6 +25,10 @@
 | `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |
 | `design-wall.mjs` | The real hook behavior and fail-closed retirement of the legacy design-wall patch. |
+| `flywheel-daily.mjs` | The flywheel advisory's daily/project scope, concurrent atomic claim, fail-silent path, and byte-safe lifecycle. |
+| `codex-hooks.mjs` | Brain's additive Codex lifecycle plugin, adapter protocol, registration, and exact-owned uninstall. |
+| `codex-hooks-native.mjs` | Mixed upstream #52 rollout: source-only stays unhealthy; complete native wiring is preserved. |
+| `ruflo-codex-hooks.mjs` | Ruflo's canonical Codex plugin repair: idempotency, disabled-state preservation, collision refusal, loud failures, and zero MCP mutation. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
 ## Three rules, all learned the hard way

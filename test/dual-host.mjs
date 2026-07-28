@@ -93,6 +93,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const args = process.argv.slice(2);
+if (process.env.FAKE_NPX_RUFLO_OK === '1'
+    && args[0] === '--yes'
+    && args[1] === 'ruflo') {
+  process.exit(0);
+}
 if (args[0] !== '--yes'
     || args[1] !== '@claude-flow/codex@3.0.1'
     || args[2] !== 'init') {
@@ -187,18 +192,13 @@ for (const [name, script] of [['ruflo-add-codex.sh', addCodex], ['ruflo-new-dual
     fail(`DH2 ${name} --help failed or printed nothing:\n${output(help)}`);
   }
 }
-
-const brainMcp = path.join(
-  HOME,
-  '.claude',
-  'plugins',
-  'marketplaces',
-  'ruvnet-brain',
-  'plugin',
-  'mcp',
-  'server.mjs',
-);
-write(brainMcp, '// MCP fixture\n');
+const newDualSource = fs.readFileSync(newDual, 'utf8');
+const unsafeEmptyArrays = [...newDualSource.matchAll(/^([A-Z][A-Z0-9_]*)=\(\)$/gm)]
+  .map((match) => match[1])
+  .filter((name) => newDualSource.includes(`"\${${name}[@]}"`));
+if (unsafeEmptyArrays.length) {
+  fail(`DH2b fresh scaffold expands an empty array under set -u, which fails on Bash 3.2: ${unsafeEmptyArrays.join(', ')}`);
+}
 
 const makeProject = (name, protectedFiles = {}) => {
   const project = path.join(SB, name);
@@ -227,6 +227,33 @@ const assertNoTempLeaks = (label) => {
   const leaks = tempLeaks();
   if (leaks.length) fail(`${label} left restoration temp paths behind: ${leaks.join(', ')}`);
 };
+
+// The default fresh-project path must reach dedupe without --quiet. Bash 3.2
+// treats "${emptyArray[@]}" as an unbound variable under set -u, unlike newer
+// Bash versions, so exercise the real script with only its external owners faked.
+const freshDedupeLog = path.join(SB, 'fresh-dedupe.log');
+const fakeDedupe = path.join(STATE, 'dedupe-bundle', 'ruflo-dedupe-bundle.sh');
+write(fakeDedupe, `#!/usr/bin/env bash
+printf '%s\\n' "$@" > "$FAKE_DEDUPE_LOG"
+`);
+fs.chmodSync(fakeDedupe, 0o755);
+const freshProject = makeProject('fresh-default-dedupe');
+setRegistry({});
+const freshRun = spawnSync(
+  'bash',
+  [newDual, freshProject, '--force', '--no-start-all'],
+  {
+    encoding: 'utf8',
+    env: { ...baseEnv, FAKE_NPX_RUFLO_OK: '1', FAKE_DEDUPE_LOG: freshDedupeLog },
+    timeout: 15000,
+  },
+);
+if (freshRun.status !== 0
+    || fs.readFileSync(freshDedupeLog, 'utf8').trim() !== freshProject) {
+  fail(`DH2c fresh scaffold did not complete its default dedupe step:\n${output(freshRun)}`);
+}
+assertNoTempLeaks('DH2c');
+
 const protectedSentinels = {
   'AGENTS.md': '# original agents\n',
   'CLAUDE.md': '# original Claude\n',
@@ -332,8 +359,8 @@ if (!fs.lstatSync(path.join(existingProject, '.codex/skills/ruflo-swarm-init')).
   fail('DH4 legacy migration followed a symlink and removed content outside the project');
 }
 
-// With no registration, the wrapper owns only the two names it needs and uses
-// Codex's registry API with the project selected explicitly.
+// With no user-global registration, the wrapper owns only the one name it
+// needs. `-C` selects the CLI invocation cwd; the fake remains one global map.
 const absentProject = makeProject('absent project & literal');
 setRegistry({});
 const absentRun = run(absentProject);
@@ -351,14 +378,13 @@ if (/adapter-junk|^\.codex\/$/m.test(absentIgnore)
 const addedRegistry = readRegistry();
 const expectedRegistry = {
   ruflo: { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'] },
-  'ruvnet-brain': { command: 'node', args: [brainMcp] },
 };
 if (!equalJson(addedRegistry, expectedRegistry)) {
   fail(`DH5 wrapper registered unexpected MCP commands:\n${JSON.stringify(addedRegistry, null, 2)}`);
 }
 const registryCalls = fs.readFileSync(CODEX_LOG, 'utf8').trim().split('\n');
 if (!registryCalls.length || registryCalls.some((line) => !line.startsWith(`${absentProject}\t`))) {
-  fail(`DH5 Codex MCP calls were not scoped with -C to the converted project:\n${registryCalls.join('\n')}`);
+  fail(`DH5 Codex MCP calls were not invoked with -C from the converted project:\n${registryCalls.join('\n')}`);
 }
 assertNoTempLeaks('DH5');
 
@@ -459,7 +485,7 @@ assertNoTempLeaks('DH9b');
 
 console.log(
   '✔ dual host boundaries '
-  + '(DH1 obsolete assets reaped+symlink refused, DH2 help+boundary refusal, DH3 policy+MCP preservation, '
+  + '(DH1 obsolete assets reaped+symlink refused, DH2 help+boundary+Bash-3.2 dedupe, DH3 policy+MCP preservation, '
   + 'DH4 idempotent migration, DH5 absent+unknown registry handling, DH6-7 failure rollback, '
   + 'DH8 process-tree signal rollback, DH9 protected+backup symlink boundary)',
 );

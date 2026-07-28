@@ -338,7 +338,12 @@ check('CH15 adapter passes md-stamp through without inventing a multi-file edit 
 const start = runAdapter(['shim', 'session-start'], {
   session_id: 'session-a', cwd: baseEvent.cwd, hook_event_name: 'SessionStart', source: 'startup',
 });
-check('CH16 SessionStart plain context is preserved', start.status === 0 && start.stdout === 'brain session context');
+let startJson = {};
+try { startJson = JSON.parse(start.stdout); } catch {}
+check('CH16 SessionStart context becomes explicit valid Codex JSON',
+  start.status === 0
+    && startJson.hookSpecificOutput?.hookEventName === 'SessionStart'
+    && startJson.hookSpecificOutput?.additionalContext === 'brain session context');
 
 const grounding = runAdapter(['shim', 'ground-ruvnet'], {
   session_id: 'session-a',
@@ -449,9 +454,12 @@ const staleSpeech = runAdapter(['shim', 'unprompted-speech', 'UserPromptSubmit']
 }, STABLE_ADAPTER);
 let staleGroundingJson = {};
 try { staleGroundingJson = JSON.parse(staleGrounding.stdout); } catch {}
+let staleStartJson = {};
+try { staleStartJson = JSON.parse(staleStart.stdout); } catch {}
 check('CH25 the installed stable entrypoint survives deletion of the boot-time plugin root',
   staleStart.status === 0
-    && staleStart.stdout === 'brain session context'
+    && staleStartJson.hookSpecificOutput?.hookEventName === 'SessionStart'
+    && staleStartJson.hookSpecificOutput?.additionalContext === 'brain session context'
     && staleGrounding.status === 0
     && staleGroundingJson.hookSpecificOutput?.hookEventName === 'UserPromptSubmit'
     && staleSpeech.status === 0,

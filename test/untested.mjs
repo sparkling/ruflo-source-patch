@@ -430,6 +430,21 @@ if (__rufloResolveRoot(deep1) !== root1 || __rufloResolveRoot(path.join(pkg, 'sr
 
 console.log('✔ project-root resolver, EXECUTED (CW1 drift resolves to root, CW2 monorepo package keeps its own store, CW3 a lone docs/CLAUDE.md is not a root, CW4 sentinel wins, CW5 no marker = old behaviour, CW6 no stale cache across dirs)');
 
+// CW7 — Node and npm can come from different prefixes. Discovery must follow the
+// npm executable on PATH without spawning it, or a global `ruflo` can be invisible.
+{
+  const npmPrefix = path.join(SB, 'path-npm');
+  const npmBin = path.join(npmPrefix, 'bin');
+  fs.mkdirSync(npmBin, { recursive: true });
+  fs.writeFileSync(path.join(npmBin, 'npm'), '#!/bin/sh\n');
+  const { globalRootsFromPath } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'paths.mjs')}`);
+  const inferred = globalRootsFromPath(npmBin);
+  if (!inferred.includes(path.join(npmPrefix, 'lib', 'node_modules'))) {
+    fail(`CW7 npm-on-PATH prefix was not inferred: ${JSON.stringify(inferred)}`);
+  }
+}
+console.log('✔ global npm discovery (CW7 npm-on-PATH is found even when Node uses a different prefix)');
+
 // ─── LK: the leak detector ───────────────────────────────────────────────────
 //
 // The `state` target cannot be complete — cwd-dependence hides in one-arg `resolve()` and in
@@ -463,18 +478,76 @@ console.log('✔ leak detector (LK1 a stray subdir state dir is found, LK2 the r
 // suppressed, HELPERS stay enabled, all outputs parse, and uninstall restores all three byte-for-byte.
 {
   freshSandbox();
-  const { findVendorRoot } = await import(`file://${path.join(REPO, 'test', 'fixtures.mjs')}`);
-  const distSrc = path.join(findVendorRoot(), '@claude-flow', 'cli', 'dist', 'src');
+  const {
+    findVendorRootWith,
+    pristineBytes,
+  } = await import(`file://${path.join(REPO, 'test', 'fixtures.mjs')}`);
+  const vendorRoot = findVendorRootWith('dist/src/commands/init.js', [
+    "if (ctx.flags['no-skills-sh'] === true)",
+  ]);
+  const distSrc = path.join(vendorRoot, '@claude-flow', 'cli', 'dist', 'src');
   const initSrc = path.join(distSrc, 'init');
   const fakeSrc = path.join(nm, '@claude-flow', 'cli', 'dist', 'src'), fakeInit = path.join(fakeSrc, 'init'), fakeCommands = path.join(fakeSrc, 'commands');
   fs.mkdirSync(fakeInit, { recursive: true });
   fs.mkdirSync(fakeCommands, { recursive: true });
   fs.writeFileSync(path.join(nm, '@claude-flow', 'cli', 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0' }));
   const gen = path.join(fakeInit, 'mcp-generator.js'), exe = path.join(fakeInit, 'executor.js'), initCommand = path.join(fakeCommands, 'init.js');
-  fs.copyFileSync(path.join(initSrc, 'mcp-generator.js'), gen);
-  fs.copyFileSync(path.join(initSrc, 'executor.js'), exe);
-  fs.copyFileSync(path.join(distSrc, 'commands', 'init.js'), initCommand);
-  const genPristine = fs.readFileSync(gen, 'utf8'), exePristine = fs.readFileSync(exe, 'utf8'), initCommandPristine = fs.readFileSync(initCommand, 'utf8');
+  const nestedGlobalRoot = path.join(SB, 'global', 'ruflo', 'node_modules', '@claude-flow', 'cli');
+  const nestedGlobalCommand = path.join(nestedGlobalRoot, 'dist', 'src', 'commands', 'init.js');
+  const legacyRoot = path.join(SB, 'npx', 'legacy', 'node_modules', '@claude-flow', 'cli');
+  const legacyCommand = path.join(legacyRoot, 'dist', 'src', 'commands', 'init.js');
+  const preSkillsRoot = path.join(SB, 'npx', 'pre-skills', 'node_modules', '@claude-flow', 'cli');
+  const preSkillsCommand = path.join(preSkillsRoot, 'dist', 'src', 'commands', 'init.js');
+  const legacySkillsAnchor = "spawnSync(npxCmd, ['--yes', 'skills', 'add', 'ruvnet/ruflo', '--skill', 'ruflo', '--yes']";
+  const legacyPristine = `import { output } from '../output.js';
+async function maybeInstallSkillsSh(ctx) {
+    try {
+        if (ctx.flags['no-skills-sh'] === true)
+            return;
+        const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+        const result = spawnSync(npxCmd, ['--yes', 'skills', 'add', 'ruvnet/ruflo', '--skill', 'ruflo', '--yes'], { cwd: ctx.cwd });
+        return result.status;
+    }
+    catch {
+        return;
+    }
+}
+async function initCodexAction(ctx) {
+    const spinner = output.createSpinner({ text: 'Initializing Codex project...' });
+    try {
+        spinner.succeed('Codex project initialized successfully!');
+    }
+    catch (error) {
+        return { success: false, exitCode: 1 };
+    }
+}
+`;
+  const preSkillsPristine = `import { output } from '../output.js';
+async function initCodexAction(ctx) {
+    const spinner = output.createSpinner({ text: 'Initializing Codex project...' });
+    try {
+        spinner.succeed('Codex project initialized successfully!');
+    }
+    catch (error) {
+        return { success: false, exitCode: 1 };
+    }
+}
+`;
+  const genPristine = pristineBytes(path.join(initSrc, 'mcp-generator.js'), 'init').toString('utf8');
+  const exePristine = pristineBytes(path.join(initSrc, 'executor.js'), 'init').toString('utf8');
+  const initCommandPristine = pristineBytes(path.join(distSrc, 'commands', 'init.js'), 'init').toString('utf8');
+  fs.writeFileSync(gen, genPristine);
+  fs.writeFileSync(exe, exePristine);
+  fs.writeFileSync(initCommand, initCommandPristine);
+  fs.mkdirSync(path.dirname(nestedGlobalCommand), { recursive: true });
+  fs.writeFileSync(path.join(nestedGlobalRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0' }));
+  fs.writeFileSync(nestedGlobalCommand, initCommandPristine);
+  fs.mkdirSync(path.dirname(legacyCommand), { recursive: true });
+  fs.writeFileSync(path.join(legacyRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0-legacy' }));
+  fs.writeFileSync(legacyCommand, legacyPristine);
+  fs.mkdirSync(path.dirname(preSkillsCommand), { recursive: true });
+  fs.writeFileSync(path.join(preSkillsRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0-pre-skills' }));
+  fs.writeFileSync(preSkillsCommand, preSkillsPristine);
   const r = cli(['init', 'install']);
   if (r.status !== 0) fail(`II1 init install failed:\n${out(r)}`);
   const g = fs.readFileSync(gen, 'utf8'), e = fs.readFileSync(exe, 'utf8'), c = fs.readFileSync(initCommand, 'utf8');
@@ -483,16 +556,74 @@ console.log('✔ leak detector (LK1 a stray subdir state dir is found, LK2 the r
     if (!new RegExp(`if \\(false && options\\.components\\.${c}\\)`).test(e)) fail(`II1 init did not disable the ${c} bundle gate`);
   }
   if (/if \(false && options\.components\.helpers\)/.test(e)) fail('II1 init disabled HELPERS — those are kept, no plugin replaces them');
-  if (!/async function maybeInstallSkillsSh\(ctx\) \{\s+try \{\s+if \(true\)[^\n]*\n\s+return;/.test(c)) fail('II1 init did not suppress maybeInstallSkillsSh() with an unconditional early return');
+  const vendorUsedExternalSkills = initCommandPristine.includes(legacySkillsAnchor);
+  if (vendorUsedExternalSkills
+      && !/async function maybeInstallSkillsSh\(ctx\) \{\s+try \{\s+if \(true\)[^\n]*\n\s+return;/.test(c)) {
+    fail('II1 init did not suppress the legacy external skills.sh importer');
+  }
+  if (!vendorUsedExternalSkills
+      && (c.includes('ruflo-source-patch(init): `skills add ruvnet/ruflo')
+        || !c.includes('RUFLO_PLATFORM_SKILL_MD'))) {
+    fail('II1 init did not retire #2777 locally when upstream bounded the platform skill');
+  }
   if (!/await maybeInstallSkillsSh\(ctx\);/.test(c)) fail('II1 init removed the maybeInstallSkillsSh() call instead of suppressing it at the callee');
+  const legacyPatched = fs.readFileSync(legacyCommand, 'utf8');
+  if (!legacyPatched.includes('ruflo-source-patch(init): `skills add ruvnet/ruflo')) {
+    fail('II1 a legacy initializer did not retain its #2777 compatibility edit');
+  }
+  if (out(r).includes('init/no-skills-sh') && out(r).includes(preSkillsCommand)) {
+    fail('II1 a legacy build that predates skills.sh was falsely reported as broken drift');
+  }
   for (const [name, f] of [['mcp-generator.js', gen], ['executor.js', exe], ['commands/init.js', initCommand]]) {
     const chk = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
     if (chk.status !== 0) fail(`II2 ${name} does not parse after patching:\n${out(chk)}`);
   }
+  const beforeRepeat = fs.readFileSync(initCommand);
+  const repeat = cli(['init', 'install']);
+  if (repeat.status !== 0 || !fs.readFileSync(initCommand).equals(beforeRepeat)) {
+    fail(`II3 init re-apply was not byte-idempotent:\n${out(repeat)}`);
+  }
   const uninstall = cli(['init', 'uninstall']);
-  if (uninstall.status !== 0) fail(`II3 init uninstall failed:\n${out(uninstall)}`);
-  if (fs.readFileSync(gen, 'utf8') !== genPristine) fail('II3 init uninstall did not restore mcp-generator.js byte-for-byte');
-  if (fs.readFileSync(exe, 'utf8') !== exePristine) fail('II3 init uninstall did not restore executor.js byte-for-byte');
-  if (fs.readFileSync(initCommand, 'utf8') !== initCommandPristine) fail('II3 init uninstall did not restore commands/init.js byte-for-byte');
-  console.log('✔ init target (II1 disables the claude-flow .mcp.json emission + skills/commands/agents bundle gates + maybeInstallSkillsSh, HELPERS kept, II2 all three files still parse, II3 uninstall restores byte-for-byte)');
+  if (uninstall.status !== 0) fail(`II4 init uninstall failed:\n${out(uninstall)}`);
+  if (fs.readFileSync(gen, 'utf8') !== genPristine) fail('II4 init uninstall did not restore mcp-generator.js byte-for-byte');
+  if (fs.readFileSync(exe, 'utf8') !== exePristine) fail('II4 init uninstall did not restore executor.js byte-for-byte');
+  if (fs.readFileSync(initCommand, 'utf8') !== initCommandPristine) fail('II4 init uninstall did not restore commands/init.js byte-for-byte');
+  if (fs.readFileSync(nestedGlobalCommand, 'utf8') !== initCommandPristine) {
+    fail('II4 init uninstall did not restore the nested global ruflo CLI byte-for-byte');
+  }
+  if (fs.readFileSync(legacyCommand, 'utf8') !== legacyPristine) {
+    fail('II4 init uninstall did not restore the legacy one-path CLI byte-for-byte');
+  }
+  if (fs.readFileSync(preSkillsCommand, 'utf8') !== preSkillsPristine) {
+    fail('II4 init uninstall did not restore the pre-skills CLI byte-for-byte');
+  }
+
+  if (!vendorUsedExternalSkills) {
+    const historical = initCommandPristine
+      .replace(
+        "import { output } from '../output.js';",
+        `import { output } from '../output.js';
+// ruflo-source-patch(init): install Ruflo's canonical Codex lifecycle plugin (#2801).
+function __rufloEnsureCodexLifecyclePlugin(cwd) { return cwd; }`,
+      )
+      .replace(
+        "        if (ctx.flags['no-skills-sh'] === true)\n            return;",
+        "        if (true) // ruflo-source-patch(init): `skills add ruvnet/ruflo --skill ruflo` legacy edit\n"
+          + "            return;\n"
+          + "        if (ctx.flags['no-skills-sh'] === true)\n"
+          + "            return;",
+      );
+    fs.writeFileSync(`${initCommand}.rsp-backup`, initCommandPristine);
+    fs.writeFileSync(initCommand, historical);
+    const migrate = cli(['init', 'install']);
+    const migrated = fs.readFileSync(initCommand, 'utf8');
+    if (migrate.status !== 0
+        || migrated.includes('__rufloEnsureCodexLifecyclePlugin')
+        || migrated.includes('ruflo-source-patch(init): `skills add ruvnet/ruflo')) {
+      fail(`II5 retired #2777/#2801 bytes were not removed from an existing patched install:\n${out(migrate)}`);
+    }
+    cli(['init', 'uninstall']);
+  }
+
+  console.log('✔ init target (II1 suppresses plugin duplicates while retiring #2777 on bounded upstream bytes, II2 parses, II3 reapplies idempotently, II4 restores byte-for-byte, II5 migrates retired #2777/#2801 edits)');
 }

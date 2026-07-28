@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-07-15 (ADR-020): the sweep crossed files adr-template/adr-index own and corrupted their shared backup; discovery is now a positive prefix signal and overlaps compose from one pristine.
+**Updated**: 2026-07-28. ADR-020 made overlapping targets compose from one pristine. Upstream #2685 is now fixed; retirement is gated on the installed marketplace Git HEAD plus exact local before/after compositions, because upstream's replacement bytes are identical to ours.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, mcp
 
@@ -64,9 +64,9 @@ across the bundled text files under the `ruflo` marketplace's plugin trees
 
 - The widest blast radius of any target: ~474 files across ~30 packages, so ~474 `.rsp-backup` files, and
   the monitor walks the ruflo plugin trees each tick. Steady state is a scan plus byte-compares, no writes.
-- A blanket literal replace also rewrites `mcp__claude-flow__` inside prose, comments and a plugin's own test
-  fixtures. Functionally harmless (the plugin-namespaced name is the accurate one), but broader than the
-  `allowed-tools`/matcher fields Claude Code's docs strictly require.
+- A blanket literal replace also rewrites standalone documentation and a plugin's own smoke assertions.
+  That proved broader than the runtime defect. Retirement restores those paths from the independently
+  verified marketplace HEAD instead of preserving the sweep's overreach.
 - It patches authored plugin CONTENT, so an upstream rewording is a `/plugin update` away; the monitor
   re-applies, and the byte-check reports honestly.
 
@@ -80,8 +80,11 @@ across the bundled text files under the `ruflo` marketplace's plugin trees
   correct there. The `init` target now DOES patch `mcp-generator.js` (and `executor.js`) to stop init
   regenerating what `plugin-only` removes. It is opt-in via install like any target; the "out of scope"
   above still holds for anyone who genuinely runs plugin-off.
-- Superseded the moment upstream fixes ruvnet/ruflo#2685 (bundled refs become namespace-agnostic or
-  plugin-prefixed); the anchor stops matching and `status` reports `0` to patch.
+- Upstream fixed #2685 in stable 3.32.2, and current HEAD includes the two `ruflo-core` files initially
+  missed. Since native and locally patched bytes carry the same replacement token, retirement cannot use
+  token absence/presence. It proves the installed Git HEAD has no functional bare plugin refs, proves each
+  live file is an exact composition of HEAD (or its historical backup), rebases stale backups, reconciles
+  sibling targets, and only then records terminal retirement under ADR-014.
 
 ## Links
 

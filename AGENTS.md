@@ -31,6 +31,7 @@ npx github:sparkling/ruflo-source-patch all status       # the full readout in o
 npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/.swarm + durable state to the project root (#2633)
 npx github:sparkling/ruflo-source-patch daemon install    # one daemon per project root, not per subdirectory (#2633/#2407/#2484)
 npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock (#2621) + WAL-coherent reads (#2584) + integrity gate (refuse a torn-image flush) + stale-writer guard: kills every pre-patch writer, daemon AND MCP client, to force fresh code; a killed MCP client needs a manual /mcp reconnect after, so it warns loudly, machine-wide (#2621/ADR-023; RSP_NO_STALE_WRITER_KILL disables the kill)
+npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
 ```
 
 ### Plugin patches (`ruflo-adr`, `ruvnet-brain`)
@@ -39,9 +40,11 @@ npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock
 npx github:sparkling/ruflo-source-patch adr-template install      # adr-create writes metadata adr-index can parse (#2659)
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
+npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # make ruflo-core's seven hooks parse under Codex; retires on native strict-schema bytes (#2801 / PR #2800)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
-npx github:sparkling/ruflo-source-patch mcp-prefix install         # rewrite bundled mcp__claude-flow__* refs to mcp__plugin_ruflo-core_ruflo__* — dead under plugin loading (#2685)
+npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #2685 rewrite; auto-retires after proving current Ruflo HEAD + local compositions are native
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate
+npx github:sparkling/ruflo-source-patch flywheel-daily install     # legacy #53 cadence fix; auto-retires on Brain's behavioral replacement
 ```
 
 ### Keep it live (actions add `run | check`)
@@ -56,6 +59,7 @@ npx github:sparkling/ruflo-source-patch monitor check     # exit 1 if anything h
 ```bash
 npx github:sparkling/ruflo-source-patch dual run <project>          # single-source dual Claude Code + Codex (alias: dual)
 npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run  # strip the ~260 duplicated files + hooks + MCP registration (aliases: dedupe, dedupe-bundle)
+npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run        # repair an existing Codex install without touching its global Ruflo MCP (#2801)
 ```
 
 `run` materializes the current script and executes it, forwarding your args, with no separate `install` step.
