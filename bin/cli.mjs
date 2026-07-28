@@ -51,6 +51,7 @@ import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
 import { designWallCommand } from '../lib/design-wall/commands.mjs';
+import { codexHooksCommand } from '../lib/codex-hooks/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -75,6 +76,8 @@ const PLUGIN_PATCH_TARGETS = {
   // ruvnet-brain again, a different script: its design-grade commit gate never checks which repo
   // it is running in before demanding a visual design ritual for a plain README.md commit.
   'design-wall': designWallCommand,
+  // ruvnet-brain's installer wires only MCP for Codex; this adds its user-global lifecycle plugin.
+  'codex-hooks': codexHooksCommand,
 };
 
 function usage() {
@@ -104,6 +107,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('')}  with a documented override that cannot work (stuinfla/ruvnet-brain#12)
   ${pad('design-wall')}legacy issue #17 repo-scope fix — self-retires only after the active
   ${pad('')}  upstream gate parses and passes an allow-unrelated/block-own behavior probe
+  ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
