@@ -140,12 +140,12 @@ Actions: `install` · `uninstall` · `status`
 #### ruflo-core under Codex
 
 Codex loads its own Ruflo marketplace snapshot and versioned cache. This target changes only those
-Codex copies; Claude Code's accepted manifest is left alone.
+Codex copies; Claude Code and Cursor plugin copies are left alone.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`ruflo-hooks-schema`** | Ruflo's canonical `ruflo-core` manifest ships `_note` and `_platform_note` at the top level. Claude accepts them; Codex 0.145 rejects the entire file because only `description` and `hooks` are valid, so none of the seven installed handlers loads. Replaces only the bounded JSON header, preserves the complete `hooks` body byte-for-byte, and retires when both the active Codex marketplace and cache ship a native strict-schema manifest with all seven handlers | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) |
+| **`ruflo-hooks-schema`** | Ruflo's canonical `ruflo-core` has two Codex incompatibilities: its manifest ships unsupported `_note` metadata, and its PreToolUse shim always emits Cursor's bare `{"permission":"allow"}` response, which Codex rejects. In Codex's marketplace and active cache only, replaces the bounded JSON header and removes that one exact stdout statement while preserving all seven registrations and the Ruflo telemetry call. Retires only when both copies have a native strict manifest and both `modify-bash` / `modify-file` execution probes produce Codex-valid output | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) |
 
 #### ruvnet-brain
 
@@ -1247,6 +1247,7 @@ this machine*, which is the only form of the question that can be acted on.
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation. `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
 | [#2801](https://github.com/ruvnet/ruflo/issues/2801) **registration fixed in v3.32.24 / `@claude-flow/codex` 3.0.2; manifest still rejected** | Current Codex initialization installs `ruflo-core@ruflo` and prints the required `/hooks` trust message, so the redundant initializer edit was removed. The installed manifest still carries unsupported `_note` keys, making #2801's “seven handlers appear” criterion false until [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) lands cleanly | `ruflo-codex-hooks` (existing systems only), `ruflo-hooks-schema` |
+| [#2816](https://github.com/ruvnet/ruflo/issues/2816) | `ruflo-hook.cjs` always emits Cursor's bare `{"permission":"allow"}` after both PreToolUse branches. Codex requires empty stdout for unconditional success or a nested `hookSpecificOutput`, so every Bash/Edit hook reports invalid JSON even though Ruflo telemetry completed | `ruflo-hooks-schema` |
 | [#2777](https://github.com/ruvnet/ruflo/issues/2777) **fixed in v3.32.10** | Current Ruflo writes one bounded platform `SKILL.md` directly and repairs the historical whole-repository layout. The `init` patch now suppresses only legacy bytes that still execute the external `npx skills add` import; the upstream bounded path runs untouched | `init` (legacy compatibility only) |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | `ruflo init` (CLAUDE.md) and `codex init` (AGENTS.md) generate divergent instruction files | `dual-codex-claude` |
 | [#2637](https://github.com/ruvnet/ruflo/issues/2637) | `ruflo init` gitignores only a nested `.claude-flow/.gitignore`; root `.env` is left tracked | `dual-codex-claude` strips adapter-owned edits, preserves existing rules, and appends its marker-owned `.env`/runtime rules |

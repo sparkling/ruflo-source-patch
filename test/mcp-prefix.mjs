@@ -191,11 +191,12 @@ const rc = resolvePristine(pr4c, patchFn, {
   check('PR4c a bare-string return (not {candidate, verify}) is treated as no recovery offered', rc.poisoned === true && !rc.recovered);
 }
 
-// ── HS: Ruflo's canonical hook manifest must parse under Codex's strict schema (#2801/#2800) ──
+// ── HS: Ruflo's canonical hook files must satisfy Codex's schema and output ABI (#2800/#2816) ──
 {
   const {
-    handlerCount, isNativeSchema, MARKER,
+    handlerCount, isNativeSchema, MARKER, OUTPUT_MARKER, probeNativeShim,
   } = await import('../lib/ruflo-hooks-schema/patcher.mjs');
+  const { spawnSync } = await import('node:child_process');
   const { writeState, readState } = await import('../lib/cwd/state.mjs');
   const { retireSuperseded } = await import('../lib/supersede.mjs');
 
@@ -227,26 +228,61 @@ ${hooksLines}
 ${hooksLines}
 }
 `;
+  const vendorShim = `#!/usr/bin/env node
+'use strict';
+const fs = require('node:fs');
+function invokeCli(subcommand) {
+  if (process.env.HS_TELEMETRY) fs.appendFileSync(process.env.HS_TELEMETRY, subcommand + '\\n');
+  if (process.env.RSP_HOOK_PROBE_LOG) fs.appendFileSync(process.env.RSP_HOOK_PROBE_LOG, 'hooks ' + subcommand + '\\n');
+}
+function done() { process.exit(0); }
+const subcommand = process.argv[2];
+const stdinData = '';
+  if (subcommand === 'modify-bash' || subcommand === 'modify-file') {
+    invokeCli(subcommand, [], stdinData);
+    process.stdout.write('{"permission":"allow"}');
+    done();
+  }
+process.exit(0);
+`;
+  const nativeShim = vendorShim.replace(
+    `    process.stdout.write('{"permission":"allow"}');\n`,
+    '    // Upstream Codex host path: exit 0 with empty stdout.\n',
+  );
   const codexPlugin = path.join(
     SANDBOX, '.codex', '.tmp', 'marketplaces', 'ruflo', 'plugins', 'ruflo-core',
   );
-  const hsFiles = [
+  const manifestFiles = [
     path.join(codexPlugin, 'hooks', 'hooks.json'),
     path.join(
       SANDBOX, '.codex', 'plugins', 'cache', 'ruflo', 'ruflo-core',
       '0.2.4', 'hooks', 'hooks.json',
     ),
   ];
+  const shimFiles = [
+    path.join(codexPlugin, 'scripts', 'ruflo-hook.cjs'),
+    path.join(
+      SANDBOX, '.codex', 'plugins', 'cache', 'ruflo', 'ruflo-core',
+      '0.2.4', 'scripts', 'ruflo-hook.cjs',
+    ),
+  ];
+  const hsFiles = [...manifestFiles, ...shimFiles];
+  const claudeShim = path.join(
+    SANDBOX, '.claude', 'plugins', 'cache', 'ruflo', 'ruflo-core',
+    '0.2.4', 'scripts', 'ruflo-hook.cjs',
+  );
   write(path.join(codexPlugin, '.claude-plugin', 'plugin.json'), '{"name":"ruflo-core","version":"0.2.4"}\n');
-  for (const file of hsFiles) write(file, invalid);
+  for (const file of manifestFiles) write(file, invalid);
+  for (const file of shimFiles) write(file, vendorShim);
+  write(claudeShim, vendorShim);
 
   const beforeHooks = JSON.stringify(JSON.parse(invalid).hooks);
   const beforeSuffix = invalid.slice(invalid.indexOf('  "hooks": {'));
   const hsApply = applyComposed(['ruflo-hooks-schema']);
-  check('HS1 both active Codex manifests are patched atomically',
-    hsApply.patched === 2 && hsApply.incomplete === 0 && hsApply.errors === 0);
+  check('HS1 both active Codex manifests and shims are patched atomically',
+    hsApply.patched === 4 && hsApply.incomplete === 0 && hsApply.errors === 0);
   check('HS2 only Codex-supported top-level keys remain and all seven handlers survive',
-    hsFiles.every((file) => {
+    manifestFiles.every((file) => {
       const source = read(file);
       const keys = Object.keys(JSON.parse(source));
       return keys.join(',') === 'description,hooks'
@@ -254,37 +290,76 @@ ${hooksLines}
         && handlerCount(source) === 7;
     }));
   check('HS3 the complete hooks body is byte-for-byte unchanged',
-    hsFiles.every((file) => read(file).slice(read(file).indexOf('  "hooks": {')) === beforeSuffix)
-      && hsFiles.every((file) => JSON.stringify(JSON.parse(read(file)).hooks) === beforeHooks));
-  check('HS4 apply is idempotent', applyComposed(['ruflo-hooks-schema']).patched === 0);
+    manifestFiles.every((file) => read(file).slice(read(file).indexOf('  "hooks": {')) === beforeSuffix)
+      && manifestFiles.every((file) => JSON.stringify(JSON.parse(read(file)).hooks) === beforeHooks));
+  const telemetry = path.join(SANDBOX, 'hs-telemetry.log');
+  const executions = shimFiles.flatMap((file) => ['modify-bash', 'modify-file'].map((subcommand) => (
+    spawnSync(process.execPath, [file, subcommand], {
+      input: '{}',
+      encoding: 'utf8',
+      env: { ...process.env, HS_TELEMETRY: telemetry },
+    })
+  )));
+  check('HS4 both patched PreToolUse handlers retain telemetry and emit empty Codex success',
+    executions.every((run) => run.status === 0 && run.stdout === '')
+      && read(telemetry).trim().split('\n').length === 4
+      && shimFiles.every((file) => read(file).includes(OUTPUT_MARKER))
+      && shimFiles.every((file) => read(file).includes('invokeCli(subcommand, [], stdinData);'))
+      && read(claudeShim) === vendorShim
+      && !fs.existsSync(bak(claudeShim)));
+  check('HS5 apply is idempotent', applyComposed(['ruflo-hooks-schema']).patched === 0);
   const hsRestore = reconcile([], ['ruflo-hooks-schema']);
-  check('HS5 uninstall restores both vendor manifests byte-for-byte',
+  check('HS6 uninstall restores all four vendor files byte-for-byte',
     hsRestore.errors === 0
-      && hsFiles.every((file) => read(file) === invalid)
+      && manifestFiles.every((file) => read(file) === invalid)
+      && shimFiles.every((file) => read(file) === vendorShim)
       && hsFiles.every((file) => !fs.existsSync(bak(file))));
 
   const unknown = invalid.replace('  "_platform_note":', '  "_surprise":');
-  fs.writeFileSync(hsFiles[0], unknown);
+  fs.writeFileSync(manifestFiles[0], unknown);
   const refused = applyComposed(['ruflo-hooks-schema']);
-  check('HS6 an unknown upstream header is loud and left untouched',
+  check('HS7 an unknown upstream header is loud and left untouched',
     refused.incomplete === 1
-      && read(hsFiles[0]) === unknown
+      && read(manifestFiles[0]) === unknown
       && refused.log.some((line) => line.includes('known-invalid-header-with-seven-handlers')));
   reconcile([], ['ruflo-hooks-schema']);
-  for (const file of hsFiles) write(file, invalid);
+  for (const file of manifestFiles) write(file, invalid);
+  for (const file of shimFiles) write(file, vendorShim);
+
+  const driftedShim = vendorShim.replace(
+    'invokeCli(subcommand, [], stdinData);',
+    'invokeCli(subcommand);',
+  );
+  fs.writeFileSync(shimFiles[0], driftedShim);
+  const refusedShim = applyComposed(['ruflo-hooks-schema']);
+  check('HS8 changed PreToolUse context is loud and left untouched',
+    refusedShim.incomplete === 1
+      && read(shimFiles[0]) === driftedShim
+      && refusedShim.log.some((line) => line.includes('unique-cursor-pretooluse-block')));
+  reconcile([], ['ruflo-hooks-schema']);
+  for (const file of manifestFiles) write(file, invalid);
+  for (const file of shimFiles) write(file, vendorShim);
 
   applyComposed(['ruflo-hooks-schema']);
-  for (const file of hsFiles) fs.writeFileSync(file, native);
+  for (const file of manifestFiles) fs.writeFileSync(file, native);
+  for (const file of shimFiles) fs.writeFileSync(file, '#!/usr/bin/env node\nprocess.exit(0);\n');
   writeState({ patchTargets: [], pluginTargets: ['ruflo-hooks-schema'], retired: {}, all: false });
+  const falseRetirement = retireSuperseded(readState());
+  check('HS9 empty no-op shims cannot masquerade as an upstream replacement',
+    falseRetirement.retired === 0
+      && readState().pluginTargets.includes('ruflo-hooks-schema'));
+  for (const file of shimFiles) fs.writeFileSync(file, nativeShim);
   const retired = retireSuperseded(readState());
   const retiredState = readState();
-  check('HS7 native marketplace+cache proof retires the target without replacing upstream bytes',
+  check('HS10 native marketplace+cache behavior proof retires without replacing upstream bytes',
     retired.retired === 1
       && !retiredState.pluginTargets.includes('ruflo-hooks-schema')
-      && retiredState.retired['ruflo-hooks-schema']?.issue === 'https://github.com/ruvnet/ruflo/issues/2801'
-      && hsFiles.every((file) => read(file) === native)
+      && retiredState.retired['ruflo-hooks-schema']?.issue === 'https://github.com/ruvnet/ruflo/issues/2816'
+      && manifestFiles.every((file) => read(file) === native)
+      && shimFiles.every((file) => read(file) === nativeShim)
       && hsFiles.every((file) => !fs.existsSync(bak(file)))
-      && hsFiles.every((file) => isNativeSchema(read(file))));
+      && manifestFiles.every((file) => isNativeSchema(read(file)))
+      && shimFiles.every((file) => probeNativeShim(file).valid));
 }
 
 // ── MR: #2685 retirement uses Git HEAD, not stale same-output backups ──

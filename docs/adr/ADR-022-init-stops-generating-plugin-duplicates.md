@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-28. Ruflo #2777 is fixed upstream. #2801's initializer registration landed, so the redundant Codex lifecycle source edit has been removed, but Ruflo's canonical hook manifest still fails Codex's strict schema; `ruflo-hooks-schema` covers that separate installed-plugin defect pending PR #2800. The legacy external skill-import guard remains shape-gated for older installed CLIs. `ruflo-codex-hooks` remains an explicit repair for systems initialized before v3.32.24.
+**Updated**: 2026-07-28. Ruflo #2777 is fixed upstream. #2801's initializer registration landed, so the redundant Codex lifecycle source edit has been removed. The canonical plugin still has two Codex-host defects: its manifest fails Codex's strict schema (PR #2800), and its PreToolUse shim emits Cursor-only output (#2816). `ruflo-hooks-schema` covers only those installed Codex copies. The legacy external skill-import guard remains shape-gated for older installed CLIs. `ruflo-codex-hooks` remains an explicit repair for systems initialized before v3.32.24.
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -54,10 +54,10 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 - `ruflo init` / `doctor` stop re-adding the duplicates, so `plugin-only` is a one-time cleanup rather than
   a recurring chore. The two are complements: `plugin-only` removes what exists, `init` stops it recurring.
 - Ruflo v3.32.24 / `@claude-flow/codex` 3.0.2 now installs the canonical lifecycle plugin itself,
-  so the redundant #2801 initializer edit is retired. The plugin's shipped `_note` metadata is still
-  rejected by Codex before any handler loads; the separate `ruflo-hooks-schema` target normalizes
-  only Codex's installed copies pending upstream PR #2800. `ruflo-codex-hooks` remains the one-shot
-  registration repair for systems initialized earlier.
+  so the redundant #2801 initializer edit is retired. The separate `ruflo-hooks-schema` target
+  normalizes the rejected manifest header (PR #2800) and silences the Cursor-only bare PreToolUse
+  verdict (#2816) only in Codex's installed copies. It preserves the seven registrations and Ruflo
+  telemetry call. `ruflo-codex-hooks` remains the one-shot registration repair for older systems.
 - Verified against real vendor bytes (II1 to II4): the emission and all three bundle gates are disabled,
   legacy #2777 bytes are suppressed while bounded upstream bytes remain active, all files still parse,
   and uninstall restores byte-for-byte.
@@ -80,5 +80,5 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 - [ADR-012](ADR-012-dedupe-bundle-strip-duplicated-skills.md) (`plugin-only`, the after-the-fact removal this complements)
 - [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md) (whose "generators out of scope" this revises), [ADR-019](ADR-019-all-mode-adopts-new-targets.md)
-- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration), [#2777](https://github.com/ruvnet/ruflo/issues/2777), [#2801](https://github.com/ruvnet/ruflo/issues/2801) (registration landed; handler-load acceptance still false), and [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) (strict hook-manifest schema)
+- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration), [#2777](https://github.com/ruvnet/ruflo/issues/2777), [#2801](https://github.com/ruvnet/ruflo/issues/2801) (registration landed; handler-load acceptance still false), [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) (strict hook-manifest schema), and [#2816](https://github.com/ruvnet/ruflo/issues/2816) (Codex PreToolUse output)
 - `lib/cwd/patch-library.mjs` (target `init`)

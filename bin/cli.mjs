@@ -73,7 +73,7 @@ const PLUGIN_PATCH_TARGETS = {
   'adr-reindex': adrReindexCommand,
   // ruvnet-brain, not ruflo-adr — same machinery, different plugin.
   'verify-interface': verifyInterfaceCommand,
-  // Ruflo's canonical hooks are installed for Codex by #2801, but Codex rejects their metadata keys.
+  // Codex rejects Ruflo's manifest metadata and its Cursor-only PreToolUse response (#2816).
   'ruflo-hooks-schema': rufloHooksSchemaCommand,
   // Spans ALL ruflo plugins: rewrites bundled mcp__claude-flow__* refs to the plugin-namespaced
   // form so they resolve under plugin loading (#2685). Same machinery, widest blast radius.
@@ -110,7 +110,7 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
 
 Plugin patches (ruflo-core)    (actions: install | uninstall | status)
-  ${pad('ruflo-hooks-schema')}make the canonical hook manifest parse under Codex (#2801 / PR #2800)
+  ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
