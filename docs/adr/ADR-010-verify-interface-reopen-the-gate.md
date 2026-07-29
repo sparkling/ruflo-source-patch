@@ -2,12 +2,12 @@
 
 **Status**: superseded
 **Date**: 2026-07-14
-**Updated**: 2026-07-17. RETIRED: `ruvnet-brain` shipped its own complete rewrite in v3.2.9 (commit
-`bfc2d36`): real JSON parsing (closes #13) and a command-position-anchored matcher with a working
-override checked against the command string (closes #12). Verified against the two installed copies
-this machine can actually load (the marketplace checkout and the active cache version, per
-`installed_plugins.json`), and both carry the fix. `lib/supersede.mjs` now retires this target
-automatically wherever that holds; see "Retirement", below.
+**Updated**: 2026-07-29. RETIRED: `ruvnet-brain` first shipped its own complete rewrite in v3.2.9
+(commit `bfc2d36`): real JSON parsing (closes #13) and a command-position-anchored matcher with a
+working override checked against the command string (closes #12). Its newer issue #48 implementation
+removes the raw-Bash authorization wall entirely: the hook is advisory-only and structured
+`ruvnet_cli_help` / `ruvnet_cli_run` calls own enforcement. The retirement predicate accepts either
+complete replacement and rejects advisory text if any literal nonzero exit remains.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, ruvnet-brain, retired
 
@@ -67,9 +67,10 @@ so every edit carries TWO anchors: the original buggy line, and v1's own output.
 
 ## Retirement (2026-07-17)
 
-`SUPERSEDED_BY['verify-interface']` (`lib/supersede.mjs`) checks two functional, code-level markers from
-the real fix (a real JSON-parser invocation, and the override checked against `$CMD` rather than the
-hook's own environment) against the marketplace checkout and whichever cache version
+`SUPERSEDED_BY['verify-interface']` (`lib/supersede.mjs`) recognizes two independently sufficient,
+code-level replacements: the v3.2.9+ real JSON-parser plus command-level override, or issue #48's
+executable advisory output followed by success with no literal nonzero exit. It checks the
+marketplace checkout and whichever cache version
 `installed_plugins.json` names as actually installed. `discover()`'s own file list includes every
 `cache/<version>` directory ever downloaded, which for a plugin with update history accumulates
 permanently unloadable leftovers forever; checking the fix against ALL of them would keep this
@@ -81,6 +82,6 @@ which only ever touches files carrying our marker; upstream's replacement is nev
 
 ## Links
 
-- Upstream: [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13)
+- Upstream: [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13), [#48](https://github.com/stuinfla/ruvnet-brain/issues/48)
 - The fix: v3.2.9, commit `bfc2d36`
 - `lib/verify-interface/`, `lib/supersede.mjs`

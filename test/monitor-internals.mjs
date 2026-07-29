@@ -311,6 +311,9 @@ console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN
 // checkout, and falls back to checking every discovered copy if the manifest can't be read.
 const viFixed = 'CMD=$(printf \'%s\' "$INPUT" | "$NODE_BIN" -e \'JSON.parse(...)\')\n'
   + '[[ $CMD =~ (^|[[:space:]])RUVNET_SKIP_INTERFACE_CHECK=1([[:space:]]|$) ]] && exit 0\n';
+const viAdvisory = 'CMD=$(printf \'%s\' "$INPUT" | "$NODE_BIN" "$HOOK_INPUT" command)\n'
+  + `printf '%s\\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Interface check advisory: prefer native Ruflo MCP tools. For CLI-only gaps, use ruvnet_cli_help and then ruvnet_cli_run with literal argv; raw Bash is never blocked by this notice."}}'\n`
+  + 'exit 0\n';
 const viBuggy = 'field() { local re="\\"$1\\"[[:space:]]*:[[:space:]]*\\"([^\\"]*)\\""; }\n'
   + '[ "${RUVNET_SKIP_INTERFACE_CHECK:-0}" = "1" ] && exit 0\n'; // old env-based override, #12's actual bug
 
@@ -362,16 +365,35 @@ if (fs.readFileSync(viOrphanCache, 'utf8') !== viBuggy) {
   fail('VI2 retiring touched the orphaned cache copy it explicitly excluded from its own reasoning');
 }
 
-// VI3 — the manifest is missing/unreadable: fall back to checking EVERY discovered copy, the
+// VI3 — issue #48's stronger replacement intentionally removes the old command override: raw Bash is
+// advisory-only, so there is nothing to override. It must retire rather than masquerade as an old bug.
+writeVI(viMarketplace, viAdvisory);
+writeVI(viActiveCache, viAdvisory);
+installViOnly();
+cmds.applyInstalled();
+if (stateMod.readState().pluginTargets.includes('verify-interface')) {
+  fail('VI3 the advisory-only structured-boundary replacement was not recognized — a fresh install would keep applying the retired regex patch');
+}
+
+// VI4 — advisory WORDS alone are not proof. A script that carries the expected output but can still
+// block with a literal nonzero exit is not the issue #48 replacement and must keep the patch live.
+writeVI(viActiveCache, `${viAdvisory}exit 2\n`);
+installViOnly();
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('verify-interface')) {
+  fail('VI4 retired on advisory text despite a nonzero blocking exit still being present');
+}
+
+// VI5 — the manifest is missing/unreadable: fall back to checking EVERY discovered copy, the
 // conservative default. An unfixed orphaned copy must then correctly keep the target live.
 fs.rmSync(viManifest, { force: true });
 installViOnly();
 cmds.applyInstalled();
 if (!stateMod.readState().pluginTargets.includes('verify-interface')) {
-  fail('VI3 retired with NO installed_plugins.json to resolve the active version — must fall back to checking every copy, and the orphaned one is still buggy');
+  fail('VI5 retired with NO installed_plugins.json to resolve the active version — must fall back to checking every copy, and the orphaned one is still buggy');
 }
 
-console.log('✔ verify-interface self-retirement (VI1 keeps when the active copy still has the bug, VI2 an orphaned unloadable copy does not block retirement + evidence recorded + announced without crying wolf + orphan left untouched, VI3 falls back to checking every copy when the manifest is unreadable)');
+console.log('✔ verify-interface self-retirement (VI1 active bug stays live, VI2 fixed command gate retires, VI3 advisory-only replacement retires, VI4 advisory text cannot hide a block, VI5 unresolved active version checks every copy)');
 
 // ─── UP: self-update from immutable tags ─────────────────────────────────────
 //

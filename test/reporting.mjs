@@ -20,7 +20,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
-import { VI_FIX_MARKERS, hasFixMarker } from '../lib/supersede.mjs';
+import { verifyInterfaceFixMode } from '../lib/supersede.mjs';
 
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
@@ -464,10 +464,36 @@ let viFixtureBytes = null;
 if (fs.existsSync(REAL_BRAIN) || fs.existsSync(`${REAL_BRAIN}.rsp-backup`)) {
   viFixtureBytes = pristineBytes(REAL_BRAIN, 'verifyInterface').toString('utf8');
 }
+const viFixMode = viFixtureBytes === null ? null : verifyInterfaceFixMode(viFixtureBytes);
 if (viFixtureBytes === null) {
   console.log('· verify-interface (SKIPPED — the ruvnet-brain plugin is not installed)');
-} else if (hasFixMarker(viFixtureBytes, VI_FIX_MARKERS.JSON_PARSE) && hasFixMarker(viFixtureBytes, VI_FIX_MARKERS.OVERRIDE_ON_CMD)) {
-  console.log('· verify-interface (SKIPPED — ruvnet-brain shipped its own fix upstream, v3.2.9+; our patch is retired, ADR-010; no buggy vendor copy is available on this machine to test against)');
+} else if (viFixMode) {
+  if (viFixMode === 'advisory-only') {
+    freshSandbox();
+    fs.mkdirSync(brainDir, { recursive: true });
+    fs.writeFileSync(brainScript, viFixtureBytes);
+    fs.chmodSync(brainScript, 0o755);
+    const helper = path.join(path.dirname(REAL_BRAIN), 'hook-input.mjs');
+    if (!fs.existsSync(helper)) fail('V0 advisory replacement names hook-input.mjs but the parser is missing');
+    fs.copyFileSync(helper, path.join(brainDir, 'hook-input.mjs'));
+    const profileDir = path.join(HOME, '.claude', 'model-router');
+    fs.mkdirSync(profileDir, { recursive: true });
+    fs.writeFileSync(path.join(profileDir, 'profile.json'), '{}');
+    const payload = JSON.stringify({
+      tool_name: 'Bash',
+      command: 'echo another ruflo process is writing',
+      tool_input: { command: 'echo another ruflo process is writing' },
+    });
+    const probe = spawnSync('bash', [brainScript], {
+      input: payload, encoding: 'utf8', env: { ...process.env, HOME },
+    });
+    let context = '';
+    try { context = JSON.parse(probe.stdout).hookSpecificOutput?.additionalContext || ''; } catch {}
+    if (probe.status !== 0 || !context.includes('raw Bash is never blocked')) {
+      fail(`V0 advisory replacement is not runnable as claimed: status=${probe.status}, stdout=${probe.stdout}, stderr=${probe.stderr}`);
+    }
+  }
+  console.log(`· verify-interface (SKIPPED — ruvnet-brain ships a runnable ${viFixMode} replacement; our patch is retired, ADR-010; no buggy vendor copy is available on this machine)`);
 } else {
   freshSandbox();
   fs.mkdirSync(brainDir, { recursive: true });
