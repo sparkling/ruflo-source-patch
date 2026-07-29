@@ -41,7 +41,7 @@ npx github:sparkling/ruflo-source-patch adr-template install      # adr-create w
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # make ruflo-core's manifest + PreToolUse output valid in Codex; retires on native schema/behavior proof (PR #2800 / #2816)
-npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # expose Ruflo's missing read-only status skill in Codex (#2821)
+npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # expose command workflows Codex skipped across installed Ruflo plugins (#2821)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #2685 rewrite; auto-retires after proving current Ruflo HEAD + local compositions are native
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate

@@ -115,9 +115,9 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
   ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
 
-Plugin patches (ruflo-core)    (actions: install | uninstall | status)
+Plugin patches (Ruflo/Codex)   (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
-  ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
+  ${pad('ruflo-codex-skills')}expose skipped command workflows across installed Ruflo plugins (#2821)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —

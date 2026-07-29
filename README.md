@@ -2,8 +2,8 @@
 
 Install with `npx github:sparkling/ruflo-source-patch`. Zero dependencies, no registry required.
 
-Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` (and its
-`ruflo-adr` plugin) bugs that are still open upstream: folder sprawl, multiplying daemons, a
+Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` and its plugins
+that are still open upstream: folder sprawl, multiplying daemons, a
 memory store that silently drops writes, and an ADR template whose own metadata format its
 sibling parser can't read.
 
@@ -22,7 +22,9 @@ keep the rest.
   - [Patch targets](#patch-targets)
   - [Plugin patches](#plugin-patches)
     - [ruflo-adr](#ruflo-adr)
+    - [Ruflo plugins under Codex](#ruflo-plugins-under-codex)
     - [ruvnet-brain](#ruvnet-brain)
+    - [all ruflo plugins](#all-ruflo-plugins)
   - [Script targets](#script-targets)
   - [Monitor](#monitor)
 - [The patches in detail](#the-patches-in-detail)
@@ -137,16 +139,16 @@ Actions: `install` · `uninstall` · `status`
 | **`adr-index`** | `adr-index` **cannot update an ADR that changed**, which is the one thing its own SKILL.md advertises ("Build or *rebuild* … when the graph is out of sync with the on-disk files"). Ratify an ADR, re-run it, and the graph still says `proposed`. Both namespaces are insert-only, failing in *opposite* directions. `adr-patterns` keys are deterministic, so they collide, the write is rejected, and the record stays **frozen**. `adr-edges` keys embed `Date.now()`+random, so they never collide, and every run **duplicates** the whole edge set (3 → 6 → 9). It reports `Records stored: 2/2` either way, because a `UNIQUE constraint` failure is counted as a success | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
 | **`adr-reindex`** | The only target that **adds** rather than fixes. `adr-index` converges; it can never **reap**. Delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL, because the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target**: it hard-deletes rows and refuses to do that without the write lock. **SUPERSEDED on `@claude-flow/cli` 3.29.0+**, which ships the `memory purge` that `ruflo-adr` 0.4.0's own `/adr-reindex` needs; on an older CLI that command is missing, an unknown subcommand exits 0, and theirs reports "purged" having purged nothing. `apply()` checks the CLI on this machine and says which of the two is runnable | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 
-#### ruflo-core under Codex
+#### Ruflo plugins under Codex
 
-Codex loads its own Ruflo marketplace snapshot and versioned cache. This target changes only those
+Codex loads its own Ruflo marketplace snapshot and versioned caches. These targets change only those
 Codex copies; Claude Code and Cursor plugin copies are left alone.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`ruflo-hooks-schema`** | Ruflo's canonical `ruflo-core` has two Codex incompatibilities: its manifest ships unsupported `_note` metadata, and its PreToolUse shim always emits Cursor's bare `{"permission":"allow"}` response, which Codex rejects. In Codex's marketplace and active cache only, replaces the bounded JSON header and removes that one exact stdout statement while preserving all seven registrations and the Ruflo telemetry call. Retires only when both copies have a native strict manifest and both `modify-bash` / `modify-file` execution probes produce Codex-valid output | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) |
-| **`ruflo-codex-skills`** | Ruflo ships `commands/ruflo-status.md` for Claude Code, but Codex exposes plugin workflows as skills and current `ruflo-core` has no equivalent. Adds one read-only `ruflo-core:ruflo-status` skill to the active Codex cache; it runs `doctor` plus `status` and leaves `doctor --fix` explicit | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
+| **`ruflo-codex-skills`** | Codex migrates compatible Ruflo `commands/*.md` into skills, but skips command templates containing unsupported substitutions/tokens or exceeding its size ceiling. Across every installed and enabled `ruflo-*` plugin, adds an exact-owned same-name native skill only when neither a valid native skill nor Codex migration covers that command. It preserves upstream files, ignores disabled plugins during apply, removes owned files on uninstall, and retires each wrapper as soon as native/migrated parity appears. This generalizes #2821's command-to-skill acceptance invariant; it does not claim the issue originally reported every optional-plugin gap | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
 
 #### ruvnet-brain
 
@@ -162,12 +164,13 @@ Actions: `install` · `uninstall` · `status`
 
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
-`$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`. A new Codex session is required after install
-because the session loads its skill inventory at startup.
+`$ruflo-swarm:swarm` (when that plugin is installed), `$ruvnet-brain:rvbc`, and
+`$ruvnet-brain:whats-new`. A new Codex session is required after install because the session loads its
+skill inventory at startup.
 
 #### all ruflo plugins
 
-One target, spanning every installed `ruflo-*` plugin rather than a single file.
+This source-sweep target spans every installed `ruflo-*` plugin rather than a single file.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
@@ -1254,7 +1257,7 @@ this machine*, which is the only form of the question that can be acted on.
 | [ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) | Codex's 4,000-byte command-migration limit silently drops `rvbc` and `whats-new`; the three aliases that survive are not self-contained under Codex and can reference an unpackaged sibling or Claude-only path state | `brain-codex-skills` |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation. `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
-| [#2821](https://github.com/ruvnet/ruflo/issues/2821) | `ruflo-core` ships `ruflo-status` only as a Claude command. Codex's plugin inventory contains the four native Ruflo skills but no read-only status equivalent | `ruflo-codex-skills` |
+| [#2821](https://github.com/ruvnet/ruflo/issues/2821) | `ruflo-core` ships `ruflo-status` only as a Claude command. Its broader acceptance criterion requires every `commands/*.md` workflow to have a same-name skill or explicit exemption; Codex currently skips a subset across installed Ruflo plugins | `ruflo-codex-skills` |
 | [#2801](https://github.com/ruvnet/ruflo/issues/2801) **registration fixed in v3.32.24 / `@claude-flow/codex` 3.0.2; manifest still rejected** | Current Codex initialization installs `ruflo-core@ruflo` and prints the required `/hooks` trust message, so the redundant initializer edit was removed. The installed manifest still carries unsupported `_note` keys, making #2801's “seven handlers appear” criterion false until [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) lands cleanly | `ruflo-codex-hooks` (existing systems only), `ruflo-hooks-schema` |
 | [#2816](https://github.com/ruvnet/ruflo/issues/2816) | `ruflo-hook.cjs` always emits Cursor's bare `{"permission":"allow"}` after both PreToolUse branches. Codex requires empty stdout for unconditional success or a nested `hookSpecificOutput`, so every Bash/Edit hook reports invalid JSON even though Ruflo telemetry completed | `ruflo-hooks-schema` |
 | [#2777](https://github.com/ruvnet/ruflo/issues/2777) **fixed in v3.32.10** | Current Ruflo writes one bounded platform `SKILL.md` directly and repairs the historical whole-repository layout. The `init` patch now suppresses only legacy bytes that still execute the external `npx skills add` import; the upstream bounded path runs untouched | `init` (legacy compatibility only) |

@@ -28,7 +28,7 @@
 | `flywheel-daily.mjs` | The flywheel advisory's daily/project scope, concurrent atomic claim, fail-silent path, and byte-safe lifecycle. |
 | `codex-hooks.mjs` | Brain's additive Codex lifecycle plugin, adapter protocol, registration, and exact-owned uninstall. |
 | `codex-hooks-native.mjs` | Mixed upstream #52 rollout: source-only stays unhealthy; complete native wiring is preserved. |
-| `codex-skills.mjs` | Cache-local Ruflo/Brain skill parity: exact ownership, alias restoration, collision refusal, active-version updates, and no Brain source mutation. |
+| `codex-skills.mjs` | Cache-local Ruflo/Brain skill parity: multi-plugin discovery, native/migrated preservation, exact ownership and retirement, alias restoration, disabled-plugin cleanup, collision refusal, active-version updates, and no Brain source mutation. |
 | `ruflo-codex-hooks.mjs` | Ruflo's canonical Codex plugin repair: idempotency, disabled-state preservation, collision refusal, loud failures, and zero MCP mutation. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
