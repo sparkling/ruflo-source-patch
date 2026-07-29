@@ -11,8 +11,7 @@ const HOME = path.join(SB, 'home');
 const CODEX_HOME = path.join(HOME, '.codex');
 const CACHE = path.join(CODEX_HOME, 'plugins', 'cache');
 const BRAIN_SOURCE = path.join(HOME, '.claude', 'plugins', 'marketplaces', 'ruvnet-brain', 'plugin');
-const rufloSource = (name) =>
-  path.join(CODEX_HOME, '.tmp', 'marketplaces', 'ruflo', 'plugins', name);
+const RUFLO_SOURCE = path.join(CODEX_HOME, '.tmp', 'marketplaces', 'ruflo', 'plugins', 'ruflo-core');
 const FAKE_CODEX = path.join(SB, 'codex');
 const FAKE_ROWS = path.join(SB, 'plugin-rows.json');
 const FAKE_CALLS = path.join(SB, 'codex-calls.log');
@@ -52,26 +51,6 @@ npx @claude-flow/cli@latest doctor
 npx @claude-flow/cli@latest status
 \`\`\`
 To auto-fix issues, run \`npx @claude-flow/cli@latest doctor --fix\` separately.
-`;
-
-const swarmCommand = `---
-description: Coordinate a hierarchical Ruflo swarm
----
-$ARGUMENTS
-Parse $ARGUMENTS to select the swarm operation.
-Run \`npx @claude-flow/cli@latest swarm status\` when no operation was supplied.
-`;
-
-const watchCommand = `---
-description: Watch Ruflo swarm activity
----
-Run \`npx @claude-flow/cli@latest swarm watch --stream\`.
-`;
-
-const nativeCommand = `---
-description: Exercise an upstream-native command skill
----
-Use the upstream-native implementation.
 `;
 
 const rvbc = `---
@@ -145,19 +124,17 @@ ${parsed.body}
 `;
 }
 
-function row(pluginId, name, marketplaceName, version, source, enabled = true) {
+function row(pluginId, name, marketplaceName, version, source) {
   return {
-    pluginId, name, marketplaceName, version, installed: true, enabled,
+    pluginId, name, marketplaceName, version, installed: true, enabled: true,
     source: { source: 'local', path: source },
   };
 }
 
-function setRows(rufloVersion = '0.2.4', brainVersion = '3.9.128-dev', swarmEnabled = true) {
+function setRows(rufloVersion = '0.2.4', brainVersion = '3.9.128-dev') {
   write(FAKE_ROWS, `${JSON.stringify({
     installed: [
-      row('ruflo-core@ruflo', 'ruflo-core', 'ruflo', rufloVersion, rufloSource('ruflo-core')),
-      row('ruflo-swarm@ruflo', 'ruflo-swarm', 'ruflo', '0.2.1',
-        rufloSource('ruflo-swarm'), swarmEnabled),
+      row('ruflo-core@ruflo', 'ruflo-core', 'ruflo', rufloVersion, RUFLO_SOURCE),
       row('ruvnet-brain@ruvnet-brain', 'ruvnet-brain', 'ruvnet-brain', brainVersion, BRAIN_SOURCE),
     ],
     available: [],
@@ -185,21 +162,9 @@ process.stdout.write(fs.readFileSync(process.env.RSP_FAKE_PLUGIN_ROWS, 'utf8'));
   process.env.RSP_FAKE_PLUGIN_ROWS = FAKE_ROWS;
   setRows();
   const rufloRoot = seedPlugin({
-    marketplace: 'ruflo', name: 'ruflo-core', version: '0.2.4', source: rufloSource('ruflo-core'),
+    marketplace: 'ruflo', name: 'ruflo-core', version: '0.2.4', source: RUFLO_SOURCE,
     commands: { 'ruflo-status': rufloStatus },
   });
-  const swarmRoot = seedPlugin({
-    marketplace: 'ruflo', name: 'ruflo-swarm', version: '0.2.1', source: rufloSource('ruflo-swarm'),
-    commands: { swarm: swarmCommand, watch: watchCommand, 'native-command': nativeCommand },
-  });
-  write(path.join(swarmRoot, '.codex-plugin', 'migrated-command-skills',
-    'source-command-watch', 'SKILL.md'), migrated('watch', watchCommand));
-  write(path.join(swarmRoot, 'skills', 'native-command', 'SKILL.md'), `---
-name: native-command
-description: Native parity supplied upstream
----
-Upstream implementation.
-`);
   const brainRoot = seedPlugin({
     marketplace: 'ruvnet-brain', name: 'ruvnet-brain', version: '3.9.128-dev',
     source: BRAIN_SOURCE,
@@ -214,7 +179,7 @@ Upstream implementation.
     write(path.join(brainRoot, '.codex-plugin', 'migrated-command-skills',
       `source-command-${name}`, 'SKILL.md'), migrated(name, aliasCommand(name)));
   }
-  return { rufloRoot, swarmRoot, brainRoot };
+  return { rufloRoot, brainRoot };
 }
 
 function snapshot(root) {
@@ -238,28 +203,18 @@ const sourceBefore = snapshot(BRAIN_SOURCE);
 const rufloApply = patcher.apply('ruflo-codex-skills');
 const brainApply = patcher.apply('brain-codex-skills');
 check('CS1 both targets apply completely',
-  rufloApply.patched === 2 && !rufloApply.incomplete && !rufloApply.errors
+  rufloApply.patched === 1 && !rufloApply.incomplete && !rufloApply.errors
     && brainApply.patched === 5 && !brainApply.incomplete && !brainApply.errors,
   JSON.stringify({ rufloApply, brainApply }));
 
 const rufloRoot = path.join(CACHE, 'ruflo', 'ruflo-core', '0.2.4');
-const swarmRoot = path.join(CACHE, 'ruflo', 'ruflo-swarm', '0.2.1');
 const brainRoot = path.join(CACHE, 'ruvnet-brain', 'ruvnet-brain', '3.9.128-dev');
 const statusSkill = fs.readFileSync(path.join(rufloRoot, 'skills', 'ruflo-status', 'SKILL.md'), 'utf8');
-const swarmSkill = fs.readFileSync(path.join(swarmRoot, 'skills', 'swarm', 'SKILL.md'), 'utf8');
 const rvbcSkill = fs.readFileSync(path.join(brainRoot, 'skills', 'rvbc', 'SKILL.md'), 'utf8');
 const newsSkill = fs.readFileSync(path.join(brainRoot, 'skills', 'whats-new', 'SKILL.md'), 'utf8');
 check('CS2 Ruflo status stays read-only and drops Claude arguments',
   !statusSkill.includes('$ARGUMENTS') && statusSkill.includes('doctor')
     && statusSkill.includes('status') && statusSkill.includes('doctor --fix` separately'));
-check('CS2b every omitted Ruflo command becomes a namespaced native skill',
-  swarmSkill.includes('name: swarm')
-    && swarmSkill.includes('Coordinate a hierarchical Ruflo swarm')
-    && swarmSkill.includes('Interpret `$ARGUMENTS` as the arguments in the current user request')
-    && swarmSkill.includes('npx @claude-flow/cli@latest swarm status')
-    && !fs.existsSync(path.join(swarmRoot, 'skills', 'watch', 'SKILL.md'))
-    && fs.readFileSync(path.join(swarmRoot, 'skills', 'native-command', 'SKILL.md'), 'utf8')
-      .includes('Upstream implementation.'));
 check('CS3 Brain native skills resolve through Codex without Claude-only paths',
   rvbcSkill.includes('codex plugin list --available --json')
     && newsSkill.includes('codex plugin list --available --json')
@@ -293,37 +248,21 @@ const brainRestore = patcher.restore('brain-codex-skills');
 const rufloRestore = patcher.restore('ruflo-codex-skills');
 check('CS8 uninstall removes only additive skills and restores all aliases',
   brainRestore.restored === 5 && !brainRestore.incomplete && !brainRestore.errors
-    && rufloRestore.restored === 2 && !rufloRestore.incomplete && !rufloRestore.errors
+    && rufloRestore.restored === 1 && !rufloRestore.incomplete && !rufloRestore.errors
     && !fs.existsSync(path.join(brainRoot, 'skills', 'rvbc', 'SKILL.md'))
-    && !fs.existsSync(path.join(swarmRoot, 'skills', 'swarm', 'SKILL.md'))
-    && fs.existsSync(path.join(swarmRoot, 'skills', 'native-command', 'SKILL.md'))
     && aliases.every((file, index) =>
       fs.readFileSync(file, 'utf8') === migrated(
         ['brain-console', 'configure', 'rvcb'][index],
         aliasCommand(['brain-console', 'configure', 'rvcb'][index]))));
 
-console.log('\nRetirement, refusal, and update boundaries');
+console.log('\nRefusal and update boundaries');
 seed();
 const collision = path.join(CACHE, 'ruflo', 'ruflo-core', '0.2.4', 'skills', 'ruflo-status', 'SKILL.md');
-write(collision, `---
-name: ruflo-status
-description: Upstream native status parity
----
-Upstream native status skill.
-`);
+write(collision, 'user-owned skill\n');
 const collisionApply = patcher.apply('ruflo-codex-skills');
-check('CS9 an upstream same-name native skill retires that command patch',
-  !collisionApply.incomplete && collisionApply.patched === 1
-    && fs.readFileSync(collision, 'utf8').includes('Upstream native status skill.'),
+check('CS9 unmarked native collision is loud and untouched',
+  collisionApply.incomplete === 1 && fs.readFileSync(collision, 'utf8') === 'user-owned skill\n',
   JSON.stringify(collisionApply));
-
-seed();
-write(collision, 'unowned malformed collision\n');
-const malformedNative = patcher.apply('ruflo-codex-skills');
-check('CS9b malformed same-name bytes are loud and untouched',
-  malformedNative.incomplete === 1
-    && fs.readFileSync(collision, 'utf8') === 'unowned malformed collision\n',
-  JSON.stringify(malformedNative));
 
 seed();
 const unknown = path.join(CACHE, 'ruvnet-brain', 'ruvnet-brain', '3.9.128-dev',
@@ -344,53 +283,25 @@ check('CS11 modified owned skill is not overwritten',
   JSON.stringify(modifiedApply));
 
 seed();
-patcher.apply('ruflo-codex-skills');
-const retiring = path.join(CACHE, 'ruflo', 'ruflo-swarm', '0.2.1');
-write(path.join(retiring, '.codex-plugin', 'migrated-command-skills',
-  'source-command-swarm', 'SKILL.md'), migrated('swarm', swarmCommand));
-const retired = patcher.apply('ruflo-codex-skills');
-const retiredStatus = patcher.status('ruflo-codex-skills');
-check('CS12 Codex migration proof removes the now-redundant owned skill',
-  retired.patched === 1 && retired.unchanged === 1
-    && !fs.existsSync(path.join(retiring, 'skills', 'swarm', 'SKILL.md'))
-    && retiredStatus.files === 1 && retiredStatus.patched === 1,
-  JSON.stringify({ retired, retiredStatus }));
-
-seed();
-patcher.apply('ruflo-codex-skills');
-setRows('0.2.4', '3.9.128-dev', false);
-const disabledApply = patcher.apply('ruflo-codex-skills');
-const disabledOwned = path.join(CACHE, 'ruflo', 'ruflo-swarm', '0.2.1',
-  'skills', 'swarm', 'SKILL.md');
-const disabledPreserved = fs.existsSync(disabledOwned);
-const disabledRestore = patcher.restore('ruflo-codex-skills');
-check('CS12b apply ignores disabled plugins but uninstall removes their owned files',
-  disabledApply.unchanged === 1
-    && disabledPreserved
-    && disabledRestore.restored === 2
-    && !fs.existsSync(disabledOwned),
-  JSON.stringify({ disabledApply, disabledRestore }));
-
-seed();
 const nextRoot = seedPlugin({
-  marketplace: 'ruflo', name: 'ruflo-core', version: '0.2.5', source: rufloSource('ruflo-core'),
+  marketplace: 'ruflo', name: 'ruflo-core', version: '0.2.5', source: RUFLO_SOURCE,
   commands: { 'ruflo-status': rufloStatus.replace('system status.', 'current system status.') },
 });
 setRows('0.2.5');
 const updated = patcher.apply('ruflo-codex-skills');
-check('CS13 active version change targets the new cache without touching the old one',
-  updated.patched === 2
+check('CS12 active version change targets the new cache without touching the old one',
+  updated.patched === 1
     && fs.existsSync(path.join(nextRoot, 'skills', 'ruflo-status', 'SKILL.md'))
     && !fs.existsSync(path.join(CACHE, 'ruflo', 'ruflo-core', '0.2.4', 'skills', 'ruflo-status', 'SKILL.md')),
   JSON.stringify(updated));
 
 const child = spawnSync(process.execPath, ['--check', path.join(REPO, 'lib', 'codex-skills', 'patcher.mjs')]);
-check('CS14 patcher parses in a fresh Node process', child.status === 0);
+check('CS13 patcher parses in a fresh Node process', child.status === 0);
 
 fs.rmSync(FAKE_CALLS, { force: true });
 const registry = await import(`file://${path.join(REPO, 'lib', 'plugin-registry.mjs')}`);
 const emptyInspection = registry.inspectPlugins([]);
-check('CS15 drift inspection does not query Codex for uninstalled targets',
+check('CS14 drift inspection does not query Codex for uninstalled targets',
   Object.keys(emptyInspection).length === 0 && !fs.existsSync(FAKE_CALLS));
 
 if (failures) {

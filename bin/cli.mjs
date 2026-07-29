@@ -11,6 +11,7 @@
 //   cwd      cwd anchoring — .claude-flow/.swarm stop following a drifted cwd (#2633)
 //   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
+//   plugin-hosts  dual-host Ruflo marketplace install/uninstall/sync (#2854)
 //
 // Plugin patches (changes to installed plugin copies, not @claude-flow/cli — same
 // install/uninstall/status shape, different target files). The ADR trio covers the whole round-trip:
@@ -108,6 +109,7 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('daemon')}${TARGET_INFO.daemon}
   ${pad('memory')}${TARGET_INFO.memory}
   ${pad('init')}${TARGET_INFO.init}
+  ${pad('plugin-hosts')}${TARGET_INFO['plugin-hosts']}
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)
@@ -115,9 +117,9 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
   ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
 
-Plugin patches (Ruflo/Codex)   (actions: install | uninstall | status)
+Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
-  ${pad('ruflo-codex-skills')}expose skipped command workflows across installed Ruflo plugins (#2821)
+  ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —

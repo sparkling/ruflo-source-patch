@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-07-29. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-07-28. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
@@ -66,10 +66,8 @@ A shared composition engine (`lib/plugin-compose.mjs`) owns every plugin-patched
 
 `adr-reindex` and the native files created by `ruflo-codex-skills` / `brain-codex-skills` are NOT part
 of this: they ADD skill files rather than patching a shared vendor file, so they keep their own exact
-ownership checks. The Ruflo target may create several such files across installed plugin caches, but
-each remains independently digest-owned and retires when native or migrated parity appears. Brain's
-three migrated aliases are edited vendor-generated files, but no other target claims them; each therefore
-uses the shared pristine helper directly rather than the composition engine.
+ownership checks. Brain's three migrated aliases are edited vendor-generated files, but no other target
+claims them; each therefore uses the shared pristine helper directly rather than the composition engine.
 
 ## Consequences
 

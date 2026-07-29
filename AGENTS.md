@@ -32,6 +32,7 @@ npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/
 npx github:sparkling/ruflo-source-patch daemon install    # one daemon per project root, not per subdirectory (#2633/#2407/#2484)
 npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock (#2621) + WAL-coherent reads (#2584) + integrity gate (refuse a torn-image flush) + stale-writer guard: kills every pre-patch writer, daemon AND MCP client, to force fresh code; a killed MCP client needs a manual /mcp reconnect after, so it warns loudly, machine-wide (#2621/ADR-023; RSP_NO_STALE_WRITER_KILL disables the kill)
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
+npx github:sparkling/ruflo-source-patch plugin-hosts install # add Ruflo-owned dual-host install/uninstall/sync commands (#2854)
 ```
 
 ### Plugin patches (`ruflo-adr`, `ruvnet-brain`)
@@ -41,7 +42,7 @@ npx github:sparkling/ruflo-source-patch adr-template install      # adr-create w
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # make ruflo-core's manifest + PreToolUse output valid in Codex; retires on native schema/behavior proof (PR #2800 / #2816)
-npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # expose command workflows Codex skipped across installed Ruflo plugins (#2821)
+npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # expose Ruflo's missing read-only status skill in Codex (#2821)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #2685 rewrite; auto-retires after proving current Ruflo HEAD + local compositions are native
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate

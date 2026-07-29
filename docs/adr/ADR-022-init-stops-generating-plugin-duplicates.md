@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-29. Ruflo #2777 is fixed upstream. #2801's initializer registration landed, so the redundant Codex lifecycle source edit has been removed. The canonical plugin still has two Codex-host defects: its manifest fails Codex's strict schema (PR #2800), and its PreToolUse shim emits Cursor-only output (#2816). `ruflo-hooks-schema` covers only those installed Codex copies. The legacy external skill-import guard remains shape-gated for older installed CLIs. `ruflo-codex-hooks` remains an explicit repair for systems initialized before v3.32.24. Plugin-native command parity is proved per host: Codex migrates only compatible Claude command files, so issue-backed cache-local targets supply each remaining active-plugin gap and stand down per command when native or migrated parity appears (#2821 / Brain #56).
+**Updated**: 2026-07-29. Ruflo #2777 is fixed upstream. #2801's initializer registration landed, so the redundant Codex lifecycle source edit has been removed. The canonical plugin still has two Codex-host defects: its manifest fails Codex's strict schema (PR #2800), and its PreToolUse shim emits Cursor-only output (#2816). `ruflo-hooks-schema` covers only those installed Codex copies. The legacy external skill-import guard remains shape-gated for older installed CLIs. `ruflo-codex-hooks` remains an explicit repair for systems initialized before v3.32.24. #2854 identifies the missing installer layer: Claude Code and Codex keep separate plugin registries, so `plugin-hosts` adds explicit Ruflo-owned dual-host install, uninstall, and additive reconciliation commands that use each host's public CLI. Cache-local command patches remain limited to their original issue-backed gaps (#2821 / Brain #56).
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -64,13 +64,15 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   normalizes the rejected manifest header (PR #2800) and silences the Cursor-only bare PreToolUse
   verdict (#2816) only in Codex's installed copies. It preserves the seven registrations and Ruflo
   telemetry call. `ruflo-codex-hooks` remains the one-shot registration repair for older systems.
-- `ruflo-codex-skills` enumerates installed, enabled Ruflo plugins and adds exact-owned native
-  skills only for command workflows Codex did not migrate and upstream did not supply natively.
-  It ignores disabled plugins during apply, cleans its owned files during uninstall, and removes
-  a wrapper once native or migrated parity appears. `brain-codex-skills` separately adds Brain's
-  skipped `rvbc` / `whats-new` surfaces and repairs the three incomplete migrated aliases. Both
-  target only Codex's versioned caches. They do not restore the project bundle, alter Claude Code,
-  or touch Brain's shared source/updater plane.
+- `plugin-hosts` patches Ruflo's existing plugin command layer, not either host cache. Its
+  `host-install`, `host-uninstall`, and `host-sync` commands validate exact `*@ruflo` identities,
+  delegate through literal argv to `claude plugin` / `codex plugin`, preserve disabled and
+  target-only state, and report partial completion as failure. Raw host installers remain
+  host-specific; sync is additive and dry-run is mutation-free.
+- `ruflo-codex-skills` adds Ruflo's missing read-only status surface, while
+  `brain-codex-skills` adds Brain's skipped `rvbc` / `whats-new` surfaces and repairs the three
+  incomplete migrated aliases. Both target only the active Codex cache. They do not restore the
+  project bundle, alter Claude Code, or touch Brain's shared source/updater plane.
 - Verified against real vendor bytes (II1 to II4): the emission and all three bundle gates are disabled,
   legacy #2777 bytes are suppressed while bounded upstream bytes remain active, all files still parse,
   and uninstall restores byte-for-byte.
@@ -95,5 +97,5 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 - [ADR-012](ADR-012-dedupe-bundle-strip-duplicated-skills.md) (`plugin-only`, the after-the-fact removal this complements)
 - [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md) (whose "generators out of scope" this revises), [ADR-019](ADR-019-all-mode-adopts-new-targets.md)
-- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration), [#2777](https://github.com/ruvnet/ruflo/issues/2777), [#2801](https://github.com/ruvnet/ruflo/issues/2801) (registration landed; handler-load acceptance still false), [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) (strict hook-manifest schema), [#2816](https://github.com/ruvnet/ruflo/issues/2816) (Codex PreToolUse output), [#2821](https://github.com/ruvnet/ruflo/issues/2821) (Ruflo command-to-skill parity invariant), and [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) (dropped/incomplete Brain command migrations)
+- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration), [#2777](https://github.com/ruvnet/ruflo/issues/2777), [#2801](https://github.com/ruvnet/ruflo/issues/2801) (registration landed; handler-load acceptance still false), [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) (strict hook-manifest schema), [#2816](https://github.com/ruvnet/ruflo/issues/2816) (Codex PreToolUse output), [#2821](https://github.com/ruvnet/ruflo/issues/2821) (missing Ruflo status skill), [#2854](https://github.com/ruvnet/ruflo/issues/2854) (dual-host marketplace installer), and [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) (dropped/incomplete Brain command migrations)
 - `lib/cwd/patch-library.mjs` (target `init`)
