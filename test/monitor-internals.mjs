@@ -325,6 +325,8 @@ if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
 }
 const retiredStatus = cli(['adr-reindex', 'status']);
 if (!/RETIRED/.test(out(retiredStatus))
+    || !/current revalidation: superseded/.test(out(retiredStatus))
+    || !/rsp-lock/.test(out(retiredStatus))
     || /NOT tracked|run `adr-reindex install`/.test(out(retiredStatus))) {
   fail(`SU7 retired status contradicts terminal state or suggests reinstalling:\n${out(retiredStatus)}`);
 }
