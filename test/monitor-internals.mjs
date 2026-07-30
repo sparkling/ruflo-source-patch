@@ -191,7 +191,9 @@ const upstreamSkill = path.join(skillDir, 'skills', 'adr-reindex', 'SKILL.md');
 fs.writeFileSync(upstreamSkill, '---\nname: adr-reindex\n---\n\nupstream ships this now (no rsp marker)\n');
 
 const cliMemoryJs = path.join(SB, 'npx', 'abc', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'commands', 'memory.js');
+const cliMemoryInit = path.join(SB, 'npx', 'abc', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 fs.mkdirSync(path.dirname(cliMemoryJs), { recursive: true });
+fs.mkdirSync(path.dirname(cliMemoryInit), { recursive: true });
 
 // AR4 — the CLI has NO `purge` subcommand, which is every published build to date.
 fs.writeFileSync(cliMemoryJs, "const subs = ['store', 'delete', 'cleanup', 'distill'];\n");
@@ -204,14 +206,23 @@ if (!/memory purge/.test(noPurge) || !/ruflo-adr-reindex\.sh/.test(noPurge)) {
   fail(`AR4 the advice does not name the missing command, or the script that still works:\n  ${noPurge}`);
 }
 
-// AR5 — and once `memory purge` DOES ship, the advice must flip. Otherwise this target nags forever.
+// AR5 — subcommand presence alone is insufficient: #2666 explicitly requires the SAME writer lock.
 fs.writeFileSync(cliMemoryJs, "const subs = ['store', 'delete', 'purge', 'cleanup'];\n");
-const withPurge = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
-if (!/Uninstall this target/i.test(withPurge) || /Do NOT uninstall/i.test(withPurge)) {
-  fail(`AR5 \`memory purge\` is available, so upstream's reindex works and ours is redundant — the advice must say to uninstall:\n  ${withPurge}`);
+fs.writeFileSync(cliMemoryInit, 'export async function purgeNamespace() {}\n');
+const purgeWrongLock = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
+if (!/Do NOT uninstall/i.test(purgeWrongLock) || !/rsp-lock/.test(purgeWrongLock)) {
+  fail(`AR5 \`memory purge\` uses a different lock, but the advice did not keep the target:\n  ${purgeWrongLock}`);
 }
 
-console.log('✔ adr-reindex reporting (AR1 skip:not-ours reaches the notifier, AR2 skip:upstream-owns-it too, AR3 a stale skill copy is named, AR4 it does NOT say uninstall while upstream\'s reindex cannot run, AR5 it does once `memory purge` ships)');
+// AR6 — once purge shares the ordinary writers' lock, the advice can finally flip.
+fs.writeFileSync(cliMemoryInit,
+  "const lockFile = p + '.rsp-lock';\npurgeNamespace = __rufloGuard(purgeNamespace, true);\n");
+const withSharedPurge = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
+if (!/Uninstall this target/i.test(withSharedPurge) || /Do NOT uninstall/i.test(withSharedPurge)) {
+  fail(`AR6 purge shares the writer lock, so the replacement works here, but advice did not say to uninstall:\n  ${withSharedPurge}`);
+}
+
+console.log('✔ adr-reindex reporting (AR1/2 refusals notify, AR3 stale named, AR4 command required, AR5 shared lock required, AR6 complete local replacement permits retirement)');
 
 // ─── SU: self-retirement ─────────────────────────────────────────────────────
 //
@@ -231,6 +242,7 @@ const reindexSkill = path.join(skillDir, 'skills', 'adr-reindex', 'SKILL.md');
 const upstreamSkillBytes = '---\nname: adr-reindex\n---\n\nupstream ships this now (no rsp marker)\n';
 const noPurgeCli = "const subs = ['store', 'delete', 'cleanup'];\n";
 const purgeCli = "const subs = ['store', 'delete', 'purge', 'cleanup'];\n";
+const sharedPurge = "const lockFile = p + '.rsp-lock';\npurgeNamespace = __rufloGuard(purgeNamespace, true);\n";
 
 const installOurs = () => {
   stateMod.writeState({ patchTargets: ['memory'], pluginTargets: ['adr-reindex'], retired: {} });
@@ -256,51 +268,63 @@ if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
   fail('SU2 retired the target with NO replacement skill on disk — it retired into a hole');
 }
 
-// SU3 — both halves present and runnable => retire, and RECORD THE EVIDENCE. A retirement a user
+// SU3 — a skill plus purge on a DIFFERENT lock is still incomplete. This is the defect the release
+// audit found in the former retirement predicate.
+fs.writeFileSync(reindexSkill, upstreamSkillBytes);
+fs.writeFileSync(cliMemoryJs, purgeCli);
+fs.writeFileSync(cliMemoryInit, 'export async function purgeNamespace() {}\n');
+installOurs();
+cmds.applyInstalled();
+if (!stateMod.readState().pluginTargets.includes('adr-reindex')) {
+  fail("SU3 retired #2666 although purge does not share the ordinary writers' lock");
+}
+
+// SU4 — every required half is present and runnable => retire, and RECORD THE EVIDENCE. A retirement a user
 // cannot audit later is indistinguishable from a bug that ate their patch.
 fs.writeFileSync(reindexSkill, upstreamSkillBytes);
 fs.writeFileSync(cliMemoryJs, purgeCli);
+fs.writeFileSync(cliMemoryInit, sharedPurge);
 installOurs();
 const retiredRun = cmds.applyInstalled();
 const st3 = stateMod.readState();
-if (st3.pluginTargets.includes('adr-reindex')) fail('SU3 the replacement is present AND runnable, but the target did not retire');
-if (!st3.retired['adr-reindex']) fail('SU3 retired the target but recorded nothing — the next install would just put it back');
-if (!/memory purge/.test(st3.retired['adr-reindex'].evidence || '')) {
-  fail(`SU3 the retirement records no usable evidence: ${JSON.stringify(st3.retired['adr-reindex'])}`);
+if (st3.pluginTargets.includes('adr-reindex')) fail('SU4 the replacement is present AND runnable, but the target did not retire');
+if (!st3.retired['adr-reindex']) fail('SU4 retired the target but recorded nothing — the next install would just put it back');
+if (!/memory purge/.test(st3.retired['adr-reindex'].evidence || '') || !/rsp-lock/.test(st3.retired['adr-reindex'].evidence || '')) {
+  fail(`SU4 the retirement records no usable command/lock evidence: ${JSON.stringify(st3.retired['adr-reindex'])}`);
 }
 if (!retiredRun.log.some((l) => /^retired adr-reindex/.test(l))) {
-  fail('SU3 the retirement was never announced — a patch that vanishes silently is exactly what this package refuses to do');
+  fail('SU4 the retirement was never announced — a patch that vanishes silently is exactly what this package refuses to do');
 }
 // and it must NOT be dressed up as a problem: the banner says "a patch may no longer be doing anything",
 // which is the wrong thing to say about a patch that is no longer NEEDED.
 if (cmds.problemsIn(retiredRun).some((l) => /^retired /.test(l))) {
-  fail('SU3 a retirement was reported as a PROBLEM — crying wolf over good news is how the banner that matters gets ignored');
+  fail('SU4 a retirement was reported as a PROBLEM — crying wolf over good news is how the banner that matters gets ignored');
 }
 // upstream's own file must be untouched by our standing down
 if (fs.readFileSync(reindexSkill, 'utf8') !== upstreamSkillBytes) {
-  fail('SU3 retiring DELETED or REWROTE upstream\'s skill — we may only ever remove files carrying our own marker');
+  fail('SU4 retiring DELETED or REWROTE upstream\'s skill — we may only ever remove files carrying our own marker');
 }
 
-// SU4 — RETIREMENT IS TERMINAL. The SessionStart hook re-applies everything in state.json and
+// SU5 — RETIREMENT IS TERMINAL. The SessionStart hook re-applies everything in state.json and
 // `make install` installs every target, so a retirement with no memory of itself flip-flops forever.
 cmds.applyInstalled();
 if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
-  fail('SU4 a retired target was re-installed by the next apply — it will now flip-flop every session');
+  fail('SU5 a retired target was re-installed by the next apply — it will now flip-flop every session');
 }
 
-// SU5 — and `install` refuses it, rather than silently resurrecting it, and says why.
+// SU6 — and `install` refuses it, rather than silently resurrecting it, and says why.
 // (There is no `unretire` and no `pin`. A target retires only on proof that its replacement is present
 // AND runnable HERE, so "I disagree" is not a state worth modelling — and every override is another
 // surface to get wrong. If the predicate is right, the answer is right.)
 const inst = cli(['adr-reindex', 'install']);
 if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
-  fail(`SU5 \`install\` re-installed a RETIRED target — it will now flip-flop:\n${out(inst)}`);
+  fail(`SU6 \`install\` re-installed a RETIRED target — it will now flip-flop:\n${out(inst)}`);
 }
 if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
-  fail(`SU5 install refused but did not say why, with evidence:\n${out(inst)}`);
+  fail(`SU6 install refused but did not say why, with evidence:\n${out(inst)}`);
 }
 
-console.log('✔ self-retirement (SU1 keeps ours when the replacement cannot RUN, SU2 never retires into a hole, SU3 retires on proof + records evidence + announces without crying wolf, SU4 terminal, SU5 install refuses and says why)');
+console.log('✔ self-retirement (SU1 missing command, SU2 no skill, SU3 mismatched lock all keep; SU4 complete proof retires; SU5 terminal; SU6 reinstall refuses with evidence)');
 
 // ─── SU-VI: verify-interface's own self-retirement (stuinfla/ruvnet-brain#12/#13) ─────────────
 //

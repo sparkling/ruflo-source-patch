@@ -92,8 +92,21 @@ const applied = patcher.apply();
 check('CHN4 native re-apply is a six-component no-op',
   applied.patched === 0 && applied.unchanged === 6 && applied.incomplete === 0 && applied.errors === 0,
   JSON.stringify(applied));
+
+const state = await import(`file://${path.join(REPO, 'lib', 'cwd', 'state.mjs')}`);
+const supersede = await import(`file://${path.join(REPO, 'lib', 'supersede.mjs')}`);
+state.writeState({ patchTargets: [], pluginTargets: ['codex-hooks'], retired: {}, all: false });
+const retirement = supersede.retireSuperseded(state.readState());
+const retiredState = state.readState();
+check('CHN5 complete native lifecycle retires the compatibility target without touching upstream',
+  retirement.retired === 1
+    && !retiredState.pluginTargets.includes('codex-hooks')
+    && retiredState.retired['codex-hooks']?.issue === 'https://github.com/stuinfla/ruvnet-brain/issues/52'
+    && fs.readFileSync(path.join(PLUGIN, '.codex-plugin', 'plugin.json'), 'utf8') === sourceManifest,
+  JSON.stringify({ retirement, retiredState }));
+
 const restored = patcher.restore();
-check('CHN5 compatibility uninstall preserves native files and registration',
+check('CHN6 compatibility uninstall preserves native files and registration',
   restored.errors === 0
     && fs.readFileSync(path.join(PLUGIN, '.codex-plugin', 'plugin.json'), 'utf8') === sourceManifest
     && spawnSync(FAKE_CODEX, ['plugin', 'list', '--json']).status === 0,
@@ -101,7 +114,7 @@ check('CHN5 compatibility uninstall preserves native files and registration',
 
 write(path.join(ACTIVE, 'scripts', 'codex-hook-adapter.mjs'), `${adapter}// drift\n`);
 const drift = patcher.status();
-check('CHN6 an active/source adapter mismatch returns to honest drift', drift.patched === 5,
+check('CHN7 an active/source adapter mismatch returns to honest drift', drift.patched === 5,
   JSON.stringify(drift));
 
 if (failures) process.exit(1);

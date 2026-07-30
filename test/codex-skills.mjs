@@ -53,6 +53,65 @@ npx @claude-flow/cli@latest status
 To auto-fix issues, run \`npx @claude-flow/cli@latest doctor --fix\` separately.
 `;
 
+const nativeRufloStatus = `---
+name: ruflo-status
+description: Diagnose Ruflo health without changing the installation
+---
+
+# Ruflo status
+
+## Default read-only workflow
+
+\`\`\`bash
+npx @claude-flow/cli@latest doctor
+npx @claude-flow/cli@latest status
+\`\`\`
+
+Do not repair, reset, start, stop, install, or otherwise change anything.
+
+## Explicit repair workflow
+
+Only when the user explicitly asks to fix or auto-repair the installation:
+
+\`\`\`bash
+npx @claude-flow/cli@latest doctor --fix
+npx @claude-flow/cli@latest status
+\`\`\`
+
+Never infer authorization for repair from a request to diagnose.
+`;
+
+function nativeBrainConsole(name) {
+  return `---
+name: ${name}
+description: Open the RuvNet Brain Console
+updated: 2026-07-28
+---
+
+# Brain Console
+
+1. Say one short sentence: "Opening it now; it scans live while you watch."
+2. Locate \`scripts/onboarding-console.mjs\` from the current repository. If it is not present,
+   check \`~/Code/ruvnet-brain/scripts/onboarding-console.mjs\`. Do not invent another path.
+3. Run \`node <resolved-script> --serve --open\` in the background.
+`;
+}
+
+const nativeWhatsNew = `---
+name: whats-new
+description: Explain what is new in the installed RuvNet Brain release
+updated: 2026-07-28
+---
+
+# What is new
+
+1. Read the installed plugin version from \`.codex-plugin/plugin.json\` relative to this skill's
+   plugin root. If that is unavailable, read the current checkout's \`plugin/.codex-plugin/plugin.json\`.
+2. Locate \`docs/RELEASE-NOTES-4.0.md\` in the current repository, then
+   \`~/Code/ruvnet-brain/docs/RELEASE-NOTES-4.0.md\`. Read it before summarizing.
+3. State the installed version exactly.
+`;
+
 const rvbc = `---
 description: "RvBC — RuvNet Brain Console. Opens the live console page."
 updated: 2026-07-20
@@ -182,6 +241,31 @@ process.stdout.write(fs.readFileSync(process.env.RSP_FAKE_PLUGIN_ROWS, 'utf8'));
   return { rufloRoot, brainRoot };
 }
 
+function seedNativeBrain() {
+  seed();
+  const version = '4.0.1';
+  const brainRoot = seedPlugin({
+    marketplace: 'ruvnet-brain', name: 'ruvnet-brain', version,
+    source: BRAIN_SOURCE,
+    commands: {
+      rvbc, 'whats-new': whatsNew,
+      'brain-console': aliasCommand('brain-console'),
+      configure: aliasCommand('configure'),
+      rvcb: aliasCommand('rvcb'),
+    },
+  });
+  for (const name of ['brain-console', 'configure', 'rvcb']) {
+    write(path.join(brainRoot, '.codex-plugin', 'migrated-command-skills',
+      `source-command-${name}`, 'SKILL.md'), migrated(name, aliasCommand(name)));
+  }
+  write(path.join(brainRoot, 'skills', 'brain-console', 'SKILL.md'),
+    nativeBrainConsole('brain-console'));
+  write(path.join(brainRoot, 'skills', 'rvbc', 'SKILL.md'), nativeBrainConsole('rvbc'));
+  write(path.join(brainRoot, 'skills', 'whats-new', 'SKILL.md'), nativeWhatsNew);
+  setRows('0.2.4', version);
+  return brainRoot;
+}
+
 function snapshot(root) {
   const out = {};
   const walk = (dir) => {
@@ -204,19 +288,21 @@ const rufloApply = patcher.apply('ruflo-codex-skills');
 const brainApply = patcher.apply('brain-codex-skills');
 check('CS1 both targets apply completely',
   rufloApply.patched === 1 && !rufloApply.incomplete && !rufloApply.errors
-    && brainApply.patched === 5 && !brainApply.incomplete && !brainApply.errors,
+    && brainApply.patched === 6 && !brainApply.incomplete && !brainApply.errors,
   JSON.stringify({ rufloApply, brainApply }));
 
 const rufloRoot = path.join(CACHE, 'ruflo', 'ruflo-core', '0.2.4');
 const brainRoot = path.join(CACHE, 'ruvnet-brain', 'ruvnet-brain', '3.9.128-dev');
 const statusSkill = fs.readFileSync(path.join(rufloRoot, 'skills', 'ruflo-status', 'SKILL.md'), 'utf8');
+const consoleSkill = fs.readFileSync(path.join(brainRoot, 'skills', 'brain-console', 'SKILL.md'), 'utf8');
 const rvbcSkill = fs.readFileSync(path.join(brainRoot, 'skills', 'rvbc', 'SKILL.md'), 'utf8');
 const newsSkill = fs.readFileSync(path.join(brainRoot, 'skills', 'whats-new', 'SKILL.md'), 'utf8');
 check('CS2 Ruflo status stays read-only and drops Claude arguments',
   !statusSkill.includes('$ARGUMENTS') && statusSkill.includes('doctor')
     && statusSkill.includes('status') && statusSkill.includes('doctor --fix` separately'));
 check('CS3 Brain native skills resolve through Codex without Claude-only paths',
-  rvbcSkill.includes('codex plugin list --available --json')
+  consoleSkill.includes('codex plugin list --available --json')
+    && rvbcSkill.includes('codex plugin list --available --json')
     && newsSkill.includes('codex plugin list --available --json')
     && !rvbcSkill.includes('CLAUDE_PLUGIN_ROOT')
     && !newsSkill.includes('CLAUDE_PLUGIN_ROOT')
@@ -241,14 +327,15 @@ check('CS6 alias pristines are backed up exactly',
 const repeat = patcher.apply('brain-codex-skills');
 const ready = patcher.status('brain-codex-skills');
 check('CS7 re-apply is idempotent and strict status is healthy',
-  repeat.patched === 0 && repeat.unchanged === 5 && ready.patched === ready.files,
+  repeat.patched === 0 && repeat.unchanged === 6 && ready.patched === ready.files,
   JSON.stringify({ repeat, ready }));
 
 const brainRestore = patcher.restore('brain-codex-skills');
 const rufloRestore = patcher.restore('ruflo-codex-skills');
 check('CS8 uninstall removes only additive skills and restores all aliases',
-  brainRestore.restored === 5 && !brainRestore.incomplete && !brainRestore.errors
+  brainRestore.restored === 6 && !brainRestore.incomplete && !brainRestore.errors
     && rufloRestore.restored === 1 && !rufloRestore.incomplete && !rufloRestore.errors
+    && !fs.existsSync(path.join(brainRoot, 'skills', 'brain-console', 'SKILL.md'))
     && !fs.existsSync(path.join(brainRoot, 'skills', 'rvbc', 'SKILL.md'))
     && aliases.every((file, index) =>
       fs.readFileSync(file, 'utf8') === migrated(
@@ -303,6 +390,77 @@ const registry = await import(`file://${path.join(REPO, 'lib', 'plugin-registry.
 const emptyInspection = registry.inspectPlugins([]);
 check('CS14 drift inspection does not query Codex for uninstalled targets',
   Object.keys(emptyInspection).length === 0 && !fs.existsSync(FAKE_CALLS));
+
+console.log('\nNative Ruflo status retirement');
+seed();
+const nativeStatusFile = path.join(
+  CACHE, 'ruflo', 'ruflo-core', '0.2.4', 'skills', 'ruflo-status', 'SKILL.md',
+);
+write(nativeStatusFile, nativeRufloStatus.replace(
+  'Only when the user explicitly asks',
+  'Repair whenever useful',
+));
+const state = await import(`file://${path.join(REPO, 'lib', 'cwd', 'state.mjs')}`);
+const supersede = await import(`file://${path.join(REPO, 'lib', 'supersede.mjs')}`);
+state.writeState({
+  patchTargets: [], pluginTargets: ['ruflo-codex-skills'], retired: {}, all: false,
+});
+check('CS15 a status-looking skill without explicit repair authorization cannot trigger retirement',
+  supersede.evaluate('ruflo-codex-skills').state === 'live');
+
+write(nativeStatusFile, nativeRufloStatus);
+const nativeApply = patcher.apply('ruflo-codex-skills');
+const nativeReady = patcher.status('ruflo-codex-skills');
+check('CS16 native read-only status is accepted as ready without being overwritten',
+  nativeApply.patched === 0
+    && nativeApply.unchanged === 1
+    && nativeReady.patched === nativeReady.files
+    && fs.readFileSync(nativeStatusFile, 'utf8') === nativeRufloStatus,
+  JSON.stringify({ nativeApply, nativeReady }));
+const retirement = supersede.retireSuperseded(state.readState());
+const retiredState = state.readState();
+check('CS17 native behavior proof retires #2821 and preserves the upstream skill',
+  retirement.retired === 1
+    && !retiredState.pluginTargets.includes('ruflo-codex-skills')
+    && retiredState.retired['ruflo-codex-skills']?.issue === 'https://github.com/ruvnet/ruflo/issues/2821'
+    && fs.readFileSync(nativeStatusFile, 'utf8') === nativeRufloStatus,
+  JSON.stringify({ retirement, retiredState }));
+
+console.log('\nNative Brain skill repair');
+const nativeBrainRoot = seedNativeBrain();
+const nativeFiles = [
+  ['brain-console', nativeBrainConsole('brain-console')],
+  ['rvbc', nativeBrainConsole('rvbc')],
+  ['whats-new', nativeWhatsNew],
+].map(([name, pristine]) => ({
+  file: path.join(nativeBrainRoot, 'skills', name, 'SKILL.md'),
+  pristine,
+}));
+const nativeBrainApply = patcher.apply('brain-codex-skills');
+const nativeBrainStatus = patcher.status('brain-codex-skills');
+check('CS18 published native skills and migrated aliases are repaired as one complete target',
+  nativeBrainApply.patched === 6
+    && !nativeBrainApply.incomplete
+    && !nativeBrainApply.errors
+    && nativeBrainStatus.patched === nativeBrainStatus.files,
+  JSON.stringify({ nativeBrainApply, nativeBrainStatus }));
+check('CS19 native skill repairs resolve the supported plugin source and preserve exact pristines',
+  nativeFiles.every(({ file, pristine }) => {
+    const current = fs.readFileSync(file, 'utf8');
+    return current.includes('codex plugin list --available --json')
+      && current.includes('source.path')
+      && !current.includes('~/Code/ruvnet-brain')
+      && fs.readFileSync(`${file}.rsp-backup`, 'utf8') === pristine;
+  }));
+
+const nativeBrainRestore = patcher.restore('brain-codex-skills');
+check('CS20 uninstall restores upstream native skills and migrated aliases exactly',
+  nativeBrainRestore.restored === 6
+    && !nativeBrainRestore.incomplete
+    && !nativeBrainRestore.errors
+    && nativeFiles.every(({ file, pristine }) =>
+      fs.readFileSync(file, 'utf8') === pristine && !fs.existsSync(`${file}.rsp-backup`)),
+  JSON.stringify(nativeBrainRestore));
 
 if (failures) {
   console.error(`\n${failures} Codex skill test(s) failed`);

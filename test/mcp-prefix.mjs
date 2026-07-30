@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 const SANDBOX = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'mcpx-'));
 process.env.RUFLO_SOURCE_PATCH_HOME = SANDBOX;
@@ -189,6 +190,97 @@ const rc = resolvePristine(pr4c, patchFn, {
     recoverPoisoned: () => 'AAA\n', // bare string — not the {candidate, verify} shape
   });
   check('PR4c a bare-string return (not {candidate, verify}) is treated as no recovery offered', rc.poisoned === true && !rc.recovered);
+}
+
+// PR5: a non-empty backup can be poisoned too. Reproduce the exact ruflo-adr update shape seen in
+// production: upstream HEAD has native #2660 convergence, while both live and backup bytes adopted
+// only two of our three orphan-report edits. The importer calls an undefined memoryCount(), and the
+// atomic writer also stripped its executable bit. Git HEAD is the independent vendor truth.
+{
+  const { descriptor: adrIndex } = await import('../lib/adr-index/patcher.mjs');
+  const marketRoot = path.dirname(MKT);
+  const importer = path.join(MKT, 'ruflo-adr', 'scripts', 'import.mjs');
+  const canonical = `#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+const ROOT = process.cwd();
+function memoryStoreArgs(namespace, key, value) {
+  return ['@claude-flow/cli@latest', 'memory', 'store', '--namespace', namespace, '--key', key, '--upsert', '--value', value];
+}
+function edgeKey(e) { return \`\${e.relation}:\${e.from}->\${e.to}\`; }
+function edgeValue(e) { return JSON.stringify(e); }
+function uniqueEdges(edges) { return edges; }
+function memoryStore(namespace, key, value) {
+  const r = spawnSync('npx', memoryStoreArgs(namespace, key, value),
+    { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf-8', cwd: ROOT });
+  if (r.status !== 0) {
+    return 'error: ' + (r.stderr || r.stdout || '').slice(0, 100);
+  }
+  return 'ok';
+}
+
+const dryRun = process.env.IMPORT_DRY_RUN === '1';
+const adrs = [];
+const byId = new Map();
+const parsedEdges = [];
+const allEdges = uniqueEdges(parsedEdges);
+let storedRecords = 0;
+let storedEdges = 0;
+const errors = [];
+if (!dryRun) {
+  for (const a of adrs) {
+    const r = memoryStore('adr-patterns', a.id, a.title);
+    if (r === 'ok') storedRecords++;
+    else errors.push(a.id);
+  }
+  for (const e of allEdges) {
+    const r = memoryStore('adr-edges', edgeKey(e), edgeValue(e));
+    if (r === 'ok') storedEdges++;
+  }
+}
+
+const danglingRefs = allEdges.filter((e) => !byId.has(e.to));
+console.log(\`- Storage errors: \${errors.length}\`);
+`;
+  write(importer, canonical);
+  fs.chmodSync(importer, 0o755);
+  execFileSync('git', ['init', '-q'], { cwd: marketRoot });
+  execFileSync('git', ['config', 'user.email', 'test@example.invalid'], { cwd: marketRoot });
+  execFileSync('git', ['config', 'user.name', 'test'], { cwd: marketRoot });
+  execFileSync('git', ['add', 'plugins/ruflo-adr/scripts/import.mjs'], { cwd: marketRoot });
+  execFileSync('git', ['commit', '-qm', 'fixture: native adr convergence'], { cwd: marketRoot });
+
+  const full = adrIndex.patchSource(canonical);
+  check('PR5a fixture composes the current native importer completely',
+    full.missing.length === 0 && adrIndex.isPatched(full.next));
+  if (full.missing.length || !adrIndex.isPatched(full.next)) {
+    console.log(`  PR5a detail: ${JSON.stringify({ applied: full.applied, missing: full.missing })}`);
+  }
+  const helperStart = full.next.indexOf('// ruflo-source-patch (#2660): how many rows');
+  const afterHelper = full.next.indexOf('const dryRun =', helperStart);
+  const partial = full.next.slice(0, helperStart) + full.next.slice(afterHelper);
+  fs.writeFileSync(importer, partial);
+  fs.writeFileSync(bak(importer), partial);
+  fs.chmodSync(importer, 0o644);
+
+  const repaired = applyComposed(['adr-index']);
+  check('PR5b non-empty poisoned backup is recovered from verified marketplace Git HEAD',
+    repaired.incomplete === 0 && repaired.errors === 0
+      && repaired.log.some((line) => line.startsWith('recovered-pristine') && line.includes('import.mjs'))
+      && read(bak(importer)) === canonical);
+  if (repaired.incomplete || repaired.errors || read(bak(importer)) !== canonical) {
+    console.log(`  PR5b detail: ${JSON.stringify(repaired)}`);
+  }
+  check('PR5c importer is complete, syntax-valid, and executable after one repair pass',
+    adrIndex.isPatched(read(importer))
+      && (fs.statSync(importer).mode & 0o777) === 0o755
+      && execFileSync(process.execPath, ['--check', importer], { encoding: 'utf8' }) === '');
+
+  const restored = reconcile([], ['adr-index']);
+  check('PR5d uninstall restores exact Git vendor bytes and mode',
+    restored.errors === 0
+      && read(importer) === canonical
+      && !fs.existsSync(bak(importer))
+      && (fs.statSync(importer).mode & 0o777) === 0o755);
 }
 
 // ── HS: Ruflo's canonical hook files must satisfy Codex's schema and output ABI (#2800/#2816) ──

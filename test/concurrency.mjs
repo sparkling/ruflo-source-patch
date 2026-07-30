@@ -331,7 +331,14 @@ if (!/reentrant-ok/.test(out(rr))) {
 // ML3 — the lock file is released, not leaked.
 if (fs.existsSync(`${target}.rsp-lock`)) fail('ML3 the injected lock leaked its lockfile — every later write would stall 15s');
 
-console.log('✔ memory write lock (ML 2 processes × 40 read-modify-writes lose nothing, ML2 reentrant, ML3 no leaked lockfile)');
+// ML4 — native #2666's purge must use the SAME proven lock, not its private <db>.lock protocol.
+const memoryEntry = lib.ENTRIES.find((entry) => entry.id === 'memory/write-lock');
+if (!memoryEntry?.edits.some((edit) =>
+  edit.replace.includes('purgeNamespace = __rufloGuard(purgeNamespace, true);'))) {
+  fail('ML4 native purgeNamespace is not wired through the shared .rsp-lock guard');
+}
+
+console.log('✔ memory write lock (ML 2 processes × 40 read-modify-writes lose nothing, ML2 reentrant, ML3 no leaked lockfile, ML4 native purge shares it)');
 
 // ─── IG: the injected INTEGRITY GATE actually refuses a torn image ───────────
 // We inject __rufloIntegrityCheck (ADR-023) so a whole-file flush can never land on an
