@@ -120,7 +120,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`cwd`** | **Silent data loss.** `.claude-flow` holds the learning state (autopilot, `neural/`, `metrics/`, `agentdb`, `memory.db`) and it is anchored to raw `process.cwd()`. Under an agent the cwd drifts and *sticks*, so state is written to a subdirectory nothing will ever read again. `loadState()` does not error: it returns **defaults** and writes a fresh file. The system quietly resets to zero, and it looks exactly like normal operation. Anchors the resolver, the callees and the implicit-relative constants; plus a leak detector, because completeness cannot be proven | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | One daemon per project **root**. Ruflo's native lock is sound but keyed to raw cwd; direct daemon commands bypass the root-normalized autostart path, so starts from different subdirectories still receive different lock/PID identities | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
-| **`memory`** | `.swarm/memory.db` durability. A cross-process **write lock** (concurrent writers silently *drop* writes), **WAL-coherent reads** (sql.js reads a stale image), an **integrity gate** (refuse a whole-file flush over an already-torn image instead of overwriting the damage), and a **stale-writer guard** (the monitor kills every pre-patch writer, daemon *and* MCP client, to force fresh code, and pushes a loud, unmissable warning for each killed MCP client since reconnecting one needs a manual `/mcp` step afterward; `RSP_NO_STALE_WRITER_KILL` disables the kill) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
+| **`memory`** | `.swarm/memory.db` durability. A fail-closed, async-context-aware **writer lock** (concurrent whole-image writers silently drop acknowledged updates), **WAL-sidecar refusal** at the raw file boundary, an **integrity gate** (refuse a whole-file flush over an already-torn image), and a **stale-writer guard** (the monitor forces every pre-patch daemon/MCP writer onto current bytes and loudly names the manual `/mcp` reconnect needed after an MCP kill; `RSP_NO_STALE_WRITER_KILL` disables the kill) | [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
 | **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, and bounded `host-refresh` commands to the installed CLI. All delegate to each host's supported CLI; this patch never copies or directly edits host caches. `host-refresh` is allowlisted to the three audited unchanged-version collisions and verifies installed bytes against each refreshed host snapshot. Disabled state is never changed and partial completion is nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 
@@ -151,7 +151,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`adr-template`** | Compatibility for the reused `ruflo-adr` 0.4.1 identity: strips the four list markers that old variants cannot read. #2659 is fixed in current source and this machine was explicitly refreshed to those bytes, but no bumped immutable plugin version exists yet; the target remains as rollback protection | [#2659](https://github.com/ruvnet/ruflo/issues/2659) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 | **`adr-index`** | Compatibility across the reused 0.4.1 importer variants: explicit upsert, deterministic edges, honest failure counts, and an exact `ORPHANS` warning. Current source and this refreshed cache contain the upstream convergence fix; `ORPHANS` remains additional local behavior and #2870 still lacks a bumped identity | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
-| **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. Native `memory purge` exists, but #2666's closure is incomplete unless purge shares the ordinary writers' lock. Retirement requires the native skill, command, and the `memory` target's `.rsp-lock` wrapper; version presence alone is not enough | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
+| **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. Native `memory purge` exists, but #2666's closure is incomplete unless purge shares the ordinary writers' current fail-closed lock. Retirement requires the native skill, command, and the `memory` target's `.rsp-lock` wrapper; version presence alone is not enough | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) |
 
 #### Ruflo plugins under Codex
 
@@ -328,49 +328,56 @@ continues to track the broader project-root model.
 
 ### `memory`
 
-Fixes `.swarm/memory.db` durability: concurrent writers that silently drop writes, and readers
-that act on a stale database image.
+Fixes `.swarm/memory.db` durability: concurrent writers that silently drop acknowledged writes,
+and raw whole-image access that is unsafe while a native WAL connection is attached.
 
 `memory.db` is written by **two different SQLite engines**: the AgentDB bridge
 (better-sqlite3, **WAL mode**) and a fallback that does a whole-file read-modify-write
 (sql.js: `db.export()` → atomic rename). Ruflo 3.25.2 made those flushes atomic
 ([#2585](https://github.com/ruvnet/ruflo/pull/2585)), closing the *torn-write* class. The two
-distinct failure modes that remain in the installed behavior are cross-process lost updates
-([#2621](https://github.com/ruvnet/ruflo/issues/2621), closed without ordinary-writer locking)
-and WAL-incoherent sql.js reads. This target patches both.
+distinct failure modes that remain in Ruflo 3.33.0 are cross-process lost updates
+([#2878](https://github.com/ruvnet/ruflo/issues/2878), focused follow-up to closed #2621) and
+WAL-incoherent sql.js access. This target patches both without altering the native bridge.
 
 #### The write lock
 
-[#2621](https://github.com/ruvnet/ruflo/issues/2621). `storeEntry`, `getEntry`, `deleteEntry`,
-`applyTemporalDecay` and `ensureSchemaColumns` each do a whole-file read-modify-write, so two
-processes can each read image *v1* and each rename, and the second silently clobbers the first.
-Per-write atomicity cannot fix this; only mutual exclusion spanning read..write can. It uses the
-same `O_EXCL` primitive ruflo already ships in `commands/daemon.js`. Reentrant (`storeEntry` calls
-`getEntry` internally), it steals stale locks (>15 s), and it **never hard-fails**: if the lock
-can't be taken within 5 s it proceeds unlocked, degrading to current behaviour rather than breaking
-memory.
+`storeEntry`, `getEntry`, `deleteEntry`, `applyTemporalDecay`, `ensureSchemaColumns`,
+`initializeMemoryDatabase`, and purge fallback can perform whole-file read-modify-write. Two
+processes can each read image *v1* and each rename; the second silently clobbers the first.
+Per-write atomicity cannot fix this. Only mutual exclusion spanning read..write can.
 
-Measured, two processes × 25 concurrent `storeEntry` on one DB:
+The injected `<db>.rsp-lock` uses `O_EXCL`, is reentrant only within the current async call
+context, and serializes unrelated sibling Promises in the same process. It **fails closed**:
+an unresolved path, filesystem error, or five-second timeout throws
+`RSP_MEMORY_LOCK_UNAVAILABLE` before the operation runs. A unique claim token plus inode check
+prevents a late release from deleting a successor's lock. It never steals by age; a crash may
+leave a lock requiring explicit inspection/removal, because age is not proof of death and
+`unlink` is not compare-and-delete.
+
+Measured on clean 3.33.0 with the fallback forced:
 
 ```
-UNPATCHED   acked: 50/50   on disk: 25/50   SILENTLY LOST: 25   integrity_check: ok
-PATCHED     acked: 50/50   on disk: 50/50   SILENTLY LOST:  0   integrity_check: ok
+UNPATCHED   acked: 12/12   on disk:  2/12   SILENTLY LOST: 10   integrity_check: ok
+PATCH TEST  cross-process updates: 80/80; same-process siblings: 40/40; lock failure: callback did not run
 ```
 
 Every lost write returned `success: true`, and the database stays `integrity_check: ok`. Nothing
 errors. The data is simply gone.
 
-#### WAL-coherent reads
+#### WAL-sidecar refusal
 
 sql.js reads the main DB file only; it cannot see frames sitting in `-wal`. With an uncheckpointed
 WAL it can read a database in which the table does not even exist (measured: `no such table:
 memory_entries` while 500 rows sat in a 2.3 MB WAL) and then write that fiction back over the
-image. `PRAGMA wal_checkpoint(TRUNCATE)` now runs before any `*.db` read, so the image is complete.
+image. At Ruflo's shared `fs-secure` raw read/write boundary, the patch refuses any `.db` access
+while `-wal` or `-shm` exists, including a zero-byte sidecar, and fails closed if absence cannot
+be proved. `checkMemoryInitialization` is guarded outside its catch, and force initialization is
+checked before upstream unlinks the main DB.
 
-> Deliberately **not** done: unlinking `-wal`/`-shm` after the swap. `-shm` is SQLite's
-> shared-memory *lock index*, and unlinking it while another process holds a connection splits the
-> two onto different lock state, manufacturing the unsynchronised writers this exists to prevent.
-> After a `TRUNCATE` checkpoint the WAL is zero-length and replays nothing, so it's redundant.
+The patch deliberately does **not** checkpoint, truncate, unlink, or rename another connection's
+WAL state. The former `wal_checkpoint(TRUNCATE)` helper was removed: a read helper mutating a live
+database could cement a mismatched main/WAL pair and contradicted the policy upstream established
+in [#2735](https://github.com/ruvnet/ruflo/issues/2735).
 
 #### The integrity gate (ADR-023)
 
@@ -380,11 +387,12 @@ covers a flush landing on a DB that is **already** torn: sql.js opens a truncate
 error, loses the missing pages, and the mutator re-exports the shrunken image over the original, an
 acked write that has silently destroyed the store (`no such table: memory_entries` on a
 multi-megabyte file is the measured symptom). This is what corrupted `semantic-product-mock`. So
-under the lock, just before each write flush, a pure-buffer check reads the 100-byte SQLite header
+at the actual `writeFileAtomic` boundary, a pure-buffer check reads the 100-byte SQLite header
 and verifies it is self-consistent (magic, a power-of-two page size, and `page_size * page_count`
 equal to the file size when the header's page count is authoritative). A torn image is **refused**
-(the write throws) rather than overwritten. `ensureSchemaColumns`, the init and repair path, is left
-ungated so recovery of a fresh or half-built DB is never blocked.
+(the write throws) rather than overwritten. Missing and zero-byte files remain valid initialization
+inputs. Every existing non-empty `.db`, including `ensureSchemaColumns` output, must be verifiable.
+Successful native AgentDB bridge calls never cross this raw boundary and are not falsely rejected.
 
 #### The stale-writer guard (ADR-023)
 
@@ -406,10 +414,10 @@ whether the on-disk copy is actually patched:
   fresh code onto every writer, at the cost of an MCP outage in each affected session until the user
   notices and clears it. Every such kill is pushed into the shared problem feed (`addProblems`), so it
   surfaces on the user's very next prompt in *any* session, naming the killed pid(s) and the fix.
-- **An `unpatched` writer** (copy has *no* lock, patch couldn't apply): **never auto-killed**, because a
-  respawn (daemon, or MCP client even after a manual reconnect) would just reload the same unpatched
-  copy. That's patch drift, gaining nothing from a kill; the fix is re-anchoring (the drift machinery
-  already flags it).
+- **An `unpatched` writer** (copy lacks the current fail-closed lock, either because the patch could
+  not apply or because the older fail-open wrapper remains): **never auto-killed**, because a respawn
+  would reload the same unsafe bytes. That's patch drift; the fix is re-anchoring (the drift
+  machinery already flags it).
 
 `RSP_NO_STALE_WRITER_KILL` keeps detection but disables every kill; `monitor run` triggers a recovery
 on demand, visible directly in that terminal.
@@ -570,19 +578,20 @@ Not a suggestion. `adr-reindex install` refuses without it, and so does the scri
 operation in the whole package whose entire job is to **delete rows**, and ruflo writes `memory.db` as
 a whole-file read-modify-write image: a daemon or MCP server holding a *pre-delete* image flushes it
 back and resurrects everything you just removed. That is [#2621](https://github.com/ruvnet/ruflo/issues/2621),
-aimed squarely at the reconcile itself.
+the historical lost-update report, with the current ordinary-writer residual tracked by
+[#2878](https://github.com/ruvnet/ruflo/issues/2878), aimed squarely at the reconcile itself.
 
 The `memory` target already solves both halves, so this **depends on it rather than reimplementing a
 weaker copy**. `memory/write-lock` makes `<db>.rsp-lock` mean something (a lock nothing else takes
-protects nothing), and `memory/wal-coherent-reads` stops any reader acting on a stale image. The script
-takes that same lock around its `DELETE`, which is *participation* in the protocol, not duplication of
-it: the CLI's lock lives inside node and can't cover a `sqlite3` subprocess. It releases before the
-re-import, because the patched CLI takes the same lock per store and would otherwise spin out into
-unlocked writes for the whole rebuild.
+protects nothing), and `memory/wal-sidecar-refusal` stops raw access while a native connection owns
+WAL state. The script takes that same lock around its `DELETE`, which is *participation* in the
+protocol, not duplication of it: the CLI's lock lives inside node and can't cover a `sqlite3`
+subprocess. It releases before the re-import because every patched store takes the same lock and now
+fails closed on contention.
 
-An earlier version carried its own `PRAGMA wal_checkpoint` as "belt-and-braces" and *warned* instead of
-refusing when `memory` was absent. Both were wrong: the checkpoint duplicated `memory/wal-coherent-reads`
-with worse guarantees, and warning-then-deleting gambles your index on a race the warning has just
+An earlier version carried its own `PRAGMA wal_checkpoint` as "belt-and-braces" and *warned* instead
+of refusing when `memory` was absent. Both were wrong: a raw helper must not mutate another
+connection's WAL, and warning-then-deleting gambles your index on a race the warning has just
 finished explaining it cannot win.
 
 #### Three things it has to get right, each learned the hard way
@@ -1131,7 +1140,7 @@ means the file is always exactly *pristine + the entries currently requested*: c
 subset, idempotent by construction.
 
 Injected code is composed from **fragments with dependencies** (`req` → `resolveRoot` /
-`walCheckpoint` / `memLock`), each emitted at most once. The shared `req` base
+`walRefusal` / `memLock` / `integrityGate`), each emitted at most once. The shared `req` base
 matters: installing `memory` *without* `cwd` would otherwise inject a lock referencing an
 undeclared `__rufloReq`.
 
@@ -1226,7 +1235,7 @@ invariants, and an untested notification path rots without anyone noticing.
 | **A1 to A2** | an **ambiguous anchor** is refused, never guessed at. Uniqueness is a property of *upstream's* code (a measurement, not a promise), so it is checked on every apply |
 | **RB1 to RB5** | a **re-baseline hands over instructions**, not just a warning: the real `diff` command, what to look for in the new code, and how to back the patch out. And an *ordinary* problem does **not** print the essay |
 | **V1 to V7** | **`verify-interface`**, behavioural rather than textual. The unpatched fixture really does block (else all of it is vacuous, and V1 caught exactly that on its first run) · the false positives are gone · **an unread interface still blocks** · and a **partial apply writes nothing**, because these five edits are interdependent |
-| **CC · ML** | **concurrency.** Three simultaneous installs lost a target in **12 runs out of 12** before `state.json` got a lock. Serializing state alone still let vendor rebuilds race, so one fail-closed transaction now covers state + disk. CC verifies atomically published ownership, guarded dead-owner recovery, malformed-owner refusal, SessionStart reporting, final state/bytes, non-empty backups, and cleanup. **ML executes the injected memory write lock** rather than grepping for it: two processes × 40 read-modify-writes. With the lock: 80. Stubbed out: **38**, the exact shape of the "50 acked, 25 on disk" bug it exists to prevent |
+| **CC · ML · IG/WG** | **concurrency and memory safety.** Three simultaneous installs lost a target in **12 runs out of 12** before `state.json` got a lock; one fail-closed transaction now covers state + disk. ML executes the injected lock across two processes (80/80 updates), unrelated sibling Promises (40/40), nested reentry, acquisition failure, and late-release ownership. IG/WG execute the real image guards: healthy/fresh files pass, torn or unverifiable files fail, live WAL sidecars refuse without mutation, and the former checkpoint shim is absent |
 | **CL · K** | **`cleanup`**, the only command that removes directories and signals processes. `--dry-run` deletes nothing · the project's own state **survives** · `$HOME` is refused · and **K3: another project's daemon survives.** Real processes, real `pgrep`/`lsof`/`ps` |
 | **SS · MI · DH** | the **SessionStart hook** actually re-applying to a fresh npx copy · the plist, cron spec and interval clamp · and the offline `dual` host-boundary harness proving policy/MCP preservation, rollback, migration, and symlink refusal |
 
@@ -1245,15 +1254,17 @@ A test that cannot fail is worth nothing, and you only find out by making it fai
 ## Upstream issues
 
 Issue state is evidence to inspect, never the retirement signal. This audit was rerun on
-2026-07-30 against Ruflo 3.32.39, `ruflo-core` 0.2.6, the active Claude/Codex caches, Brain
-4.0.1, and the exact published hook/skill behavior. No issue was changed as part of the audit.
+2026-07-30 against Ruflo 3.33.0, `ruflo-core` 0.2.6, the active Claude/Codex caches, Brain
+4.0.1, and exact published behavior. The ordinary-writer residual was filed as focused #2878;
+closed #2621 received one cross-link rather than a rewritten scope.
 
 **"Fixed upstream" is a claim about a runnable artifact, not a branch, version string, or
 closed label.** The table records the full acceptance result.
 
 | Issue | Verified verdict | Local result |
 |-------|------------------|--------------|
-| [#2621](https://github.com/ruvnet/ruflo/issues/2621) | **Closed incomplete.** Upstream added `<db>.lock`, but only purge uses it; ordinary writers remain unlocked | Keep `memory` |
+| [#2621](https://github.com/ruvnet/ruflo/issues/2621) | **Closed historical/incomplete.** Its quoted-sequence fix did not make ordinary writers share a lock | Superseded as the active acceptance target by focused #2878 |
+| [#2878](https://github.com/ruvnet/ruflo/issues/2878) | **Open, reproduced on clean 3.33.0.** All 12 fallback stores acknowledged success; only 2 rows persisted. Locking must fail closed and cover every whole-image writer | Keep `memory` |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | **Open, live.** Durable state and daemon identity still follow raw cwd | Keep `cwd`, `daemon`, `cleanup` |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634), [#2635](https://github.com/ruvnet/ruflo/issues/2635), [#2636](https://github.com/ruvnet/ruflo/issues/2636), [#2637](https://github.com/ruvnet/ruflo/issues/2637) | **Fixed completely** in 3.32.36/3.32.37: backed skills, adapter fallback, both native scaffolds, root secret ignores | `dual` remains for #2638 and its stricter transaction, not these defects |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | **Open.** Claude and Codex instructions still have separate generators | Keep `dual` |
@@ -1292,9 +1303,10 @@ closed label.** The table records the full acceptance result.
 **Referenced (upstream, not ours):** the `daemon` target retains the native lock from
 [#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484)
 unchanged; [#2877](https://github.com/ruvnet/ruflo/issues/2877) tracks only its remaining raw-cwd identity;
-the `memory` write lock is ruvnet's own follow-up from the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
+the `memory` write lock builds on the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
 corruption close-out, and its atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
-the WAL-coherent-reads half addresses the historical visibility symptom reported in
+the WAL-sidecar-refusal half follows [#2735](https://github.com/ruvnet/ruflo/issues/2735) and
+addresses the historical visibility symptom reported in
 [#2646](https://github.com/ruvnet/ruflo/issues/2646) and [#2652](https://github.com/ruvnet/ruflo/issues/2652),
 both now fixed in their stated scope. #2652 also explains why the legacy `adr-reindex` used raw SQL:
 `memory delete` was soft and its tombstone still collided on re-store. Current Ruflo supplies

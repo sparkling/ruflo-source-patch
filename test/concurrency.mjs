@@ -263,94 +263,102 @@ for (let i = 0; i < RUNS; i++) {
 
 console.log(`✔ concurrency (CC ${RUNS} runs of 3 simultaneous installs match a fresh sequential state + ${FILES.length} vendor/backup byte oracle; every status ratio complete; CC2 no lock/temp artifacts)`);
 
-// ─── ML: the injected memory WRITE LOCK actually works ───────────────────────
-// The highest-value missing test in the package. We inject this lock to fix ruflo #2621 — "50 acked,
-// 25 on disk" — and had only ever asserted that the STRING was present in the file.
-//
-// Run the real fragment: two processes doing a read-modify-write of a shared file, each incrementing a
-// counter 40 times, exactly the shape storeEntry() has. Without a lock the interleaving loses writes.
-
+// ─── ML: the injected fail-closed memory WRITE LOCK actually works ───────────
 const memLockSrc = lib.FRAGMENTS?.memLock?.src;
 if (!memLockSrc) fail('ML the memLock fragment is not exported from patch-library — cannot test the code we inject');
-
 const target = path.join(SB, 'counter.json');
 const worker = path.join(SB, 'worker.mjs');
 fs.writeFileSync(target, JSON.stringify({ n: 0 }));
-
-// The fragment verbatim, plus the __rufloReq shim the patched module provides, plus a read-modify-write
-// wrapped in the lock exactly as __rufloGuard wraps storeEntry.
 fs.writeFileSync(worker, `
 import { createRequire as __rufloCreateRequire } from 'node:module';
 const __rufloReq = __rufloCreateRequire(import.meta.url);
 ${memLockSrc}
-
 const p = process.argv[2];
 const fs2 = __rufloReq('fs');
 for (let i = 0; i < 40; i++) {
-  const h = await __rufloLockAcquire(p);
-  try {
+  await __rufloWithLock(p, async () => {
     const cur = JSON.parse(fs2.readFileSync(p, 'utf8'));      // READ
     await new Promise((r) => setTimeout(r, 1));               // ...widen the window, as real I/O does
     cur.n += 1;
     fs2.writeFileSync(p, JSON.stringify(cur));                // MODIFY-WRITE
-  } finally {
-    __rufloLockRelease(p, h);
-  }
+  });
 }
 `);
-
-await Promise.all([0, 1].map(() => new Promise((res) => {
+const workerCodes = await Promise.all([0, 1].map(() => new Promise((res) => {
   spawn(process.execPath, [worker, target], { stdio: 'ignore' }).on('exit', res);
 })));
-
+if (workerCodes.some((code) => code !== 0)) fail(`ML a lock worker failed: ${workerCodes.join(', ')}`);
 const finalN = JSON.parse(fs.readFileSync(target, 'utf8')).n;
 if (finalN !== 80) {
   fail(`ML the injected write lock LOST WRITES: counter = ${finalN}, expected 80.\n`
-    + '   This is the lock we inject into ruflo to fix "50 acked, 25 on disk" (#2621). It does not work.');
+    + '   This is the lock we inject into ruflo to stop acknowledged write loss (#2878).');
 }
 
-// ML2 — it is REENTRANT. storeEntry() calls getEntry() internally; a naive lock self-deadlocks, and the
-// fragment's comment claims reentrancy. Claiming is not proving.
-const reentrant = path.join(SB, 'reentrant.mjs');
-fs.writeFileSync(reentrant, `
-import { createRequire as __rufloCreateRequire } from 'node:module';
+// Exercise same-process semantics through the exact injected fragment too.
+const lockMod = path.join(SB, 'lock.mjs');
+fs.writeFileSync(lockMod, `import { createRequire as __rufloCreateRequire } from 'node:module';
 const __rufloReq = __rufloCreateRequire(import.meta.url);
 ${memLockSrc}
-const p = process.argv[2];
-const outer = await __rufloLockAcquire(p);
-const inner = await __rufloLockAcquire(p);   // <- would deadlock if not reentrant
-__rufloLockRelease(p, inner);
-__rufloLockRelease(p, outer);
-console.log('reentrant-ok');
-`);
-const rr = spawnSync(process.execPath, [reentrant, target], { encoding: 'utf8', timeout: 15000 });
-if (!/reentrant-ok/.test(out(rr))) {
-  fail(`ML2 the lock is NOT reentrant — storeEntry() calls getEntry() internally and would self-deadlock:\n${out(rr)}`);
+export { __rufloLockAcquire, __rufloLockRelease, __rufloWithLock };\n`);
+const lock = await import(`file://${lockMod}`);
+await lock.__rufloWithLock(target, () => lock.__rufloWithLock(target, () => {})); // ML2 nested reentry
+
+// A detached descendant must not inherit permission after its ancestor releases the lock.
+let wakeDetached;
+const detachedGate = new Promise((resolve) => { wakeDetached = resolve; });
+let detached;
+await lock.__rufloWithLock(target, () => {
+  detached = (async () => { await detachedGate; return lock.__rufloWithLock(target, () => fs.existsSync(`${target}.rsp-lock`)); })();
+});
+wakeDetached();
+if (!await detached) fail('ML2 an expired async context bypassed the lock after its owner released');
+
+// ML3 — unrelated sibling Promise chains in one process must serialize; a global refcount loses.
+fs.writeFileSync(target, JSON.stringify({ n: 0 }));
+await Promise.all(Array.from({ length: 40 }, () => lock.__rufloWithLock(target, async () => {
+  const cur = JSON.parse(fs.readFileSync(target, 'utf8'));
+  await new Promise((r) => setTimeout(r, 1));
+  fs.writeFileSync(target, JSON.stringify({ n: cur.n + 1 }));
+})));
+if (JSON.parse(fs.readFileSync(target, 'utf8')).n !== 40) fail('ML3 same-process sibling writers bypassed the lock');
+
+// ML4 — acquisition failure is loud and the mutation never runs.
+let ran = false;
+try { await lock.__rufloWithLock(null, () => { ran = true; }); } catch (e) {
+  if (e?.code !== 'RSP_MEMORY_LOCK_UNAVAILABLE') fail(`ML4 wrong fail-closed error: ${e}`);
 }
+if (ran) fail('ML4 lock failure still ran the mutation');
 
-// ML3 — the lock file is released, not leaked.
-if (fs.existsSync(`${target}.rsp-lock`)) fail('ML3 the injected lock leaked its lockfile — every later write would stall 15s');
+// ML5 — a late release cannot unlink a replacement lock it does not own.
+const h = await lock.__rufloLockAcquire(target);
+fs.unlinkSync(`${target}.rsp-lock`);
+fs.writeFileSync(`${target}.rsp-lock`, '{"pid":999,"token":"successor"}');
+lock.__rufloLockRelease(target, h);
+if (!fs.existsSync(`${target}.rsp-lock`)) fail('ML5 late cleanup unlinked a successor lock');
+fs.unlinkSync(`${target}.rsp-lock`);
 
-// ML4 — native #2666's purge must use the SAME proven lock, not its private <db>.lock protocol.
+// ML6 — native #2666 purge and every current writer use the same guard.
 const memoryEntry = lib.ENTRIES.find((entry) => entry.id === 'memory/write-lock');
-if (!memoryEntry?.edits.some((edit) =>
-  edit.replace.includes('purgeNamespace = __rufloGuard(purgeNamespace, true);'))) {
-  fail('ML4 native purgeNamespace is not wired through the shared .rsp-lock guard');
+const lockReplacement = memoryEntry?.edits.map((edit) => edit.replace).join('\n') || '';
+for (const needle of ['initializeMemoryDatabase = __rufloGuard(initializeMemoryDatabase',
+  'storeEntry = __rufloGuard(storeEntry);', 'purgeNamespace = __rufloGuard(purgeNamespace);']) {
+  if (!lockReplacement.includes(needle)) fail(`ML6 writer is not wired through the shared .rsp-lock guard: ${needle}`);
 }
 
-console.log('✔ memory write lock (ML 2 processes × 40 read-modify-writes lose nothing, ML2 reentrant, ML3 no leaked lockfile, ML4 native purge shares it)');
+console.log('✔ memory write lock (cross-process + sibling serialization, nested reentry, fail-closed acquisition, owner-safe release, all writers share it)');
 
 // ─── IG: the injected INTEGRITY GATE actually refuses a torn image ───────────
 // We inject __rufloIntegrityCheck (ADR-023) so a whole-file flush can never land on an
 // already-torn memory.db and overwrite the damage as if the store were empty. Asserting the
 // STRING is present proves nothing — run the real fragment against crafted SQLite headers.
 const igSrc = lib.FRAGMENTS?.integrityGate?.src;
+const walSrc = lib.FRAGMENTS?.walRefusal?.src;
 const reqSrc = lib.FRAGMENTS?.req?.src;
-if (!igSrc || !reqSrc) fail('IG the integrityGate/req fragment is not exported from patch-library — cannot test the code we inject');
+if (!igSrc || !walSrc || !reqSrc) fail('IG the integrity/WAL/req fragments are not exported — cannot test injected code');
 
 const igMod = path.join(SB, 'ig.mjs');
-fs.writeFileSync(igMod, `${reqSrc}\n${igSrc}\nexport { __rufloIntegrityCheck };\n`);
-const { __rufloIntegrityCheck } = await import(`file://${igMod}`);
+fs.writeFileSync(igMod, `${reqSrc}\n${igSrc}\n${walSrc}\nexport { __rufloIntegrityCheck, __rufloRefuseWalSidecars };\n`);
+const { __rufloIntegrityCheck, __rufloRefuseWalSidecars } = await import(`file://${igMod}`);
 
 // A SQLite file whose header we control. Consistent by default; pass totalBytes to tear it.
 function sqliteFile(pageSize, pageCount, { changeCounter = 1, versionValidFor = 1, totalBytes = null, magic = true } = {}) {
@@ -383,8 +391,33 @@ if (!allowed(writeDb('notes.json', Buffer.from('not a db')))) fail('IG6 a non-.d
 if (!allowed(dbPath('does-not-exist.db'))) fail('IG7 a missing file (first write) was REFUSED — init could never create the store');
 // IG8 — an empty file is init's to fill; ALLOWED.
 if (!allowed(writeDb('empty.db', Buffer.alloc(0)))) fail('IG8 an empty (0-byte) file was REFUSED — a fresh store could never be initialised');
+// IG9 — inability to inspect an existing *.db fails closed.
+const unreadable = dbPath('directory.db');
+fs.mkdirSync(unreadable);
+if (allowed(unreadable)) fail('IG9 an unverifiable existing *.db path was ALLOWED');
 
-console.log('✔ memory integrity gate (IG1 consistent allowed, IG2 truncated refused, IG3 fractional refused, IG4 no-magic refused, IG5 sub-header refused, IG6 non-db ignored, IG7 first-write allowed, IG8 empty allowed)');
+// WG — sidecar presence refuses without modifying main/sidecar; absence and non-db paths pass.
+const walDb = writeDb('wal.db', sqliteFile(4096, 2));
+const mainBefore = fs.readFileSync(walDb);
+fs.writeFileSync(`${walDb}-wal`, Buffer.alloc(0));
+let walCode;
+try { __rufloRefuseWalSidecars(walDb); } catch (e) { walCode = e?.code; }
+if (walCode !== 'RSP_UNSAFE_WAL_SIDECARS') fail(`WG live WAL was not refused: ${walCode}`);
+if (!fs.readFileSync(walDb).equals(mainBefore) || !fs.existsSync(`${walDb}-wal`)) fail('WG refusal modified the DB or sidecar');
+fs.unlinkSync(`${walDb}-wal`);
+__rufloRefuseWalSidecars(walDb);
+__rufloRefuseWalSidecars(writeDb('not-db.txt', Buffer.from('x')));
+
+const fsEntry = lib.ENTRIES.find((entry) => entry.id === 'memory/wal-sidecar-refusal');
+const fsReplacement = fsEntry?.edits.map((edit) => edit.replace).join('\n') || '';
+if (!fsReplacement.includes('__rufloIntegrityCheck(path);')
+    || !fsReplacement.includes('__rufloRefuseWalSidecars(path);')
+    || lib.FRAGMENTS.walCheckpoint
+    || lib.ENTRIES.some((entry) => entry.id === 'memory/wal-coherent-reads')) {
+  fail('WG fs-secure boundary still checkpoints WAL or lacks fail-closed read/write gates');
+}
+
+console.log('✔ memory image gates (healthy/fresh allowed; torn/unverifiable refused; live WAL refused without mutation; no checkpoint shim remains)');
 
 // ─── PG: one throwing plugin patcher must not blind the watchdog ─────────────
 

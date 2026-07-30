@@ -18,9 +18,9 @@
 | `plugin-notify.mjs` | The plugin patches, the notifier, and the monitor's own liveness. |
 | `reporting.mjs` | **Every path where a failure could be mistaken for success.** For a package that is almost entirely notification paths, that is the only thing that matters. |
 | `untested.mjs` | The SessionStart hook body, `cleanup`'s directory half, the script targets, the shell scripts. All of them had *zero* coverage until it was measured rather than assumed. |
-| `concurrency.mjs` | Concurrent installs; the **injected memory write lock actually executing**, including native purge; the plugin-throw guard; the uncovered-build detector; and the invariant that the retired legacy daemon-lock shim cannot return. |
+| `concurrency.mjs` | Concurrent installs; the **injected fail-closed memory lock actually executing** across processes and sibling Promises, nested reentrancy, owner-safe release, native purge, torn-image and WAL-sidecar refusal; plus the plugin-throw guard, uncovered-build detector, and legacy daemon-lock retirement boundary. |
 | `cleanup-procs.mjs` | `cleanup`'s **kill** half. Real processes, real `pgrep`/`lsof`/`ps`. |
-| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including dry-run and kill-switch boundaries. |
+| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including dry-run/kill-switch boundaries and rejection of the older fail-open wrapper as current patch evidence. |
 | `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup, and `adr-reindex`'s reporting branches. |
 | `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |

@@ -37,17 +37,19 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { retu
 const spawned = [];
 process.on('exit', () => { for (const p of spawned) { try { p.kill('SIGKILL'); } catch { /* gone */ } } });
 
-// A fake @claude-flow/cli install. `patched` decides whether its memory-initializer.js carries the
-// write-lock needle. `mtimeAgeSec` back-dates the module (to prove a process that started AFTER the
-// patch is NOT flagged). Returns the cli.js a fake worker should run.
-function fakeCli(name, { patched, mtimeAgeSec = 0 } = {}) {
+// A fake @claude-flow/cli install. `patched` means the current fail-closed lock; `legacy` means the
+// older wrapper that silently proceeded unlocked on acquisition failure. `mtimeAgeSec` back-dates
+// the module (to prove a process that started AFTER the patch is NOT flagged).
+function fakeCli(name, { patched, legacy = false, mtimeAgeSec = 0 } = {}) {
   const root = path.join(SB, name, 'node_modules', '@claude-flow', 'cli');
   fs.mkdirSync(path.join(root, 'dist', 'src', 'memory'), { recursive: true });
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   const mi = path.join(root, 'dist', 'src', 'memory', 'memory-initializer.js');
-  fs.writeFileSync(mi, patched
-    ? 'export async function storeEntry(){}\nstoreEntry = __rufloGuard(storeEntry, true);\n'
-    : 'export async function storeEntry(){}\n// unpatched: no lock\n');
+  const current = "e.code = 'RSP_MEMORY_LOCK_UNAVAILABLE';\n"
+    + 'const __rufloLockScope = new __rufloAsyncLocalStorage();\n'
+    + 'export async function storeEntry(){}\nstoreEntry = __rufloGuard(storeEntry);\n';
+  const old = 'export async function storeEntry(){}\nstoreEntry = __rufloGuard(storeEntry, true);\n';
+  fs.writeFileSync(mi, patched ? current : legacy ? old : 'export async function storeEntry(){}\n// unpatched: no lock\n');
   if (mtimeAgeSec) { const t = new Date(Date.now() - mtimeAgeSec * 1000); fs.utimesSync(mi, t, t); }
   const cliJs = path.join(root, 'bin', 'cli.js');
   fs.writeFileSync(cliJs, 'setInterval(() => {}, 1e9);\n');
@@ -115,6 +117,16 @@ if (hit.severity !== 'unpatched') fail(`SW7 expected severity 'unpatched', got '
 recoverStaleWriters();
 if (!alive(unpDaemon.pid)) fail('SW7 recovery KILLED an unpatched writer — a respawn would loop unpatched; must never be auto-killed');
 
+// ── SW9: the older fail-open wrapper is NOT accepted as the current lock ─────
+const legacyDaemon = fakeWorker(fakeCli('legacy-daemon', { legacy: true }), 'daemon', 'start');
+await publish();
+hit = staleWriters().find((w) => w.pid === legacyDaemon.pid);
+if (!hit || hit.severity !== 'unpatched') {
+  fail('SW9 the legacy fail-open __rufloGuard wrapper was accepted as the current fail-closed patch');
+}
+recoverStaleWriters();
+if (!alive(legacyDaemon.pid)) fail('SW9 recovery killed a legacy on-disk copy that a respawn cannot repair');
+
 // ── SW2: a PATCHED writer that started AFTER its patch is NEVER flagged ───────
 // Back-date the module an hour; the worker is seconds old, so it loaded the patched code.
 const healthy = fakeWorker(fakeCli('healthy', { patched: true, mtimeAgeSec: 3600 }), 'daemon', 'start');
@@ -179,7 +191,7 @@ addProblems(['!! ruflo-source-patch KILLED 1 stale MCP client(s) to force fresh 
 const stored2 = JSON.parse(fs.readFileSync(PROBLEMS_PATH, 'utf8')).problems;
 if (stored2.filter((p) => p.includes('KILLED 1 stale MCP client')).length !== 1) fail('SW8 addProblems duplicated an already-recorded line instead of de-duping');
 
-console.log('✔ stale-writer guard (SW1 pre-patch daemon+MCP client both killed, SW1a/b dry-run+kill-switch inert, SW7 unpatched NOT killed, SW2 patched-after-patch untouched, SW3 unresolvable untouched, SW5 .bin/cli unpatched not-killed, SW4 inert unless memory installed, SW8 addProblems merges not clobbers)');
+console.log('✔ stale-writer guard (SW1 pre-patch daemon+MCP client both killed, SW1a/b dry-run+kill-switch inert, SW7 unpatched NOT killed, SW9 legacy fail-open rejected, SW2 patched-after-patch untouched, SW3 unresolvable untouched, SW5 .bin/cli unpatched not-killed, SW4 inert unless memory installed, SW8 addProblems merges not clobbers)');
 
 for (const p of spawned) { try { p.kill('SIGKILL'); } catch { /* gone */ } }
 process.exit(0);

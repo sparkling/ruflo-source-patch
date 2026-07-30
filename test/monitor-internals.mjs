@@ -194,6 +194,10 @@ const cliMemoryJs = path.join(SB, 'npx', 'abc', 'node_modules', '@claude-flow', 
 const cliMemoryInit = path.join(SB, 'npx', 'abc', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 fs.mkdirSync(path.dirname(cliMemoryJs), { recursive: true });
 fs.mkdirSync(path.dirname(cliMemoryInit), { recursive: true });
+const currentSharedPurge = "const lockFile = p + '.rsp-lock';\n"
+  + "e.code = 'RSP_MEMORY_LOCK_UNAVAILABLE';\n"
+  + 'const __rufloLockScope = new __rufloAsyncLocalStorage();\n'
+  + 'purgeNamespace = __rufloGuard(purgeNamespace);\n';
 
 // AR4 — the CLI has NO `purge` subcommand, which is every published build to date.
 fs.writeFileSync(cliMemoryJs, "const subs = ['store', 'delete', 'cleanup', 'distill'];\n");
@@ -215,8 +219,7 @@ if (!/Do NOT uninstall/i.test(purgeWrongLock) || !/rsp-lock/.test(purgeWrongLock
 }
 
 // AR6 — once purge shares the ordinary writers' lock, the advice can finally flip.
-fs.writeFileSync(cliMemoryInit,
-  "const lockFile = p + '.rsp-lock';\npurgeNamespace = __rufloGuard(purgeNamespace, true);\n");
+fs.writeFileSync(cliMemoryInit, currentSharedPurge);
 const withSharedPurge = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
 if (!/Uninstall this target/i.test(withSharedPurge) || /Do NOT uninstall/i.test(withSharedPurge)) {
   fail(`AR6 purge shares the writer lock, so the replacement works here, but advice did not say to uninstall:\n  ${withSharedPurge}`);
@@ -242,7 +245,7 @@ const reindexSkill = path.join(skillDir, 'skills', 'adr-reindex', 'SKILL.md');
 const upstreamSkillBytes = '---\nname: adr-reindex\n---\n\nupstream ships this now (no rsp marker)\n';
 const noPurgeCli = "const subs = ['store', 'delete', 'cleanup'];\n";
 const purgeCli = "const subs = ['store', 'delete', 'purge', 'cleanup'];\n";
-const sharedPurge = "const lockFile = p + '.rsp-lock';\npurgeNamespace = __rufloGuard(purgeNamespace, true);\n";
+const sharedPurge = currentSharedPurge;
 
 const installOurs = () => {
   stateMod.writeState({ patchTargets: ['memory'], pluginTargets: ['adr-reindex'], retired: {} });

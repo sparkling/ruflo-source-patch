@@ -70,14 +70,14 @@ const ENTRY_PROBE = {
   'cwd/memory-root': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: "_memoryRootCache = path.resolve(__rufloResolveRoot(process.cwd()), '.swarm');" },
   'cwd/cli-core-getProjectCwd': { rel: '@claude-flow/cli-core/dist/src/mcp-tools/types.js', needle: 'return __rufloResolveRoot(process.cwd());' },
   'daemon/command-root': { rel: '@claude-flow/cli/dist/src/commands/daemon.js', needle: 'const daemon = getDaemon(__rufloResolveRoot(process.cwd()));' },
-  'memory/wal-coherent-reads': { rel: '@claude-flow/cli/dist/src/fs-secure.js', needle: '__rufloCheckpointWal(path);' },
-  'memory/write-lock': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: 'storeEntry = __rufloGuard(storeEntry, true);' },
+  'memory/wal-sidecar-refusal': { rel: '@claude-flow/cli/dist/src/fs-secure.js', needle: '__rufloRefuseWalSidecars(path);' },
+  'memory/write-lock': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: "e.code = 'RSP_MEMORY_LOCK_UNAVAILABLE';" },
   // `state` anchors the DURABLE stores (autopilot/neural/metrics/agentdb). Without it in the fuzz, the
   // target could be installed, uninstalled or half-applied by any sequence and nothing would notice.
   'state/autopilot': { rel: '@claude-flow/cli/dist/src/autopilot-state.js', needle: "export const STATE_DIR = __rufloResolveRoot(process.cwd()) + '/.claude-flow/data';" },
 };
 const OWNER = { 'cwd/daemon-autostart': 'cwd', 'cwd/memory-root': 'cwd', 'cwd/cli-core-getProjectCwd': 'cwd',
-  'daemon/command-root': 'daemon', 'memory/wal-coherent-reads': 'memory', 'memory/write-lock': 'memory',
+  'daemon/command-root': 'daemon', 'memory/wal-sidecar-refusal': 'memory', 'memory/write-lock': 'memory',
   'state/autopilot': 'cwd' };
 
 // `expected` is derived from the COMMANDS WE TYPED, never from state.json.

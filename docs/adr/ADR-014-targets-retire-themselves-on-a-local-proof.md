@@ -5,7 +5,9 @@
 **Updated**: 2026-07-30. Predicates now cover `adr-reindex`, `verify-interface`,
 `design-wall`, `mcp-prefix`, `flywheel-daily`, `ruflo-hooks-schema`, `codex-hooks`, and
 `ruflo-codex-skills`. The latest audit retired the last three only after executing their
-installed replacements; Brain #56 and #64 remain deliberately live/incomplete.
+installed replacements; Brain #56 and #64 remain deliberately live/incomplete. The
+`adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
+fail-open wrapper cannot falsely authorize retirement.
 **Deciders**: Henrik Pettersen
 **Tags**: lifecycle, safety, core
 
@@ -18,7 +20,7 @@ wrong once upstream restructures around it.
 The obvious mechanism is a published list of "fixed" issues that the tool reads and acts on. It is the wrong
 mechanism, and one week proved it twice:
 
-- **#2621** was CLOSED and NOT FIXED. Upstream's own commit comment says so.
+- **#2621** was CLOSED and NOT FIXED. Its focused ordinary-writer residual is now open as #2878.
 - **#2666** was CLOSED with both a skill and `memory purge`, but its first acceptance point was not
   complete: purge takes `<db>.lock` while ordinary writers take no lock. The plugin/CLI release split
   also left an earlier window where the skill existed and its command did not.

@@ -19,7 +19,7 @@ the engine everything else stands on.
 |---|---|
 | `cwd` | `.claude-flow`/`.swarm` follow a drifted `process.cwd()`, giving you a state dir per visited subdirectory |
 | `daemon` | direct start/stop/status/supervisor paths key Ruflo's native lock/PID state to one project root (#2877) |
-| `memory` | `memory.db` durability: cross-process **write lock**, **WAL-coherent reads**, integrity gate, and native-purge lock participation |
+| `memory` | `memory.db` durability: fail-closed async-context **writer lock** (#2878), raw **WAL-sidecar refusal** (#2735), integrity gate, and native-purge lock participation |
 | `init` | suppress plugin-duplicated bundle/hooks/MCP generation while retaining bounded upstream init fixes |
 | `plugin-hosts` | add issue-backed dual-host Ruflo marketplace install/sync/uninstall commands |
 
@@ -64,8 +64,9 @@ And that is not a bookkeeping slip. `state.json` is what the hook and the monito
 is one the next monitor tick **actively un-patches**. A concurrent install didn't merely fail to record.
 It silently reverted a patch that was already applied.
 
-That is precisely [#2621](https://github.com/ruvnet/ruflo/issues/2621), last-writer-wins silently
-dropping writes, the bug this package exists to fix in `memory.db`. Each state mutation now takes the
+That is precisely the lost-update class historically reported in
+[#2621](https://github.com/ruvnet/ruflo/issues/2621) and now focused in
+[#2878](https://github.com/ruvnet/ruflo/issues/2878). Each state mutation now takes the
 same `O_EXCL` lock pattern we inject into ruflo. But that alone was not enough: after serializing
 `state.json`, concurrent commands still rebuilt the same vendor file and `.rsp-backup`, and one
 measured run entered a non-terminating kernel copy against an in-flight zero-byte backup.

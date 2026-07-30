@@ -1,13 +1,13 @@
 # ADR-023: The memory target refuses torn writes and restarts stale writers
 
 **Status**: accepted
-Date: 2026-07-17
-Updated: 2026-07-30. The atomic-flush finding remains valid in Ruflo 3.32.39, while #2621
-remains incomplete. Native #2666 purge uses a private `<db>.lock`; the memory target now also
-wraps `purgeNamespace` with the ordinary writers' `.rsp-lock`, so the delete-heavy native
-reindex cannot race a patched pre-delete image on this installation.
+**Date**: 2026-07-17
+**Updated**: 2026-07-30. The atomic-flush finding remains valid in Ruflo 3.33.0. Clean
+ordinary writers still lose acknowledged updates, now tracked by #2878. The integrity check has
+moved to the actual `fs-secure` whole-image write boundary, so schema repair and every other raw
+writer are covered without rejecting successful native bridge calls.
 Supersedes: none
-Related: ADR-006 (the write lock and WAL-coherent reads), ADR-013 (cleanup's guarded kill), ADR-021 (the monitor acts on its own tick)
+Related: ADR-006 (fail-closed serialization and WAL refusal), ADR-013 (cleanup's guarded kill), ADR-021 (the monitor acts on its own tick)
 
 ## Context
 
@@ -43,17 +43,23 @@ which is the one outcome this package exists to forbid.
 Two additions to the `memory` target, chosen with the user over the alternatives (detect-and-warn
 only, or a full quick_check on every write).
 
-**The integrity gate (in the patched module).** A new `integrityGate` fragment defines
-`__rufloIntegrityCheck`, and the EOF wrapper runs it under the write lock, just before each write
-mutator flushes. It reads at most 100 bytes and verifies the on-disk SQLite header is
+**The integrity gate (at the whole-image boundary).** The `integrityGate` fragment defines
+`__rufloIntegrityCheck`, and `writeFileAtomic` invokes it immediately before publishing a raw
+whole-file image. It reads at most 100 bytes and verifies the on-disk SQLite header is
 self-consistent: the magic string, a valid power-of-two page size, and, when the in-header page
 count is authoritative (the change counter equals the version-valid-for number, per the SQLite
 file format), that `page_size * page_count` equals the file size. When it is not authoritative, it
 falls back to the weaker but always-true invariant that a complete SQLite file is a whole number of
 pages. A torn or truncated image fails and the mutator THROWS rather than overwriting the damage.
-`ensureSchemaColumns`, the init and repair path, is deliberately left ungated: it must be allowed to
-run on a fresh or half-built database, so gating it would block the recovery that heals a torn DB.
-The check is pure buffer, no engine load, no second read of the image.
+Missing and zero-byte files remain legitimate initialization inputs. Every existing non-empty
+`.db`, including `ensureSchemaColumns` output, must pass; inability to inspect it also fails closed.
+This fixes the earlier exemption, which was unsound because schema repair itself exports and renames
+a whole database image. The check is pure buffer, with no engine load or second image.
+
+The boundary first refuses any live `-wal`/`-shm` sidecar under ADR-006. That means the integrity
+probe never blesses a stale main file while another native connection owns uncheckpointed frames.
+The EOF wrapper only supplies serialization and pre-unlink protection for force initialization;
+it does not run an image gate on a successful transactional AgentDB bridge call.
 
 The same EOF wrapper conditionally guards native `purgeNamespace`. Upstream's own
 `withMemoryDbLock()` uses `<db>.lock`, but no ordinary writer opts into it; nesting purge inside
@@ -86,10 +92,10 @@ loud the warning must be when it does:
   client outage the user must notice and manually clear, chosen over the safer default (daemons only,
   MCP clients merely warned) this ADR shipped with initially.
 - **An `unpatched` writer** (daemon or MCP client) is NEVER auto-killed, regardless of the above: the
-  copy has no lock because the patch could not be applied (anchor drift), so ANY respawn, whether a
-  daemon or an MCP client after its manual reconnect, reads the same unpatched copy and gains nothing.
-  That is patch drift, fixed by re-anchoring (which `runOnce` attempts and the drift machinery
-  reports), not by killing a process for no benefit.
+  copy lacks the current fail-closed lock because the patch could not be applied (anchor drift), or
+  it still carries the older fail-open wrapper. ANY respawn reads those same unsafe bytes and gains
+  nothing. That is patch drift, fixed by re-anchoring (which `runOnce` attempts and the drift
+  machinery reports), not by killing a process for no benefit.
 
 Following ADR-021's split (the hook REPORTS, the monitor ACTS), the SessionStart hook warns about every
 stale writer, flagging which pre-patch MCP clients WILL be killed; the monitor tick kills every
@@ -131,8 +137,9 @@ ADR-013's cleanup bar: a process is only ever signalled when we can positively r
 
 ### Neutral
 
-- The integrity gate reads a header on every write mutation. The cost is one `open`, one 100-byte
-  `read`, one `close`; negligible against the whole-file flush it precedes.
+- The integrity gate reads a header on every raw whole-image write. The cost is one `open`, one
+  100-byte `read`, one `close`; negligible against the flush it precedes. Native bridge writes do
+  not cross this boundary.
 - The mtime-versus-start signal flags a patched-but-old process as stale. If it is wrong, the cost is
   one restart (respawn or next-session reload), never data loss, so the guard leans that way on
   purpose: a missed stale writer corrupts, a spurious restart merely reloads.
@@ -140,5 +147,6 @@ ADR-013's cleanup bar: a process is only ever signalled when we can positively r
 ## Links
 
 - ruvnet/ruflo#2584 (the atomic-flush close-out this builds past)
-- ruvnet/ruflo#2621 (the write lock, ADR-006)
+- ruvnet/ruflo#2878 (ordinary-writer serialization and fail-closed locking, ADR-006)
+- ruvnet/ruflo#2621 (historical lost-update report)
 - The corruption analysis: `semantic-product-mock/.swarm/backups/memory-CORRUPT-preswap-*.db`

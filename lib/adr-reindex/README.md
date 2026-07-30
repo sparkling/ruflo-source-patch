@@ -63,8 +63,9 @@ rebuild is its own trap.
 
 `memory.db` is written as a whole-file **read-modify-write image**. A concurrent daemon or MCP server
 holding a *pre-delete* image will flush it back and **resurrect every row we just removed**
-([#2621](https://github.com/ruvnet/ruflo/issues/2621)). The reconcile is the most delete-heavy operation
-in the system and therefore the one most exposed to this.
+(historical [#2621](https://github.com/ruvnet/ruflo/issues/2621), focused residual
+[#2878](https://github.com/ruvnet/ruflo/issues/2878)). The reconcile is the most delete-heavy
+operation in the system and therefore the one most exposed to this.
 
 The `memory` target already solves both halves, so this **depends on it rather than reimplementing a
 weaker copy**:
@@ -72,12 +73,12 @@ weaker copy**:
 - `memory/write-lock` makes `<db>.rsp-lock` mean something. **A lock nothing else takes protects
   nothing.** It works only because the other side takes it too, and the other side only does so when
   that patch is installed.
-- `memory/wal-coherent-reads` stops any reader acting on a stale image.
+- `memory/wal-sidecar-refusal` stops raw access while a native connection owns WAL state, without
+  checkpointing or deleting its sidecars.
 
 The script takes that same lock around its `DELETE`. That is **participation** in the protocol, not
 duplication of it: the CLI's lock lives inside node and cannot cover a `sqlite3` subprocess. It releases
-*before* the re-import, because the patched CLI takes the lock per store and would otherwise spin out into
-unlocked writes for the whole rebuild.
+*before* the re-import, because the patched CLI takes the lock per store and fails closed on contention.
 
 An earlier version warned-and-proceeded when `memory` was absent. That was wrong: it gambled the user's
 index on a race the warning had just finished explaining it could not win. It now **refuses**.

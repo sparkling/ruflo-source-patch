@@ -262,13 +262,16 @@ console.log('fake importer stored ${rows}');
     fs.writeFileSync(path.join(dir, 'verify.mjs'), "console.log('fake verify ok');\n");
   }
 
-  // The `memory` patch must LOOK installed to the script — it greps the vendor bytes for
-  // __rufloLockAcquire, not our state.json, because state records what we were ASKED to install
-  // and only the file says what is true.
+  // The `memory` patch must LOOK installed to the script. It requires the current fail-closed
+  // markers, not merely the old wrapper or state.json (which records only what was requested).
   const memInit = path.join(HOME, '.npm', '_npx', 'x', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
   const setMemoryPatch = (patched) => {
     fs.mkdirSync(path.dirname(memInit), { recursive: true });
-    fs.writeFileSync(memInit, patched ? 'async function __rufloLockAcquire(p) {}\n' : 'export function storeEntry(){}\n');
+    fs.writeFileSync(memInit, patched
+      ? "e.code = 'RSP_MEMORY_LOCK_UNAVAILABLE';\n"
+        + 'const __rufloLockScope = new __rufloAsyncLocalStorage();\n'
+        + 'storeEntry = __rufloGuard(storeEntry);\n'
+      : 'export function storeEntry(){}\n');
   };
 
   const runScript = (P) => spawnSync('bash', [SCRIPT, P], { env: { ...env, HOME }, encoding: 'utf8' });

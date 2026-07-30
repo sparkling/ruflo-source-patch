@@ -5,8 +5,9 @@
 **Updated**: 2026-07-30. Upstream #2666 is not complete as written: native purge takes a
 private `<db>.lock` that ordinary writers do not share, so it cannot prevent a pre-delete
 image from being restored. On this installation the `memory` target now wraps native
-`purgeNamespace` with the ordinary writers' `<db>.rsp-lock`; only that composed, local proof
-makes the upstream skill runnable and permits this additive target to remain retired.
+`purgeNamespace` with the ordinary writers' current fail-closed `<db>.rsp-lock` (#2878);
+only that composed, local proof makes the upstream skill runnable and permits this additive
+target to remain retired.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr, superseded
 
