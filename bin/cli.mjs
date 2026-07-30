@@ -11,7 +11,7 @@
 //   cwd      cwd anchoring — .claude-flow/.swarm stop following a drifted cwd (#2633)
 //   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
-//   plugin-hosts  dual-host Ruflo marketplace install/uninstall/sync (#2854)
+//   plugin-hosts  dual-host install/uninstall/sync plus bounded same-version refresh (#2854/#2870)
 //
 // Plugin patches (changes to installed plugin copies, not @claude-flow/cli — same
 // install/uninstall/status shape, different target files). The ADR trio covers the whole round-trip:

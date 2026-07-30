@@ -30,7 +30,7 @@
 | `codex-hooks-native.mjs` | Mixed upstream #52 rollout: source-only stays unhealthy; complete native wiring is preserved. |
 | `codex-skills.mjs` | Cache-local Ruflo/Brain skill parity: exact ownership, six Brain native/alias components, byte-perfect restoration, collision refusal, active-version updates, and no Brain source mutation. |
 | `ruflo-codex-hooks.mjs` | Ruflo's canonical Codex plugin repair: idempotency, disabled-state preservation, collision refusal, loud failures, and zero MCP mutation. |
-| `plugin-hosts.mjs` | Ruflo's issue-backed dual-host marketplace commands against fake host CLIs: install/sync/uninstall, dry-run, disabled state, exact scope ownership, idempotence, injection refusal, partial failure, and byte-perfect patch removal. |
+| `plugin-hosts.mjs` | Ruflo's issue-backed dual-host marketplace commands against fake host CLIs: install/sync/uninstall, dry-run, disabled state, exact scope ownership, idempotence, injection refusal, partial failure, bounded same-version refresh with cache-byte proof, and byte-perfect patch removal. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
 ## Three rules, all learned the hard way

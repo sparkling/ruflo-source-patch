@@ -7,7 +7,9 @@
 output (PR #2857), and its native read-only status skill closes #2821; the corresponding three
 local targets retire on installed behavior. #2640 remains open despite atomic hook-event claims:
 the generated bundle and standalone MCP duplication remain. #2854 remains open, so
-`plugin-hosts` still supplies dual-host marketplace reconciliation. Brain #56 is only partially
+`plugin-hosts` still supplies dual-host marketplace reconciliation. #2870 proves three current
+plugin versions were reused for different source trees; a bounded host-native refresh now bridges
+those exact identities without making the patch system a second marketplace updater. Brain #56 is only partially
 complete because its native Codex skills cannot locate assets from the supported installed source.
 **Deciders**: Henrik Pettersen
 
@@ -72,8 +74,11 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 - `plugin-hosts` patches Ruflo's existing plugin command layer, not either host cache. Its
   `host-install`, `host-uninstall`, and `host-sync` commands validate exact `*@ruflo` identities,
   delegate through literal argv to `claude plugin` / `codex plugin`, preserve disabled and
-  target-only state, and report partial completion as failure. Raw host installers remain
-  host-specific; sync is additive and dry-run is mutation-free.
+  target-only state, and report partial completion as failure. `host-refresh` is separately
+  allowlisted to the three issue #2870 identity/version collisions: it updates each marketplace,
+  asks the host to remove/add that identity, and compares the resulting cache bytes with the
+  refreshed host snapshot. It refuses disabled or unaudited identities. It never copies cache
+  bytes, follows arbitrary moving source, or changes Brain's operating plane.
 - Ruflo 3.32.39 natively supplies the read-only status surface, so `ruflo-codex-skills` retires.
   `brain-codex-skills` remains: Brain 4.0.1 added native Console/what's-new skills but their
   current-repo/`~/Code` lookup cannot find the supported plugin source. The target repairs those
@@ -107,6 +112,7 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   [#2685](https://github.com/ruvnet/ruflo/issues/2685), [#2777](https://github.com/ruvnet/ruflo/issues/2777),
   [#2801](https://github.com/ruvnet/ruflo/issues/2801), [#2816](https://github.com/ruvnet/ruflo/issues/2816),
   [#2821](https://github.com/ruvnet/ruflo/issues/2821), [PR #2857](https://github.com/ruvnet/ruflo/pull/2857),
-  [#2854](https://github.com/ruvnet/ruflo/issues/2854), and
+  [#2854](https://github.com/ruvnet/ruflo/issues/2854),
+  [#2870](https://github.com/ruvnet/ruflo/issues/2870), and
   [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56)
 - `lib/cwd/patch-library.mjs` (target `init`)

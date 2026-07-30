@@ -76,7 +76,7 @@ function pluginTargets() {
 
 // Applied <=> the fix is present. Probed independently of the patcher's own bookkeeping.
 const PROBE = {
-  'adr-index': { rel: IMPORT_REL, needle: "'--upsert'," },
+  'adr-index': { rel: IMPORT_REL, needle: 'ruflo-source-patch (#2660)' },
   'adr-template': { rel: SKILL_REL, needle: '   **Status**: proposed' },
 };
 
@@ -155,10 +155,10 @@ console.log(`✔ ${RUNS} plugin sequences × ${LEN} steps (P1 applied⇔installe
 
   const after = fs.readFileSync(pluginFile(IMPORT_REL), 'utf8');
   if (!after.includes('PLUGIN-UPDATED-IN-PLACE')) fail('R3: CLOBBERED a /plugin update by restoring a stale backup');
-  if (!after.includes("'--upsert',")) fail('R3: failed to re-apply the patch on top of the new plugin file');
+  if (!after.includes('ruflo-source-patch (#2660)')) fail('R3: failed to re-apply the patch on top of the new plugin file');
   const backup = fs.readFileSync(`${pluginFile(IMPORT_REL)}.rsp-backup`, 'utf8');
   if (!backup.includes('PLUGIN-UPDATED-IN-PLACE')) fail('R3: backup not re-baselined to the new plugin file');
-  if (backup.includes("'--upsert',")) fail('R3: baked our own patch into "pristine" — uninstall would no longer be clean');
+  if (backup.includes('ruflo-source-patch (#2660)')) fail('R3: baked our own patch into "pristine" — uninstall would no longer be clean');
 }
 
 // R4 — an empty backup must never destroy the file, on ANY path.

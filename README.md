@@ -122,13 +122,18 @@ Actions: `install` · `uninstall` · `status`
 | **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
 | **`memory`** | `.swarm/memory.db` durability. A cross-process **write lock** (concurrent writers silently *drop* writes), **WAL-coherent reads** (sql.js reads a stale image), an **integrity gate** (refuse a whole-file flush over an already-torn image instead of overwriting the damage), and a **stale-writer guard** (the monitor kills every pre-patch writer, daemon *and* MCP client, to force fresh code, and pushes a loud, unmissable warning for each killed MCP client since reconnecting one needs a manual `/mcp` step afterward; `RSP_NO_STALE_WRITER_KILL` disables the kill) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
-| **`plugin-hosts`** | Adds explicit Ruflo-owned `plugins host-install`, `host-uninstall`, and additive Claude-to-Codex `host-sync` commands to the installed CLI. They validate exact Ruflo marketplace identities and delegate to each host's supported plugin CLI; they do not copy plugin files or edit host caches. Dry-run is mutation-free, target-only plugins are preserved, disabled state is retained, and partial completion is nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) |
+| **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, and bounded `host-refresh` commands to the installed CLI. All delegate to each host's supported CLI; this patch never copies or directly edits host caches. `host-refresh` is allowlisted to the three audited unchanged-version collisions and verifies installed bytes against each refreshed host snapshot. Disabled state is never changed and partial completion is nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 
 After installing the target, reconcile an existing dual-host setup with:
 
 ```bash
 npx ruflo@latest plugins host-sync --dry-run
 npx ruflo@latest plugins host-sync
+
+# Temporary #2870 delivery repair; becomes a no-op once a host has a bumped version
+npx ruflo@latest plugins host-refresh --name ruflo-adr
+npx ruflo@latest plugins host-refresh --name ruflo-metaharness
+npx ruflo@latest plugins host-refresh --name ruflo-graph-intelligence
 ```
 
 ### Plugin patches
@@ -144,8 +149,8 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`adr-template`** | Compatibility for active pre-fix plugin caches: strips the four list markers that their old parser cannot read. #2659 is fixed in current marketplace source, but the already-active Claude `ruflo-adr` 0.4.1 cache still contains the old parser under the unchanged plugin version | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
-| **`adr-index`** | Compatibility for active pre-fix importers: explicit upsert, deterministic edges, honest failure counts, and an exact `ORPHANS` warning. #2660/#2594 are fixed in current source, but the active Claude cache is still old; the local warning is additional behavior | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
+| **`adr-template`** | Compatibility for the reused `ruflo-adr` 0.4.1 identity: strips the four list markers that old variants cannot read. #2659 is fixed in current source and this machine was explicitly refreshed to those bytes, but no bumped immutable plugin version exists yet; the target remains as rollback protection | [#2659](https://github.com/ruvnet/ruflo/issues/2659) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
+| **`adr-index`** | Compatibility across the reused 0.4.1 importer variants: explicit upsert, deterministic edges, honest failure counts, and an exact `ORPHANS` warning. Current source and this refreshed cache contain the upstream convergence fix; `ORPHANS` remains additional local behavior and #2870 still lacks a bumped identity | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 | **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. Native `memory purge` exists, but #2666's closure is incomplete unless purge shares the ordinary writers' lock. Retirement requires the native skill, command, and the `memory` target's `.rsp-lock` wrapper; version presence alone is not enough | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
 
 #### Ruflo plugins under Codex
@@ -1260,8 +1265,8 @@ closed label.** The table records the full acceptance result.
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | **Open.** Claude and Codex instructions still have separate generators | Keep `dual` |
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | **Open, partial.** Atomic event claims prevent duplicate side effects, but init still emits the duplicate bundle/hooks/MCP | Keep `init`, `plugin-only` |
 | [#2651](https://github.com/ruvnet/ruflo/issues/2651) | **Fixed completely** in 3.32.37 | No patch |
-| [#2659](https://github.com/ruvnet/ruflo/issues/2659) | **Source fix sound; delivery incomplete here.** Current parser accepts list metadata/relations, while the active unchanged-version Claude cache still has the old parser | Keep `adr-template` for that cache |
-| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | **Source fix sound; delivery incomplete here.** Current importer converges, while the active Claude cache is old; `ORPHANS` is also local extra behavior | Keep `adr-index` |
+| [#2659](https://github.com/ruvnet/ruflo/issues/2659) | **Source fix sound; immutable delivery incomplete.** The active cache was manually refreshed to current parser bytes, but remains the collided 0.4.1 identity | Keep `adr-template` as rollback protection until a bumped identity is delivered |
+| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | **Source fix sound; immutable delivery incomplete.** The refreshed importer converges; `ORPHANS` remains additional local behavior | Keep `adr-index` pending its independent acceptance and #2870 delivery |
 | [#2666](https://github.com/ruvnet/ruflo/issues/2666) | **Closed incomplete as written.** Native reindex/purge exist, but purge's private lock is not shared with ordinary writers | `memory` supplies the shared wrapper; only then is `adr-reindex` retired |
 | [#2672](https://github.com/ruvnet/ruflo/issues/2672) | **Correctly retracted / not planned.** Its premise was false | No patch |
 | [#2685](https://github.com/ruvnet/ruflo/issues/2685), [#2706](https://github.com/ruvnet/ruflo/issues/2706) | **Fixed completely.** Fleet and missed core references are native | `mcp-prefix` retired |
@@ -1271,6 +1276,7 @@ closed label.** The table records the full acceptance result.
 | [#2816](https://github.com/ruvnet/ruflo/issues/2816) | **Fixed completely** in 3.32.39 / PR #2857; both real PreToolUse branches emit Codex-valid output | `ruflo-hooks-schema` retired |
 | [#2821](https://github.com/ruvnet/ruflo/issues/2821) | **Fixed completely.** Native status is read-only by default; repair requires explicit intent | `ruflo-codex-skills` retired |
 | [#2854](https://github.com/ruvnet/ruflo/issues/2854) | **Open.** No native dual-host marketplace reconciliation | Keep `plugin-hosts` |
+| [#2870](https://github.com/ruvnet/ruflo/issues/2870) | **Open.** Three current plugin versions identify multiple source trees; all 35 current identities were audited | `plugin-hosts host-refresh` repaired the three local host pairs through supported CLIs; wait for bumped versions plus a fleet-wide release guard |
 | [Brain #12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13), [#17](https://github.com/stuinfla/ruvnet-brain/issues/17) | **Fixed completely** and behaviorally proved | `verify-interface`, `design-wall` retired |
 | [Brain #41](https://github.com/stuinfla/ruvnet-brain/issues/41) | **Closure not sound after its body was broadened.** The closing comment proves the earlier quote fix, not the edited nested-invocation acceptance | Superseded by #44/#48; no new patch |
 | [Brain #42](https://github.com/stuinfla/ruvnet-brain/issues/42), [#43](https://github.com/stuinfla/ruvnet-brain/issues/43) | **Fixed completely.** Codex MCP/plugin packaging is present without the retracted `skill.toml` proposal | No patch |
