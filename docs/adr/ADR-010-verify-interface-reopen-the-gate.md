@@ -2,12 +2,14 @@
 
 **Status**: superseded
 **Date**: 2026-07-14
-**Updated**: 2026-07-29. RETIRED: `ruvnet-brain` first shipped its own complete rewrite in v3.2.9
+**Updated**: 2026-07-30. RETIRED: `ruvnet-brain` first shipped its own complete rewrite in v3.2.9
 (commit `bfc2d36`): real JSON parsing (closes #13) and a command-position-anchored matcher with a
 working override checked against the command string (closes #12). Its newer issue #48 implementation
 removes the raw-Bash authorization wall entirely: the hook is advisory-only and structured
 `ruvnet_cli_help` / `ruvnet_cli_run` calls own enforcement. The retirement predicate accepts either
-complete replacement and rejects advisory text if any literal nonzero exit remains.
+complete replacement and rejects advisory text if any literal nonzero exit remains. Issue #41's
+edited body was not fixed by its earlier closure, and #44's requested blocking parser was superseded
+rather than implemented as written; #48 remains open for the final structured-boundary migration.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, ruvnet-brain, retired
 

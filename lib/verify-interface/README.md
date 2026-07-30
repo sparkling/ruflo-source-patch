@@ -2,9 +2,11 @@
 
 [← ruflo-source-patch](../../README.md)
 
-**RETIRED 2026-07-17** (see ADR-010). `ruvnet-brain` v3.2.9 (commit `bfc2d36`) shipped its own complete
-fix for both #12 and #13; `lib/supersede.mjs` retires this target automatically once the installed
-copies carry it. Kept below for history and for anyone still on a pre-3.2.9 install.
+**RETIRED 2026-07-17** (see ADR-010). `ruvnet-brain` v3.2.9 (commit `bfc2d36`) shipped complete
+#12/#13 behavior, and later #48 made raw Bash advisory while structured help/run owns enforcement.
+`lib/supersede.mjs` retires this target only after exercising the installed replacement. Kept below
+for history and for older blocking-gate installs. #41's later broadened acceptance criteria were not
+proved by its earlier closure; #44 was superseded rather than implemented as a recursive shell parser.
 
 A gate that cannot be opened.
 
@@ -23,7 +25,7 @@ Upstream: [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/is
 - [Why five edits and not one](#why-five-edits-and-not-one)
 - [Tested behaviourally, not textually](#tested-behaviourally-not-textually)
 - [A limit worth knowing: the gate is blind to quoted text](#a-limit-worth-knowing-the-gate-is-blind-to-quoted-text)
-- [When upstream fixes it](#when-upstream-fixes-it)
+- [Retirement behavior](#retirement-behavior)
 
 ## The gate is a good idea, and this does not disable it
 
@@ -79,9 +81,9 @@ cannot reach the hook.
 
 ## Upstream adopted v1, so there are two shapes in the wild
 
-`ruvnet-brain` **2.7.x ships v1 of this patch in its own vendor file**, regex, comments and reachable
-override included, while [#12](https://github.com/stuinfla/ruvnet-brain/issues/12) remains open. The
-prose false positive shipped with it.
+`ruvnet-brain` **2.7.x shipped v1 of this patch in its own vendor file**, regex, comments and reachable
+override included. At that point [#12](https://github.com/stuinfla/ruvnet-brain/issues/12) remained
+open and the prose false positive shipped with it.
 
 So every edit carries **two anchors**: the original buggy line (still in older cached plugin versions),
 and v1's own output (what upstream now ships). Variant B's `find` is literally v1's `replace`, which is
@@ -133,10 +135,13 @@ The gate then sees no tool name at all and allows the command. This cuts both wa
   nothing.
 - **It creates false negatives.** `bash -c "ruflo memory search -q x"` is invisible to the gate.
 
-This patch does not fix it: it is a defect in upstream's payload parsing, not in the match. It is reported
-on #12 and noted here so the next person does not mistake the blindness for a fix.
+This patch did not fix it: it was a defect in upstream's payload parsing, not in the match. The old
+blocking parser was ultimately replaced by #48's advisory raw-Bash path plus structured enforcement;
+the limitation remains documented so a closed historical regex issue is not mistaken for a complete
+recursive shell parser.
 
-## When upstream fixes it
+## Retirement behavior
 
-The anchors stop matching, `apply()` reports `skip:no-anchor-matched` loudly, and names #12 as the likely
-reason. Then uninstall the target. It never guesses.
+The predicate accepts either the proven #12/#13 replacement or #48's stronger advisory/structured
+boundary, executes its behavioral probes, and retires only then. Unknown or partial bytes keep the
+patch. It never infers success from an absent anchor or a closed issue.

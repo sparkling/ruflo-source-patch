@@ -2,6 +2,10 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. #2584's atomic-flush scope is fixed and #2594's native upsert
+default is fixed. #2621 is not: upstream's `<db>.lock` has only a purge caller while ordinary
+writers remain unlocked. The patch now also routes native `purgeNamespace` through the same
+`<db>.rsp-lock` as ordinary patched writers, satisfying #2666's delete-lock contract locally.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, durability, data-loss
 
@@ -47,8 +51,9 @@ unsynchronised writers this exists to prevent.
 
 ### Neutral
 
-- The injected lock file (`<db>.rsp-lock`) is a different path from upstream's later `<db>.lock`. When
-  upstream's lands in a published build, the two should be reconciled onto one path.
+- The injected lock file (`<db>.rsp-lock`) is a different path from upstream's later `<db>.lock`.
+  Until upstream makes every writer use one protocol, the EOF wrapper also guards its native
+  `purgeNamespace` with `.rsp-lock`; the private `.lock` remains an inner, redundant guard.
 
 ## Links
 

@@ -2,6 +2,9 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. #2407/#2484 correctly serialize concurrent starts that use the
+same cwd. They do not resolve different subdirectories to one project root; that residual is
+#2633 and remains present in Ruflo 3.32.39, so the target stays live.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, daemon, cost
 

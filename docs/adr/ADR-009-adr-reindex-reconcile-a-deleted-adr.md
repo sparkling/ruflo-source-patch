@@ -1,7 +1,12 @@
 # ADR-009: adr-reindex: add the reconcile ruflo did not ship (superseded)
 
-**Status**: accepted
+**Status**: superseded
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. Upstream #2666 is not complete as written: native purge takes a
+private `<db>.lock` that ordinary writers do not share, so it cannot prevent a pre-delete
+image from being restored. On this installation the `memory` target now wraps native
+`purgeNamespace` with the ordinary writers' `<db>.rsp-lock`; only that composed, local proof
+makes the upstream skill runnable and permits this additive target to remain retired.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr, superseded
 
@@ -44,9 +49,9 @@ It is a PLUGIN target rather than a script one because the skill file lives insi
 
 ### Neutral
 
-- SUPERSEDED as of `ruflo-adr` 0.4.0 plus `@claude-flow/cli` 3.29.0, which together ship an `/adr-reindex`
-  and the `memory purge` hard-delete it needs. The target now retires ITSELF on that proof (ADR-014), and
-  did so on this machine. It is retained for anyone on an older CLI, where the gap is still real.
+- The upstream skill and `memory purge` are necessary but not sufficient. Retirement additionally
+  proves that purge shares `<db>.rsp-lock` with ordinary writers. That proof passes here only after
+  the `memory` target is applied; an unpatched current CLI keeps the compatibility target live.
 
 ## Links
 

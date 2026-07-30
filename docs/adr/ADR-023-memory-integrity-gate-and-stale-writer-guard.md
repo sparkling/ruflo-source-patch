@@ -2,6 +2,10 @@
 
 **Status**: accepted
 Date: 2026-07-17
+Updated: 2026-07-30. The atomic-flush finding remains valid in Ruflo 3.32.39, while #2621
+remains incomplete. Native #2666 purge uses a private `<db>.lock`; the memory target now also
+wraps `purgeNamespace` with the ordinary writers' `.rsp-lock`, so the delete-heavy native
+reindex cannot race a patched pre-delete image on this installation.
 Supersedes: none
 Related: ADR-006 (the write lock and WAL-coherent reads), ADR-013 (cleanup's guarded kill), ADR-021 (the monitor acts on its own tick)
 
@@ -50,6 +54,11 @@ pages. A torn or truncated image fails and the mutator THROWS rather than overwr
 `ensureSchemaColumns`, the init and repair path, is deliberately left ungated: it must be allowed to
 run on a fresh or half-built database, so gating it would block the recovery that heals a torn DB.
 The check is pure buffer, no engine load, no second read of the image.
+
+The same EOF wrapper conditionally guards native `purgeNamespace`. Upstream's own
+`withMemoryDbLock()` uses `<db>.lock`, but no ordinary writer opts into it; nesting purge inside
+the shared `.rsp-lock` is what satisfies #2666's requirement that deletion coordinate with those
+writers. The private upstream guard may remain nested and redundant.
 
 **The stale-writer guard (outside the patched module).** A new `lib/cwd/stale-writer.mjs` detects
 running ruflo workers writing memory.db with old code. It resolves a worker's `@claude-flow/cli` root

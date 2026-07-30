@@ -2,6 +2,8 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. Revalidated against Ruflo 3.32.39: #2633 remains open and current
+CLI state/daemon paths still follow raw `process.cwd()`. The target remains live.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, data-loss, cwd
 

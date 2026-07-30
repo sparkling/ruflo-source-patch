@@ -2,6 +2,10 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. #2659 is fixed in current marketplace source and Ruflo 3.32.37+:
+the parser accepts list-prefixed metadata and relationships. The active Claude Code
+`ruflo-adr` 0.4.1 cache on this machine still contains the pre-fix parser under the unchanged
+plugin version, so the four-field template compatibility patch remains live for that host.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr
 
@@ -37,6 +41,9 @@ hook and the monitor, like every other.
 
 - If upstream aligns the two skills, the anchor stops matching, the target reports `skip:anchor-not-found`,
   and the supersession machinery (ADR-014) can retire it.
+- The local target covers the original four template metadata fields. Upstream's later, broader
+  parser fix also accepts list-prefixed relationship lines; that broader behavior is not claimed
+  by this compatibility transform on an old cache.
 
 ## Links
 

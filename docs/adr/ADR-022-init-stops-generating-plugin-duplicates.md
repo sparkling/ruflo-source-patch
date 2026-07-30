@@ -2,7 +2,13 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-29. Ruflo #2777 is fixed upstream. #2801's initializer registration landed, so the redundant Codex lifecycle source edit has been removed. The canonical plugin still has two Codex-host defects: its manifest fails Codex's strict schema (PR #2800), and its PreToolUse shim emits Cursor-only output (#2816). `ruflo-hooks-schema` covers only those installed Codex copies. The legacy external skill-import guard remains shape-gated for older installed CLIs. `ruflo-codex-hooks` remains an explicit repair for systems initialized before v3.32.24. #2854 identifies the missing installer layer: Claude Code and Codex keep separate plugin registries, so `plugin-hosts` adds explicit Ruflo-owned dual-host install, uninstall, and additive reconciliation commands that use each host's public CLI. Cache-local command patches remain limited to their original issue-backed gaps (#2821 / Brain #56).
+**Updated**: 2026-07-30. Ruflo #2777 and #2801 are fixed upstream. Ruflo 3.32.39 /
+`ruflo-core` 0.2.6 finally ships a version-bumped strict hook manifest and host-aware PreToolUse
+output (PR #2857), and its native read-only status skill closes #2821; the corresponding three
+local targets retire on installed behavior. #2640 remains open despite atomic hook-event claims:
+the generated bundle and standalone MCP duplication remain. #2854 remains open, so
+`plugin-hosts` still supplies dual-host marketplace reconciliation. Brain #56 is only partially
+complete because its native Codex skills cannot locate assets from the supported installed source.
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -59,20 +65,20 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 - `ruflo init` / `doctor` stop re-adding the duplicates, so `plugin-only` is a one-time cleanup rather than
   a recurring chore. The two are complements: `plugin-only` removes what exists, `init` stops it recurring.
-- Ruflo v3.32.24 / `@claude-flow/codex` 3.0.2 now installs the canonical lifecycle plugin itself,
-  so the redundant #2801 initializer edit is retired. The separate `ruflo-hooks-schema` target
-  normalizes the rejected manifest header (PR #2800) and silences the Cursor-only bare PreToolUse
-  verdict (#2816) only in Codex's installed copies. It preserves the seven registrations and Ruflo
-  telemetry call. `ruflo-codex-hooks` remains the one-shot registration repair for older systems.
+- Ruflo v3.32.24 / `@claude-flow/codex` 3.0.2 installs the canonical lifecycle plugin itself.
+  Ruflo 3.32.39 / `ruflo-core` 0.2.6 then completed the strict manifest and Codex PreToolUse
+  contract in PR #2857. `ruflo-hooks-schema` now retires after probing both real handler branches;
+  `ruflo-codex-hooks` remains only a one-shot registration repair for older systems.
 - `plugin-hosts` patches Ruflo's existing plugin command layer, not either host cache. Its
   `host-install`, `host-uninstall`, and `host-sync` commands validate exact `*@ruflo` identities,
   delegate through literal argv to `claude plugin` / `codex plugin`, preserve disabled and
   target-only state, and report partial completion as failure. Raw host installers remain
   host-specific; sync is additive and dry-run is mutation-free.
-- `ruflo-codex-skills` adds Ruflo's missing read-only status surface, while
-  `brain-codex-skills` adds Brain's skipped `rvbc` / `whats-new` surfaces and repairs the three
-  incomplete migrated aliases. Both target only the active Codex cache. They do not restore the
-  project bundle, alter Claude Code, or touch Brain's shared source/updater plane.
+- Ruflo 3.32.39 natively supplies the read-only status surface, so `ruflo-codex-skills` retires.
+  `brain-codex-skills` remains: Brain 4.0.1 added native Console/what's-new skills but their
+  current-repo/`~/Code` lookup cannot find the supported plugin source. The target repairs those
+  three native files and three aliases only in the active Codex cache; it does not touch Brain's
+  shared source, updater, immutable versions, or runtime.
 - Verified against real vendor bytes (II1 to II4): the emission and all three bundle gates are disabled,
   legacy #2777 bytes are suppressed while bounded upstream bytes remain active, all files still parse,
   and uninstall restores byte-for-byte.
@@ -97,5 +103,10 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 
 - [ADR-012](ADR-012-dedupe-bundle-strip-duplicated-skills.md) (`plugin-only`, the after-the-fact removal this complements)
 - [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md) (whose "generators out of scope" this revises), [ADR-019](ADR-019-all-mode-adopts-new-targets.md)
-- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle), [#2685](https://github.com/ruvnet/ruflo/issues/2685) (the standalone MCP registration), [#2777](https://github.com/ruvnet/ruflo/issues/2777), [#2801](https://github.com/ruvnet/ruflo/issues/2801) (registration landed; handler-load acceptance still false), [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) (strict hook-manifest schema), [#2816](https://github.com/ruvnet/ruflo/issues/2816) (Codex PreToolUse output), [#2821](https://github.com/ruvnet/ruflo/issues/2821) (missing Ruflo status skill), [#2854](https://github.com/ruvnet/ruflo/issues/2854) (dual-host marketplace installer), and [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) (dropped/incomplete Brain command migrations)
+- Upstream: [ruvnet/ruflo#2640](https://github.com/ruvnet/ruflo/issues/2640) (the bundle),
+  [#2685](https://github.com/ruvnet/ruflo/issues/2685), [#2777](https://github.com/ruvnet/ruflo/issues/2777),
+  [#2801](https://github.com/ruvnet/ruflo/issues/2801), [#2816](https://github.com/ruvnet/ruflo/issues/2816),
+  [#2821](https://github.com/ruvnet/ruflo/issues/2821), [PR #2857](https://github.com/ruvnet/ruflo/pull/2857),
+  [#2854](https://github.com/ruvnet/ruflo/issues/2854), and
+  [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56)
 - `lib/cwd/patch-library.mjs` (target `init`)

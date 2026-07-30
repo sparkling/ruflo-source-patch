@@ -1,5 +1,9 @@
 # `mcp-prefix`
 
+> **Retired on current Ruflo.** #2685 and the missed core references in #2706 are fixed upstream.
+> The target proves current marketplace HEAD plus every local composition before restoring and
+> recording a terminal retirement; the material below documents the legacy defect.
+
 Rewrites the ruflo plugins' bundled MCP tool references from the legacy standalone prefix
 `mcp__claude-flow__*` to the plugin-namespaced form `mcp__plugin_ruflo-core_ruflo__*`
 ([ruvnet/ruflo#2685](https://github.com/ruvnet/ruflo/issues/2685)).

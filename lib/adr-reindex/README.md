@@ -2,15 +2,20 @@
 
 [← ruflo-source-patch](../../README.md)
 
-The reconcile that `ruflo-adr` doesn't ship. It is the only target that **adds** a command rather than
-fixing a broken one. Filed upstream as [ruvnet/ruflo#2666](https://github.com/ruvnet/ruflo/issues/2666); if
-it lands, uninstall this target and use theirs.
+> **Superseded only when the complete replacement is runnable here.** Ruflo now ships the
+> reconcile and `memory purge`, but native purge takes a private `<db>.lock` that ordinary writers
+> do not. This repository's `memory` target wraps it with the same `<db>.rsp-lock` as every writer;
+> the legacy command retires only after that three-part proof.
+
+The historical reconcile that `ruflo-adr` did not ship. It is the only target that **adds** a command
+rather than fixing a broken one. Filed upstream as
+[ruvnet/ruflo#2666](https://github.com/ruvnet/ruflo/issues/2666).
 
 ## Contents
 
 - [The files](#the-files)
 - [Convergence is not reaping](#convergence-is-not-reaping)
-- [Why it hard-deletes through raw SQL](#why-it-hard-deletes-through-raw-sql)
+- [Why the legacy path hard-deletes through raw SQL](#why-the-legacy-path-hard-deletes-through-raw-sql)
 - [Why it requires the `memory` target](#why-it-requires-the-memory-target)
 - [The post-condition that can see a failure](#the-post-condition-that-can-see-a-failure)
 - [Why this is a *plugin* target, not a script target](#why-this-is-a-plugin-target-not-a-script-target)
@@ -42,11 +47,13 @@ The failure is silent in the worst possible way: **`adr-verify` certifies the ro
 An orphan row has no dangling ref and forms no cycle, so it passes every check. A clean bill of health on
 an index that is lying to you.
 
-## Why it hard-deletes through raw SQL
+## Why the legacy path hard-deletes through raw SQL
 
-The CLI has no hard delete. `memory delete` is a **soft** delete, and the tombstone still trips the
+The older CLI had no hard delete. `memory delete` is a **soft** delete, and the tombstone still trips the
 `UNIQUE` constraint on re-store ([#2652](https://github.com/ruvnet/ruflo/issues/2652)), so the row ends up
 neither gone nor replaceable. `memory cleanup` only reaps stale/expired entries, which these are not.
+Current Ruflo supplies `memory purge`; the raw-SQL script remains only for installations without the
+complete native skill + command + shared-lock replacement.
 
 So the only thing that actually reconciles is a drop-and-rebuild of **both** namespaces. Both, because
 clearing only `adr-patterns` fixes stale statuses and leaves the duplicate edges behind. A partial
@@ -91,13 +98,14 @@ takes our skill with it, silently. The slash command would simply stop existing,
 nothing to read.
 
 Being a plugin target means `state.json` records it, and the SessionStart hook and the monitor put it
-back. Script targets have neither. (Verified: delete the skill, run one monitor tick, it returns.)
+back on legacy installations. Script targets have neither. Once the native three-part replacement
+passes, the target records a terminal retirement instead.
 
 ## Additive, which inverts the safety rule
 
-The other patchers rewrite a vendor file and keep a `.rsp-backup` to restore from. This one **creates** a
-file upstream does not ship, so there is no pristine to preserve and nothing to re-baseline, and the
-hazard runs the other way:
+The other patchers rewrite a vendor file and keep a `.rsp-backup` to restore from. On an older
+`ruflo-adr` this target **creates** a file the plugin does not ship, so there is no pristine to preserve
+and nothing to re-baseline, and the hazard runs the other way:
 
 **`uninstall` must never delete a `SKILL.md` we did not write.** If `ruflo-adr` ever ships its own
 `adr-reindex`, theirs wins: we skip the install (`skip:upstream-owns-it`) and we do not remove it on

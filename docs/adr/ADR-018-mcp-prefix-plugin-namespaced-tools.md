@@ -1,8 +1,12 @@
 # ADR-018: mcp-prefix: rewrite bundled tool refs to the plugin-namespaced form
 
-**Status**: accepted
+**Status**: superseded
 **Date**: 2026-07-15
-**Updated**: 2026-07-28. ADR-020 made overlapping targets compose from one pristine. Upstream #2685 is now fixed; retirement is gated on the installed marketplace Git HEAD plus exact local before/after compositions, because upstream's replacement bytes are identical to ours.
+**Updated**: 2026-07-30. ADR-020 made overlapping targets compose from one pristine.
+Upstream #2685 and its two missed core files are fixed; the local target retired after proving
+marketplace Git HEAD plus exact live before/after compositions. Later release-skewed caches are
+classified by functional legacy-prefix absence; a content hash difference alone does not make
+the original namespace defect return.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, mcp
 

@@ -8,6 +8,10 @@ Patches `ruflo-adr`'s importer, `scripts/import.mjs`.
 Upstream: [#2660](https://github.com/ruvnet/ruflo/issues/2660) ·
 [#2594](https://github.com/ruvnet/ruflo/issues/2594)
 
+Current marketplace source converges natively, but active unchanged-version plugin caches can still
+contain the old importer. This target keeps those copies correct and adds an exact `ORPHANS` warning
+that upstream does not yet provide.
+
 ## The bug
 
 `adr-index` **cannot update an ADR that changed**, which is the one thing its own SKILL.md advertises
@@ -28,16 +32,17 @@ was written.
 
 ## The upsert twist
 
-`memory store --help` advertises `-u, --upsert [default: true]`. That default is **declared and not
-honored** ([#2594](https://github.com/ruvnet/ruflo/issues/2594)). Measured:
+Before Ruflo 3.32.36, `memory store --help` advertised `-u, --upsert [default: true]`, but that
+default was **declared and not honored** ([#2594](https://github.com/ruvnet/ruflo/issues/2594)).
+Measured on those older bytes:
 
 ```
 store to an existing key, no flag   -> exit 1, UNIQUE constraint failed, NO write
 store to an existing key, --upsert  -> exit 0, updated
 ```
 
-So the flag must be passed **explicitly**. Keep it even after #2594 is fixed: it costs nothing and makes
-the intent legible at the call site.
+Ruflo 3.32.36 fixed the default. The compatibility importer still passes the flag **explicitly**:
+it costs nothing, makes the intent legible, and protects an older active plugin/CLI pair.
 
 ## What it does NOT fix
 

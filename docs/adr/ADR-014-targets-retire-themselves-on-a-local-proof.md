@@ -2,6 +2,10 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. Predicates now cover `adr-reindex`, `verify-interface`,
+`design-wall`, `mcp-prefix`, `flywheel-daily`, `ruflo-hooks-schema`, `codex-hooks`, and
+`ruflo-codex-skills`. The latest audit retired the last three only after executing their
+installed replacements; Brain #56 and #64 remain deliberately live/incomplete.
 **Deciders**: Henrik Pettersen
 **Tags**: lifecycle, safety, core
 
@@ -15,9 +19,12 @@ The obvious mechanism is a published list of "fixed" issues that the tool reads 
 mechanism, and one week proved it twice:
 
 - **#2621** was CLOSED and NOT FIXED. Upstream's own commit comment says so.
-- **#2666** was CLOSED and genuinely fixed, and still did not RUN. The plugin ships from the marketplace the
-  instant it lands; the `memory purge` its reindex calls shipped on npm separately, in 3.29.0. In between,
-  the skill was installed and the command it invokes did not exist.
+- **#2666** was CLOSED with both a skill and `memory purge`, but its first acceptance point was not
+  complete: purge takes `<db>.lock` while ordinary writers take no lock. The plugin/CLI release split
+  also left an earlier window where the skill existed and its command did not.
+- **Brain #52** remains open after a distribution correction, yet the installed 4.0.1 artifact now
+  passes the full native lifecycle/stable-wrapper predicate. Issue state is neither necessary nor
+  sufficient evidence.
 
 `closed` is not `fixed`, and `fixed` is not `runnable here`. A retirement list keyed on either would have
 uninstalled a WORKING reconcile on everyone still on an older CLI, unattended.
@@ -55,9 +62,9 @@ another surface to get wrong.
 
 ### Negative
 
-- A predicate is only as good as the person who writes it, and writing one for a fix that does not exist yet
-  is guessing at the shape of someone else's future patch. So they are written when the fix lands, not
-  before, and six of seven targets have none.
+- A predicate is only as good as the person who writes it, and writing one for a fix that does not
+  exist yet is guessing at the shape of someone else's future patch. They are written when a candidate
+  fix lands and must exercise its real boundary, not merely search for a version or marker.
 
 ### Neutral
 

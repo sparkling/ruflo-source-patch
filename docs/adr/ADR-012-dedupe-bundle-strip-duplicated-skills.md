@@ -2,7 +2,11 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-16: dedupe now also reaps a project-local `.mcp.json`'s standalone ruflo/claude-flow MCP server, which the `ruflo-core` plugin already provides (SH4); the SAME registration in `~/.claude.json` `projects[<dir>].mcpServers`, the second channel, keeping non-ruflo and `ssh`-remote servers (SH6); and by DEFAULT SIGTERMs the now-orphaned server process under cleanup's containment discipline (`--keep-server` opts out) (SH5). Same "defer to the plugins" thesis, extended from files/hooks to the MCP registration (both channels) and its running process.
+**Updated**: 2026-07-30. Dedupe also reaps both project-local standalone MCP
+registration channels and, by default, their positively identified orphan process. Ruflo
+3.32.36 added atomic event claims so overlapping project/plugin hooks no longer duplicate their
+side effects, but #2640 remains open: init still emits the duplicate bundle, hook registrations,
+and standalone MCP surface. The cleanup and its `init` complement therefore remain live.
 **Deciders**: Henrik Pettersen
 **Tags**: script-target, hygiene
 

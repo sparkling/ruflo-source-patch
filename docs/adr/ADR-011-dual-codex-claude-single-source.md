@@ -2,14 +2,19 @@
 
 **Status**: accepted
 **Date**: 2026-07-14 (corrected 2026-07-25)
+**Updated**: 2026-07-30. Ruflo 3.32.36/3.32.37 fixed #2634, #2635, #2636, and
+#2637: native dual init now runs both initializers, fetches the adapter, emits canonical backed
+skills, and protects root secrets. #2638 remains open: the two hosts still generate divergent
+instruction sources, so this script remains the single-source and policy-preserving conversion.
 **Deciders**: Henrik Pettersen
 **Tags**: script-target, dual, codex
 
 ## Context
 
-`ruflo init --dual` produces a Codex-primary layout: `AGENTS.md` canonical, a thin `CLAUDE.md` stub, and NO
-`.claude/` scaffold and no `.mcp.json`. The two init branches are mutually exclusive (an unconditional early
-return), so there is no single command that produces a full native setup for BOTH harnesses.
+Older `ruflo init --dual` produced a Codex-primary layout: `AGENTS.md` canonical, a thin `CLAUDE.md` stub,
+and no `.claude/` scaffold or `.mcp.json`. Ruflo 3.32.37 now runs both native initializers, fixing that
+scaffold gap. It still leaves two independently generated instruction sources, so the drift problem below
+remains.
 
 The naive fix, duplicating the instructions into both files, guarantees drift: two files that must say the
 same thing, edited independently, diverging silently.
@@ -55,7 +60,8 @@ only its marker-owned `.env`, runtime, and `*.bak` rules. It no longer installs 
 ### Positive
 
 - Shared instructions live ONCE. Edit them in `AGENTS.md` and both platforms see the change. No drift.
-- A single command produces a working dual project, which `ruflo init` cannot.
+- A single command produces a working dual project with one canonical instruction source; native
+  `ruflo init --dual` now produces both host scaffolds but not that single-source contract.
 - Existing Codex approval/sandbox policy and repository ignore rules are preserved even during a
   forced conversion.
 - Root `.env` and generated backup/runtime paths receive explicit marker-owned ignore rules.

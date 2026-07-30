@@ -20,10 +20,10 @@ how a fix silently stops existing.
 
 | Dir | Kind | Patches what | Re-applied by |
 |---|---|---|---|
-| `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`) plus all shared machinery | the installed `@claude-flow/cli` | SessionStart hook + monitor |
-| `adr-template/`, `adr-index/`, `adr-reindex/` | **plugin patches** | the installed `ruflo-adr` plugin | SessionStart hook + monitor |
-| `verify-interface/` | **plugin patch** | the installed `ruvnet-brain` plugin | SessionStart hook + monitor |
-| `dual/` | **script targets** (`dual`, `dedupe`) | *nothing*. They set up **your projects** | nobody; you run them by hand |
+| `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
+| `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
+| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/` | **Brain/Codex plugin patches** | installed plugin/cache bytes | SessionStart hook + monitor |
+| `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`) | *nothing*. They set up or repair **your projects/host registration** | nobody; you run them by hand |
 
 ## Two files to read before writing a patcher
 

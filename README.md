@@ -3,9 +3,9 @@
 Install with `npx github:sparkling/ruflo-source-patch`. Zero dependencies, no registry required.
 
 Local fixes for [ruflo](https://github.com/ruvnet/ruflo) / `@claude-flow/cli` and its plugins
-that are still open upstream: folder sprawl, multiplying daemons, a
-memory store that silently drops writes, and an ADR template whose own metadata format its
-sibling parser can't read.
+that are still absent from the installed host surface: folder sprawl, multiplying daemons,
+silently lost memory writes, dual-host plugin drift, and release/cache gaps in plugin fixes.
+Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
 ```bash
 npx github:sparkling/ruflo-source-patch <target> <action>
@@ -75,7 +75,7 @@ make install
 make uninstall        # revert everything and remove the package
 ```
 
-`all install` applies every **patch** target (the four CLI ones and the `ruflo-adr` /
+`all install` applies every **patch** target (the five CLI ones and the `ruflo-adr` /
 `ruvnet-brain` plugin ones) and schedules the monitor that keeps them live. It is the one-shot the
 `Makefile` used to own alone; now the npx path has it too, and `make install` delegates to it so the
 two can never list a different set. `all uninstall` / `all status` do the reverse and the readout.
@@ -144,9 +144,9 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`adr-template`** | `adr-create`'s own template writes ADR metadata as a bullet list (`- **Status**: proposed`); `adr-index`'s parser only recognises an unprefixed `**Status**:` line or YAML frontmatter, so Status/Date/Tags silently come back empty/Unknown for every ADR authored via `adr-create`'s documented template. Strips the leading `- ` from those four lines so the two skills in the same plugin agree | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
-| **`adr-index`** | `adr-index` **cannot update an ADR that changed**, which is the one thing its own SKILL.md advertises ("Build or *rebuild* … when the graph is out of sync with the on-disk files"). Ratify an ADR, re-run it, and the graph still says `proposed`. Both namespaces are insert-only, failing in *opposite* directions. `adr-patterns` keys are deterministic, so they collide, the write is rejected, and the record stays **frozen**. `adr-edges` keys embed `Date.now()`+random, so they never collide, and every run **duplicates** the whole edge set (3 → 6 → 9). It reports `Records stored: 2/2` either way, because a `UNIQUE constraint` failure is counted as a success | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
-| **`adr-reindex`** | The only target that **adds** rather than fixes. `adr-index` converges; it can never **reap**. Delete an ADR file or a relation line and the orphan row survives every future import. Needs raw SQL, because the CLI has no hard delete (`memory delete` is a *soft* delete whose tombstone still trips the UNIQUE constraint on re-store). **Requires the `memory` target**: it hard-deletes rows and refuses to do that without the write lock. **SUPERSEDED on `@claude-flow/cli` 3.29.0+**, which ships the `memory purge` that `ruflo-adr` 0.4.0's own `/adr-reindex` needs; on an older CLI that command is missing, an unknown subcommand exits 0, and theirs reports "purged" having purged nothing. `apply()` checks the CLI on this machine and says which of the two is runnable | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
+| **`adr-template`** | Compatibility for active pre-fix plugin caches: strips the four list markers that their old parser cannot read. #2659 is fixed in current marketplace source, but the already-active Claude `ruflo-adr` 0.4.1 cache still contains the old parser under the unchanged plugin version | [#2659](https://github.com/ruvnet/ruflo/issues/2659) |
+| **`adr-index`** | Compatibility for active pre-fix importers: explicit upsert, deterministic edges, honest failure counts, and an exact `ORPHANS` warning. #2660/#2594 are fixed in current source, but the active Claude cache is still old; the local warning is additional behavior | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) |
+| **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. Native `memory purge` exists, but #2666's closure is incomplete unless purge shares the ordinary writers' lock. Retirement requires the native skill, command, and the `memory` target's `.rsp-lock` wrapper; version presence alone is not enough | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
 
 #### Ruflo plugins under Codex
 
@@ -156,8 +156,8 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`ruflo-hooks-schema`** | Ruflo's canonical `ruflo-core` has two Codex incompatibilities: its manifest ships unsupported `_note` metadata, and its PreToolUse shim always emits Cursor's bare `{"permission":"allow"}` response, which Codex rejects. In Codex's marketplace and active cache only, replaces the bounded JSON header and removes that one exact stdout statement while preserving all seven registrations and the Ruflo telemetry call. Retires only when both copies have a native strict manifest and both `modify-bash` / `modify-file` execution probes produce Codex-valid output | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) |
-| **`ruflo-codex-skills`** | Ruflo ships `commands/ruflo-status.md` for Claude Code, but Codex exposes plugin workflows as skills and current `ruflo-core` has no equivalent. Adds one read-only `ruflo-core:ruflo-status` skill to the active Codex cache; it runs `doctor` plus `status` and leaves `doctor --fix` explicit | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
+| **`ruflo-hooks-schema`** | **Retired on proof in Ruflo 3.32.39 / `ruflo-core` 0.2.6.** The compatibility edit removed unsupported manifest fields and Cursor-only PreToolUse output only from Codex copies. PR #2857 version-bumped the plugins and fixed both branches; retirement executes both real handlers before standing down | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) · [PR #2857](https://github.com/ruvnet/ruflo/pull/2857) |
+| **`ruflo-codex-skills`** | **Retired on proof in Ruflo 3.32.39.** Older copies needed one read-only `ruflo-core:ruflo-status` skill. The native replacement's default doctor/status path is now read-only and `doctor --fix` requires explicit repair intent | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
 
 #### ruvnet-brain
 
@@ -167,13 +167,15 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`verify-interface`** | Its PreToolUse gate blocks a rUv CLI call until you have read that command's `--help`. A good idea that **cannot be opened**. The tool regex `($TOOLS)[@a-z0-9.-]*` absorbs `@latest` *and* any hyphenated **binary name**, so `ruflo-source-patch adr-index status` (a different tool) reads as the `ruflo` CLI and the gate demands `ruflo adr-index status --help`, a command that does not exist. It also matches inside **English prose**: `another ruflo process is writing` parses as `ruflo process is`, so an `echo` or a heredoc that merely *describes* the tool is blocked. And the documented override (`RUVNET_SKIP_INTERFACE_CHECK=1`) is read from the *hook's* environment, where a caller can never set it. The patch absorbs only a `@version`, requires the tool to be in **command position** (a boundary, then any wrappers, then the tool), and honours the override on the command. **The gate still blocks an unread interface.** Fixed, not disabled. **Upstream adopted v1 of this patch into `ruvnet-brain` 2.7.x while #12 stayed open**, prose bug included, so each edit carries two anchors | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) |
-| **`flywheel-daily`** | `ground-ruvnet.sh` used to emit the flywheel-off advisory on every prompt. The compatibility patch claims it once per local day/project. Upstream fixed #53 in `d447802`; this target now selects only active Brain copies, executes the real hook through repeat/day/project/enabled/eight-way-concurrency probes, and retires itself only when that independent replacement is runnable locally | [stuinfla/ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) |
-| **`brain-codex-skills`** | Codex 0.145 silently skips Brain's `rvbc` and `whats-new` command migrations because their rendered skills exceed its 4,000-byte migration ceiling. The three aliases it does migrate are also incomplete: two tell Codex to read a sibling `rvbc.md` that is not packaged, and `configure` relies on Claude-only path state. Adds native `ruvnet-brain:rvbc` / `ruvnet-brain:whats-new` skills and makes those three active-cache aliases self-contained. Brain's shared marketplace, updater, immutable versions, and runtime remain untouched | [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) |
+| **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
+| **`flywheel-daily`** | **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) |
+| **`codex-hooks`** | **Retired on the installed 4.0.1 behavior.** Older Brain releases needed local Codex lifecycle packaging and a generation-stable adapter. The native manifest, six-event adapter, stable wrapper, and installed/enabled plugin now pass as one replacement; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52](https://github.com/stuinfla/ruvnet-brain/issues/52) |
+| **`brain-codex-skills`** | Still live. Brain 4.0.1 ships the missing native Console/what's-new skills, but all three native workflows search the current repo or `~/Code/ruvnet-brain`; a supported install exposes assets through the plugin registry at another path. Repairs those three native files plus three generated aliases only in the active Codex cache, with exact uninstall restoration | [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) |
 
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
-`$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`. A new Codex session is required after install
+`$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
+A new Codex session is required after install
 because the session loads its skill inventory at startup.
 
 #### all ruflo plugins
@@ -332,10 +334,11 @@ that act on a stale database image.
 
 `memory.db` is written by **two different SQLite engines**: the AgentDB bridge
 (better-sqlite3, **WAL mode**) and a fallback that does a whole-file read-modify-write
-(sql.js: `db.export()` → atomic rename). ruflo 3.25.2 made those flushes atomic
+(sql.js: `db.export()` → atomic rename). Ruflo 3.25.2 made those flushes atomic
 ([#2585](https://github.com/ruvnet/ruflo/pull/2585)), closing the *torn-write* class. The two
-failure modes named as follow-ups in the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
-close-out are still open upstream. This target patches both.
+distinct failure modes that remain in the installed behavior are cross-process lost updates
+([#2621](https://github.com/ruvnet/ruflo/issues/2621), closed without ordinary-writer locking)
+and WAL-incoherent sql.js reads. This target patches both.
 
 #### The write lock
 
@@ -484,11 +487,10 @@ Three edits fix it: pass `--upsert`, stop counting `'exists'` as stored, and mak
 deterministic (`<rel>:<from>-><to>`, since `capturedAt` already lives in the value, where identity
 has no business).
 
-> **The `--upsert` twist ([#2594](https://github.com/ruvnet/ruflo/issues/2594)).** `memory store --help`
-> advertises `-u, --upsert  [default: true]`. That default is **declared but not honored**: storing
-> to an existing key without the flag exits 1 with `UNIQUE constraint failed` and writes nothing;
-> pass it explicitly and it works. So the flag is passed explicitly here, and must be. Trusting the
-> documented default silently gets you a strict insert. Worth keeping even after #2594 lands.
+> **The `--upsert` twist ([#2594](https://github.com/ruvnet/ruflo/issues/2594)).** Older CLIs
+> advertised `-u, --upsert [default: true]` but performed a strict insert unless the flag was
+> explicit. Ruflo 3.32.36 fixed that default. The importer still passes `--upsert` explicitly so
+> an active older plugin/CLI pair cannot silently regress to frozen records.
 
 Two copies get patched and they are **not identical**. The marketplace checkout carries local #2474
 fixes and passes args as `` `--key=${key}` `` (npm rejects an argv token starting with a U+2014
@@ -530,9 +532,10 @@ truth; nothing else should have to be.
 
 ### `adr-reindex`
 
-> **SUPERSEDED on a current CLI.** `ruflo-adr` **0.4.0** ships its own `/adr-reindex`,
-> [#2666](https://github.com/ruvnet/ruflo/issues/2666) is **closed**, and the `memory purge` command it
-> depends on shipped in **`@claude-flow/cli` 3.29.0**. On that CLI, uninstall this target.
+> **SUPERSEDED only with the shared-lock proof.** `ruflo-adr` 0.4.0+ ships `/adr-reindex`
+> and `@claude-flow/cli` 3.29.0+ ships `memory purge`, but #2666's first acceptance point
+> is not native: purge takes `<db>.lock` while ordinary writers do not. On this installation
+> the `memory` target wraps native purge with their `<db>.rsp-lock`, making the replacement safe.
 >
 > **On an older CLI it still matters, and the failure is quiet.** The plugin ships from the marketplace
 > the instant it lands; the CLI ships on npm separately, so for a window the skill was installed and the
@@ -540,9 +543,9 @@ truth; nothing else should have to be.
 > the help text and **exits 0**, so against a pre-3.29.0 CLI it reports `adr-patterns: purged` having
 > purged nothing. (Its post-condition catches the mismatch and exits 1, but blames a concurrent writer.)
 >
-> So `apply()` asks the only question that decides it: **does the CLI on THIS machine have `memory
-> purge`?** If yes, it says to uninstall. If no, it keeps our script, which reconciles with raw SQL and
-> depends on no CLI subcommand. Either way it never overwrites upstream's skill file.
+> So `apply()` asks all three questions that decide it: **does this machine have the native skill,
+> `memory purge`, and one lock shared with ordinary writers?** Only all three permit retirement.
+> Otherwise it keeps our raw-SQL script and never overwrites upstream's skill file.
 
 Rebuilds the graph from the ADR files, for a CLI that cannot yet do it itself.
 
@@ -604,7 +607,7 @@ nothing). The ADR files are never touched; re-running is always safe.
 
 ### `verify-interface`
 
-Fixes a PreToolUse gate that blocks commands it should not, and that cannot be overridden.
+Historical compatibility target, now **retired** after an installed behavior proof.
 
 `ruvnet-brain` ships a PreToolUse hook that blocks a Bash command naming a rUv CLI until you have read
 that command's `--help`. **The idea is sound and this target does not disable it.** It exists because
@@ -656,9 +659,11 @@ broke the gate outright. The suite proves the unpatched fixture really does bloc
 is vacuous), that all three commands which actually blocked us now pass, that the override finally works,
 and, the one that matters, **that an unread interface still blocks.**
 
-When upstream fixes [#12](https://github.com/stuinfla/ruvnet-brain/issues/12), the anchors stop matching
-and `apply()` reports `skip:no-anchor-matched`, naming #12 as the likely reason. Then uninstall the
-target. It never guesses.
+Brain first fixed #12/#13 with a JSON parser and command-position gate, then moved raw-Bash
+classification to advisory-only output while structured `ruvnet_cli_help` / `ruvnet_cli_run`
+own enforcement (#48). Retirement accepts either complete replacement and rejects any partial
+advisory that can still exit nonzero. Issue #41's broadened body was not fixed by its earlier
+closure; #44 was superseded rather than implemented as a blocking parser; #48 remains open.
 
 ## The script targets in detail
 
@@ -680,9 +685,9 @@ packaged versions, so an upgraded package with a stale materialized script says 
 
 Gives Claude Code and Codex one instruction file instead of two that drift apart.
 
-`ruflo init` writes `CLAUDE.md`. `codex init` writes `AGENTS.md`. They **diverge immediately**, and
-keeping them in sync by hand is a losing game ([#2638](https://github.com/ruvnet/ruflo/issues/2638),
-[#2636](https://github.com/ruvnet/ruflo/issues/2636)).
+`ruflo init` writes `CLAUDE.md`. `codex init` writes `AGENTS.md`. Ruflo 3.32.37 now runs both
+native initializers in dual mode (#2636), but the two instruction sources still **diverge
+immediately** (#2638). Keeping them synchronized by hand is a losing game.
 
 The model here is **one canonical file, no symlinks, no duplication**:
 
@@ -705,9 +710,9 @@ only in the file that platform reads. Nothing to keep in sync, so nothing drifts
 `ruflo-new-dual.sh` runs `ruflo init` with the **default** preset (`--with-embeddings`), not `--full`. The
 default **still** bundles the plugin-duplicated `.claude/{skills,commands,agents}` (~196 files; `--full`
 just adds more), so the fresh-project script runs the plugin-only sweep by default (`--no-dedupe`
-opts out). The conversion fetches the exact audited
-`@claude-flow/codex@3.0.1` adapter with `npx --yes`, so a missing local adapter package does not abort the
-whole init ([#2635](https://github.com/ruvnet/ruflo/issues/2635)).
+opts out). The conversion deliberately retains the exact audited
+`@claude-flow/codex@3.0.1` transaction because its side effects are fully bounded here; native
+Ruflo 3.32.36 separately fixed #2635 for ordinary `--codex`/`--dual` initialization.
 
 The adapter runs behind a failing private `codex` shim, so it cannot overwrite the user's MCP registry.
 Afterward, the wrapper queries Codex's **user-global** registry and adds `ruflo` only when that exact
@@ -856,12 +861,14 @@ mechanism, and this week showed why twice:
 | Issue | Closed? | Fixed? | Runnable on your machine? |
 |---|---|---|---|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | yes | **no**. Upstream's own commit says it does not close it | n/a |
-| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | yes | yes | **only on `@claude-flow/cli` 3.29.0+** |
+| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | yes | **not as written**. Native purge has a private lock | only after `memory` makes purge share the ordinary-writer lock |
 
 `closed` is not `fixed`, and `fixed` is not `runnable here`. `ruflo-adr` ships from the marketplace the
 instant it lands; the `memory purge` its `/adr-reindex` calls shipped on npm **separately**. For a window
 the skill was installed and the command it invokes did not exist. An unknown subcommand exits 0, so
-it reported `adr-patterns: purged` having purged nothing.
+it reported `adr-patterns: purged` having purged nothing. Current purge also takes `<db>.lock`, while
+ordinary writers take no native lock. This repository can retire its legacy command only after the
+`memory` target proves purge and ordinary writers all take the same `<db>.rsp-lock`.
 
 A retirement list keyed on "fixed" would have uninstalled a **working** reconcile on everyone still
 running 3.28.0, unattended, via cron. That is this tool manufacturing its own founding failure mode on
@@ -1238,71 +1245,67 @@ A test that cannot fail is worth nothing, and you only find out by making it fai
 
 ## Upstream issues
 
-Every target here is a local workaround for an **open** (or closed-but-with-open-follow-ups) upstream
-issue, almost all in `ruvnet/ruflo`, and one in `stuinfla/ruvnet-brain`. Most we filed ourselves while
-building this tool; one we contributed a reproduction and fix to. The tool doesn't *fix* upstream. It
-works around these locally until they land, and reports `skip:no-anchor-matched` (loudly) when a fix
-does land and the anchors stop matching.
+Issue state is evidence to inspect, never the retirement signal. This audit was rerun on
+2026-07-30 against Ruflo 3.32.39, `ruflo-core` 0.2.6, the active Claude/Codex caches, Brain
+4.0.1, and the exact published hook/skill behavior. No issue was changed as part of the audit.
 
-**One target adds rather than fixes:** `adr-reindex` installs an `/adr-reindex` command. `ruflo-adr` 0.4.0
-now ships one too, [#2666](https://github.com/ruvnet/ruflo/issues/2666) is **closed**, and the `memory purge`
-it needs shipped in `@claude-flow/cli` **3.29.0**. On that CLI, ours is redundant and `apply()` says so.
-On an older one it is not, because the plugin and the CLI ship on separate tracks.
+**"Fixed upstream" is a claim about a runnable artifact, not a branch, version string, or
+closed label.** The table records the full acceptance result.
 
-**"Fixed upstream" is a claim about a VERSION, not about a repo.** The tool reports what is *runnable on
-this machine*, which is the only form of the question that can be acted on.
-
-**Filed by us:**
-
-| Issue | What's wrong upstream | Worked around by |
-|-------|-----------------------|------------------|
-| [#2666](https://github.com/ruvnet/ruflo/issues/2666) **fixed in CLI 3.29.0** | `ruflo-adr` had **no way to reconcile a deleted ADR**. The orphan row survived every import, and `adr-verify` certified it as healthy (an orphan has no dangling ref and forms no cycle). Upsert converges; it can never reap. Fixed by `ruflo-adr` 0.4.0's `/adr-reindex` plus the `memory purge` hard-delete in `@claude-flow/cli` 3.29.0. **On a pre-3.29.0 CLI the command is absent, the unknown subcommand exits 0, and their reindex reports `purged` having purged nothing** | `adr-reindex` (superseded on 3.29.0+) |
-| [#2621](https://github.com/ruvnet/ruflo/issues/2621) **closed, not fully fixed** | Whole-file read-modify-write on `memory.db`: a daemon or MCP server holding a stale in-memory image flushes it back and resurrects deleted rows. `dc01598` adds a `withMemoryDbLock`, but **only `purgeNamespace` calls it**, and upstream's own comment says so: *"This does NOT fully close #2621 … that requires every memory.db writer to respect the same lock."* Every other writer is still unlocked | `memory` |
-| [ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) **fixed in 3.2.9, target retired** | `verify-interface.sh`'s PreToolUse gate was **unopenable**: its tool regex swallowed any hyphenated binary name (`ruflo-source-patch …` → `ruflo …`) and matched inside plain English prose (`another ruflo process is writing` → `ruflo process is`), while the documented `RUVNET_SKIP_INTERFACE_CHECK=1` override was read from the hook's own environment, where a caller could never set it. **Upstream shipped its own complete rewrite in v3.2.9** (commit `bfc2d36`): real JSON parsing and a command-position-anchored matcher with a working override | `verify-interface` (retired, ADR-010) |
-| [ruvnet-brain#13](https://github.com/stuinfla/ruvnet-brain/issues/13) **fixed in 3.2.9** | The same hook parsed its JSON payload with a **regex**, and `[^"]*` could not cross a quote, so a command containing an escaped `"` was **truncated at the first one**. `bash -c "ruflo memory search"` reached the gate as `bash -c \` and ran unchecked. **Fixed by the same v3.2.9 rewrite**: the payload is now parsed as real JSON | `verify-interface` (retired, ADR-010) |
-| [ruvnet-brain#17](https://github.com/stuinfla/ruvnet-brain/issues/17) **fixed upstream; target retires on local proof** | Older `design-wall.sh` copies never checked **which repository** they were guarding. Current upstream resolves the project and requires its own plugin-manifest identity (with a structure fallback) before any wall check. The predicate validates anchors and syntax, then proves the installed hook allows an unrelated staged README commit and still blocks ruvnet-brain's own before standing down | `design-wall` (retired when proven, ADR-024) |
-| [ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) **fixed upstream; target retires on local proof** | Upstream commit `d447802` moved cadence into the hook with an atomic per-project/local-day claim. The local predicate requires the independent code markers and proves real same-day 1/0, next-day, cross-project, enabled-flywheel and eight-way concurrent behavior before removing the patch | `flywheel-daily` (retired when proven) |
-| [ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) | Codex's 4,000-byte command-migration limit silently drops `rvbc` and `whats-new`; the three aliases that survive are not self-contained under Codex and can reference an unpackaged sibling or Claude-only path state | `brain-codex-skills` |
-| [#2633](https://github.com/ruvnet/ruflo/issues/2633) | Unbounded daemon proliferation. `.claude-flow`/`.swarm` state and the daemon dedup lock anchored to raw `process.cwd()` | `cwd`, `daemon`, `cleanup` |
-| [#2640](https://github.com/ruvnet/ruflo/issues/2640) | `ruflo init` bundle duplicates plugin-provided skills/commands/agents (100% / 97% overlap) | `dedupe-bundle` |
-| [#2821](https://github.com/ruvnet/ruflo/issues/2821) | `ruflo-core` ships `ruflo-status` only as a Claude command. Codex's plugin inventory contains the four native Ruflo skills but no read-only status equivalent | `ruflo-codex-skills` |
-| [#2854](https://github.com/ruvnet/ruflo/issues/2854) | Claude Code and Codex intentionally keep separate plugin registries, so installing any non-core Ruflo marketplace plugin in one host leaves it absent from the other. Ruflo has no dual-host installer or additive reconciliation command | `plugin-hosts` |
-| [#2801](https://github.com/ruvnet/ruflo/issues/2801) **registration fixed in v3.32.24 / `@claude-flow/codex` 3.0.2; manifest still rejected** | Current Codex initialization installs `ruflo-core@ruflo` and prints the required `/hooks` trust message, so the redundant initializer edit was removed. The installed manifest still carries unsupported `_note` keys, making #2801's “seven handlers appear” criterion false until [PR #2800](https://github.com/ruvnet/ruflo/pull/2800) lands cleanly | `ruflo-codex-hooks` (existing systems only), `ruflo-hooks-schema` |
-| [#2816](https://github.com/ruvnet/ruflo/issues/2816) | `ruflo-hook.cjs` always emits Cursor's bare `{"permission":"allow"}` after both PreToolUse branches. Codex requires empty stdout for unconditional success or a nested `hookSpecificOutput`, so every Bash/Edit hook reports invalid JSON even though Ruflo telemetry completed | `ruflo-hooks-schema` |
-| [#2777](https://github.com/ruvnet/ruflo/issues/2777) **fixed in v3.32.10** | Current Ruflo writes one bounded platform `SKILL.md` directly and repairs the historical whole-repository layout. The `init` patch now suppresses only legacy bytes that still execute the external `npx skills add` import; the upstream bounded path runs untouched | `init` (legacy compatibility only) |
-| [#2638](https://github.com/ruvnet/ruflo/issues/2638) | `ruflo init` (CLAUDE.md) and `codex init` (AGENTS.md) generate divergent instruction files | `dual-codex-claude` |
-| [#2637](https://github.com/ruvnet/ruflo/issues/2637) | `ruflo init` gitignores only a nested `.claude-flow/.gitignore`; root `.env` is left tracked | `dual-codex-claude` strips adapter-owned edits, preserves existing rules, and appends its marker-owned `.env`/runtime rules |
-| [#2636](https://github.com/ruvnet/ruflo/issues/2636) | `ruflo init --dual` produces a Codex-primary layout (thin CLAUDE.md stub) | `dual-codex-claude` |
-| [#2635](https://github.com/ruvnet/ruflo/issues/2635) | `ruflo init --dual/--codex` aborts the whole init when `@claude-flow/codex` isn't installed | `dual-codex-claude` (fetches audited `@claude-flow/codex@3.0.1` with `npx --yes`) |
-| [#2634](https://github.com/ruvnet/ruflo/issues/2634) | `codex init --template full` generates ~100 placeholder stub skills | `dual-codex-claude` (default template only) |
-| [#2659](https://github.com/ruvnet/ruflo/issues/2659) | `ruflo-adr`'s own `adr-create` template writes bullet-list metadata that `adr-index`'s parser can't read (Status/Date/Tags silently come back empty/Unknown) | `adr-template` |
-| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | `adr-index` **cannot update a changed ADR**, the one thing its own SKILL.md advertises. Both namespaces are insert-only: deterministic keys collide so records stay **frozen**; random edge keys never collide so edges **duplicate** every run (3 → 6 → 9). A `UNIQUE` failure (exit 1) is counted as a stored record, so both are reported as success | `adr-index`, `adr-reindex` |
-| [#2685](https://github.com/ruvnet/ruflo/issues/2685) **fixed upstream; target retires on local Git/content proof** | The plugin fleet migrated to `mcp__plugin_ruflo-core_ruflo__*` in stable 3.32.2; current HEAD also includes the two `ruflo-core` files missed by that release audit. Retirement uses the installed marketplace Git object as independent vendor truth, not the replacement token that our patch also writes | `mcp-prefix` (retired when proven) |
+| Issue | Verified verdict | Local result |
+|-------|------------------|--------------|
+| [#2621](https://github.com/ruvnet/ruflo/issues/2621) | **Closed incomplete.** Upstream added `<db>.lock`, but only purge uses it; ordinary writers remain unlocked | Keep `memory` |
+| [#2633](https://github.com/ruvnet/ruflo/issues/2633) | **Open, live.** Durable state and daemon identity still follow raw cwd | Keep `cwd`, `daemon`, `cleanup` |
+| [#2634](https://github.com/ruvnet/ruflo/issues/2634), [#2635](https://github.com/ruvnet/ruflo/issues/2635), [#2636](https://github.com/ruvnet/ruflo/issues/2636), [#2637](https://github.com/ruvnet/ruflo/issues/2637) | **Fixed completely** in 3.32.36/3.32.37: backed skills, adapter fallback, both native scaffolds, root secret ignores | `dual` remains for #2638 and its stricter transaction, not these defects |
+| [#2638](https://github.com/ruvnet/ruflo/issues/2638) | **Open.** Claude and Codex instructions still have separate generators | Keep `dual` |
+| [#2640](https://github.com/ruvnet/ruflo/issues/2640) | **Open, partial.** Atomic event claims prevent duplicate side effects, but init still emits the duplicate bundle/hooks/MCP | Keep `init`, `plugin-only` |
+| [#2651](https://github.com/ruvnet/ruflo/issues/2651) | **Fixed completely** in 3.32.37 | No patch |
+| [#2659](https://github.com/ruvnet/ruflo/issues/2659) | **Source fix sound; delivery incomplete here.** Current parser accepts list metadata/relations, while the active unchanged-version Claude cache still has the old parser | Keep `adr-template` for that cache |
+| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | **Source fix sound; delivery incomplete here.** Current importer converges, while the active Claude cache is old; `ORPHANS` is also local extra behavior | Keep `adr-index` |
+| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | **Closed incomplete as written.** Native reindex/purge exist, but purge's private lock is not shared with ordinary writers | `memory` supplies the shared wrapper; only then is `adr-reindex` retired |
+| [#2672](https://github.com/ruvnet/ruflo/issues/2672) | **Correctly retracted / not planned.** Its premise was false | No patch |
+| [#2685](https://github.com/ruvnet/ruflo/issues/2685), [#2706](https://github.com/ruvnet/ruflo/issues/2706) | **Fixed completely.** Fleet and missed core references are native | `mcp-prefix` retired |
+| [#2765](https://github.com/ruvnet/ruflo/issues/2765) | **Fixed completely** in 3.32.36 | No patch |
+| [#2777](https://github.com/ruvnet/ruflo/issues/2777) | **Fixed completely** in 3.32.10 | `init` retains shape-gated legacy compatibility only |
+| [#2801](https://github.com/ruvnet/ruflo/issues/2801) | **Fixed completely** after registration plus the 3.32.39 version-bumped strict manifest | One-shot repair only for old installs; schema target retired |
+| [#2816](https://github.com/ruvnet/ruflo/issues/2816) | **Fixed completely** in 3.32.39 / PR #2857; both real PreToolUse branches emit Codex-valid output | `ruflo-hooks-schema` retired |
+| [#2821](https://github.com/ruvnet/ruflo/issues/2821) | **Fixed completely.** Native status is read-only by default; repair requires explicit intent | `ruflo-codex-skills` retired |
+| [#2854](https://github.com/ruvnet/ruflo/issues/2854) | **Open.** No native dual-host marketplace reconciliation | Keep `plugin-hosts` |
+| [Brain #12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13), [#17](https://github.com/stuinfla/ruvnet-brain/issues/17) | **Fixed completely** and behaviorally proved | `verify-interface`, `design-wall` retired |
+| [Brain #41](https://github.com/stuinfla/ruvnet-brain/issues/41) | **Closure not sound after its body was broadened.** The closing comment proves the earlier quote fix, not the edited nested-invocation acceptance | Superseded by #44/#48; no new patch |
+| [Brain #42](https://github.com/stuinfla/ruvnet-brain/issues/42), [#43](https://github.com/stuinfla/ruvnet-brain/issues/43) | **Fixed completely.** Codex MCP/plugin packaging is present without the retracted `skill.toml` proposal | No patch |
+| [Brain #44](https://github.com/stuinfla/ruvnet-brain/issues/44) | **Superseded, not completed as written.** Raw Bash is now advisory rather than a blocking recursively parsed authority | Covered by the #48 replacement proof |
+| [Brain #48](https://github.com/stuinfla/ruvnet-brain/issues/48) | **Open, partial.** Advisory raw-Bash output and structured help/run enforcement are shipped; the final boundary migration/ADR work remains open | Sufficient to retire the old blocking-gate patch, not to close #48 |
+| [Brain #52](https://github.com/stuinfla/ruvnet-brain/issues/52) | **Behavior fixed in installed 4.0.1; issue state stale-open.** Native six-event hooks, adapter, stable wrapper, and installed plugin all pass | `codex-hooks` retired; trust remains user-owned |
+| [Brain #53](https://github.com/stuinfla/ruvnet-brain/issues/53) | **Fixed completely.** Atomic daily/project cadence passes concurrency behavior | `flywheel-daily` retired |
+| [Brain #56](https://github.com/stuinfla/ruvnet-brain/issues/56) | **Closed partial.** Discovery/aliases landed, but native 4.0.1 workflows cannot locate assets from the supported plugin source | Keep `brain-codex-skills` |
+| [Brain #64](https://github.com/stuinfla/ruvnet-brain/issues/64) | **Open, incomplete.** Active Spine is 4.0.1 while the persistent MCP server still byte-matches 3.9.135-dev | No downstream patch by policy; wait for native updater parity |
 
 **Contributed a reproduction + fix (filed by someone else):**
 
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | daemon ↔ MCP last-writer-wins **silently drops writes**. We posted a 30-line repro and the lock implementation | `memory` write lock |
-| [#2594](https://github.com/ruvnet/ruflo/issues/2594) | `memory store --help` advertises `-u, --upsert [default: true]`, but that default is **declared and not honored**: an unpassed flag still does a strict INSERT (exit 1, `UNIQUE constraint failed`, no write). We measured it and posted the finding; it is the root cause of #2660 | `adr-index` (passes `--upsert` explicitly rather than trusting the documented default) |
+| [#2594](https://github.com/ruvnet/ruflo/issues/2594) | **Fixed in 3.32.36.** Before that release, `memory store --help` declared upsert as the default while an omitted flag still performed a strict INSERT. We measured it and posted the reproducer | `adr-index` keeps an explicit `--upsert` for old active plugin/CLI pairs |
 
 **Referenced (upstream, not ours):** the `daemon` spawn-lock builds on
 [#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484);
 the `memory` write lock is ruvnet's own follow-up from the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
 corruption close-out, and its atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
-the WAL-coherent-reads half addresses the visibility symptom reported in
-[#2646](https://github.com/ruvnet/ruflo/issues/2646) and [#2652](https://github.com/ruvnet/ruflo/issues/2652).
-[#2652](https://github.com/ruvnet/ruflo/issues/2652) is load-bearing for `adr-reindex` for a second
-reason: `memory delete` is a **soft** delete and the tombstoned row still trips the UNIQUE constraint
-on re-store, so there is no CLI hard-delete and the rebuild has to clear the namespace with raw SQL.
+the WAL-coherent-reads half addresses the historical visibility symptom reported in
+[#2646](https://github.com/ruvnet/ruflo/issues/2646) and [#2652](https://github.com/ruvnet/ruflo/issues/2652),
+both now fixed in their stated scope. #2652 also explains why the legacy `adr-reindex` used raw SQL:
+`memory delete` was soft and its tombstone still collided on re-store. Current Ruflo supplies
+`memory purge`; the remaining #2666 gap is that purge's private lock is not shared by ordinary writers.
 
 **Related but NOT addressed by `adr-template`:**
 [#2474](https://github.com/ruvnet/ruflo/issues/2474) (closed) fixed a different `adr-index`
 parsing gap (`**Status**:` vs `**Status:**` placement, em-dash titles, worktree
 double-counting). Its residual note on Nygard-style `## Status` sections and non-English
 status words is still open but distinct from the bullet-prefix bug this target fixes.
-[#2651](https://github.com/ruvnet/ruflo/issues/2651) (open) is a separate `adr-create` defect,
-step 4's `agentdb_hierarchical-store` param/key-charset mismatch, left unpatched here.
+[#2651](https://github.com/ruvnet/ruflo/issues/2651) was a separate `adr-create` step-4
+`agentdb_hierarchical-store` parameter/key-charset defect; it is fixed in 3.32.37 and never needed
+an `adr-template` patch.
 
 ## Limits
 
@@ -1328,8 +1331,8 @@ step 4's `agentdb_hierarchical-store` param/key-charset mismatch, left unpatched
   different marketplace name is out of scope by design, not a gap. It is also not covered by the
   `npm test` property fuzzer, which only exercises `{cwd, daemon, memory}`.
 - `adr-template` fixes the bullet-prefix parsing gap only ([#2659](https://github.com/ruvnet/ruflo/issues/2659));
-  it does not touch the separate `agentdb_hierarchical-store` defect in `adr-create` step 4
-  ([#2651](https://github.com/ruvnet/ruflo/issues/2651)).
+  the separate `adr-create` step-4 defect ([#2651](https://github.com/ruvnet/ruflo/issues/2651))
+  was fixed upstream in 3.32.37.
 
 These are **workarounds**, not substitutes for the upstream fixes. Remove a target with its own
 `uninstall`; when the last one goes, the `SessionStart` hook is removed. Then delete

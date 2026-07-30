@@ -2,6 +2,11 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-07-30. #2660's convergence behavior is native in current marketplace
+source and Ruflo 3.32.37+, but the active Claude Code 0.4.1 cache still has the old importer.
+The target also retains its independent `ORPHANS` warning. Its marketplace repair now proves
+recovery from Git HEAD when an older composition poisoned a non-empty pristine backup and
+preserves the executable mode.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr, data-integrity
 

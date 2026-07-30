@@ -40,14 +40,15 @@ npx github:sparkling/ruflo-source-patch plugin-hosts install # add Ruflo-owned d
 ```bash
 npx github:sparkling/ruflo-source-patch adr-template install      # adr-create writes metadata adr-index can parse (#2659)
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
-npx github:sparkling/ruflo-source-patch adr-reindex install       # adds /adr-reindex (needs `memory`). SUPERSEDED: self-retires on @claude-flow/cli 3.29.0+, kept for older CLIs (#2666)
-npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # make ruflo-core's manifest + PreToolUse output valid in Codex; retires on native schema/behavior proof (PR #2800 / #2816)
-npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # expose Ruflo's missing read-only status skill in Codex (#2821)
+npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share `memory`'s writer lock (#2666)
+npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)
+npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # retired on Ruflo's native read-only status skill (#2821)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #2685 rewrite; auto-retires after proving current Ruflo HEAD + local compositions are native
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate
 npx github:sparkling/ruflo-source-patch flywheel-daily install     # legacy #53 cadence fix; auto-retires on Brain's behavioral replacement
-npx github:sparkling/ruflo-source-patch brain-codex-skills install # expose Brain Console/what's-new skills and repair migrated aliases in Codex (#56)
+npx github:sparkling/ruflo-source-patch codex-hooks install        # retired on Brain 4.0.1's proven native six-event Codex lifecycle (#52)
+npx github:sparkling/ruflo-source-patch brain-codex-skills install # repair 3 native asset lookups + 3 migrated Console aliases in Codex (#56)
 ```
 
 ### Keep it live (actions add `run | check`)

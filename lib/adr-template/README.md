@@ -7,6 +7,10 @@ A plugin whose two skills disagree about their own format.
 Patches `ruflo-adr`'s `skills/adr-create/SKILL.md`.
 Upstream: [#2659](https://github.com/ruvnet/ruflo/issues/2659)
 
+Current marketplace source has the broader parser fix. This compatibility target remains for active
+unchanged-version plugin caches that still contain the old parser, and will stand down when those
+runnable copies are replaced.
+
 ## The bug
 
 `adr-create`'s own documented template writes ADR metadata as a **bullet list**:

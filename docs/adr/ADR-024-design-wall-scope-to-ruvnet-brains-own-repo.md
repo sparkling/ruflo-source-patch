@@ -1,8 +1,9 @@
 # ADR-024: design-wall: scope ruvnet-brain's commit gate to its own repo
 
-**Status**: superseded upstream; local target self-retires
+**Status**: superseded
 **Date**: 2026-07-17
-**Updated**: 2026-07-25
+**Updated**: 2026-07-30. The local target retired after its behavior probe proved the native
+manifest-identity gate allows an unrelated README commit and still blocks Brain's own surface.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, ruvnet-brain
 
