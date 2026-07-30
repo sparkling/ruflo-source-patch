@@ -9,7 +9,7 @@
 //
 // Patch targets (source patches to the installed @claude-flow/cli):
 //   cwd      cwd anchoring — .claude-flow/.swarm stop following a drifted cwd (#2633)
-//   daemon   daemon dedup — one daemon per project root (#2633 / #2407 / #2484)
+//   daemon   direct daemon commands share one project-root lock/PID identity (#2877 / #2633)
 //   memory   memory.db durability — write lock (#2621) + WAL-coherent reads (#2584)
 //   plugin-hosts  dual-host install/uninstall/sync plus bounded same-version refresh (#2854/#2870)
 //

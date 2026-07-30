@@ -24,8 +24,8 @@ const lib = await import(`file://${path.join(REPO, 'lib', 'cwd', 'patch-library.
 
 const TARGETS = ['cwd', 'daemon', 'memory'];
 // Keep this oracle tied to the shipped table: every CURRENT @claude-flow file touched by these
-// targets belongs in the race, including the many cwd state writers. The @sparkleideas legacy
-// daemon entry has its own synthesized acceptance test below and is not part of the current CLI.
+// targets belongs in the race, including the many cwd state writers. The retired @sparkleideas
+// legacy daemon shim is deliberately absent; DR below protects that retirement boundary.
 const FILES = [...new Set(lib.ENTRIES
   .filter((entry) => TARGETS.includes(entry.target) && entry.suffix[0] === '@claude-flow')
   .map((entry) => entry.suffix.join('/')))]
@@ -446,58 +446,16 @@ if (!/WARN/.test(out(stat))) fail('UB `monitor status` does not surface the unco
 
 console.log('✔ uncovered builds (UB an unpatched CLI with its own daemon command is named by monitor check + status)');
 
-// ─── DL: daemon/spawn-lock-legacy — the only entry with NO coverage of any kind ──
-// It targets @sparkleideas/cli, a legacy fork that exists on no machine here, so there is no real
-// fixture to patch: the entry has never been applied, probed, restored, or even parse-checked, and its
-// `daemonLock` fragment has never run. An entry nobody can exercise is an entry nobody can trust.
-//
-// So synthesize the fixture FROM THE SHIPPED ENTRY ITSELF — the anchor is read out of ENTRIES, so the
-// fixture can never drift from the thing it is meant to exercise. (Hand-copying the anchor into the test
-// would let the two diverge silently, which is the whole failure mode this package is about.)
-
-freshSandbox();
-
-const legacy = lib.ENTRIES.find((e) => e.id === 'daemon/spawn-lock-legacy');
-if (!legacy) fail('DL the daemon/spawn-lock-legacy entry has vanished from the table');
-
-const legacyFile = path.join(nm, ...legacy.suffix);
-fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
-
-// A minimal legacy build: valid ESM that CONTAINS the exact anchor this entry patches.
-const anchor = legacy.edits[0].find;
-fs.writeFileSync(legacyFile, `// a legacy @sparkleideas/cli build (pre-#2407/#2484: spawns with NO lock)
-export function startDaemon(projectRoot, isDaemonProcess, quiet) {
-${anchor}
-                    console.log('already running');
-                }
-                return;
-            }
-        }
+// ─── DR: the obsolete legacy daemon-lock shim stays retired ─────────────────
+// #2407/#2484 are native and sound. The supported target now owns exactly the
+// remaining #2877 project-root identity gap in the current @claude-flow/cli.
+const daemonEntries = lib.ENTRIES.filter((entry) => entry.target === 'daemon');
+if (daemonEntries.length !== 1 || daemonEntries[0].id !== 'daemon/command-root') {
+  fail(`DR daemon target must contain only daemon/command-root, got: ${daemonEntries.map((entry) => entry.id).join(', ')}`);
 }
-`);
-
-// DL1 — it parses BEFORE we touch it. If the fixture is broken, everything below is meaningless.
-if (spawnSync(process.execPath, ['--check', legacyFile], { encoding: 'utf8' }).status !== 0) {
-  fail('DL1 the synthesized legacy fixture is not valid ESM — the test would prove nothing');
+if ('daemonLock' in lib.FRAGMENTS) fail('DR obsolete daemonLock fragment was resurrected');
+if (daemonEntries[0].suffix.join('/') !== '@claude-flow/cli/dist/src/commands/daemon.js') {
+  fail(`DR daemon target drifted away from current @claude-flow/cli: ${daemonEntries[0].suffix.join('/')}`);
 }
 
-const legacyPristine = fs.readFileSync(legacyFile, 'utf8');
-
-// DL2 — installing `daemon` APPLIES the entry to it. It never had before.
-cli(['daemon', 'install']);
-const patchedLegacy = fs.readFileSync(legacyFile, 'utf8');
-if (patchedLegacy === legacyPristine) fail('DL2 daemon/spawn-lock-legacy did NOT apply to a build that matches its anchor');
-if (!/__rufloDaemonLock|__ruflo/.test(patchedLegacy)) fail(`DL2 the entry wrote something, but not its lock fragment:\n${patchedLegacy.slice(0, 300)}`);
-
-// DL3 — and the result still PARSES. A patcher that emits broken JS into a daemon is worse than the
-// race it fixes.
-if (spawnSync(process.execPath, ['--check', legacyFile], { encoding: 'utf8' }).status !== 0) {
-  fail('DL3 the patched legacy daemon.js is a SYNTAX ERROR — we would break the fork we meant to fix');
-}
-
-// DL4 — uninstall restores it byte-for-byte.
-cli(['daemon', 'uninstall']);
-if (fs.readFileSync(legacyFile, 'utf8') !== legacyPristine) fail('DL4 uninstall did not restore the legacy file byte-for-byte');
-if (fs.existsSync(`${legacyFile}.rsp-backup`)) fail('DL4 uninstall left a backup behind');
-
-console.log('✔ legacy daemon entry (DL1 fixture valid, DL2 applies, DL3 still parses, DL4 restores byte-for-byte)');
+console.log('✔ daemon retirement boundary (DR native lock preserved; only current command-root patch remains)');

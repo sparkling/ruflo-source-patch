@@ -29,7 +29,7 @@ npx github:sparkling/ruflo-source-patch all status       # the full readout in o
 
 ```bash
 npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/.swarm + durable state to the project root (#2633)
-npx github:sparkling/ruflo-source-patch daemon install    # one daemon per project root, not per subdirectory (#2633/#2407/#2484)
+npx github:sparkling/ruflo-source-patch daemon install    # direct daemon commands share one project-root lock/PID identity (#2877; umbrella #2633)
 npx github:sparkling/ruflo-source-patch memory install    # memory.db write lock (#2621) + WAL-coherent reads (#2584) + integrity gate (refuse a torn-image flush) + stale-writer guard: kills every pre-patch writer, daemon AND MCP client, to force fresh code; a killed MCP client needs a manual /mcp reconnect after, so it warns loudly, machine-wide (#2621/ADR-023; RSP_NO_STALE_WRITER_KILL disables the kill)
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + bounded same-version refresh (#2854/#2870)

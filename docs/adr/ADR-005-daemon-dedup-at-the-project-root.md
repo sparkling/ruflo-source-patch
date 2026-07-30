@@ -1,10 +1,11 @@
-# ADR-005: daemon: deduplicate at the project root, and lock the spawn
+# ADR-005: daemon: key native deduplication to the project root
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. #2407/#2484 correctly serialize concurrent starts that use the
-same cwd. They do not resolve different subdirectories to one project root; that residual is
-#2633 and remains present in Ruflo 3.32.39, so the target stays live.
+**Updated**: 2026-07-30. A clean `@claude-flow/cli` 3.33.0 reproduction started four live
+foreground daemons, with four PID files, from four subdirectories of one project. Filed the
+focused residual as #2877. The legacy lock injection is retired: #2407/#2484 correctly provide
+the native same-directory lock, and this target now changes only its project identity.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, daemon, cost
 
@@ -12,12 +13,19 @@ same cwd. They do not resolve different subdirectories to one project root; that
 
 Daemon count scales with the number of `.claude-flow` folders, without bound.
 
-A `.claude-flow` folder is the daemon SPAWN GATE (`ensureDaemonRunning` returns early unless one exists at
-that cwd), and deduplication is per-folder (`isDaemonAlive` checks `<cwd>/.claude-flow/daemon.pid`) with no
-global registry. So every stray folder created by the cwd drift (ADR-004) becomes a live daemon target.
+A `.claude-flow` folder is the daemon spawn gate (`ensureDaemonRunning` returns early unless one exists at
+that cwd), and deduplication is per-folder (`isDaemonAlive` checks `<cwd>/.claude-flow/daemon.pid`). So
+every stray folder created by cwd drift (ADR-004) becomes a live daemon target.
 
-Since 3.24.0 autostart runs on every command, and the ruflo MCP server is the same CLI, so every Claude Code
-session auto-spawns a daemon for whatever cwd it happens to have.
+The `cwd` target now normalizes the autostart service and its daemon callees. Direct
+`ruflo daemon start|stop|status` commands are a separate path: the CLI deliberately skips
+autostart for the `daemon` command, and `commands/daemon.js` still derives its lock, PID file,
+status, stop, and supervisor identity from raw `process.cwd()`.
+
+Ruflo's #2407/#2484 `O_EXCL` lock is correct for concurrent starts in one directory. It cannot
+deduplicate two starts whose raw cwd values point to different lock paths. The 3.33.0 reproduction
+confirmed that distinction: four concurrent starts in four subdirectories produced four live
+processes and four subdirectory PID files.
 
 Measured on one 12-repo working set: ~25 concurrent daemons, ~1.4 GB RSS. Each independently runs headless
 workers, so an unbounded daemon count is unbounded, duplicated token spend. Deleting the 97 stray folders
@@ -25,12 +33,17 @@ dropped the live count from ~25 to 1: direct causal confirmation.
 
 ## Decision
 
-Anchor the daemon to the project ROOT, at the callee, so every caller is fixed at once: `ensureDaemonRunning`,
-`getDaemon` and `startDaemon` resolve the root before using the cwd they were handed.
+Keep Ruflo's native lock algorithm unchanged. Normalize the project identity fed to it:
 
-Also inject an `O_EXCL` spawn lock at `<root>/.claude-flow/daemon.lock` for older and forked builds that
-lack upstream's own lock. Deliberately at the SAME path upstream uses, so a patched old build and a modern
-build deduplicate against each other rather than racing.
+- `cwd` resolves the root in `ensureDaemonRunning`, `getDaemon`, and `startDaemon`, covering
+  autostart and worker-daemon callers.
+- `daemon` resolves the root in the direct command's start, stop, status, and supervisor paths,
+  which bypass autostart (#2877).
+- An explicit `--workspace` remains authoritative.
+- Distinct Git worktrees remain distinct project roots.
+
+Remove the former `@sparkleideas/cli` legacy-lock entry and its injected lock fragment. That fork
+is not an installed or monitored target, and current Ruflo already owns the concurrency primitive.
 
 ## Consequences
 
@@ -39,11 +52,13 @@ build deduplicate against each other rather than racing.
 - One daemon per project root, not one per visited subdirectory.
 - Token spend from duplicated headless workers is bounded.
 - A stray folder can no longer become a daemon target, because the gate resolves the root first.
+- Direct status and stop commands issued from a subdirectory address the same root daemon.
+- Ruflo's native lock behavior stays byte-for-byte upstream-owned.
 
 ### Negative
 
-- This treats the symptom. The anchor is the disease, and ADR-004 is the actual fix; a global daemon
-  registry alone would bound the daemons and leave the data loss untouched.
+- The patch remains until #2877 supplies one shared canonical root resolver to every direct daemon
+  path. The broader durable-state work remains tracked by #2633 and ADR-004.
 
 ### Neutral
 
@@ -51,5 +66,7 @@ build deduplicate against each other rather than racing.
 
 ## Links
 
-- Upstream: [#2633](https://github.com/ruvnet/ruflo/issues/2633), [#2407](https://github.com/ruvnet/ruflo/issues/2407), [#2484](https://github.com/ruvnet/ruflo/issues/2484)
+- Upstream residual: [#2877](https://github.com/ruvnet/ruflo/issues/2877)
+- Broader root model: [#2633](https://github.com/ruvnet/ruflo/issues/2633)
+- Native same-directory lock, retained unchanged: [#2407](https://github.com/ruvnet/ruflo/issues/2407), [#2484](https://github.com/ruvnet/ruflo/issues/2484)
 - [ADR-004](ADR-004-cwd-anchor-state-to-project-root.md), [ADR-013](ADR-013-cleanup-repair-a-sprawled-project.md)

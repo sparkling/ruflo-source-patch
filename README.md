@@ -119,7 +119,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`cwd`** | **Silent data loss.** `.claude-flow` holds the learning state (autopilot, `neural/`, `metrics/`, `agentdb`, `memory.db`) and it is anchored to raw `process.cwd()`. Under an agent the cwd drifts and *sticks*, so state is written to a subdirectory nothing will ever read again. `loadState()` does not error: it returns **defaults** and writes a fresh file. The system quietly resets to zero, and it looks exactly like normal operation. Anchors the resolver, the callees and the implicit-relative constants; plus a leak detector, because completeness cannot be proven | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
-| **`daemon`** | One daemon per project **root**. Dedup was keyed per-cwd, so a `daemon start` from any subdirectory forked its own daemon | [#2633](https://github.com/ruvnet/ruflo/issues/2633) · [#2407](https://github.com/ruvnet/ruflo/issues/2407) · [#2484](https://github.com/ruvnet/ruflo/issues/2484) |
+| **`daemon`** | One daemon per project **root**. Ruflo's native lock is sound but keyed to raw cwd; direct daemon commands bypass the root-normalized autostart path, so starts from different subdirectories still receive different lock/PID identities | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`memory`** | `.swarm/memory.db` durability. A cross-process **write lock** (concurrent writers silently *drop* writes), **WAL-coherent reads** (sql.js reads a stale image), an **integrity gate** (refuse a whole-file flush over an already-torn image instead of overwriting the damage), and a **stale-writer guard** (the monitor kills every pre-patch writer, daemon *and* MCP client, to force fresh code, and pushes a loud, unmissable warning for each killed MCP client since reconnecting one needs a manual `/mcp` step afterward; `RSP_NO_STALE_WRITER_KILL` disables the kill) | [#2621](https://github.com/ruvnet/ruflo/issues/2621) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · [#2646](https://github.com/ruvnet/ruflo/issues/2646) · [#2652](https://github.com/ruvnet/ruflo/issues/2652) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
 | **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, and bounded `host-refresh` commands to the installed CLI. All delegate to each host's supported CLI; this patch never copies or directly edits host caches. `host-refresh` is allowlisted to the three audited unchanged-version collisions and verifies installed bytes against each refreshed host snapshot. Disabled state is never changed and partial completion is nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
@@ -302,35 +302,29 @@ Upstream: [#2633](https://github.com/ruvnet/ruflo/issues/2633).
 Fixes daemon multiplication: one daemon per project **root**, not one per directory you happen to
 start it from.
 
-Two distinct bugs, one target.
+#### Native dedup is keyed per cwd
 
-#### Dedup is keyed per-CWD
+Live in clean `@claude-flow/cli` **3.33.0**. `commands/daemon.js` anchors its own state
+(`.claude-flow/`, `daemon.pid`, and the native dedup lockfile itself) to raw `process.cwd()`.
+The #2407/#2484 lock correctly serializes starts in the **same directory**, but starts elsewhere
+in the same project use different lock and PID paths. Direct `daemon` commands skip autostart,
+so the `cwd` patch's normalization of `daemon-autostart.js` cannot cover them.
 
-Live in current upstream. `commands/daemon.js` anchors its own state (`.claude-flow/`,
-`daemon.pid`, and the #2484 dedup lockfile *itself*) to raw `process.cwd()`. The lock therefore
-dedups against starts in the **same directory** and not at all against starts elsewhere in the
-repo. Patching `daemon-autostart.js` doesn't cover it, because the CLI command does its own
-resolution.
-
-Measured on **3.25.6**, which already *has* the #2484 spawn lock. 6 concurrent `daemon start`:
+Measured with four concurrent foreground starts from four subdirectories:
 
 | | Before | After |
 |---|---|---|
-| all 6 from the repo **root** | 1 daemon | 1 daemon |
-| 6 from 6 different **subdirs** | **6 daemons, 6 stray `.claude-flow` dirs** | **1 daemon, 1 `.claude-flow`** |
+| 4 from 4 different **subdirs** | **4 live daemons, 4 subdirectory PID files** | **1 daemon, 1 root PID file** |
 
 `daemon status`/`stop` from a subdirectory now find the root daemon instead of reporting "not
 running". The `const cwd = process.cwd();` path-validation guard is **deliberately not patched**.
 That's a security boundary, not state anchoring.
 
-#### Old and forked builds have no spawn lock at all
-
-Builds predating #2407/#2484 dedup like this: read `daemon.pid` → not running →
-`killStaleDaemons` → spawn, **with no lock**. N concurrent starts all see an empty PID file in the
-same instant and each fork a daemon. The patch injects the same `O_EXCL` lockfile upstream uses, at
-the same path (`<root>/.claude-flow/daemon.lock`), so a patched old build and a modern build dedup
-against *each other*. Upstream ≥ 3.25 already has it, so the anchor doesn't match there and it is
-safe-skipped, never double-locked.
+The patch leaves Ruflo's native lock algorithm byte-for-byte unchanged and only canonicalizes the
+project identity supplied to direct start, stop, status, and supervisor paths. The former
+`@sparkleideas/cli` legacy-lock shim is retired. The focused upstream residual is
+[#2877](https://github.com/ruvnet/ruflo/issues/2877); [#2633](https://github.com/ruvnet/ruflo/issues/2633)
+continues to track the broader project-root model.
 
 ### `memory`
 
@@ -1137,7 +1131,7 @@ means the file is always exactly *pristine + the entries currently requested*: c
 subset, idempotent by construction.
 
 Injected code is composed from **fragments with dependencies** (`req` → `resolveRoot` /
-`walCheckpoint` / `memLock` / `daemonLock`), each emitted at most once. The shared `req` base
+`walCheckpoint` / `memLock`), each emitted at most once. The shared `req` base
 matters: installing `memory` *without* `cwd` would otherwise inject a lock referencing an
 undeclared `__rufloReq`.
 
@@ -1277,6 +1271,7 @@ closed label.** The table records the full acceptance result.
 | [#2821](https://github.com/ruvnet/ruflo/issues/2821) | **Fixed completely.** Native status is read-only by default; repair requires explicit intent | `ruflo-codex-skills` retired |
 | [#2854](https://github.com/ruvnet/ruflo/issues/2854) | **Open.** No native dual-host marketplace reconciliation | Keep `plugin-hosts` |
 | [#2870](https://github.com/ruvnet/ruflo/issues/2870) | **Open.** Three current plugin versions identify multiple source trees; all 35 current identities were audited | `plugin-hosts host-refresh` repaired the three local host pairs through supported CLIs; wait for bumped versions plus a fleet-wide release guard |
+| [#2877](https://github.com/ruvnet/ruflo/issues/2877) | **Open, live.** Clean 3.33.0 produced four live daemons and four PID files from four subdirectories because direct daemon commands key the native lock to raw cwd | Keep the narrowed `daemon` command-root patch |
 | [Brain #12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13), [#17](https://github.com/stuinfla/ruvnet-brain/issues/17) | **Fixed completely** and behaviorally proved | `verify-interface`, `design-wall` retired |
 | [Brain #41](https://github.com/stuinfla/ruvnet-brain/issues/41) | **Closure not sound after its body was broadened.** The closing comment proves the earlier quote fix, not the edited nested-invocation acceptance | Superseded by #44/#48; no new patch |
 | [Brain #42](https://github.com/stuinfla/ruvnet-brain/issues/42), [#43](https://github.com/stuinfla/ruvnet-brain/issues/43) | **Fixed completely.** Codex MCP/plugin packaging is present without the retracted `skill.toml` proposal | No patch |
@@ -1294,8 +1289,9 @@ closed label.** The table records the full acceptance result.
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | daemon ↔ MCP last-writer-wins **silently drops writes**. We posted a 30-line repro and the lock implementation | `memory` write lock |
 | [#2594](https://github.com/ruvnet/ruflo/issues/2594) | **Fixed in 3.32.36.** Before that release, `memory store --help` declared upsert as the default while an omitted flag still performed a strict INSERT. We measured it and posted the reproducer | `adr-index` keeps an explicit `--upsert` for old active plugin/CLI pairs |
 
-**Referenced (upstream, not ours):** the `daemon` spawn-lock builds on
-[#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484);
+**Referenced (upstream, not ours):** the `daemon` target retains the native lock from
+[#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484)
+unchanged; [#2877](https://github.com/ruvnet/ruflo/issues/2877) tracks only its remaining raw-cwd identity;
 the `memory` write lock is ruvnet's own follow-up from the [#2584](https://github.com/ruvnet/ruflo/issues/2584)
 corruption close-out, and its atomic-write baseline is [#2585](https://github.com/ruvnet/ruflo/pull/2585);
 the WAL-coherent-reads half addresses the historical visibility symptom reported in
