@@ -452,6 +452,21 @@ process.exit(0);
       && hsFiles.every((file) => !fs.existsSync(bak(file)))
       && manifestFiles.every((file) => isNativeSchema(read(file)))
       && shimFiles.every((file) => probeNativeShim(file).valid));
+
+  writeState({ patchTargets: [], pluginTargets: [], retired: {}, all: false });
+  const { runPluginCommand } = await import('../lib/plugin-command.mjs');
+  const priorExitCode = process.exitCode;
+  process.exitCode = undefined;
+  runPluginCommand('ruflo-hooks-schema', 'install');
+  const directState = readState();
+  const directExitCode = process.exitCode;
+  process.exitCode = priorExitCode;
+  check('HS11 direct install retires native behavior before attempting legacy anchors',
+    directExitCode !== 1
+      && !directState.pluginTargets.includes('ruflo-hooks-schema')
+      && Boolean(directState.retired['ruflo-hooks-schema'])
+      && manifestFiles.every((file) => read(file) === native)
+      && shimFiles.every((file) => read(file) === nativeShim));
 }
 
 // ── MR: #2685 retirement uses Git HEAD, not stale same-output backups ──
