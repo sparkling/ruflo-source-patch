@@ -323,8 +323,13 @@ if (stateMod.readState().pluginTargets.includes('adr-reindex')) {
 if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
   fail(`SU6 install refused but did not say why, with evidence:\n${out(inst)}`);
 }
+const retiredStatus = cli(['adr-reindex', 'status']);
+if (!/RETIRED/.test(out(retiredStatus))
+    || /NOT tracked|run `adr-reindex install`/.test(out(retiredStatus))) {
+  fail(`SU7 retired status contradicts terminal state or suggests reinstalling:\n${out(retiredStatus)}`);
+}
 
-console.log('✔ self-retirement (SU1 missing command, SU2 no skill, SU3 mismatched lock all keep; SU4 complete proof retires; SU5 terminal; SU6 reinstall refuses with evidence)');
+console.log('✔ self-retirement (SU1 missing command, SU2 no skill, SU3 mismatched lock all keep; SU4 complete proof retires; SU5 terminal; SU6 reinstall refuses; SU7 status stays terminal)');
 
 // ─── SU-VI: verify-interface's own self-retirement (stuinfla/ruvnet-brain#12/#13) ─────────────
 //
