@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Ruflo Source Patch — Remaining Patches and Unresolved Issues</title>
+  <style>
+    :root {
+      --bg: #f3f1eb; --paper: #fffdf8; --ink: #1e2527; --muted: #667174;
+      --line: #d8d6cf; --accent: #165f66; --accent-soft: #dceced;
+      --critical: #a43a32; --critical-soft: #f7dfda; --high: #9a6517;
+      --high-soft: #f6e8c9; --medium: #315f87; --medium-soft: #dce9f3;
+      --open: #8e342f; --partial: #8c5d13; --delivery: #2c6573; --resolved: #34704a;
+      --shadow: 0 12px 38px rgba(27, 38, 40, .08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #151a1b; --paper: #1c2325; --ink: #edf0ed; --muted: #aab5b5;
+        --line: #384345; --accent: #7bc4c7; --accent-soft: #213d40;
+        --critical: #ff9589; --critical-soft: #492825; --high: #e8b861;
+        --high-soft: #46391e; --medium: #8fc0e4; --medium-soft: #263e52;
+        --open: #ff9589; --partial: #e8b861; --delivery: #8fd0da; --resolved: #82c99a;
+        --shadow: 0 16px 44px rgba(0, 0, 0, .26);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--accent); text-underline-offset: .18em; }
+    a:hover { text-decoration-thickness: 2px; }
+    button, input { font: inherit; }
+    .shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 100vh; }
+    aside {
+      position: sticky; top: 0; align-self: start; height: 100vh; padding: 2rem 1.2rem;
+      border-right: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 88%, transparent);
+    }
+    .brand { font-weight: 800; letter-spacing: -.02em; }
+    .brand small { display: block; margin-top: .25rem; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+    nav { margin: 2rem 0; }
+    nav a { display: block; padding: .52rem .65rem; color: var(--muted); text-decoration: none; border-radius: .45rem; }
+    nav a:hover { color: var(--ink); background: var(--accent-soft); }
+    .aside-note { position: absolute; bottom: 1.6rem; max-width: 12.5rem; color: var(--muted); font-size: .78rem; }
+    main { width: min(78rem, 100%); padding: 4rem clamp(1.25rem, 4vw, 4rem) 5rem; }
+    header { max-width: 64rem; }
+    .eyebrow { color: var(--accent); font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: .45rem 0 1rem; max-width: 19ch; font: 800 clamp(2.35rem, 5.4vw, 5rem)/.97 Georgia, serif; letter-spacing: -.045em; }
+    .lede { max-width: 69ch; margin: 0; color: var(--muted); font-size: 1.15rem; }
+    .snapshot { margin-top: 1rem; color: var(--muted); font-size: .84rem; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 2.2rem 0 1.25rem; }
+    .metric { padding: 1rem; border-top: 3px solid var(--accent); background: var(--paper); box-shadow: var(--shadow); }
+    .metric strong { display: block; font: 800 2rem/1 Georgia, serif; }
+    .metric span { color: var(--muted); font-size: .78rem; }
+    .distribution { max-width: 52rem; margin: 1.25rem 0 0; }
+    .bar { display: flex; height: .8rem; overflow: hidden; border-radius: 999px; background: var(--line); }
+    .bar span:nth-child(1) { width: 46.15%; background: var(--open); }
+    .bar span:nth-child(2) { width: 38.46%; background: var(--partial); }
+    .bar span:nth-child(3) { width: 15.39%; background: var(--delivery); }
+    .legend { display: flex; flex-wrap: wrap; gap: .45rem 1rem; margin-top: .55rem; color: var(--muted); font-size: .78rem; }
+    .legend i { display: inline-block; width: .62rem; height: .62rem; margin-right: .35rem; border-radius: 50%; }
+    section { margin-top: 4.5rem; scroll-margin-top: 1.5rem; }
+    h2 { margin: 0 0 .55rem; font: 750 clamp(1.7rem, 3vw, 2.55rem)/1.1 Georgia, serif; letter-spacing: -.025em; }
+    .section-intro { max-width: 74ch; margin: 0 0 1.6rem; color: var(--muted); }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: 1.2rem 0 1.4rem;
+      padding: .7rem; border: 1px solid var(--line); background: var(--paper);
+    }
+    .toolbar input {
+      flex: 1 1 15rem; min-width: 0; padding: .58rem .7rem; color: var(--ink);
+      border: 1px solid var(--line); border-radius: .35rem; background: var(--bg);
+    }
+    .filter, .action {
+      padding: .55rem .72rem; color: var(--ink); border: 1px solid var(--line);
+      border-radius: .35rem; background: transparent; cursor: pointer;
+    }
+    .filter[aria-pressed="true"], .filter:hover, .action:hover { background: var(--accent-soft); border-color: var(--accent); }
+    .patch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .patch-card { position: relative; padding: 1.25rem; border: 1px solid var(--line); background: var(--paper); box-shadow: var(--shadow); }
+    .patch-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: .3rem; background: var(--medium); }
+    .patch-card[data-severity="critical"]::before { background: var(--critical); }
+    .patch-card[data-severity="high"]::before { background: var(--high); }
+    .card-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+    .target { margin: 0; font: 760 1.25rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: .7rem 0 .85rem; }
+    .chip { display: inline-flex; padding: .18rem .48rem; border-radius: 999px; background: var(--accent-soft); font-size: .71rem; font-weight: 750; }
+    .chip.critical { color: var(--critical); background: var(--critical-soft); }
+    .chip.high { color: var(--high); background: var(--high-soft); }
+    .chip.medium { color: var(--medium); background: var(--medium-soft); }
+    .patch-card p { margin: .55rem 0; }
+    .evidence { color: var(--muted); font-size: .88rem; }
+    details { margin-top: .8rem; border-top: 1px solid var(--line); padding-top: .65rem; }
+    summary { color: var(--accent); font-weight: 700; cursor: pointer; }
+    details p { margin-bottom: 0; }
+    .issue-table { width: 100%; border-collapse: collapse; background: var(--paper); box-shadow: var(--shadow); }
+    .issue-table th { position: sticky; top: 0; z-index: 1; padding: .75rem; text-align: left; background: var(--ink); color: var(--paper); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+    .issue-table td { padding: .9rem .75rem; vertical-align: top; border-bottom: 1px solid var(--line); }
+    .issue-table tr:last-child td { border-bottom: 0; }
+    .issue { min-width: 14rem; }
+    .issue a { font-weight: 780; }
+    .issue-title { display: block; max-width: 34ch; margin-top: .22rem; color: var(--muted); font-size: .78rem; line-height: 1.35; }
+    .verdict { min-width: 9rem; font-weight: 760; }
+    .verdict.open { color: var(--open); }
+    .verdict.partial { color: var(--partial); }
+    .verdict.delivery { color: var(--delivery); }
+    .consequence { min-width: 13rem; }
+    .callout {
+      display: grid; grid-template-columns: auto 1fr; gap: 1rem; margin-top: 1.5rem; padding: 1rem 1.1rem;
+      border-left: .35rem solid var(--resolved); background: color-mix(in srgb, var(--resolved) 10%, var(--paper));
+    }
+    .callout strong { font: 800 1.4rem/1 Georgia, serif; color: var(--resolved); }
+    .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .decision { padding: 1.15rem; border: 1px solid var(--line); background: var(--paper); }
+    .decision h3 { margin: 0 0 .6rem; font-size: 1rem; }
+    .decision ul { margin: 0; padding-left: 1.2rem; }
+    .decision li + li { margin-top: .45rem; }
+    code { padding: .12rem .3rem; border-radius: .25rem; background: var(--accent-soft); font-size: .88em; }
+    .sources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .sources article { padding: 1rem; border-top: 2px solid var(--line); }
+    .sources h3 { margin: 0 0 .4rem; font-size: .95rem; }
+    .sources p { margin: 0; color: var(--muted); font-size: .85rem; }
+    .retired { color: var(--muted); }
+    footer { margin-top: 4.5rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+    .hidden { display: none !important; }
+    @media (max-width: 880px) {
+      .shell { display: block; } aside { position: static; width: auto; height: auto; padding: 1rem 1.25rem; border: 0; border-bottom: 1px solid var(--line); }
+      nav { display: flex; overflow-x: auto; margin: .8rem 0 0; } nav a { white-space: nowrap; } .aside-note { display: none; }
+      main { padding-top: 2.5rem; } .metrics, .sources { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .patch-grid, .decision-grid, .metrics, .sources { grid-template-columns: 1fr; }
+      .issue-table, .issue-table tbody, .issue-table tr, .issue-table td { display: block; }
+      .issue-table thead { display: none; } .issue-table tr { padding: .7rem; border-bottom: 1px solid var(--line); }
+      .issue-table td { padding: .35rem; border: 0; min-width: 0; }
+      .issue-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    }
+    @media print {
+      aside, .toolbar, .action { display: none !important; } .shell { display: block; } main { max-width: none; padding: 0; }
+      .patch-card, .issue-table { box-shadow: none; } details { display: block; } details > * { display: block; }
+      a { color: inherit; text-decoration: none; } a::after { content: " (" attr(href) ")"; font-size: .7em; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="brand">ruflo-source-patch<small>Residual risk report</small></div>
+    <nav aria-label="Report sections">
+      <a href="#summary">Summary</a>
+      <a href="#patches">8 live patches</a>
+      <a href="#issues">13 unresolved records</a>
+      <a href="#decisions">What happens next</a>
+      <a href="#evidence">Evidence</a>
+    </nav>
+    <p class="aside-note">Local report only. Issue labels are metadata; runnable installed behavior decides retirement.</p>
+  </aside>
+
+  <main>
+    <header id="summary">
+      <div class="eyebrow">Evidence snapshot · 30 July 2026</div>
+      <h1>What still needs patching—and why</h1>
+      <p class="lede">Eight patches remain live because their upstream replacement is absent, incomplete, or not delivered to the host surface actually in use. Thirteen issue records are still unresolved as written; a closed label does not override executable evidence.</p>
+      <p class="snapshot">Verified against ruflo 3.32.39, ruflo-core 0.2.6, ruflo-adr 0.4.1, RuvNet Brain 4.0.1, and ruflo-source-patch 4.33.0.</p>
+
+      <div class="metrics" aria-label="Report metrics">
+        <div class="metric"><strong>8</strong><span>live monitored patches</span></div>
+        <div class="metric"><strong>7</strong><span>direct issue records driving them</span></div>
+        <div class="metric"><strong>13</strong><span>not fully resolved as written</span></div>
+        <div class="metric"><strong>1</strong><span>stale-open but behaviorally fixed</span></div>
+      </div>
+      <div class="distribution" aria-label="Unresolved issue distribution">
+        <div class="bar" role="img" aria-label="6 open or live issues, 5 closed incomplete or superseded issues, 2 source-fixed delivery gaps"><span></span><span></span><span></span></div>
+        <div class="legend">
+          <span><i style="background:var(--open)"></i>6 open/live</span>
+          <span><i style="background:var(--partial)"></i>5 closed-incomplete or superseded</span>
+          <span><i style="background:var(--delivery)"></i>2 delivery gaps</span>
+        </div>
+      </div>
+    </header>
+
+    <section id="patches">
+      <h2>The remaining patch set</h2>
+      <p class="section-intro">These are the only targets the launchd monitor currently reapplies. Each card states the local proof required before that target may retire.</p>
+      <div class="toolbar" aria-label="Patch filters">
+        <input id="patch-search" type="search" placeholder="Search target, issue, or failure mode" aria-label="Search patches">
+        <button class="filter" data-filter="all" aria-pressed="true">All</button>
+        <button class="filter" data-filter="critical" aria-pressed="false">Critical</button>
+        <button class="filter" data-filter="high" aria-pressed="false">High</button>
+        <button class="filter" data-filter="medium" aria-pressed="false">Medium</button>
+      </div>
+
+      <div class="patch-grid" id="patch-grid">
+        <article class="patch-card" data-severity="critical">
+          <div class="card-head"><h3 class="target">cwd</h3><span class="chip critical">data integrity</span></div>
+          <div class="chips"><span class="chip">320/320</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2633">Ruflo #2633 — durable state follows raw cwd</a></div>
+          <p>Anchors durable Ruflo state to the project root so agent cwd drift cannot silently reset learning, metrics, AgentDB, or memory.</p>
+          <p class="evidence">GitHub: open. Installed code still resolves important stores from raw process cwd without this target.</p>
+          <details><summary>Retirement proof</summary><p>Every durable-state resolver and implicit-relative caller must converge on a stable project root, including subdirectory and monorepo cases, without producing stray state trees.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="high">
+          <div class="card-head"><h3 class="target">daemon</h3><span class="chip high">process isolation</span></div>
+          <div class="chips"><span class="chip">12/12</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2633">Ruflo #2633 — project-root identity</a></div>
+          <p>Keys daemon identity and deduplication to the project root, preventing one daemon per subdirectory while keeping different projects isolated.</p>
+          <p class="evidence">The narrower spawn-lock work from #2407/#2484 is present; root identity remains unresolved under #2633.</p>
+          <details><summary>Retirement proof</summary><p>Starts from several subdirectories must converge on one process and lock; starts from distinct project roots must remain independent.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="critical">
+          <div class="card-head"><h3 class="target">memory</h3><span class="chip critical">silent write loss</span></div>
+          <div class="chips"><span class="chip">22/22</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2621">Ruflo #2621 — daemon/MCP writer race</a></div>
+          <p>Adds the shared writer lock, WAL-coherent reads, torn-image integrity gate, and stale-writer restart boundary for <code>memory.db</code>.</p>
+          <p class="evidence">GitHub: closed incomplete. Native <code>&lt;db&gt;.lock</code> protects purge only; ordinary writers still do not share it.</p>
+          <details><summary>Retirement proof</summary><p>Daemon, MCP, CLI writers, and purge must share one cross-process lock and survive real concurrent read-modify-write tests without acknowledged loss.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="high">
+          <div class="card-head"><h3 class="target">init</h3><span class="chip high">duplicate runtime</span></div>
+          <div class="chips"><span class="chip">25/25</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2640">Ruflo #2640 — plugin/init duplication</a></div>
+          <p>Stops plugin-always installations from regenerating duplicate skills, commands, hooks, and a second project MCP server.</p>
+          <p class="evidence">GitHub: open, partial. Atomic event claims reduce repeated effects, but init still emits duplicate host surfaces.</p>
+          <details><summary>Retirement proof</summary><p>Plugin-native init must omit the standalone bundle, duplicate lifecycle hooks, and duplicate MCP registration while preserving helpers and explicit non-plugin modes.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="medium">
+          <div class="card-head"><h3 class="target">plugin-hosts</h3><span class="chip medium">host parity</span></div>
+          <div class="chips"><span class="chip">11/11</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2854">Ruflo #2854 — dual-host marketplace installer</a></div>
+          <p>Adds Ruflo-owned host install, uninstall, and additive Claude-to-Codex synchronization through each host’s supported plugin CLI.</p>
+          <p class="evidence">GitHub: open. Upstream has no native reconciliation command for the two independently stored registries.</p>
+          <details><summary>Retirement proof</summary><p>Native commands must preserve disabled state, unrelated plugins, exact marketplace identity, dry-run semantics, and loud partial failure across both hosts.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="high">
+          <div class="card-head"><h3 class="target">adr-template</h3><span class="chip high">metadata loss</span></div>
+          <div class="chips"><span class="chip">4/4</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2659">Ruflo #2659 — creator/indexer format mismatch</a></div>
+          <p>Keeps ADR output parseable by the active pre-fix plugin cache, which otherwise reads its own generated Status, Date, and Tags as empty.</p>
+          <p class="evidence">GitHub: closed; source fix is sound. The active Claude ruflo-adr 0.4.1 cache still contains the old parser under an unchanged version.</p>
+          <details><summary>Retirement proof</summary><p>A version-bumped active cache must parse creator-produced list metadata and relations end to end; source-branch bytes alone are insufficient.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="high">
+          <div class="card-head"><h3 class="target">adr-index</h3><span class="chip high">false success</span></div>
+          <div class="chips"><span class="chip">4/4</span><a class="chip" href="https://github.com/ruvnet/ruflo/issues/2660">Ruflo #2660 — non-convergent importer</a></div>
+          <p>Provides upsert, deterministic edges, honest failure counts, and explicit orphan visibility in the active old importer.</p>
+          <p class="evidence">GitHub: closed; convergence is fixed in current source. The active Claude cache remains old, and <code>ORPHANS</code> is additional local behavior.</p>
+          <details><summary>Retirement proof</summary><p>The active cache must converge on repeated and changed imports, report failures honestly, and provide an accepted replacement for orphan visibility.</p></details>
+        </article>
+
+        <article class="patch-card" data-severity="medium">
+          <div class="card-head"><h3 class="target">brain-codex-skills</h3><span class="chip medium">Codex usability</span></div>
+          <div class="chips"><span class="chip">6/6</span><a class="chip" href="https://github.com/stuinfla/ruvnet-brain/issues/56">Brain #56 — broken Console aliases/assets</a></div>
+          <p>Repairs three native skills and three migrated aliases in the active Codex cache so they locate Brain assets through the supported plugin registry.</p>
+          <p class="evidence">GitHub: closed partial. Brain 4.0.1 still searches the current repository or <code>~/Code/ruvnet-brain</code>, not the installed plugin source.</p>
+          <details><summary>Retirement proof</summary><p>All native and migrated workflows must discover the installed plugin root, open their assets, and survive a normal versioned plugin refresh without downstream edits.</p></details>
+        </article>
+      </div>
+    </section>
+
+    <section id="issues">
+      <h2>Issues not fully resolved as written</h2>
+      <p class="section-intro">This includes operational delivery gaps and superseded acceptance criteria—not only currently open GitHub tickets. Search or filter the table without changing the underlying verdicts.</p>
+      <div class="toolbar" aria-label="Issue filters">
+        <input id="issue-search" type="search" placeholder="Search issue, verdict, patch, or closure condition" aria-label="Search issues">
+        <button class="issue-filter filter" data-filter="all" aria-pressed="true">All 13</button>
+        <button class="issue-filter filter" data-filter="open" aria-pressed="false">Open/live</button>
+        <button class="issue-filter filter" data-filter="partial" aria-pressed="false">Closed incomplete</button>
+        <button class="issue-filter filter" data-filter="delivery" aria-pressed="false">Delivery gap</button>
+      </div>
+
+      <table class="issue-table">
+        <thead><tr><th>Issue</th><th>Verified verdict</th><th>Local consequence</th><th>What would resolve it</th></tr></thead>
+        <tbody id="issue-body">
+          <tr class="issue-row" data-kind="partial"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2621">Ruflo #2621 — daemon/MCP memory writer race</a><span class="issue-title">GitHub closed · updated 14 Jul</span></td><td class="verdict partial" data-label="Verdict">Closed incomplete</td><td class="consequence" data-label="Local consequence"><code>memory</code> remains live.</td><td data-label="Resolution">Put ordinary writers and purge behind the same cross-process lock and pass concurrent behavior tests.</td></tr>
+          <tr class="issue-row" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2633">Ruflo #2633 — durable state anchored to raw cwd</a><span class="issue-title">GitHub open · updated 14 Jul</span></td><td class="verdict open" data-label="Verdict">Open, live</td><td class="consequence" data-label="Local consequence"><code>cwd</code> and <code>daemon</code> remain live.</td><td data-label="Resolution">Adopt one project-root resolver across durable stores, implicit paths, and daemon identity.</td></tr>
+          <tr class="issue-row" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2638">Ruflo #2638 — divergent Claude/Codex instruction generators</a><span class="issue-title">GitHub open · updated 11 Jul</span></td><td class="verdict open" data-label="Verdict">Open, live</td><td class="consequence" data-label="Local consequence">The opt-in <code>dual</code> script remains useful.</td><td data-label="Resolution">Generate both hosts from one canonical instruction source without losing host-native settings.</td></tr>
+          <tr class="issue-row" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2640">Ruflo #2640 — init duplicates plugin surfaces</a><span class="issue-title">GitHub open · updated 29 Jul</span></td><td class="verdict open" data-label="Verdict">Open, partial</td><td class="consequence" data-label="Local consequence"><code>init</code> and <code>plugin-only</code> remain necessary.</td><td data-label="Resolution">Make the plugin canonical and stop materializing duplicate bundle, hooks, and MCP state.</td></tr>
+          <tr class="issue-row" data-kind="delivery"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2659">Ruflo #2659 — ADR metadata mismatch</a><span class="issue-title">GitHub closed · updated 29 Jul</span></td><td class="verdict delivery" data-label="Verdict">Source fixed; delivery incomplete</td><td class="consequence" data-label="Local consequence"><code>adr-template</code> remains for the active old cache.</td><td data-label="Resolution">Release a version-bumped ruflo-adr cache and prove the creator/indexer round trip.</td></tr>
+          <tr class="issue-row" data-kind="delivery"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2660">Ruflo #2660 — ADR importer cannot converge</a><span class="issue-title">GitHub closed · updated 29 Jul</span></td><td class="verdict delivery" data-label="Verdict">Source fixed; delivery incomplete</td><td class="consequence" data-label="Local consequence"><code>adr-index</code> remains for the active old cache.</td><td data-label="Resolution">Deliver the fixed importer in the active cache and settle equivalent orphan reporting.</td></tr>
+          <tr class="issue-row" data-kind="partial"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2666">Ruflo #2666 — deleted ADR reconciliation</a><span class="issue-title">GitHub closed · updated 14 Jul</span></td><td class="verdict partial" data-label="Verdict">Closed incomplete upstream</td><td class="consequence" data-label="Local consequence"><code>adr-reindex</code> retired only because <code>memory</code> wraps purge with the shared lock.</td><td data-label="Resolution">Make native purge share the lock used by ordinary writers; the command alone is not enough.</td></tr>
+          <tr class="issue-row" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/ruflo/issues/2854">Ruflo #2854 — dual-host marketplace installer</a><span class="issue-title">GitHub open · updated 30 Jul</span></td><td class="verdict open" data-label="Verdict">Open, live</td><td class="consequence" data-label="Local consequence"><code>plugin-hosts</code> remains live.</td><td data-label="Resolution">Ship supported install/uninstall/sync commands with exact, additive, fail-loud semantics.</td></tr>
+          <tr class="issue-row" data-kind="partial"><td class="issue" data-label="Issue"><a href="https://github.com/stuinfla/ruvnet-brain/issues/41">Brain #41 — quoted separator false positive</a><span class="issue-title">GitHub closed · updated 25 Jul</span></td><td class="verdict partial" data-label="Verdict">Closure unsound after body expansion</td><td class="consequence" data-label="Local consequence">No patch; superseded by the structured-boundary direction.</td><td data-label="Resolution">Do not reopen the broadened shell-parser issue; finish the boundary migration in #48.</td></tr>
+          <tr class="issue-row" data-kind="partial"><td class="issue" data-label="Issue"><a href="https://github.com/stuinfla/ruvnet-brain/issues/44">Brain #44 — nested shell invocations missed</a><span class="issue-title">GitHub closed · updated 27 Jul</span></td><td class="verdict partial" data-label="Verdict">Superseded, not completed</td><td class="consequence" data-label="Local consequence">The old blocking <code>verify-interface</code> patch stays retired.</td><td data-label="Resolution">Complete #48’s structured authority; a recursive Bash parser is no longer the desired fix.</td></tr>
+          <tr class="issue-row" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/stuinfla/ruvnet-brain/issues/48">Brain #48 — move interface governance to a structured boundary</a><span class="issue-title">GitHub open · updated 28 Jul</span></td><td class="verdict open" data-label="Verdict">Open, partial</td><td class="consequence" data-label="Local consequence">No patch: raw Bash is advisory and structured help/run enforcement is already usable.</td><td data-label="Resolution">Finish the boundary migration and its architectural record without restoring an overreaching shell gate.</td></tr>
+          <tr class="issue-row" data-kind="partial"><td class="issue" data-label="Issue"><a href="https://github.com/stuinfla/ruvnet-brain/issues/56">Brain #56 — missing/broken Codex command skills</a><span class="issue-title">GitHub closed · updated 29 Jul</span></td><td class="verdict partial" data-label="Verdict">Closed partial</td><td class="consequence" data-label="Local consequence"><code>brain-codex-skills</code> remains live.</td><td data-label="Resolution">Resolve assets from the installed plugin registry in all native skills and aliases, then version-bump delivery.</td></tr>
+          <tr class="issue-row" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/stuinfla/ruvnet-brain/issues/64">Brain #64 — Codex Stable Spine does not auto-update</a><span class="issue-title">GitHub open · updated 29 Jul</span></td><td class="verdict open" data-label="Verdict">Open, reproduced</td><td class="consequence" data-label="Local consequence">No downstream patch by policy; active Brain is 4.0.1 while the persistent MCP server matches 3.9.135-dev.</td><td data-label="Resolution">Make the native Codex lifecycle refresh the stable Spine/MCP from <code>active.json</code>, with restart parity to Claude.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>#52</strong>
+        <div><b>Open on GitHub, but not unresolved behaviorally.</b> Brain 4.0.1 now provides the native six-event Codex lifecycle manifest, adapter, stable wrapper, and enabled plugin. All 17 installed handlers passed the Codex execution/output contract, so <code>codex-hooks</code> is retired. The ticket needs administrative closure, not another patch.</div>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <h2>What happens next</h2>
+      <p class="section-intro">The right action depends on whether the gap is upstream behavior, release delivery, or issue bookkeeping.</p>
+      <div class="decision-grid">
+        <article class="decision"><h3>Keep patched and monitored</h3><ul><li><code>cwd</code>, <code>daemon</code>, <code>memory</code>, <code>init</code>, and <code>plugin-hosts</code>.</li><li><code>adr-template</code> and <code>adr-index</code> until a version-bumped active cache proves parity.</li><li><code>brain-codex-skills</code> until native plugin-root discovery works.</li></ul></article>
+        <article class="decision"><h3>Do not add a patch</h3><ul><li>Brain #64 must be fixed in the native updater; a downstream Spine override would violate Brain’s operating model.</li><li>Brain #41/#44 should converge through #48, not through a more elaborate Bash parser.</li><li>Brain #52 needs issue closure only.</li></ul></article>
+        <article class="decision"><h3>Retire only on local proof</h3><ul><li>Execute the real replacement, not a version-marker grep.</li><li>Require active marketplace/cache delivery where plugins are versioned separately.</li><li>Unknown or partially rolled-out replacements bias toward keeping the patch.</li></ul></article>
+        <article class="decision"><h3>Current retired set</h3><p class="retired"><code>adr-reindex</code>, <code>verify-interface</code>, <code>ruflo-hooks-schema</code>, <code>mcp-prefix</code>, <code>design-wall</code>, <code>flywheel-daily</code>, <code>codex-hooks</code>, and <code>ruflo-codex-skills</code>.</p></article>
+      </div>
+    </section>
+
+    <section id="evidence">
+      <h2>Evidence and reproducibility</h2>
+      <p class="section-intro">This report is a snapshot, not a remote control. It makes no upstream changes and performs no Brain cache or updater substitutions.</p>
+      <div class="sources">
+        <article><h3>Installed patch state</h3><p><code>all status</code> reports exactly eight monitored targets, all complete; <code>monitor check</code> reports no drift.</p></article>
+        <article><h3>Hook execution</h3><p>Both Ruflo manifests, both Ruflo shims, and all 17 installed Brain handlers passed live Codex contract probes.</p></article>
+        <article><h3>Regression suite</h3><p>The 4.33.0 full suite passed fuzz, concurrency, exact restore, retirement, lifecycle, skill, and documentation checks.</p></article>
+        <article><h3>Issue metadata</h3><p>GitHub state, titles, closure dates, and update dates were fetched live on 30 July 2026 from ruvnet/ruflo and stuinfla/ruvnet-brain.</p></article>
+        <article><h3>Governing decision</h3><p>See <a href="adr/ADR-014-targets-retire-themselves-on-a-local-proof.md">ADR-014 — Targets retire themselves on a local proof</a>.</p></article>
+        <article><h3>Re-run locally</h3><p><code>npx github:sparkling/ruflo-source-patch all status</code><br><code>npx github:sparkling/ruflo-source-patch monitor check</code></p></article>
+      </div>
+      <div class="toolbar">
+        <button class="action" id="copy-summary">Copy concise Markdown summary</button>
+        <button class="action" type="button" onclick="window.print()">Print / save PDF</button>
+        <span id="copy-status" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <footer>Generated from installed behavior and current issue evidence on 30 July 2026 · Europe/London · Local-only artifact</footer>
+  </main>
+</div>
+
+<script>
+  const normalize = value => value.toLowerCase().trim();
+  const patchSearch = document.querySelector('#patch-search');
+  const patchCards = [...document.querySelectorAll('.patch-card')];
+  let patchFilter = 'all';
+  function filterPatches() {
+    const query = normalize(patchSearch.value);
+    patchCards.forEach(card => {
+      const matchesKind = patchFilter === 'all' || card.dataset.severity === patchFilter;
+      card.classList.toggle('hidden', !(matchesKind && normalize(card.textContent).includes(query)));
+    });
+  }
+  document.querySelectorAll('.toolbar .filter:not(.issue-filter)').forEach(button => {
+    button.addEventListener('click', () => {
+      patchFilter = button.dataset.filter;
+      document.querySelectorAll('.toolbar .filter:not(.issue-filter)').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      filterPatches();
+    });
+  });
+  patchSearch.addEventListener('input', filterPatches);
+
+  const issueSearch = document.querySelector('#issue-search');
+  const issueRows = [...document.querySelectorAll('.issue-row')];
+  let issueFilter = 'all';
+  function filterIssues() {
+    const query = normalize(issueSearch.value);
+    issueRows.forEach(row => {
+      const matchesKind = issueFilter === 'all' || row.dataset.kind === issueFilter;
+      row.classList.toggle('hidden', !(matchesKind && normalize(row.textContent).includes(query)));
+    });
+  }
+  document.querySelectorAll('.issue-filter').forEach(button => {
+    button.addEventListener('click', () => {
+      issueFilter = button.dataset.filter;
+      document.querySelectorAll('.issue-filter').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      filterIssues();
+    });
+  });
+  issueSearch.addEventListener('input', filterIssues);
+
+  document.querySelector('#copy-summary').addEventListener('click', async () => {
+    const live = patchCards.map(card => `- \`${card.querySelector('.target').textContent}\`: ${card.querySelector('p').textContent}`).join('\n');
+    const unresolved = issueRows.map(row => {
+      const link = row.querySelector('a');
+      return `- [${link.textContent}](${link.href}): ${row.querySelector('.verdict').textContent}`;
+    }).join('\n');
+    const text = `# Remaining Ruflo source patches\n\n${live}\n\n## Issues not fully resolved as written\n\n${unresolved}\n`;
+    const status = document.querySelector('#copy-status');
+    try { await navigator.clipboard.writeText(text); status.textContent = 'Copied.'; }
+    catch { status.textContent = 'Clipboard unavailable; use Print / save PDF.'; }
+  });
+</script>
+</body>
+</html>
