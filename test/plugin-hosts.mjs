@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+import { catalog, fakeHost, versions } from './plugin-hosts-fixture.mjs';
 
 const SB = path.resolve(process.argv[2]);
 const REPO = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -55,18 +56,6 @@ function calls() {
     .filter(Boolean).map((line) => JSON.parse(line));
 }
 
-const catalog = [
-  'ruflo-adr@ruflo',
-  'ruflo-core@ruflo',
-  'ruflo-failing@ruflo',
-  'ruflo-graph-intelligence@ruflo',
-  'ruflo-metaharness@ruflo',
-  'ruflo-neural@ruflo',
-  'ruflo-swarm@ruflo',
-  'ruflo-uninstall@ruflo',
-  'ruflo-wasm@ruflo',
-];
-
 function seed() {
   fs.rmSync(SB, { recursive: true, force: true });
   fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
@@ -76,22 +65,31 @@ function seed() {
     codexMarketplace: true,
     catalog,
     claude: [
-      { id: 'ruflo-core@ruflo', scope: 'user', enabled: true },
-      { id: 'ruflo-swarm@ruflo', scope: 'user', enabled: true },
+      {
+        id: 'ruflo-core@ruflo', version: '0.2.0', scope: 'user', enabled: true,
+        installPath: path.join(CLAUDE_CACHE, 'ruflo-core', '0.2.0'),
+      },
+      {
+        id: 'ruflo-swarm@ruflo', version: '0.2.1', scope: 'user', enabled: true,
+        installPath: path.join(CLAUDE_CACHE, 'ruflo-swarm', '0.2.1'),
+      },
       { id: 'ruflo-adr@ruflo', version: '0.4.1', scope: 'user', enabled: false },
       {
         id: 'ruflo-metaharness@ruflo', version: '0.1.1', scope: 'user', enabled: true,
         installPath: path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1'),
       },
-      { id: 'ruflo-uninstall@ruflo', scope: 'user', enabled: true },
+      {
+        id: 'ruflo-uninstall@ruflo', version: '0.1.0', scope: 'user', enabled: true,
+        installPath: path.join(CLAUDE_CACHE, 'ruflo-uninstall', '0.1.0'),
+      },
       { id: 'ruflo-uninstall@ruflo', scope: 'project', enabled: true },
     ],
     codex: [
-      { id: 'ruflo-core@ruflo', enabled: true },
+      { id: 'ruflo-core@ruflo', version: '0.2.0', enabled: true },
       { id: 'ruflo-adr@ruflo', version: '0.4.1', enabled: false },
       { id: 'ruflo-metaharness@ruflo', version: '0.1.1', enabled: true },
-      { id: 'ruflo-uninstall@ruflo', enabled: true },
-      { id: 'ruflo-wasm@ruflo', enabled: true },
+      { id: 'ruflo-uninstall@ruflo', version: '0.1.0', enabled: true },
+      { id: 'ruflo-wasm@ruflo', version: '0.1.0', enabled: true },
     ],
     failCodexAdd: [],
     skipCodexCopy: false,
@@ -135,111 +133,6 @@ export const pluginsCommand = {
   }
 }
 
-function fakeHost(host) {
-  return `#!/usr/bin/env node
-import fs from 'node:fs';
-import path from 'node:path';
-const host = ${JSON.stringify(host)};
-const args = process.argv.slice(2);
-const versions = ${JSON.stringify({
-    'ruflo-adr@ruflo': '0.4.1',
-    'ruflo-metaharness@ruflo': '0.1.1',
-    'ruflo-graph-intelligence@ruflo': '0.1.0-alpha.1',
-  })};
-const stateFile = process.env.RSP_HOST_STATE;
-const callsFile = process.env.RSP_HOST_CALLS;
-const read = () => JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-const save = (state) => fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + '\\n');
-const same = (...expected) => JSON.stringify(args) === JSON.stringify(expected);
-const pluginName = (id) => id.replace(/@ruflo$/, '');
-const copyPlugin = (sourceRoot, targetRoot, id) => {
-  const source = path.join(sourceRoot, 'plugins', pluginName(id));
-  if (!fs.existsSync(source)) return;
-  fs.rmSync(targetRoot, { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(targetRoot), { recursive: true });
-  fs.cpSync(source, targetRoot, { recursive: true });
-};
-fs.appendFileSync(callsFile, JSON.stringify([host, ...args]) + '\\n');
-let state = read();
-if (host === 'claude') {
-  if (same('plugin', 'marketplace', 'list', '--json')) {
-    process.stdout.write(JSON.stringify(state.claudeMarketplace
-      ? [{ name: 'ruflo', installLocation: process.env.RSP_MARKETPLACE_ROOT }]
-      : []));
-  } else if (same('plugin', 'marketplace', 'add', 'ruvnet/ruflo')) {
-    state.claudeMarketplace = true; save(state);
-  } else if (same('plugin', 'marketplace', 'update', 'ruflo')) {
-    process.stdout.write('updated');
-  } else if (same('plugin', 'list', '--json')) {
-    process.stdout.write(JSON.stringify(state.claude));
-  } else if (args[0] === 'plugin' && args[1] === 'install'
-      && args[3] === '--scope' && args[4] === 'user') {
-    const version = state.refreshVersion || versions[args[2]];
-    const installPath = version
-      ? path.join(process.env.RSP_CLAUDE_CACHE_ROOT, pluginName(args[2]), version)
-      : undefined;
-    if (installPath) copyPlugin(process.env.RSP_MARKETPLACE_ROOT, installPath, args[2]);
-    if (!state.claude.some((row) => row.id === args[2] && row.scope === 'user')) {
-      state.claude.push({
-        id: args[2], version, scope: 'user', enabled: true, installPath,
-      });
-    }
-    save(state);
-  } else if (args[0] === 'plugin' && args[1] === 'uninstall'
-      && args[3] === '--scope' && args[4] === 'user') {
-    state.claude = state.claude.filter((row) =>
-      !(row.id === args[2] && row.scope === 'user'));
-    save(state);
-  } else {
-    process.stderr.write('unexpected claude argv: ' + JSON.stringify(args));
-    process.exit(9);
-  }
-} else if (same('plugin', 'marketplace', 'list', '--json')) {
-  process.stdout.write(JSON.stringify({
-    marketplaces: state.codexMarketplace ? [{ name: 'ruflo' }] : [],
-  }));
-} else if (same('plugin', 'marketplace', 'add', 'ruvnet/ruflo', '--ref', 'main')) {
-  state.codexMarketplace = true; save(state);
-} else if (same('plugin', 'marketplace', 'upgrade', 'ruflo', '--json')) {
-  process.stdout.write('{}');
-} else if (same('plugin', 'list', '--available', '--json')) {
-  const installed = state.codex.map((row) => ({
-    pluginId: row.id, marketplaceName: 'ruflo', installed: true, enabled: row.enabled,
-    version: row.version,
-    source: { path: path.join(process.env.RSP_CODEX_MARKETPLACE_ROOT, 'plugins', pluginName(row.id)) },
-  }));
-  const ids = new Set(state.codex.map((row) => row.id));
-  const available = state.catalog.filter((id) => !ids.has(id)).map((pluginId) => ({
-    pluginId, marketplaceName: 'ruflo', installed: false, enabled: false,
-  }));
-  process.stdout.write(JSON.stringify({ installed, available }));
-} else if (args[0] === 'plugin' && args[1] === 'add' && args[3] === '--json') {
-  if (state.failCodexAdd.includes(args[2])) {
-    process.stderr.write('fixture Codex add failure');
-    process.exit(7);
-  }
-  if (!state.codex.some((row) => row.id === args[2])) {
-    const version = state.refreshVersion || versions[args[2]];
-    const installedPath = version
-      ? path.join(process.env.CODEX_HOME, 'plugins', 'cache', 'ruflo', pluginName(args[2]), version)
-      : undefined;
-    if (installedPath && !state.skipCodexCopy) {
-      copyPlugin(process.env.RSP_CODEX_MARKETPLACE_ROOT, installedPath, args[2]);
-    }
-    state.codex.push({ id: args[2], version, enabled: true });
-    process.stdout.write(JSON.stringify({ installedPath }));
-  }
-  save(state);
-} else if (args[0] === 'plugin' && args[1] === 'remove' && args[3] === '--json') {
-  state.codex = state.codex.filter((row) => row.id !== args[2]);
-  save(state);
-} else {
-  process.stderr.write('unexpected codex argv: ' + JSON.stringify(args));
-  process.exit(9);
-}
-`;
-}
-
 const env = {
   ...process.env,
   PATH: `${BIN}${path.delimiter}${process.env.PATH || ''}`,
@@ -253,6 +146,7 @@ const env = {
   RSP_CLAUDE_CACHE_ROOT: CLAUDE_CACHE,
   CODEX_HOME,
   RSP_NO_LAUNCHCTL: '1',
+  RSP_NO_HOST_AUTO_UPDATE: '0',
 };
 
 function cli(...args) {
@@ -268,17 +162,54 @@ write(path.join(env.RSP_MARKETPLACE_ROOT, '.claude-plugin', 'marketplace.json'),
     plugins: catalog.map((id) => ({ name: id.replace(/@ruflo$/, '') })),
   }, null, 2)}\n`);
 for (const root of [MARKETPLACE, CODEX_MARKETPLACE]) {
-  write(path.join(root, 'plugins', 'ruflo-metaharness', 'payload.txt'), 'current\n');
+  for (const pluginId of catalog) {
+    const plugin = pluginId.replace(/@ruflo$/, '');
+    write(path.join(root, 'plugins', plugin, '.claude-plugin', 'plugin.json'),
+      `${JSON.stringify({ name: plugin, version: versions[pluginId] })}\n`);
+    write(path.join(root, 'plugins', plugin, 'payload.txt'), 'current\n');
+  }
+}
+for (const [pluginId, version] of [
+  ['ruflo-core@ruflo', '0.2.0'],
+  ['ruflo-swarm@ruflo', '0.2.1'],
+  ['ruflo-uninstall@ruflo', '0.1.0'],
+]) {
+  write(path.join(CLAUDE_CACHE, pluginId.replace(/@ruflo$/, ''), version, '.claude-plugin', 'plugin.json'),
+    `${JSON.stringify({ name: pluginId.replace(/@ruflo$/, ''), version })}\n`);
+  write(path.join(CLAUDE_CACHE, pluginId.replace(/@ruflo$/, ''), version, 'payload.txt'),
+    pluginId === 'ruflo-core@ruflo' ? 'stale-version\n' : 'current\n');
+}
+for (const [pluginId, version] of [
+  ['ruflo-core@ruflo', '0.2.0'],
+  ['ruflo-uninstall@ruflo', '0.1.0'],
+  ['ruflo-wasm@ruflo', '0.1.0'],
+]) {
+  const root = path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', pluginId.replace(/@ruflo$/, ''), version);
+  write(path.join(root, '.claude-plugin', 'plugin.json'),
+    `${JSON.stringify({ name: pluginId.replace(/@ruflo$/, ''), version })}\n`);
+  write(path.join(root, 'payload.txt'), pluginId === 'ruflo-core@ruflo' ? 'stale-version\n' : 'current\n');
 }
 write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale\n');
+write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', '.claude-plugin', 'plugin.json'),
+  `${JSON.stringify({ name: 'ruflo-metaharness', version: '0.1.1' })}\n`);
 write(path.join(
   CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt',
 ), 'stale\n');
+write(path.join(
+  CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', '.claude-plugin', 'plugin.json',
+), `${JSON.stringify({ name: 'ruflo-metaharness', version: '0.1.1' })}\n`);
 
 console.log('\nDual-host Ruflo plugin commands');
 const pristine = fs.readFileSync(PLUGINS, 'utf8');
 const installed = cli('plugin-hosts', 'install');
 check('PH1 patch installs cleanly', installed.status === 0,
+  `${installed.stdout}${installed.stderr}`);
+const afterAutomaticUpdate = readState();
+check('PH1a install automatically updates ordinary and same-version stale host copies',
+  afterAutomaticUpdate.claude.some((row) => row.id === 'ruflo-core@ruflo' && row.version === '0.2.1')
+    && afterAutomaticUpdate.codex.some((row) => row.id === 'ruflo-core@ruflo' && row.version === '0.2.1')
+    && fs.readFileSync(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n'
+    && fs.readFileSync(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n',
   `${installed.stdout}${installed.stderr}`);
 const patched = fs.readFileSync(PLUGINS, 'utf8');
 check('PH2 exact Ruflo command layer is patched and backed up',
@@ -287,6 +218,7 @@ check('PH2 exact Ruflo command layer is patched and backed up',
     && patched.includes("name: 'host-uninstall'")
     && patched.includes("name: 'host-sync'")
     && patched.includes("name: 'host-refresh'")
+    && patched.includes("name: 'host-update'")
     && fs.readFileSync(`${PLUGINS}.rsp-backup`, 'utf8') === pristine);
 const status = cli('plugin-hosts', 'status');
 check('PH3 status proves the target live', status.status === 0
@@ -296,9 +228,28 @@ check('PH3 status proves the target live', status.status === 0
 Object.assign(process.env, env);
 const module = await import(`${pathToFileURL(PLUGINS).href}?patched=${Date.now()}`);
 const command = (name) => module.pluginsCommand.subcommands.find((item) => item.name === name);
-check('PH4 all four commands are registered',
-  ['host-install', 'host-uninstall', 'host-sync', 'host-refresh']
+check('PH4 all five commands are registered',
+  ['host-install', 'host-uninstall', 'host-sync', 'host-refresh', 'host-update']
     .every((name) => command(name)));
+const beforeIdempotentUpdate = calls().length;
+const idempotentUpdate = await command('host-update').action({ flags: { format: 'json' } });
+const updateMutations = calls().slice(beforeIdempotentUpdate).filter((argv) =>
+  ['install', 'uninstall', 'add', 'remove', 'update'].includes(argv[2]));
+check('PH4a automatic all-plugin update is idempotent and preserves disabled plugins',
+  idempotentUpdate.success
+    && updateMutations.length === 0
+    && idempotentUpdate.data.entries.some((entry) => entry.pluginId === 'ruflo-adr@ruflo'
+      && entry.hosts.claude.status === 'preserved-disabled'
+      && entry.hosts.codex.status === 'preserved-disabled'),
+  JSON.stringify(idempotentUpdate.data));
+write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale-again\n');
+write(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale-again\n');
+const monitorInstall = cli('monitor', 'install');
+check('PH4b patch-system self-update path also repairs stale host copies',
+  monitorInstall.status === 0
+    && fs.readFileSync(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n'
+    && fs.readFileSync(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n',
+  `${monitorInstall.stdout}${monitorInstall.stderr}`);
 
 const beforeDry = JSON.stringify(readState());
 // Ruflo's parser canonicalizes --dry-run to camelCase before invoking the action.

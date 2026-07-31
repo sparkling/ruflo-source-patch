@@ -11,7 +11,7 @@
 //   cwd      cwd anchoring — .claude-flow/.swarm stop following a drifted cwd (#2633)
 //   daemon   direct daemon commands share one project-root lock/PID identity (#2877 / #2633)
 //   memory   memory.db durability — fail-closed writer lock (#2878) + WAL refusal (#2735)
-//   plugin-hosts  dual-host install/uninstall/sync plus bounded same-version refresh (#2854/#2870)
+//   plugin-hosts  dual-host reconciliation plus automatic host-native updates (#2854/#2870)
 //
 // Plugin patches (changes to installed plugin copies, not @claude-flow/cli — same
 // install/uninstall/status shape, different target files). The ADR trio covers the whole round-trip:

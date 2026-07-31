@@ -8,8 +8,9 @@ output (PR #2857), and its native read-only status skill closes #2821; the corre
 local targets retire on installed behavior. #2640 remains open despite atomic hook-event claims:
 the generated bundle and standalone MCP duplication remain. #2854 remains open, so
 `plugin-hosts` still supplies dual-host marketplace reconciliation. #2870 proves three current
-plugin versions were reused for different source trees; a bounded host-native refresh now bridges
-those exact identities without making the patch system a second marketplace updater. Brain 4.0.2
+plugin versions were reused for different source trees. The target now updates every installed,
+enabled Ruflo plugin automatically during patch installation/self-update, using host-native commands
+and exact refreshed-marketplace comparisons rather than writing either cache itself. Brain 4.0.2
 completes #56's discovery/Console scope; focused #76 remains because only the native Codex
 `whats-new` skill cannot locate its curated notes from a supported persistent install.
 **Deciders**: Henrik Pettersen
@@ -73,13 +74,14 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   contract in PR #2857. `ruflo-hooks-schema` now retires after probing both real handler branches;
   `ruflo-codex-hooks` remains only a one-shot registration repair for older systems.
 - `plugin-hosts` patches Ruflo's existing plugin command layer, not either host cache. Its
-  `host-install`, `host-uninstall`, and `host-sync` commands validate exact `*@ruflo` identities,
+  `host-install`, `host-uninstall`, `host-sync`, and `host-update` commands validate exact `*@ruflo` identities,
   delegate through literal argv to `claude plugin` / `codex plugin`, preserve disabled and
-  target-only state, and report partial completion as failure. `host-refresh` is separately
-  allowlisted to the three issue #2870 identity/version collisions: it updates each marketplace,
-  asks the host to remove/add that identity, and compares the resulting cache bytes with the
-  refreshed host snapshot. It refuses disabled or unaudited identities. It never copies cache
-  bytes, follows arbitrary moving source, or changes Brain's operating plane.
+  target-only state, and report partial completion as failure. Patch installation and patch-system
+  self-update invoke `host-update` automatically: versioned changes use Claude's native update or
+  Codex's supported remove/add path only when the installed tree differs from the refreshed source;
+  identical copies are no-ops. The same tree proof catches #2870's unchanged-version collisions.
+  `host-refresh` remains an explicit, three-identity recovery command. Neither path copies cache
+  bytes, changes disabled plugins, follows an unregistered source, or changes Brain's operating plane.
 - Ruflo 3.32.39 natively supplies the read-only status surface, so `ruflo-codex-skills` retires.
   `brain-codex-skills` remains as a one-file #76 compatibility target. Brain 4.0.2 natively fixes
   the Console/rvbc workflows and all three aliases. Its `whats-new` skill still searches a checkout

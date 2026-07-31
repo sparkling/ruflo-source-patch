@@ -28,6 +28,10 @@ export RSP_NO_LAUNCHCTL=1
 # writers. Disable the kill globally; the stale-writer suite deletes this in-process to exercise
 # the real kill against only its OWN fakes. Same discipline as RSP_NO_LAUNCHCTL above.
 export RSP_NO_STALE_WRITER_KILL=1
+# Installing the plugin-hosts target now updates real Claude/Codex plugin registries by default.
+# Every suite except plugin-hosts is a patch-engine fixture, so it must never reach those user-global
+# registries; plugin-hosts overrides this with its fake host CLIs and exercises the automatic path.
+export RSP_NO_HOST_AUTO_UPDATE=1
 
 SUITES=(sequence-fuzz plugin-notify reporting untested concurrency cleanup-procs stale-writer monitor-internals dual-host mcp-prefix design-wall flywheel-daily codex-hooks codex-hooks-native codex-skills ruflo-codex-hooks plugin-hosts)
 tmp=$(mktemp -d); pids=(); fail=0

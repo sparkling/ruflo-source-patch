@@ -32,7 +32,7 @@ npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/
 npx github:sparkling/ruflo-source-patch daemon install    # direct daemon commands share one project-root lock/PID identity (#2877; umbrella #2633)
 npx github:sparkling/ruflo-source-patch memory install    # fail-closed memory.db writer lock (#2878) + raw WAL-sidecar refusal (#2735) + integrity gate + stale-writer guard: kills every pre-patch writer, daemon AND MCP client, to force fresh code; a killed MCP client needs a manual /mcp reconnect after, so it warns loudly, machine-wide (ADR-006/ADR-023; RSP_NO_STALE_WRITER_KILL disables the kill)
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
-npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + bounded same-version refresh (#2854/#2870)
+npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 ```
 
 ### Plugin patches (`ruflo-adr`, `ruvnet-brain`)

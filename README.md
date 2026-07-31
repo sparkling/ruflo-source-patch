@@ -122,15 +122,17 @@ Actions: `install` · `uninstall` · `status`
 | **`daemon`** | One daemon per project **root**. Ruflo's native lock is sound but keyed to raw cwd; direct daemon commands bypass the root-normalized autostart path, so starts from different subdirectories still receive different lock/PID identities | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`memory`** | `.swarm/memory.db` durability. A fail-closed, async-context-aware **writer lock** (concurrent whole-image writers silently drop acknowledged updates), **WAL-sidecar refusal** at the raw file boundary, an **integrity gate** (refuse a whole-file flush over an already-torn image), and a **stale-writer guard** (the monitor forces every pre-patch daemon/MCP writer onto current bytes and loudly names the manual `/mcp` reconnect needed after an MCP kill; `RSP_NO_STALE_WRITER_KILL` disables the kill) | [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
-| **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, and bounded `host-refresh` commands to the installed CLI. All delegate to each host's supported CLI; this patch never copies or directly edits host caches. `host-refresh` is allowlisted to the three audited unchanged-version collisions and verifies installed bytes against each refreshed host snapshot. Disabled state is never changed and partial completion is nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
+| **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, `host-update`, and bounded `host-refresh` commands. Installing or self-updating this patch automatically runs the all-installed update once through those injected commands. Normal version changes use each host's supported update/reinstall path; exact tree comparison also repairs same-version collisions. It never copies or directly edits host caches, preserves disabled state, and reports partial completion as nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 
 After installing the target, reconcile an existing dual-host setup with:
 
 ```bash
 npx ruflo@latest plugins host-sync --dry-run
 npx ruflo@latest plugins host-sync
+npx ruflo@latest plugins host-update              # update every installed Ruflo plugin in both hosts
+npx ruflo@latest plugins host-update -n ruflo-adr # update one
 
-# Temporary #2870 delivery repair; becomes a no-op once a host has a bumped version
+# Explicit #2870 recovery remains available; ordinary installs/self-updates run the all-plugin updater
 npx ruflo@latest plugins host-refresh --name ruflo-adr
 npx ruflo@latest plugins host-refresh --name ruflo-metaharness
 npx ruflo@latest plugins host-refresh --name ruflo-graph-intelligence
