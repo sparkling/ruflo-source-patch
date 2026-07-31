@@ -8,8 +8,10 @@ Patches `ruflo-adr`'s `skills/adr-create/SKILL.md`.
 Upstream: [#2659](https://github.com/ruvnet/ruflo/issues/2659)
 
 Current marketplace source has the broader parser fix. This compatibility target remains for active
-unchanged-version plugin caches that still contain the old parser, and will stand down when those
-runnable copies are replaced.
+unchanged-version plugin caches that still contain the old parser. After `plugin-hosts` refreshes
+installed libraries, the target runs a creator/parser round trip against Claude and Codex's active
+marketplace/cache copies. It stands down only when all four pass; a missing, stale, or unexecutable
+copy keeps the patch live. Issue #2870 continues to track the separate immutable-version defect.
 
 ## The bug
 

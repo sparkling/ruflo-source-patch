@@ -38,7 +38,7 @@ npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install
 ### Plugin patches (`ruflo-adr`, `ruvnet-brain`)
 
 ```bash
-npx github:sparkling/ruflo-source-patch adr-template install      # adr-create writes metadata adr-index can parse (#2659)
+npx github:sparkling/ruflo-source-patch adr-template install      # legacy creator/parser compatibility; auto-retires on four-copy behavior proof (#2659)
 npx github:sparkling/ruflo-source-patch adr-index install         # adr-index converges instead of faking success (#2660)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share `memory`'s writer lock (#2666)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)

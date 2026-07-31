@@ -22,6 +22,7 @@ const MARKETPLACE = path.join(SB, 'marketplace');
 const CODEX_MARKETPLACE = path.join(SB, 'codex-marketplace');
 const CODEX_HOME = path.join(SB, 'codex-home');
 const CLAUDE_CACHE = path.join(SB, 'claude-cache');
+const PROJECT = path.join(SB, 'project');
 const PLUGINS = path.join(
   NPX, 'fixture', 'node_modules', '@claude-flow', 'cli',
   'dist', 'src', 'commands', 'plugins.js',
@@ -59,6 +60,7 @@ function calls() {
 function seed() {
   fs.rmSync(SB, { recursive: true, force: true });
   fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
+  fs.mkdirSync(PROJECT, { recursive: true });
   write(path.join(HOME, '.claude', 'settings.json'), '{}\n');
   writeState({
     claudeMarketplace: true,
@@ -77,6 +79,11 @@ function seed() {
       {
         id: 'ruflo-metaharness@ruflo', version: '0.1.1', scope: 'user', enabled: true,
         installPath: path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1'),
+      },
+      {
+        id: 'ruflo-graph-intelligence@ruflo', version: '0.1.0-alpha.1', scope: 'project',
+        enabled: true, projectPath: PROJECT,
+        installPath: path.join(CLAUDE_CACHE, 'ruflo-graph-intelligence', '0.1.0-alpha.1'),
       },
       {
         id: 'ruflo-uninstall@ruflo', version: '0.1.0', scope: 'user', enabled: true,
@@ -192,6 +199,11 @@ for (const [pluginId, version] of [
 write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale\n');
 write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', '.claude-plugin', 'plugin.json'),
   `${JSON.stringify({ name: 'ruflo-metaharness', version: '0.1.1' })}\n`);
+write(path.join(CLAUDE_CACHE, 'ruflo-graph-intelligence', '0.1.0-alpha.1', 'payload.txt'),
+  'stale-project\n');
+write(path.join(
+  CLAUDE_CACHE, 'ruflo-graph-intelligence', '0.1.0-alpha.1', '.claude-plugin', 'plugin.json',
+), `${JSON.stringify({ name: 'ruflo-graph-intelligence', version: '0.1.0-alpha.1' })}\n`);
 write(path.join(
   CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt',
 ), 'stale\n');
@@ -209,6 +221,11 @@ check('PH1a install automatically updates ordinary and same-version stale host c
   afterAutomaticUpdate.claude.some((row) => row.id === 'ruflo-core@ruflo' && row.version === '0.2.1')
     && afterAutomaticUpdate.codex.some((row) => row.id === 'ruflo-core@ruflo' && row.version === '0.2.1')
     && fs.readFileSync(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n'
+    && fs.readFileSync(path.join(
+      CLAUDE_CACHE, 'ruflo-graph-intelligence', '0.1.0-alpha.1', 'payload.txt',
+    ), 'utf8') === 'current\n'
+    && afterAutomaticUpdate.claude.some((row) => row.id === 'ruflo-graph-intelligence@ruflo'
+      && row.scope === 'project' && row.projectPath === PROJECT)
     && fs.readFileSync(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n',
   `${installed.stdout}${installed.stderr}`);
 const patched = fs.readFileSync(PLUGINS, 'utf8');

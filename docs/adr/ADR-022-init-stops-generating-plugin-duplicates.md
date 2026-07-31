@@ -76,7 +76,10 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
 - `plugin-hosts` patches Ruflo's existing plugin command layer, not either host cache. Its
   `host-install`, `host-uninstall`, `host-sync`, and `host-update` commands validate exact `*@ruflo` identities,
   delegate through literal argv to `claude plugin` / `codex plugin`, preserve disabled and
-  target-only state, and report partial completion as failure. Patch installation and patch-system
+  target-only state, and report partial completion as failure. Claude user scope is always covered;
+  registered project/local scopes are updated from their project directory while it exists. Managed,
+  disabled, and orphaned-project registrations are preserved without recreating or editing a project.
+  Patch installation and patch-system
   self-update invoke `host-update` automatically: versioned changes use Claude's native update or
   Codex's supported remove/add path only when the installed tree differs from the refreshed source;
   identical copies are no-ops. The same tree proof catches #2870's unchanged-version collisions.

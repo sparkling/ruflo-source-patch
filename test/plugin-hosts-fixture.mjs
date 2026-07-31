@@ -35,6 +35,9 @@ const read = () => JSON.parse(fs.readFileSync(stateFile, 'utf8'));
 const save = (state) => fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + '\\n');
 const same = (...expected) => JSON.stringify(args) === JSON.stringify(expected);
 const pluginName = (id) => id.replace(/@ruflo$/, '');
+const scopeOf = () => args[args.indexOf('--scope') + 1];
+const scopedRow = (row, id, scope) => row.id === id && row.scope === scope
+  && (scope === 'user' || row.projectPath === process.cwd());
 const copyPlugin = (sourceRoot, targetRoot, id) => {
   const source = path.join(sourceRoot, 'plugins', pluginName(id));
   if (!fs.existsSync(source)) return;
@@ -56,31 +59,35 @@ if (host === 'claude') {
   } else if (same('plugin', 'list', '--json')) {
     process.stdout.write(JSON.stringify(state.claude));
   } else if (args[0] === 'plugin' && args[1] === 'install'
-      && args[3] === '--scope' && args[4] === 'user') {
+      && args[3] === '--scope') {
+    const scope = scopeOf();
     const version = state.refreshVersion || versions[args[2]];
     const installPath = version
       ? path.join(process.env.RSP_CLAUDE_CACHE_ROOT, pluginName(args[2]), version)
       : undefined;
     if (installPath) copyPlugin(process.env.RSP_MARKETPLACE_ROOT, installPath, args[2]);
-    if (!state.claude.some((row) => row.id === args[2] && row.scope === 'user')) {
+    if (!state.claude.some((row) => scopedRow(row, args[2], scope))) {
       state.claude.push({
-        id: args[2], version, scope: 'user', enabled: true, installPath,
+        id: args[2], version, scope, enabled: true, installPath,
+        ...(scope === 'user' ? {} : { projectPath: process.cwd() }),
       });
     }
     save(state);
   } else if (args[0] === 'plugin' && args[1] === 'update'
-      && args[3] === '--scope' && args[4] === 'user') {
+      && args[3] === '--scope') {
+    const scope = scopeOf();
     const version = versions[args[2]];
-    const row = state.claude.find((item) => item.id === args[2] && item.scope === 'user');
+    const row = state.claude.find((item) => scopedRow(item, args[2], scope));
     if (!row || !version) { process.stderr.write('plugin unavailable'); process.exit(8); }
     const installPath = path.join(process.env.RSP_CLAUDE_CACHE_ROOT, pluginName(args[2]), version);
     copyPlugin(process.env.RSP_MARKETPLACE_ROOT, installPath, args[2]);
     Object.assign(row, { version, installPath });
     save(state);
   } else if (args[0] === 'plugin' && args[1] === 'uninstall'
-      && args[3] === '--scope' && args[4] === 'user') {
+      && args[3] === '--scope') {
+    const scope = scopeOf();
     state.claude = state.claude.filter((row) =>
-      !(row.id === args[2] && row.scope === 'user'));
+      !scopedRow(row, args[2], scope));
     save(state);
   } else {
     process.stderr.write('unexpected claude argv: ' + JSON.stringify(args));

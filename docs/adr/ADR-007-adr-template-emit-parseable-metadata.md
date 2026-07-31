@@ -2,11 +2,11 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-31. #2659 is fixed in current marketplace source and Ruflo 3.32.37+:
-the parser accepts list-prefixed metadata and relationships. Both active Claude Code and Codex
-`ruflo-adr` caches on this machine now contain that parser and pass its #2659 regression test.
-They still identify materially changed bytes as version 0.4.1, however, so the four-field template
-compatibility patch remains live as rollback protection until #2870 delivers a bumped immutable identity.
+**Updated**: 2026-07-31. #2659 is fixed in current marketplace source and Ruflo 3.32.37+.
+`plugin-hosts` now refreshes stale Claude Code and Codex copies automatically, including same-version
+content drift. The compatibility target retires locally only after all four active marketplace/cache
+parsers execute the creator metadata/relationship round trip successfully. #2870 remains open for the
+separate reused-version release defect; it no longer keeps a behaviorally redundant local patch alive.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr
 
@@ -40,8 +40,10 @@ hook and the monitor, like every other.
 
 ### Neutral
 
-- The target can retire only after a bumped active plugin identity proves the creator/indexer round trip;
-  current source bytes under the reused 0.4.1 identity are not an immutable delivery boundary.
+- The target can retire after the active Claude and Codex marketplace/cache copies all execute the
+  creator/indexer round trip successfully; a stale or missing copy keeps it live.
+- Retirement is local behavior proof, not a claim that reused version 0.4.1 became immutable. #2870
+  still requires a bumped identity and release guard for the wider fleet.
 - The local target covers the original four template metadata fields. Upstream's later, broader
   parser fix also accepts list-prefixed relationship lines; that broader behavior is not claimed
   by this compatibility transform on an old cache.
