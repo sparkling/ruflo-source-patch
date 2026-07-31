@@ -2,17 +2,18 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. #2659 is fixed in current marketplace source and Ruflo 3.32.37+:
-the parser accepts list-prefixed metadata and relationships. The active Claude Code
-`ruflo-adr` 0.4.1 cache on this machine still contains the pre-fix parser under the unchanged
-plugin version, so the four-field template compatibility patch remains live for that host.
+**Updated**: 2026-07-31. #2659 is fixed in current marketplace source and Ruflo 3.32.37+:
+the parser accepts list-prefixed metadata and relationships. Both active Claude Code and Codex
+`ruflo-adr` caches on this machine now contain that parser and pass its #2659 regression test.
+They still identify materially changed bytes as version 0.4.1, however, so the four-field template
+compatibility patch remains live as rollback protection until #2870 delivers a bumped immutable identity.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr
 
 ## Context
 
-`ruflo-adr`'s two skills disagree about the file format. `/adr-create` writes ADR metadata in one shape, and
-`/adr-index`'s importer parses another. The result is an ADR that is created successfully and then indexed
+`ruflo-adr`'s two skills originally disagreed about the file format. `/adr-create` wrote ADR metadata in one shape, and
+`/adr-index`'s importer parsed another. The result was an ADR that was created successfully and then indexed
 as nothing: the importer reads it, extracts no id/status/date, and stores an empty or partial record while
 reporting success.
 
@@ -39,8 +40,8 @@ hook and the monitor, like every other.
 
 ### Neutral
 
-- If upstream aligns the two skills, the anchor stops matching, the target reports `skip:anchor-not-found`,
-  and the supersession machinery (ADR-014) can retire it.
+- The target can retire only after a bumped active plugin identity proves the creator/indexer round trip;
+  current source bytes under the reused 0.4.1 identity are not an immutable delivery boundary.
 - The local target covers the original four template metadata fields. Upstream's later, broader
   parser fix also accepts list-prefixed relationship lines; that broader behavior is not claimed
   by this compatibility transform on an old cache.
