@@ -47,8 +47,8 @@ npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvne
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #2685 rewrite; auto-retires after proving current Ruflo HEAD + local compositions are native
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate
 npx github:sparkling/ruflo-source-patch flywheel-daily install     # legacy #53 cadence fix; auto-retires on Brain's behavioral replacement
-npx github:sparkling/ruflo-source-patch codex-hooks install        # retired on Brain 4.0.1's proven native six-event Codex lifecycle (#52)
-npx github:sparkling/ruflo-source-patch brain-codex-skills install # repair 3 native asset lookups + 3 migrated Console aliases in Codex (#56)
+npx github:sparkling/ruflo-source-patch codex-hooks install        # retired; Brain 4.0.2 publishes the native six-event Codex lifecycle (#52)
+npx github:sparkling/ruflo-source-patch brain-codex-skills install # exact-version release-note fallback for Brain's Codex what's-new skill (#76)
 ```
 
 ### Keep it live (actions add `run | check`)

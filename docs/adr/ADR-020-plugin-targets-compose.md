@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-07-30. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-07-31. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
@@ -10,9 +10,8 @@ a `reverse` (its substitution is a pure, invertible literal replace), so a poiso
 patched now self-heals on the next apply instead of requiring another one-off manual fix.
 `adr-index` additionally recovers a non-empty, self-patched marketplace backup from the bounded
 Git HEAD object and preserves the file's executable mode across atomic replacement. Cache-local
-Codex skill targets remain outside composition: additive files use exact ownership, while native
-Brain edits and generated aliases retain one independent pristine each because no sibling target
-claims them.
+Codex skill targets remain outside composition: additive files use exact ownership, while the one
+remaining native Brain #76 edit retains an independent pristine because no sibling target claims it.
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -67,10 +66,10 @@ A shared composition engine (`lib/plugin-compose.mjs`) owns every plugin-patched
   "any file with a sibling `.rsp-backup`", which is what let it hijack the surgical targets' files.
 
 `adr-reindex` and additive files created by `ruflo-codex-skills` / older
-`brain-codex-skills` copies are NOT part of this: they keep exact ownership checks. Current Brain
-ships native skills whose broken lookup text is edited in place; those native files and the three
-migrated aliases each use the shared pristine helper directly, with exact uninstall restoration,
-rather than the composition engine because no sibling target claims them.
+`brain-codex-skills` copies are NOT part of this: they keep exact ownership checks. Brain 4.0.2
+natively replaces five of the old six skill/alias repairs. The remaining #76 `whats-new` file uses
+the shared pristine helper directly, with exact uninstall restoration, rather than the composition
+engine because no sibling target claims it.
 
 ## Consequences
 

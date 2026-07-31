@@ -2,15 +2,16 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-30. Ruflo #2777 and #2801 are fixed upstream. Ruflo 3.32.39 /
+**Updated**: 2026-07-31. Ruflo #2777 and #2801 are fixed upstream. Ruflo 3.32.39 /
 `ruflo-core` 0.2.6 finally ships a version-bumped strict hook manifest and host-aware PreToolUse
 output (PR #2857), and its native read-only status skill closes #2821; the corresponding three
 local targets retire on installed behavior. #2640 remains open despite atomic hook-event claims:
 the generated bundle and standalone MCP duplication remain. #2854 remains open, so
 `plugin-hosts` still supplies dual-host marketplace reconciliation. #2870 proves three current
 plugin versions were reused for different source trees; a bounded host-native refresh now bridges
-those exact identities without making the patch system a second marketplace updater. Brain #56 is only partially
-complete because its native Codex skills cannot locate assets from the supported installed source.
+those exact identities without making the patch system a second marketplace updater. Brain 4.0.2
+completes #56's discovery/Console scope; focused #76 remains because only the native Codex
+`whats-new` skill cannot locate its curated notes from a supported persistent install.
 **Deciders**: Henrik Pettersen
 
 **Tags**: patch-target, init, plugin, cost
@@ -80,10 +81,12 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   refreshed host snapshot. It refuses disabled or unaudited identities. It never copies cache
   bytes, follows arbitrary moving source, or changes Brain's operating plane.
 - Ruflo 3.32.39 natively supplies the read-only status surface, so `ruflo-codex-skills` retires.
-  `brain-codex-skills` remains: Brain 4.0.1 added native Console/what's-new skills but their
-  current-repo/`~/Code` lookup cannot find the supported plugin source. The target repairs those
-  three native files and three aliases only in the active Codex cache; it does not touch Brain's
-  shared source, updater, immutable versions, or runtime.
+  `brain-codex-skills` remains as a one-file #76 compatibility target. Brain 4.0.2 natively fixes
+  the Console/rvbc workflows and all three aliases. Its `whats-new` skill still searches a checkout
+  for notes that are not persisted into the Stable Spine/plugin payload. The target edits only that
+  active Codex skill: installed paths first, then the official exact installed Git tag as a docs-only
+  fallback. It never uses `latest`, npm/npx, a checkout, or Brain's shared source, updater, immutable
+  versions, cache/KB, MCP, hooks, or self-learning runtime.
 - Verified against real vendor bytes (II1 to II4): the emission and all three bundle gates are disabled,
   legacy #2777 bytes are suppressed while bounded upstream bytes remain active, all files still parse,
   and uninstall restores byte-for-byte.
@@ -114,5 +117,6 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   [#2821](https://github.com/ruvnet/ruflo/issues/2821), [PR #2857](https://github.com/ruvnet/ruflo/pull/2857),
   [#2854](https://github.com/ruvnet/ruflo/issues/2854),
   [#2870](https://github.com/ruvnet/ruflo/issues/2870), and
-  [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56)
+  [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56),
+  [#76](https://github.com/stuinfla/ruvnet-brain/issues/76)
 - `lib/cwd/patch-library.mjs` (target `init`)

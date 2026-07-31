@@ -128,7 +128,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('')}  upstream gate parses and passes an allow-unrelated/block-own behavior probe
   ${pad('flywheel-daily')}show the flywheel opt-in advisory once per local day/project (#53)
   ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
-  ${pad('brain-codex-skills')}restore namespaced Console + what's-new command parity in Codex (#56)
+  ${pad('brain-codex-skills')}repair Brain what's-new release-note lookup in Codex (#76)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

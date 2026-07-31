@@ -2,10 +2,12 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. Predicates now cover `adr-reindex`, `verify-interface`,
+**Updated**: 2026-07-31. Predicates now cover `adr-reindex`, `verify-interface`,
 `design-wall`, `mcp-prefix`, `flywheel-daily`, `ruflo-hooks-schema`, `codex-hooks`, and
 `ruflo-codex-skills`. The latest audit retired the last three only after executing their
-installed replacements; Brain #56 and #64 remain deliberately live/incomplete. The
+installed replacements. Brain 4.0.2 then proved #64's native dual-host convergence locally;
+#56's discovery scope is complete, while focused #76 keeps only the installed `whats-new`
+release-note repair live. No #76 predicate is guessed before an upstream candidate lands. The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement.
 **Deciders**: Henrik Pettersen
@@ -24,9 +26,9 @@ mechanism, and one week proved it twice:
 - **#2666** was CLOSED with both a skill and `memory purge`, but its first acceptance point was not
   complete: purge takes `<db>.lock` while ordinary writers take no lock. The plugin/CLI release split
   also left an earlier window where the skill existed and its command did not.
-- **Brain #52** remains open after a distribution correction, yet the installed 4.0.1 artifact now
-  passes the full native lifecycle/stable-wrapper predicate. Issue state is neither necessary nor
-  sufficient evidence.
+- **Brain #52** showed the reverse ordering: the installed 4.0.1 artifact passed the full native
+  lifecycle/stable-wrapper predicate before the issue closed with the 4.0.2 release. Issue state is
+  neither necessary nor sufficient evidence.
 
 `closed` is not `fixed`, and `fixed` is not `runnable here`. A retirement list keyed on either would have
 uninstalled a WORKING reconcile on everyone still on an older CLI, unattended.

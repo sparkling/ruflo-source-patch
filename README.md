@@ -174,8 +174,8 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`flywheel-daily`** | **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) |
-| **`codex-hooks`** | **Retired on the installed 4.0.1 behavior.** Older Brain releases needed local Codex lifecycle packaging and a generation-stable adapter. The native manifest, six-event adapter, stable wrapper, and installed/enabled plugin now pass as one replacement; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52](https://github.com/stuinfla/ruvnet-brain/issues/52) |
-| **`brain-codex-skills`** | Still live. Brain 4.0.1 ships the missing native Console/what's-new skills, but all three native workflows search the current repo or `~/Code/ruvnet-brain`; a supported install exposes assets through the plugin registry at another path. Repairs those three native files plus three generated aliases only in the active Codex cache, with exact uninstall restoration | [stuinfla/ruvnet-brain#56](https://github.com/stuinfla/ruvnet-brain/issues/56) |
+| **`codex-hooks`** | **Retired and released natively in Brain 4.0.2.** Older Brain releases needed local Codex lifecycle packaging and a generation-stable adapter. The native manifest, six-event adapter, stable wrapper, installed/enabled plugin, and host-convergence receipt now pass as one replacement; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52](https://github.com/stuinfla/ruvnet-brain/issues/52) |
+| **`brain-codex-skills`** | Still live, narrowed to one file. Brain 4.0.2 natively fixes the Console workflows and all three migrated aliases, but `ruvnet-brain:whats-new` still searches a checkout for `docs/RELEASE-NOTES-4.0.md`; the supported Stable Spine/plugin payload does not persist that asset. The patch changes only the active Codex `whats-new` skill, preferring future installed paths and otherwise reading the exact installed tag from official GitHub. It never uses `latest`, npm/npx, a checkout, or Brain's operating plane. Uninstall restores the upstream skill exactly | [stuinfla/ruvnet-brain#76](https://github.com/stuinfla/ruvnet-brain/issues/76) · discovery predecessor [#56](https://github.com/stuinfla/ruvnet-brain/issues/56) |
 
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
@@ -671,7 +671,8 @@ Brain first fixed #12/#13 with a JSON parser and command-position gate, then mov
 classification to advisory-only output while structured `ruvnet_cli_help` / `ruvnet_cli_run`
 own enforcement (#48). Retirement accepts either complete replacement and rejects any partial
 advisory that can still exit nonzero. Issue #41's broadened body was not fixed by its earlier
-closure; #44 was superseded rather than implemented as a blocking parser; #48 remains open.
+closure; #44 was superseded rather than implemented as a blocking parser. Brain 4.0.2 closed #48
+after publishing the structured managed CLI/MCP boundary and its focused interface tests.
 
 ## The script targets in detail
 
@@ -1254,9 +1255,10 @@ A test that cannot fail is worth nothing, and you only find out by making it fai
 ## Upstream issues
 
 Issue state is evidence to inspect, never the retirement signal. This audit was rerun on
-2026-07-30 against Ruflo 3.33.0, `ruflo-core` 0.2.6, the active Claude/Codex caches, Brain
-4.0.1, and exact published behavior. The ordinary-writer residual was filed as focused #2878;
-closed #2621 received one cross-link rather than a rewritten scope.
+2026-07-31 against Ruflo 3.33.0, `ruflo-core` 0.2.6, the active Claude/Codex caches, Brain
+4.0.2, and exact published behavior. The ordinary-writer residual was filed as focused #2878;
+closed #2621 received one cross-link rather than a rewritten scope. Brain's remaining installed
+release-note boundary was split cleanly from #56 into focused #76.
 
 **"Fixed upstream" is a claim about a runnable artifact, not a branch, version string, or
 closed label.** The table records the full acceptance result.
@@ -1287,11 +1289,14 @@ closed label.** The table records the full acceptance result.
 | [Brain #41](https://github.com/stuinfla/ruvnet-brain/issues/41) | **Closure not sound after its body was broadened.** The closing comment proves the earlier quote fix, not the edited nested-invocation acceptance | Superseded by #44/#48; no new patch |
 | [Brain #42](https://github.com/stuinfla/ruvnet-brain/issues/42), [#43](https://github.com/stuinfla/ruvnet-brain/issues/43) | **Fixed completely.** Codex MCP/plugin packaging is present without the retracted `skill.toml` proposal | No patch |
 | [Brain #44](https://github.com/stuinfla/ruvnet-brain/issues/44) | **Superseded, not completed as written.** Raw Bash is now advisory rather than a blocking recursively parsed authority | Covered by the #48 replacement proof |
-| [Brain #48](https://github.com/stuinfla/ruvnet-brain/issues/48) | **Open, partial.** Advisory raw-Bash output and structured help/run enforcement are shipped; the final boundary migration/ADR work remains open | Sufficient to retire the old blocking-gate patch, not to close #48 |
-| [Brain #52](https://github.com/stuinfla/ruvnet-brain/issues/52) | **Behavior fixed in installed 4.0.1; issue state stale-open.** Native six-event hooks, adapter, stable wrapper, and installed plugin all pass | `codex-hooks` retired; trust remains user-owned |
+| [Brain #48](https://github.com/stuinfla/ruvnet-brain/issues/48) | **Fixed and released in 4.0.2.** The structured managed CLI/MCP boundary and focused interface tests are published | `verify-interface` remains retired |
+| [Brain #52](https://github.com/stuinfla/ruvnet-brain/issues/52) | **Fixed and released in 4.0.2.** Native six-event hooks, adapter, generation-stable wrapper, npm assets, and host wiring are published | `codex-hooks` remains retired; trust remains user-owned |
 | [Brain #53](https://github.com/stuinfla/ruvnet-brain/issues/53) | **Fixed completely.** Atomic daily/project cadence passes concurrency behavior | `flywheel-daily` retired |
-| [Brain #56](https://github.com/stuinfla/ruvnet-brain/issues/56) | **Closed partial.** Discovery/aliases landed, but native 4.0.1 workflows cannot locate assets from the supported plugin source | Keep `brain-codex-skills` |
-| [Brain #64](https://github.com/stuinfla/ruvnet-brain/issues/64) | **Open, incomplete.** Active Spine is 4.0.1 while the persistent MCP server still byte-matches 3.9.135-dev | No downstream patch by policy; wait for native updater parity |
+| [Brain #54](https://github.com/stuinfla/ruvnet-brain/issues/54) | **Fixed and released in 4.0.2.** A clean public install returned cited RVF results inside the published timeout evidence | No patch |
+| [Brain #56](https://github.com/stuinfla/ruvnet-brain/issues/56) | **Fixed for its discovery scope.** Native Console/what's-new skills and self-contained aliases are published | The separate installed release-note defect is #76 |
+| [Brain #64](https://github.com/stuinfla/ruvnet-brain/issues/64) | **Fixed and released in 4.0.2.** This machine auto-flipped 4.0.1→4.0.2 and recorded both Claude and Codex `ready` | No downstream updater patch was added |
+| [Brain #66](https://github.com/stuinfla/ruvnet-brain/issues/66) | **Fixed and released in 4.0.2.** The focused newest-store memory detection suite passes upstream | No patch |
+| [Brain #76](https://github.com/stuinfla/ruvnet-brain/issues/76) | **Open, reproduced on 4.0.2.** The native Codex skill is discoverable but its curated release-note asset is absent from every persistent installed root | Keep the narrowed `brain-codex-skills` patch until the exact installed workflow runs natively |
 
 **Contributed a reproduction + fix (filed by someone else):**
 
