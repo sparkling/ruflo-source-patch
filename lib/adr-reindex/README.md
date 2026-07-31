@@ -34,8 +34,9 @@ rather than fixing a broken one. Filed upstream as
 
 This is the distinction the whole target rests on, and it's easy to miss:
 
-- **`/adr-index` converges.** With the `adr-index` patch applied, re-running it updates a *changed* ADR
-  in place (status, metadata, relations) and stops duplicating edges.
+- **`/adr-index` converges.** Native Ruflo now updates a *changed* ADR in place (status, metadata,
+  relations) and stops duplicating edges; the retired `adr-index` compatibility target supplied this
+  behavior on older copies.
 - **It can never reap.** Delete an ADR file, or remove a `Depends-on:` line from one, and the row it
   wrote **survives every future import**. Nothing tells the importer that a row it wrote last week no
   longer has a source on disk.

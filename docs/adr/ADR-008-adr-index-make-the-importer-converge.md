@@ -2,17 +2,18 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. #2660's convergence behavior is native in current marketplace
-source and Ruflo 3.32.37+, but the active Claude Code 0.4.1 cache still has the old importer.
-The target also retains its independent `ORPHANS` warning. Its marketplace repair now proves
-recovery from Git HEAD when an older composition poisoned a non-empty pristine backup and
-preserves the executable mode.
+**Updated**: 2026-07-31. #2660 is fixed in every active Claude Code and Codex
+marketplace/cache copy on this machine. Retirement executes the native stable-key/upsert and
+edge-deduplication behavior, checks the pristine importer for honest store counts, and requires
+native `adr-index` to route deletions to a runnable native `adr-reindex`. #2870 remains separate
+release-identity hygiene. The target restored vendor bytes and retired only after the same proof
+passed again post-reconciliation.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr, data-integrity
 
 ## Context
 
-`/adr-index` cannot update a changed ADR, which is the one thing its own SKILL.md advertises.
+The affected `/adr-index` could not update a changed ADR, which was the one thing its own SKILL.md advertised.
 
 Both namespaces are insert-only. Deterministic keys COLLIDE, so an existing record stays FROZEN at its first
 value: edit an ADR, re-run the import, and the stored copy never changes. Random edge keys never collide, so
@@ -36,7 +37,7 @@ which is the one condition an upsert-only importer can never repair (see ADR-009
 
 - Re-running `/adr-index` converges instead of freezing records and multiplying edges.
 - `Records stored: N/N` means N records were stored.
-- Deletions become visible, via the `ORPHANS:` line, even though the importer cannot reap them.
+- The compatibility patch made deletions visible via `ORPHANS:` while older copies remained active.
 
 ### Negative
 
@@ -45,8 +46,8 @@ which is the one condition an upsert-only importer can never repair (see ADR-009
 
 ### Neutral
 
-- This is convergence, not reaping. An ADR file that is DELETED still leaves an orphan, which is why
-  ADR-009 exists.
+- This is convergence, not reaping. Native `adr-index` now documents that boundary and routes deletions
+  to native `adr-reindex`; retirement also proves that route is runnable here under ADR-009's lock gate.
 
 ## Links
 

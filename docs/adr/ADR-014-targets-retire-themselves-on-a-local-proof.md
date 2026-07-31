@@ -2,14 +2,16 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-31. Predicates now cover `adr-reindex`, `verify-interface`,
+**Updated**: 2026-07-31. Predicates now cover `adr-index`, `adr-reindex`, `verify-interface`,
 `design-wall`, `mcp-prefix`, `flywheel-daily`, `ruflo-hooks-schema`, `codex-hooks`, and
 `ruflo-codex-skills`. The latest audit retired the last three only after executing their
 installed replacements. Brain 4.0.2 then proved #64's native dual-host convergence locally;
 #56's discovery scope is complete, while focused #76 keeps only the installed `whats-new`
 release-note repair live. No #76 predicate is guessed before an upstream candidate lands. The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
-fail-open wrapper cannot falsely authorize retirement.
+fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
+Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and
+the native deletion route passes that same reindex lock proof.
 **Deciders**: Henrik Pettersen
 **Tags**: lifecycle, safety, core
 
@@ -58,7 +60,8 @@ another surface to get wrong.
 
 ### Positive
 
-- `adr-reindex` retired itself on this machine, on proof, and the audit record says exactly why.
+- `adr-index` and `adr-reindex` retired themselves on this machine, on proof, and the audit record
+  says exactly why.
 - Announced ONCE, then silence. The old behaviour was a warning that fired every session and could never
   resolve itself, and a banner that always cries wolf is a banner people stop reading.
 - A retirement is explicitly NOT reported as a problem, because crying wolf over good news is how the

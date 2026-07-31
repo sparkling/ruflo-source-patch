@@ -152,7 +152,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`adr-template`** | Legacy compatibility for stale `ruflo-adr` copies: strips the four list markers old parsers cannot read. After `plugin-hosts` refreshes installed libraries, it executes the creator/parser round trip against both hosts' marketplace and active cache copies and retires itself only when all four pass | [#2659](https://github.com/ruvnet/ruflo/issues/2659) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
-| **`adr-index`** | Compatibility across the reused 0.4.1 importer variants: explicit upsert, deterministic edges, honest failure counts, and an exact `ORPHANS` warning. Current source and this refreshed cache contain the upstream convergence fix; `ORPHANS` remains additional local behavior and #2870 still lacks a bumped identity | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
+| **`adr-index`** | **Retired on executable active-copy proof.** All active Claude/Codex copies execute native stable-key upsert and edge de-duplication, their pristine importers report failed stores honestly, and native `adr-index` routes deletions to a runnable native `adr-reindex`. #2870 remains independent delivery hygiene | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 | **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. Native `memory purge` exists, but #2666's closure is incomplete unless purge shares the ordinary writers' current fail-closed lock. Retirement requires the native skill, command, and the `memory` target's `.rsp-lock` wrapper; version presence alone is not enough | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) |
 
 #### Ruflo plugins under Codex
@@ -474,14 +474,20 @@ by the SessionStart hook and the [monitor](#the-monitor).
 
 ### `adr-index`
 
-Fixes an index that can be created but never updated.
+> **RETIRED on active native proof.** Every active Claude Code and Codex marketplace/cache copy now
+> executes stable-key upsert and edge de-duplication, the pristine importers report failed stores
+> honestly, and native `adr-index` documents its deletion limit and routes to a runnable native
+> `adr-reindex`. The predicate proves this again after restoring vendor bytes. #2870 remains open for
+> reused-version release hygiene, but does not keep redundant runtime code installed.
+
+Historically fixed an index that could be created but never updated.
 
 `adr-template` fixes what `adr-create` **writes**. This fixes what `adr-index` **reads back in**,
 and it is the more consequential half, because it breaks the ADR lifecycle itself.
 
 An ADR's life *is* mutation: `proposed` → `accepted` → `superseded`, a new `Amends:`, a corrected
-date. `adr-index` cannot reflect any of it. Ratify an ADR, re-run the indexer, and the graph still
-says `proposed`, while printing `Records stored: 1/1`.
+date. The affected importer could not reflect any of it. Ratify an ADR, re-run the indexer, and the
+graph still said `proposed`, while printing `Records stored: 1/1`.
 
 Both namespaces are insert-only, and that single choice fails in **opposite directions** depending
 on whether the key is deterministic:
@@ -499,7 +505,7 @@ The failure is invisible because a `UNIQUE constraint` failure (exit **1**) is m
 `'exists'` sentinel and then **counted as a stored record**, so `errors` stays empty and the summary
 reports full success.
 
-Three edits fix it: pass `--upsert`, stop counting `'exists'` as stored, and make the edge key
+Three compatibility edits fixed it: pass `--upsert`, stop counting `'exists'` as stored, and make the edge key
 deterministic (`<rel>:<from>-><to>`, since `capturedAt` already lives in the value, where identity
 has no business).
 
@@ -508,7 +514,7 @@ has no business).
 > explicit. Ruflo 3.32.36 fixed that default. The importer still passes `--upsert` explicitly so
 > an active older plugin/CLI pair cannot silently regress to frozen records.
 
-Two copies get patched and they are **not identical**. The marketplace checkout carries local #2474
+The legacy target patched non-identical copies. The marketplace checkout carried local #2474
 fixes and passes args as `` `--key=${key}` `` (npm rejects an argv token starting with a U+2014
 em-dash, which ADR titles contain). Each edit therefore carries *variants* plus a `done()` predicate
 that reports whether the fix is present independently of which anchor produced it. That is what makes
@@ -516,16 +522,16 @@ a **partial** patch visible: matching on anchor-absence alone would call a file 
 anchor simply never existed, which is exactly how a missing `--upsert` could pass green while
 leaving the bug fully intact. `install` prints `INCOMPLETE` and `status` names the missing edits.
 
-#### What it does not fix
+#### What convergence does not fix
 
-Deletions. But it now tells you. With upsert and deterministic keys a re-import *converges*: status,
-metadata and changed relations all land. What it can never do is **reap**. A removed ADR file, or a
+Deletions. With upsert and deterministic keys a re-import *converges*: status, metadata and changed
+relations all land. What it can never do is **reap**. A removed ADR file, or a
 deleted `Depends-on:` line, leaves an orphan row that no future import touches, and the index goes on
 asserting a decision that no longer exists on disk.
 
-Reaping needs a rebuild ([`adr-reindex`](#adr-reindex)). The importer can't do it, but it can *say
-so*, which is the part that actually matters. An orphan you're told about is a chore; an orphan
-you're not told about is a graph quietly rotting:
+Reaping needs a rebuild ([`adr-reindex`](#adr-reindex)). Native `adr-index` now says this explicitly
+and routes the user to the native sibling skill. The retired compatibility patch additionally printed
+this exact orphan count:
 
 ```
 #### Issues found
@@ -574,12 +580,10 @@ npx github:sparkling/ruflo-source-patch adr-reindex install
 ~/.ruflo-source-patch/adr-reindex/ruflo-adr-reindex.sh [project-dir] [--dry-run]
 ```
 
-Drop both namespaces, re-import, verify. You don't have to remember when: the patched importer
-**prints an `ORPHANS:` line** the moment the index holds a row with no source on disk, and points you
-here. Reach for it after **deleting** an ADR or a relation line (the one case upsert can't reap),
-after installing the `adr-index` patch for the first time (rows written under the old random-key
-scheme are unreachable orphans, and show up as exactly that), or any time you want certainty. For an
-ordinary edit, the patched importer handles it. Just run `/adr-index`.
+Drop both namespaces, re-import, verify. Reach for it after **deleting** an ADR or a relation line
+(the one case upsert cannot reap), after moving from a legacy random-edge-key importer (including the
+historical `adr-index` compatibility install), or any time you want certainty. For an ordinary edit,
+the native importer handles it. Just run `/adr-index`.
 
 #### It requires the `memory` target
 
@@ -818,12 +822,11 @@ The `SessionStart` hook only fires when a session **starts**. But `npx -y ruflo@
 so a fresh, unpatched copy can run for hours until you restart Claude Code. The monitor closes
 that window.
 
-**It covers the plugin patches too** (`adr-template`, `adr-index`), not just the CLI targets. A
-`/plugin update` fetches a fresh `ruflo-adr` and drops those patches, and an unpatched `adr-index`
-doesn't fail loudly. It simply goes back to reporting `Records stored: N/N` while writing nothing,
-so the ADR index rots with no signal at all. Leaving the fix for silent staleness vulnerable to
-silent removal would be self-defeating. Both the hook and the monitor re-apply everything recorded
-in `state.json`, `patchTargets` (CLI) and `pluginTargets` (plugin) alike:
+**It covers plugin patches too**, not just CLI targets. Before `adr-template` and `adr-index` retired,
+a `/plugin update` could fetch fresh `ruflo-adr` bytes and silently drop their compatibility edits.
+Both the hook and monitor therefore re-apply everything still recorded in `state.json`, across
+`patchTargets` (CLI) and `pluginTargets` (plugins). Terminally retired targets are removed from that
+state and are not re-applied. A historical repair looked like:
 
 ```
 2026-07-13T18:38:05.742Z REPAIRED 1 plugin file(s) [adr-template,adr-index] — adr-index: patched …/scripts/import.mjs (4/4 edits)
@@ -1282,7 +1285,7 @@ closed label.** The table records the full acceptance result.
 | [#2640](https://github.com/ruvnet/ruflo/issues/2640) | **Open, partial.** Atomic event claims prevent duplicate side effects, but init still emits the duplicate bundle/hooks/MCP | Keep `init`, `plugin-only` |
 | [#2651](https://github.com/ruvnet/ruflo/issues/2651) | **Fixed completely** in 3.32.37 | No patch |
 | [#2659](https://github.com/ruvnet/ruflo/issues/2659) | **Fixed completely for active hosts.** The automatic plugin refresh delivered current parser bytes and all four active Claude/Codex marketplace/cache copies pass the creator/indexer round trip | `adr-template` retires locally on executable proof; #2870 independently tracks the reused identity |
-| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | **Source fix sound; immutable delivery incomplete.** The refreshed importer converges; `ORPHANS` remains additional local behavior | Keep `adr-index` pending its independent acceptance and #2870 delivery |
+| [#2660](https://github.com/ruvnet/ruflo/issues/2660) | **Fixed completely for active hosts.** All active Claude/Codex copies execute native convergence and honest counting, and native `adr-index` routes deletions to native `adr-reindex` | `adr-index` retired on local proof; #2870 remains a separate release-identity issue |
 | [#2666](https://github.com/ruvnet/ruflo/issues/2666) | **Closed incomplete as written.** Native reindex/purge exist, but purge's private lock is not shared with ordinary writers | `memory` supplies the shared wrapper; only then is `adr-reindex` retired |
 | [#2672](https://github.com/ruvnet/ruflo/issues/2672) | **Correctly retracted / not planned.** Its premise was false | No patch |
 | [#2685](https://github.com/ruvnet/ruflo/issues/2685), [#2706](https://github.com/ruvnet/ruflo/issues/2706) | **Fixed completely.** Fleet and missed core references are native | `mcp-prefix` retired |
@@ -1312,7 +1315,7 @@ closed label.** The table records the full acceptance result.
 | Issue | What's wrong upstream | Worked around by |
 |-------|-----------------------|------------------|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | daemon ↔ MCP last-writer-wins **silently drops writes**. We posted a 30-line repro and the lock implementation | `memory` write lock |
-| [#2594](https://github.com/ruvnet/ruflo/issues/2594) | **Fixed in 3.32.36.** Before that release, `memory store --help` declared upsert as the default while an omitted flag still performed a strict INSERT. We measured it and posted the reproducer | `adr-index` keeps an explicit `--upsert` for old active plugin/CLI pairs |
+| [#2594](https://github.com/ruvnet/ruflo/issues/2594) | **Fixed in 3.32.36.** Before that release, `memory store --help` declared upsert as the default while an omitted flag still performed a strict INSERT. We measured it and posted the reproducer | The native importer now passes `--upsert` explicitly; the compatibility target is retired |
 
 **Referenced (upstream, not ours):** the `daemon` target retains the native lock from
 [#2407](https://github.com/ruvnet/ruflo/issues/2407) / [#2484](https://github.com/ruvnet/ruflo/issues/2484)

@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **seventeen suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
+`npm test` runs **nineteen suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
 
 ## Contents
 
@@ -24,6 +24,8 @@
 | `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup, and `adr-reindex`'s reporting branches. |
 | `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |
+| `adr-template-retirement.mjs` | Active Claude/Codex parser discovery plus executable creator/parser proof, orphaned project handling, byte-exact restore, and terminal retirement. |
+| `adr-index-retirement.mjs` | Active Claude/Codex native convergence, honest importer counting, poisoned-backup refusal, runnable reindex routing, byte-exact restore, and terminal retirement. |
 | `design-wall.mjs` | The real hook behavior and fail-closed retirement of the legacy design-wall patch. |
 | `flywheel-daily.mjs` | The flywheel advisory's daily/project scope, concurrent atomic claim, fail-silent path, and byte-safe lifecycle. |
 | `codex-hooks.mjs` | Brain's additive Codex lifecycle plugin, adapter protocol, registration, and exact-owned uninstall. |

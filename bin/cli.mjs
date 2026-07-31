@@ -18,8 +18,8 @@
 // what adr-create WRITES, what adr-index READS BACK IN, and what neither can REAP.
 //   adr-template   adr-create's own template writes bullet-list metadata that
 //                  adr-index's parser can't read (#2659)
-//   adr-index      adr-index can't update a CHANGED ADR: records are frozen by a
-//                  strict insert, edges duplicate on every run (#2660 / #2594)
+//   adr-index      legacy changed-ADR convergence compatibility; retires on active
+//                  native convergence + runnable reindex proof (#2660 / #2594)
 //   adr-reindex    ADDS the /adr-reindex skill (upstream ships no such command — #2666) + the script
 //                  it invokes. Reconciles DELETIONS, which upsert can never reap. Requires `memory`.
 //
@@ -113,7 +113,7 @@ Patch targets                  (actions: install | uninstall | status)
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)
-  ${pad('adr-index')}adr-index can't update a changed ADR — frozen records, duplicate edges (#2660)
+  ${pad('adr-index')}legacy convergence compatibility; self-retires on native behavior proof (#2660)
   ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
   ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
 
