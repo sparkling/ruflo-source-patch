@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-07-31. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-08-01. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
@@ -12,6 +12,9 @@ patched now self-heals on the next apply instead of requiring another one-off ma
 Git HEAD object and preserves the file's executable mode across atomic replacement. Cache-local
 Codex skill targets remain outside composition: additive files use exact ownership, while the one
 remaining native Brain #76 edit retains an independent pristine because no sibling target claims it.
+That native edit also uses function-form string replacement so Markdown containing JavaScript's
+replacement metacharacters stays literal; its readiness check rejects duplicated headings, commands,
+or a damaged exact-version regex before status may report success.
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety

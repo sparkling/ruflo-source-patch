@@ -2,7 +2,9 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-15: "sandbox everything" had a machine-global gap. The launchd label is a constant, not covered by HOME, so the suite's uninstallMonitor booted the real monitor agent. Gated behind RSP_NO_LAUNCHCTL (ADR-021 point 5).
+**Updated**: 2026-08-01. Rendered-artifact checks now pair literal replacement-token probes with
+structural output assertions. Ownership hashes, idempotency, exact restore, and loose substring checks all
+stayed green while JavaScript expanded Markdown's dollar-plus-backtick sequence and duplicated part of a skill.
 **Deciders**: Henrik Pettersen
 **Tags**: testing, core, safety
 
@@ -36,6 +38,8 @@ happened, repeatedly, and every instance was caught only by deliberately breakin
 - **Sandbox everything**, before any lib module is imported, or the suite operates on the developer's real
   machine.
 - **Never silently truncate coverage.** If a bound is applied, say so.
+- **Treat inserted vendor text as literal bytes.** Probe JavaScript replacement tokens directly and assert
+  the rendered structure; marker presence and selected substrings do not prove that a transform is correct.
 
 ## Consequences
 

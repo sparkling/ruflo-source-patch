@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-16
-**Updated**: 2026-07-31. Ruflo #2777 and #2801 are fixed upstream. Ruflo 3.32.39 /
+**Updated**: 2026-08-01. Ruflo #2777 and #2801 are fixed upstream. Ruflo 3.32.39 /
 `ruflo-core` 0.2.6 finally ships a version-bumped strict hook manifest and host-aware PreToolUse
 output (PR #2857), and its native read-only status skill closes #2821; the corresponding three
 local targets retire on installed behavior. #2640 remains open despite atomic hook-event claims:
@@ -92,6 +92,8 @@ plugin-always machine that installed `all` adopts it on the next tick (ADR-019).
   active Codex skill: installed paths first, then the official exact installed Git tag as a docs-only
   fallback. It never uses `latest`, npm/npx, a checkout, or Brain's shared source, updater, immutable
   versions, cache/KB, MCP, hooks, or self-learning runtime.
+  The surgical renderer inserts Markdown literally, and its regression proof requires the regex end
+  anchor plus one heading and one lookup rather than accepting partial substrings.
 - Verified against real vendor bytes (II1 to II4): the emission and all three bundle gates are disabled,
   legacy #2777 bytes are suppressed while bounded upstream bytes remain active, all files still parse,
   and uninstall restores byte-for-byte.

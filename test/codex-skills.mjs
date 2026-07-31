@@ -30,6 +30,8 @@ function check(name, condition, detail = '') {
   }
 }
 
+const occurrences = (src, needle) => src.split(needle).length - 1;
+
 function write(file, body, mode = 0o644) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body, { mode });
@@ -283,6 +285,7 @@ function snapshot(root) {
 
 seed();
 const patcher = await import(`file://${path.join(REPO, 'lib', 'codex-skills', 'patcher.mjs')}`);
+const native = await import(`file://${path.join(REPO, 'lib', 'codex-skills', 'native.mjs')}`);
 
 console.log('\nCodex command skill parity');
 const sourceBefore = snapshot(BRAIN_SOURCE);
@@ -305,8 +308,14 @@ check('CS3 Brain whats-new binds the official fallback to the exact installed ve
     && newsSkill.includes('application/vnd.github.raw+json')
     && newsSkill.includes('RELEASE-NOTES-4.0.md?ref=v<installed-version>')
     && newsSkill.includes('Never use `latest`')
+    && newsSkill.includes('`^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$`, then retrieve')
+    && occurrences(newsSkill, '# RuvNet-Brain: what\'s new') === 1
+    && occurrences(newsSkill, 'codex plugin list --available --json') === 1
     && !newsSkill.includes('CLAUDE_PLUGIN_ROOT')
     && !newsSkill.includes('~/Code/ruvnet-brain'));
+check('CS3a replacement payloads preserve JavaScript replacement tokens literally',
+  native.replaceOnce('before TARGET after', 'TARGET', "$& $` $' $$", 'literal probe')
+    === "before $& $` $' $$ after");
 check('CS4 shared Brain source remains byte-identical', JSON.stringify(snapshot(BRAIN_SOURCE)) === JSON.stringify(sourceBefore));
 
 const aliases = ['brain-console', 'configure', 'rvcb'].map((name) =>
@@ -445,10 +454,30 @@ const patchedNews = fs.readFileSync(nativeNewsFile, 'utf8');
 check('CS19 exact-tag fallback is installed while all five native replacements stay untouched',
   patchedNews.includes('RELEASE-NOTES-4.0.md?ref=v<installed-version>')
     && patchedNews.includes('application/vnd.github.raw+json')
+    && patchedNews.includes('`^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$`, then retrieve')
+    && occurrences(patchedNews, '# What is new') === 1
+    && occurrences(patchedNews, 'codex plugin list --available --json') === 1
+    && native.isNativeBrainReady('whats-new', patchedNews)
     && !patchedNews.includes('~/Code/ruvnet-brain')
     && fs.readFileSync(`${nativeNewsFile}.rsp-backup`, 'utf8') === nativeWhatsNew
     && passThroughFiles.every((file) => fs.readFileSync(file, 'utf8') === passThroughBytes.get(file)
       && !fs.existsSync(`${file}.rsp-backup`)));
+
+const brainIssue = 'stuinfla/ruvnet-brain#76';
+const parsedNews = native.parseCommand(patchedNews, 'patched whats-new');
+const legacyPrefix = parsedNews.body.slice(0, parsedNews.body.indexOf('2. Look first'));
+const zeroedNews = patchedNews.replace(/<!-- ruflo-source-patch .*? -->/, native.marker(brainIssue));
+const malformedNews = native.stamp(zeroedNews.replace(
+  '`^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$`, then retrieve only that exact tag with:',
+  `\`^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?${legacyPrefix}, then retrieve only that exact tag with:`,
+), brainIssue);
+write(nativeNewsFile, malformedNews);
+const migrationApply = patcher.apply('brain-codex-skills');
+check('CS19a owned malformed output migrates from its pristine backup',
+  native.isOwned(malformedNews, brainIssue) && !native.isNativeBrainReady('whats-new', malformedNews)
+    && migrationApply.patched === 1 && !migrationApply.incomplete && !migrationApply.errors
+    && fs.readFileSync(nativeNewsFile, 'utf8') === patchedNews
+    && fs.readFileSync(`${nativeNewsFile}.rsp-backup`, 'utf8') === nativeWhatsNew);
 
 const nativeBrainRestore = patcher.restore('brain-codex-skills');
 check('CS20 uninstall restores the upstream native skill exactly',
