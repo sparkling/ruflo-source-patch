@@ -2,8 +2,10 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. Revalidated against Ruflo 3.32.39: #2633 remains open and current
-CLI state/daemon paths still follow raw `process.cwd()`. The target remains live.
+**Updated**: 2026-08-01. Revalidated against Ruflo 3.32.39: #2633 remains open and current
+CLI state/daemon paths still follow raw `process.cwd()`. The target remains live. Session-end now
+atomically writes the snapshot it advertises beneath the resolved project root instead of returning a
+plausible path for a file that does not exist.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, data-loss, cwd
 
@@ -51,6 +53,10 @@ so resolving it would initialise a nested project at the outer repo root.
 
 **And a leak detector**, because completeness cannot be PROVEN: a `.claude-flow` in a subdirectory IS an
 anchor that leaked, whatever form it took. The SessionStart hook reports them, and only reports.
+
+**Session-end paths are postconditions, not prose.** If `hooks session-end` returns a `statePath`, the
+handler must atomically write the corresponding snapshot beneath `<project>/.claude/sessions/` before
+returning success. A bridge-store write does not make a second, nonexistent JSON path true.
 
 ## Consequences
 

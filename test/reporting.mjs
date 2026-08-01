@@ -35,6 +35,7 @@ const FILES = [
   '@claude-flow/cli/dist/src/memory/memory-initializer.js',
   '@claude-flow/cli/dist/src/commands/daemon.js',
   '@claude-flow/cli/dist/src/services/daemon-autostart.js',
+  '@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js',
   '@claude-flow/cli-core/dist/src/mcp-tools/types.js',
 ];
 
@@ -69,6 +70,23 @@ const out = (r) => `${r.stdout || ''}${r.stderr || ''}`;
 
 freshSandbox();
 cli(['cwd', 'install']);
+
+// S0 — session-end may only advertise a statePath it actually writes. Upstream returned a plausible
+// `.claude/sessions/...` string without a single filesystem write, so the CLI printed success over an
+// artifact that did not exist. Pin both halves of the repair in the rendered vendor bytes: the false
+// claim is gone, and an atomic project-root write now produces the path returned to the caller.
+const sessionTool = fs.readFileSync(vendor('@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js'), 'utf8');
+if (sessionTool.includes('statePath: saveState ? `.claude/sessions/${sessionId}.json` : undefined,')) {
+  fail('S0 session-end still returns the unwritten relative statePath');
+}
+for (const required of [
+  "const stateDir = join(getProjectCwd(), '.claude', 'sessions');",
+  "writeFileSync(tempPath, JSON.stringify({ ...snapshot, savedAt:",
+  'nodeFs.renameSync(tempPath, statePath);',
+  'return { ...snapshot, statePath };',
+]) {
+  if (!sessionTool.includes(required)) fail(`S0 session snapshot repair is incomplete: missing ${required}`);
+}
 
 // S1 — install records WHERE the copy came from. Without provenance, "is it stale?" has no
 // answer: diffing against the globally-installed package instead would heal a dev clone BACKWARD
