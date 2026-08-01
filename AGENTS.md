@@ -51,6 +51,7 @@ npx github:sparkling/ruflo-source-patch codex-hooks install        # retired; Br
 npx github:sparkling/ruflo-source-patch brain-codex-skills install # exact-version release-note fallback for Brain's Codex what's-new skill (#76)
 npx github:sparkling/ruflo-source-patch brain-console-lifecycle install # reject stale detached Console generations without changing Brain updates (#79)
 npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail doctor on bundle/package/Spine/host version drift without touching Brain's updater (#77)
+npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # make standalone AgentDB fleet discovery scan common/configured roots (#81)
 ```
 
 ### Keep it live (actions add `run | check`)

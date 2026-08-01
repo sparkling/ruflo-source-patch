@@ -24,6 +24,9 @@ Brain #79's `brain-console-lifecycle` target now composes beside #77 on `bin/ins
 owns `onboarding-console.mjs`. Its updater-neutral doctor edits and Console identity edits are one atomic
 descriptor; uninstall authenticates and stops receipt-proven instances before composition restores the
 vendor bytes (ADR-025).
+Brain #81's `brain-memory-doctor-roots` target is a disjoint atomic descriptor over installed
+`scripts/memory-doctor.mjs` copies. It shares the same pristine, drift, desired-state, and exact-restore
+machinery without touching Brain data or its native updater (ADR-026).
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -113,5 +116,5 @@ engine because no sibling target claims it.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md)
 - `lib/plugin-compose.mjs`, `lib/plugin-command.mjs`, `lib/pristine.mjs` (`isOurs`), `lib/plugin-registry.mjs`

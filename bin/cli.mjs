@@ -61,6 +61,7 @@ import {
 } from '../lib/codex-skills/commands.mjs';
 import { brainReleaseLockstepCommand } from '../lib/brain-release-lockstep/commands.mjs';
 import { brainConsoleLifecycleCommand } from '../lib/brain-console-lifecycle/commands.mjs';
+import { brainMemoryDoctorRootsCommand } from '../lib/brain-memory-doctor-roots/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -96,6 +97,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-codex-skills': brainCodexSkillsCommand,
   'brain-console-lifecycle': brainConsoleLifecycleCommand,
   'brain-release-lockstep': brainReleaseLockstepCommand,
+  'brain-memory-doctor-roots': brainMemoryDoctorRootsCommand,
 };
 
 function usage() {
@@ -135,6 +137,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-codex-skills')}repair Brain what's-new release-note lookup in Codex (#76)
   ${pad('brain-console-lifecycle')}reject stale detached Console generations safely (#79)
   ${pad('brain-release-lockstep')}fail doctor on bundle/package/host version drift (#77)
+  ${pad('brain-memory-doctor-roots')}scan common/configured AgentDB roots in the standalone doctor (#81)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

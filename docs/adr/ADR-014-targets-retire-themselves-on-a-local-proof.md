@@ -14,6 +14,9 @@ and Codex, so no marker-only predicate is guessed in advance. The
 Brain #79 `brain-console-lifecycle` target likewise keeps no guessed predicate: retirement requires a
 released candidate to execute stale-generation replacement, foreign-listener preservation, owned
 shutdown, doctor comparison, and persistent-runtime update convergence (ADR-025). The
+Brain #81 `brain-memory-doctor-roots` target also has no guessed version predicate: retirement
+executes standalone common/configured-root discovery against active installed bytes and requires
+Console/CLI policy convergence (ADR-026). The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
 Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and
@@ -85,5 +88,5 @@ another surface to get wrong.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md)
 - `lib/supersede.mjs`
