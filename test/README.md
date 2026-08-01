@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **nineteen suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
+`npm test` runs **twenty suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
 
 ## Contents
 
@@ -33,6 +33,7 @@
 | `codex-skills.mjs` | Cache-local Ruflo/Brain skill parity: exact ownership, literal replacement-metacharacter handling and structural validation for Brain's one remaining installed-asset repair, five native replacements left untouched, byte-perfect restoration, collision refusal, active-version updates, and no Brain source mutation. |
 | `ruflo-codex-hooks.mjs` | Ruflo's canonical Codex plugin repair: idempotency, disabled-state preservation, collision refusal, loud failures, and zero MCP mutation. |
 | `plugin-hosts.mjs` | Ruflo's issue-backed dual-host marketplace commands against fake host CLIs: install/sync/uninstall, dry-run, disabled state, exact scope ownership, idempotence, injection refusal, partial failure, bounded same-version refresh with cache-byte proof, and byte-perfect patch removal. |
+| `brain-release-lockstep.mjs` | Brain #77's read-only fail-closed version guard: bounded npm/npx/persistent-runtime discovery, bundle/package/Spine/Claude/Codex comparison, atomic anchor refusal, mutation proof, and byte-perfect removal without touching the updater. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
 ## Three rules, all learned the hard way

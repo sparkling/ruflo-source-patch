@@ -22,7 +22,7 @@ how a fix silently stops existing.
 |---|---|---|---|
 | `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
-| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/` | **Brain/Codex plugin patches** | installed plugin/cache bytes | SessionStart hook + monitor |
+| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-release-lockstep/` | **Brain/Codex package and plugin patches** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`) | *nothing*. They set up or repair **your projects/host registration** | nobody; you run them by hand |
 
 ## Two files to read before writing a patcher

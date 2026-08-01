@@ -14,7 +14,12 @@ Codex skill targets remain outside composition: additive files use exact ownersh
 remaining native Brain #76 edit retains an independent pristine because no sibling target claims it.
 That native edit also uses function-form string replacement so Markdown containing JavaScript's
 replacement metacharacters stays literal; its readiness check rejects duplicated headings, commands,
-or a damaged exact-version regex before status may report success.
+or a damaged exact-version regex before status may report success. Brain #77's
+`brain-release-lockstep` guard joins composition as an atomic eight-edit descriptor over installed
+npm/npx and persistent Console-runtime `bin/install.mjs` copies. It changes only read-only version
+reporting and doctor health; the native updater, Stable Spine, caches, hooks, MCP, and learning plane
+remain untouched. It also exposes an exact reverse transform so a later target revision can prove and
+recover the vendor baseline instead of adopting the earlier target's output as “new upstream” bytes.
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -51,7 +56,7 @@ A shared composition engine (`lib/plugin-compose.mjs`) owns every plugin-patched
 
 - One `.rsp-backup` per file = the true vendor pristine. The file on disk is always
   `compose(pristine, [transform of each INSTALLED target that claims it])`.
-- Each of the four vendor-file targets (adr-template, adr-index, verify-interface, mcp-prefix) is reduced to
+- Each composed vendor-file target is reduced to
   a DESCRIPTOR: `{ name, atomic, editCount, discover(), patchSource(src)->{next,applied,missing},
   isPatched(src) }`. Their per-file loops are gone; the engine groups files by claimant, resolves the ONE
   pristine, applies each claimant in order, writes once, and renders each target's INCOMPLETE / ambiguous /
@@ -83,6 +88,8 @@ engine because no sibling target claims it.
   other survives from the same pristine.
 - Overlap is first-class, not avoided: adr-create/SKILL.md gets BOTH its status fix and its tool-ref rewrite.
 - The plugin side now shares the CLI side's proven composition discipline instead of a weaker parallel one.
+- The #77 guard cannot conceal a split release by relabelling or copying caches: it reports all
+  resolved product versions and makes doctor fail until upstream artifacts genuinely converge.
 
 ### Negative
 

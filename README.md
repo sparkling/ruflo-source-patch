@@ -168,8 +168,8 @@ Actions: `install` · `uninstall` · `status`
 
 #### ruvnet-brain
 
-A different plugin, the same machinery, and the same reason to be a target: a `/plugin update`
-reverts a hand-edit silently.
+A different package/plugin surface, the same machinery, and the same reason to be a target: an npx
+re-fetch, Brain bundle refresh, or `/plugin update` reverts a hand-edit silently.
 Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
@@ -178,6 +178,7 @@ Actions: `install` · `uninstall` · `status`
 | **`flywheel-daily`** | **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) |
 | **`codex-hooks`** | **Retired and released natively in Brain 4.0.2.** Older Brain releases needed local Codex lifecycle packaging and a generation-stable adapter. The native manifest, six-event adapter, stable wrapper, installed/enabled plugin, and host-convergence receipt now pass as one replacement; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52](https://github.com/stuinfla/ruvnet-brain/issues/52) |
 | **`brain-codex-skills`** | Still live, narrowed to one file. Brain 4.0.2 natively fixes the Console workflows and all three migrated aliases, but `ruvnet-brain:whats-new` still searches a checkout for `docs/RELEASE-NOTES-4.0.md`; the supported Stable Spine/plugin payload does not persist that asset. The patch changes only the active Codex `whats-new` skill, preferring future installed paths and otherwise reading the exact installed tag from official GitHub. Its literal renderer and structural readiness check reject duplicated or damaged generated instructions. It never uses `latest`, npm/npx, a checkout, or Brain's operating plane. Uninstall restores the upstream skill exactly | [stuinfla/ruvnet-brain#76](https://github.com/stuinfla/ruvnet-brain/issues/76) · discovery predecessor [#56](https://github.com/stuinfla/ruvnet-brain/issues/56) |
+| **`brain-release-lockstep`** | Makes Brain's read-only doctor and footprint reporting treat bundle/package/Stable-Spine/Claude/Codex version drift as incomplete convergence and fail health. It patches installed npm/npx and persistent Console-runtime installer bytes by exact anchors, but never invokes or changes Brain's updater, release downloads, immutable version store, `active.json`, host caches, hooks, MCP, or learning runtime. It cannot manufacture the missing upstream release; it prevents that failure from being reported as normal or healthy | [stuinfla/ruvnet-brain#77](https://github.com/stuinfla/ruvnet-brain/issues/77) |
 
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
@@ -1252,6 +1253,7 @@ invariants, and an untested notification path rots without anyone noticing.
 | **CL · K** | **`cleanup`**, the only command that removes directories and signals processes. `--dry-run` deletes nothing · the project's own state **survives** · `$HOME` is refused · and **K3: another project's daemon survives.** Real processes, real `pgrep`/`lsof`/`ps` |
 | **SS · MI · DH** | the **SessionStart hook** actually re-applying to a fresh npx copy · the plist, cron spec and interval clamp · and the offline `dual` host-boundary harness proving policy/MCP preservation, rollback, migration, and symlink refusal |
 | **CS** | **Codex skill rendering and ownership.** JavaScript replacement tokens remain literal · Brain #76's exact-version regex stays intact · headings/lookups occur once · an owned malformed render migrates from verified pristine · uninstall restores vendor bytes |
+| **BL1 to BL23** | **Brain release lockstep.** Bounded npm/npx/persistent-runtime discovery · all five release-bearing components compared · `v` prefixes normalized · split releases fail health · partial/ambiguous anchors write nothing · deleting the doctor gate invalidates patch evidence · public install/status/uninstall round-trips every byte |
 
 **Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
 discipline has now caught **six vacuous tests**, ones that passed with the guard deleted, and were
@@ -1310,6 +1312,8 @@ closed label.** The table records the full acceptance result.
 | [Brain #64](https://github.com/stuinfla/ruvnet-brain/issues/64) | **Fixed and released in 4.0.2.** This machine auto-flipped 4.0.1→4.0.2 and recorded both Claude and Codex `ready` | No downstream updater patch was added |
 | [Brain #66](https://github.com/stuinfla/ruvnet-brain/issues/66) | **Fixed and released in 4.0.2.** The focused newest-store memory detection suite passes upstream | No patch |
 | [Brain #76](https://github.com/stuinfla/ruvnet-brain/issues/76) | **Open, reproduced on 4.0.2.** The native Codex skill is discoverable but its curated release-note asset is absent from every persistent installed root | Keep the narrowed `brain-codex-skills` patch until the exact installed workflow runs natively |
+| [Brain #77](https://github.com/stuinfla/ruvnet-brain/issues/77) | **Open, reproduced by the v4.0.3 public release.** Its signed bundle says 4.0.3 while npm, both host manifests, Stable Spine, and active host caches still identify 4.0.2 | Keep `brain-release-lockstep` as a read-only fail-closed reporting guard; never relabel or copy Brain assets downstream |
+| [Brain #78](https://github.com/stuinfla/ruvnet-brain/issues/78) | **Open, reproduced after a Codex restart.** Brain's MCP server works directly, but `tools/list` waits on model warmup beyond Codex's default startup budget, so Codex omits `search_ruvnet` while SessionStart calls it live | No local runtime patch; upstream should return static tool declarations immediately, persist warmup failure, and report registered versus ready honestly |
 
 **Contributed a reproduction + fix (filed by someone else):**
 

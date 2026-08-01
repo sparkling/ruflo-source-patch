@@ -2,12 +2,15 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-07-31. Predicates now cover `adr-index`, `adr-reindex`, `verify-interface`,
+**Updated**: 2026-08-01. Predicates now cover `adr-index`, `adr-reindex`, `verify-interface`,
 `design-wall`, `mcp-prefix`, `flywheel-daily`, `ruflo-hooks-schema`, `codex-hooks`, and
 `ruflo-codex-skills`. The latest audit retired the last three only after executing their
 installed replacements. Brain 4.0.2 then proved #64's native dual-host convergence locally;
 #56's discovery scope is complete, while focused #76 keeps only the installed `whats-new`
 release-note repair live. No #76 predicate is guessed before an upstream candidate lands. The
+same rule applies to the new Brain #77 `brain-release-lockstep` reporting guard: it cannot retire
+until a published candidate proves one version across the bundle, package, Stable Spine, Claude,
+and Codex, so no marker-only predicate is guessed in advance. The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
 Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and

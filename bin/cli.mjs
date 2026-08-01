@@ -59,6 +59,7 @@ import { rufloHooksSchemaCommand } from '../lib/ruflo-hooks-schema/commands.mjs'
 import {
   brainCodexSkillsCommand, rufloCodexSkillsCommand,
 } from '../lib/codex-skills/commands.mjs';
+import { brainReleaseLockstepCommand } from '../lib/brain-release-lockstep/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -92,6 +93,7 @@ const PLUGIN_PATCH_TARGETS = {
   // ruvnet-brain's installer wires only MCP for Codex; this adds its user-global lifecycle plugin.
   'codex-hooks': codexHooksCommand,
   'brain-codex-skills': brainCodexSkillsCommand,
+  'brain-release-lockstep': brainReleaseLockstepCommand,
 };
 
 function usage() {
@@ -129,6 +131,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('flywheel-daily')}show the flywheel opt-in advisory once per local day/project (#53)
   ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
   ${pad('brain-codex-skills')}repair Brain what's-new release-note lookup in Codex (#76)
+  ${pad('brain-release-lockstep')}fail doctor on bundle/package/host version drift (#77)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
