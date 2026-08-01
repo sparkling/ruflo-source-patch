@@ -405,9 +405,10 @@ The lock and the gate live *inside* the patched module, so they protect only a p
 loaded it. A long-running ruflo MCP client or daemon that started before the patch, or that runs an
 npx cache copy the patch never reached, keeps flushing the old way from memory. No source edit can
 reach it. That stale image, flushed back over a healthy file, is the corruption mechanism. So
-`stale-writer.mjs` detects such a writer, resolving its `@claude-flow/cli` root from either the
-daemon's direct path **or** the plugin MCP client's `.bin/cli` symlink (missing the symlink was a real
-blind spot: a live box read zero stale while five MCP clients ran pre-patch). What it *does* depends on
+`stale-writer.mjs` detects such a writer, resolving its `@claude-flow/cli` root from the daemon's
+direct path, the plugin MCP client's `.bin/cli` symlink, **or the public `.bin/ruflo` thin wrapper**.
+The last form is what `npx ruflo@latest mcp start` actually leaves running; it validates both package
+identities before following Ruflo's bounded hoisted-dependency walk. What the guard *does* depends on
 whether the on-disk copy is actually patched:
 
 - **A `pre-patch` writer** (copy patched, process older) is **killed**, daemon or MCP client alike, to

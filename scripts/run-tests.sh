@@ -25,8 +25,9 @@ export RSP_NO_MONITOR_RECOVER=1
 export RSP_NO_LAUNCHCTL=1
 # Suites run in PARALLEL. The monitor tick now auto-restarts stale memory writers (ADR-023) by
 # scanning the whole machine, so a tick-exercising suite would SIGTERM another suite's fake
-# writers. Disable the kill globally; the stale-writer suite deletes this in-process to exercise
-# the real kill against only its OWN fakes. Same discipline as RSP_NO_LAUNCHCTL above.
+# writers. Disable the kill globally; the stale-writer suite deletes this in-process and supplies an
+# explicit PID allowlist to exercise the real kill against only its OWN fakes. Same discipline as
+# RSP_NO_LAUNCHCTL above.
 export RSP_NO_STALE_WRITER_KILL=1
 # Installing the plugin-hosts target now updates real Claude/Codex plugin registries by default.
 # Every suite except plugin-hosts is a patch-engine fixture, so it must never reach those user-global

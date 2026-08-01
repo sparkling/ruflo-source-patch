@@ -20,7 +20,7 @@
 | `untested.mjs` | The SessionStart hook body, `cleanup`'s directory half, the script targets, the shell scripts. All of them had *zero* coverage until it was measured rather than assumed. |
 | `concurrency.mjs` | Concurrent installs; the **injected fail-closed memory lock actually executing** across processes and sibling Promises, nested reentrancy, owner-safe release, native purge, torn-image and WAL-sidecar refusal; plus the plugin-throw guard, uncovered-build detector, and legacy daemon-lock retirement boundary. |
 | `cleanup-procs.mjs` | `cleanup`'s **kill** half. Real processes, real `pgrep`/`lsof`/`ps`. |
-| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including dry-run/kill-switch boundaries and rejection of the older fail-open wrapper as current patch evidence. |
+| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including direct, `.bin/cli`, and verified `.bin/ruflo` launch shapes; dry-run/kill-switch boundaries; and rejection of older fail-open or same-named impostor wrappers. |
 | `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup, and `adr-reindex`'s reporting branches. |
 | `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |

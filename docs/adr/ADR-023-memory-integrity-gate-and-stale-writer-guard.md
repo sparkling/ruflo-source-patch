@@ -2,10 +2,11 @@
 
 **Status**: accepted
 **Date**: 2026-07-17
-**Updated**: 2026-07-30. The atomic-flush finding remains valid in Ruflo 3.33.0. Clean
+**Updated**: 2026-08-01. The atomic-flush finding remains valid in Ruflo 3.34.0. Clean
 ordinary writers still lose acknowledged updates, now tracked by #2878. The integrity check has
 moved to the actual `fs-secure` whole-image write boundary, so schema repair and every other raw
-writer are covered without rejecting successful native bridge calls.
+writer are covered without rejecting successful native bridge calls. The stale-process resolver now
+also follows the public `.bin/ruflo` wrapper used by `npx ruflo@latest mcp start`.
 Supersedes: none
 Related: ADR-006 (fail-closed serialization and WAL refusal), ADR-013 (cleanup's guarded kill), ADR-021 (the monitor acts on its own tick)
 
@@ -68,10 +69,13 @@ writers. The private upstream guard may remain nested and redundant.
 
 **The stale-writer guard (outside the patched module).** A new `lib/cwd/stale-writer.mjs` detects
 running ruflo workers writing memory.db with old code. It resolves a worker's `@claude-flow/cli` root
-from its argv in BOTH shapes: the daemon's direct `.../node_modules/@claude-flow/cli/bin/cli.js`, and,
-crucially, the plugin MCP client's `.../node_modules/.bin/cli` SYMLINK launched by
-`npm exec @claude-flow/cli` with no subcommand. Matching only the first shape was a real blind spot: a
-live box reported zero stale writers while five plugin MCP clients were running pre-patch.
+from the daemon's direct `.../node_modules/@claude-flow/cli/bin/cli.js`, the plugin MCP client's
+`.../node_modules/.bin/cli` symlink, and the public `.../node_modules/.bin/ruflo` wrapper used by
+`npx ruflo@latest mcp start`. The Ruflo-wrapper path validates both package identities, then mirrors
+the wrapper's bounded walk to a nested or hoisted CLI. Matching only the first two shapes was a live
+blind spot: old project MCP clients remained invisible even though their on-disk CLI had been patched.
+The machine-wide `ps` read has a bounded 64 MB buffer: 8 MB was measured failing on a 12.5 MB argv
+stream and had been caught as an empty list, turning detector failure into a false healthy zero.
 
 The action is decided by whether a restart would actually FIX the process at all, and separately, how
 loud the warning must be when it does:
@@ -113,8 +117,8 @@ ADR-013's cleanup bar: a process is only ever signalled when we can positively r
   and the corrupt image is left untouched for recovery. The measured `no such table` data-loss path
   is closed at the last moment before the write.
 - Every pre-patch writer, daemon or MCP client, is forced onto patched code on the next monitor tick,
-  and the `.bin/cli` resolution means the plugin MCP clients (the common case) are actually seen, not
-  skipped.
+  and both `.bin/cli` and `.bin/ruflo` resolution mean the plugin and public-wrapper MCP clients are
+  actually seen, not skipped.
 - The daemon half of the kill disrupts no live session (it respawns on next use); the MCP-client half
   is paired with a warning routed through the shared problem feed, reaching the user's next prompt in
   any session rather than depending on them noticing a dead tool call first.
@@ -131,9 +135,10 @@ ADR-013's cleanup bar: a process is only ever signalled when we can positively r
 - An `unpatched` writer is only warned about, never killed, because a restart would loop on the same
   unpatched copy for no benefit. The real fix there is re-anchoring the patch, surfaced by the drift
   machinery.
-- `recoverStaleWriters` scans machine-wide, not per project, so a tick-exercising test would kill
-  another parallel test's fakes. The test harness sets `RSP_NO_STALE_WRITER_KILL` globally and the
-  stale-writer suite clears it in-process to exercise the real kill against only its own fakes.
+- `recoverStaleWriters` scans machine-wide in production, not per project. The test harness sets
+  `RSP_NO_STALE_WRITER_KILL` globally; the stale-writer suite clears it only while passing an explicit
+  PID allowlist containing its own children, so a live-process regression cannot signal another test
+  or a user's real MCP session.
 
 ### Neutral
 

@@ -16,7 +16,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 
 const SB = process.argv[2];
 const fail = (m) => { console.log(`\n✘ ${m}`); process.exit(1); };
@@ -36,6 +36,18 @@ const { staleWriters, recoverStaleWriters } = await import('../lib/cwd/stale-wri
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const spawned = [];
 process.on('exit', () => { for (const p of spawned) { try { p.kill('SIGKILL'); } catch { /* gone */ } } });
+// The production detector is intentionally machine-wide. This live-process test must constrain
+// every detect/kill to its own children so running it can never terminate a user's real MCP client.
+const fixturePids = () => spawned.map((p) => p.pid);
+const detect = (opts = {}) => staleWriters({ ...opts, pids: fixturePids() });
+const recover = (opts = {}) => recoverStaleWriters({ ...opts, pids: fixturePids() });
+const fixturePs = () => {
+  try {
+    const wanted = new Set(fixturePids());
+    return execFileSync('ps', ['-Awwo', 'pid=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\n')
+      .filter((line) => wanted.has(Number(/^\s*(\d+)/.exec(line)?.[1])));
+  } catch (error) { return [`ps failed: ${error.message}`]; }
+};
 
 // A fake @claude-flow/cli install. `patched` means the current fail-closed lock; `legacy` means the
 // older wrapper that silently proceeded unlocked on acquisition failure. `mtimeAgeSec` back-dates
@@ -55,6 +67,27 @@ function fakeCli(name, { patched, legacy = false, mtimeAgeSec = 0 } = {}) {
   fs.writeFileSync(cliJs, 'setInterval(() => {}, 1e9);\n');
   return cliJs;
 }
+function fakeRuflo(name, { patched, packageName = 'ruflo' } = {}) {
+  const install = path.join(SB, name);
+  const wrapperRoot = path.join(install, 'node_modules', 'ruflo');
+  const cliRoot = path.join(install, 'node_modules', '@claude-flow', 'cli');
+  const mi = path.join(cliRoot, 'dist', 'src', 'memory', 'memory-initializer.js');
+  fs.mkdirSync(path.join(wrapperRoot, 'bin'), { recursive: true });
+  fs.mkdirSync(path.dirname(mi), { recursive: true });
+  fs.mkdirSync(path.join(cliRoot, 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(wrapperRoot, 'package.json'), JSON.stringify({ name: packageName }));
+  fs.writeFileSync(path.join(cliRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli' }));
+  fs.writeFileSync(mi, patched
+    ? "e.code = 'RSP_MEMORY_LOCK_UNAVAILABLE';\nconst __rufloLockScope = new __rufloAsyncLocalStorage();\nexport async function storeEntry(){}\nstoreEntry = __rufloGuard(storeEntry);\n"
+    : '// unpatched: no lock\n');
+  const wrapper = path.join(wrapperRoot, 'bin', 'ruflo.js');
+  fs.writeFileSync(wrapper, 'setInterval(() => {}, 1e9);\n');
+  const binDir = path.join(install, 'node_modules', '.bin');
+  fs.mkdirSync(binDir, { recursive: true });
+  const entry = path.join(binDir, 'ruflo');
+  fs.symlinkSync(wrapper, entry);
+  return { entry, mi };
+}
 function fakeWorker(cliJs, ...args) {
   const p = spawn(process.execPath, [cliJs, ...args], { stdio: 'ignore', detached: false });
   p.unref(); // a never-exiting child must not keep THIS test's event loop alive
@@ -71,60 +104,71 @@ const publish = () => new Promise((r) => setTimeout(r, 700)); // let ps see the 
 // older than the patch, so spawn both and share one wait.
 const preDaemonMi = path.join(SB, 'pre-daemon', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 const preMcpMi = path.join(SB, 'pre-mcp', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
+const preRuflo = fakeRuflo('pre-ruflo', { patched: true });
 const preDaemon = fakeWorker(fakeCli('pre-daemon', { patched: true }), 'daemon', 'start');
 const preMcp = fakeWorker(fakeCli('pre-mcp', { patched: true }), 'mcp', 'start');
-await new Promise((r) => setTimeout(r, 7000)); // age both past the +5s margin
+const preRufloMcp = fakeWorker(preRuflo.entry, 'mcp', 'start');
+await new Promise((r) => setTimeout(r, 8000)); // age all three past the +5s margin
 // Poll: `ps etime` is 1s-resolution and can hiccup under parallel load, so re-touch each patch to
-// "now" (process predates it) and check until BOTH are seen, rather than trusting a single shot.
-let dHit, mHit;
-for (let i = 0; i < 20 && !(dHit && mHit); i++) {
-  fs.utimesSync(preDaemonMi, new Date(), new Date());
-  fs.utimesSync(preMcpMi, new Date(), new Date());
-  const s = staleWriters();
+// "now" (process predates it) and check until all three launch shapes are seen.
+let dHit, mHit, rHit;
+for (let i = 0; i < 60 && !(dHit && mHit && rHit); i++) {
+  // One second in the past avoids a filesystem timestamp rounding into the detector's future;
+  // the process is already >=8s old, so it remains safely beyond the +5s production margin.
+  const patchedAt = new Date(Date.now() - 1000);
+  fs.utimesSync(preDaemonMi, patchedAt, patchedAt);
+  fs.utimesSync(preMcpMi, patchedAt, patchedAt);
+  fs.utimesSync(preRuflo.mi, patchedAt, patchedAt);
+  const s = detect();
   dHit = s.find((w) => w.pid === preDaemon.pid);
   mHit = s.find((w) => w.pid === preMcp.pid);
-  if (!(dHit && mHit)) await new Promise((r) => setTimeout(r, 300));
+  rHit = s.find((w) => w.pid === preRufloMcp.pid);
+  if (!(dHit && mHit && rHit)) await new Promise((r) => setTimeout(r, 500));
 }
-if (!dHit) fail('SW1 a pre-patch daemon was NOT detected');
+if (!dHit) fail(`SW1 a pre-patch daemon was NOT detected (alive=${alive(preDaemon.pid)}, pid=${preDaemon.pid}, seen=${JSON.stringify(detect())}, ps=${JSON.stringify(fixturePs())})`);
 if (dHit.kind !== 'daemon' || dHit.severity !== 'pre-patch') fail(`SW1 expected daemon/pre-patch, got ${dHit.kind}/${dHit.severity}`);
-if (!mHit) fail('SW6 a pre-patch MCP client was NOT detected');
+if (!mHit) fail(`SW6 a pre-patch MCP client was NOT detected (alive=${alive(preMcp.pid)}, pid=${preMcp.pid}, seen=${JSON.stringify(detect())})`);
 if (mHit.kind !== 'mcp' || mHit.severity !== 'pre-patch') fail(`SW6 expected mcp/pre-patch, got ${mHit.kind}/${mHit.severity}`);
+if (!rHit) fail(`SW10 a pre-patch MCP client launched through .bin/ruflo was NOT detected (alive=${alive(preRufloMcp.pid)}, pid=${preRufloMcp.pid}, seen=${JSON.stringify(detect())})`);
+if (rHit.kind !== 'mcp' || rHit.severity !== 'pre-patch') fail(`SW10 expected mcp/pre-patch, got ${rHit.kind}/${rHit.severity}`);
 
 // SW1a — dry-run reports but kills nothing.
-recoverStaleWriters({ dryRun: true });
+recover({ dryRun: true });
 if (!alive(preDaemon.pid)) fail('SW1a dry-run KILLED the daemon — a dry run must change nothing');
 // SW1b — the kill switch reports but kills nothing.
 process.env.RSP_NO_STALE_WRITER_KILL = '1';
-recoverStaleWriters();
+recover();
 if (!alive(preDaemon.pid)) fail('SW1b RSP_NO_STALE_WRITER_KILL did not prevent the kill');
 delete process.env.RSP_NO_STALE_WRITER_KILL;
 // SW1c + SW6 — one real recovery: BOTH the daemon and the MCP client are killed.
-const rec = recoverStaleWriters();
+const rec = recover();
 if (!rec.killed.some((w) => w.pid === preDaemon.pid)) fail('SW1c recovery did not restart the pre-patch daemon');
 if (!rec.killed.some((w) => w.pid === preMcp.pid)) fail('SW6 recovery did not kill the pre-patch MCP client — per directive it must, to force fresh code');
+if (!rec.killed.some((w) => w.pid === preRufloMcp.pid)) fail('SW10 recovery did not kill the .bin/ruflo MCP client');
 await new Promise((r) => setTimeout(r, 400));
 if (alive(preDaemon.pid)) fail('SW1c the pre-patch daemon survived recovery — it should respawn patched');
 if (alive(preMcp.pid)) fail('SW6 the pre-patch MCP client survived recovery — it should have been killed');
+if (alive(preRufloMcp.pid)) fail('SW10 the .bin/ruflo MCP client survived recovery — it should have been killed');
 
 // ── SW7: an UNPATCHED writer (even a daemon) is detected but NEVER auto-killed ─
 // The copy has no lock because the patch could not apply; a respawn reads the same unpatched copy
 // and LOOPS. That is drift, fixed by re-anchoring, not by killing the process.
 const unpDaemon = fakeWorker(fakeCli('unpatched-daemon', { patched: false }), 'daemon', 'start');
 await publish();
-let hit = staleWriters().find((w) => w.pid === unpDaemon.pid);
+let hit = detect().find((w) => w.pid === unpDaemon.pid);
 if (!hit) fail('SW7 an unpatched daemon was NOT detected');
 if (hit.severity !== 'unpatched') fail(`SW7 expected severity 'unpatched', got '${hit.severity}'`);
-recoverStaleWriters();
+recover();
 if (!alive(unpDaemon.pid)) fail('SW7 recovery KILLED an unpatched writer — a respawn would loop unpatched; must never be auto-killed');
 
 // ── SW9: the older fail-open wrapper is NOT accepted as the current lock ─────
 const legacyDaemon = fakeWorker(fakeCli('legacy-daemon', { legacy: true }), 'daemon', 'start');
 await publish();
-hit = staleWriters().find((w) => w.pid === legacyDaemon.pid);
+hit = detect().find((w) => w.pid === legacyDaemon.pid);
 if (!hit || hit.severity !== 'unpatched') {
   fail('SW9 the legacy fail-open __rufloGuard wrapper was accepted as the current fail-closed patch');
 }
-recoverStaleWriters();
+recover();
 if (!alive(legacyDaemon.pid)) fail('SW9 recovery killed a legacy on-disk copy that a respawn cannot repair');
 
 // ── SW2: a PATCHED writer that started AFTER its patch is NEVER flagged ───────
@@ -132,15 +176,21 @@ if (!alive(legacyDaemon.pid)) fail('SW9 recovery killed a legacy on-disk copy th
 const healthy = fakeWorker(fakeCli('healthy', { patched: true, mtimeAgeSec: 3600 }), 'daemon', 'start');
 await publish();
 if (!alive(healthy.pid)) fail('fixture: the healthy fake writer died before the test began');
-if (staleWriters().some((w) => w.pid === healthy.pid)) fail('SW2 a patched writer that started after its patch was flagged STALE — a false positive would restart healthy daemons every tick');
-recoverStaleWriters();
+if (detect().some((w) => w.pid === healthy.pid)) fail('SW2 a patched writer that started after its patch was flagged STALE — a false positive would restart healthy daemons every tick');
+recover();
 if (!alive(healthy.pid)) fail('SW2 recovery KILLED a healthy patched writer — the false-positive kill this guard must never do');
 
 // ── SW3: an unresolvable argv (npm-exec wrapper) is never touched ────────────
 fs.writeFileSync(path.join(SB, 'wrap.js'), 'setInterval(() => {}, 1e9);\n');
 const wrapper = fakeWorker(path.join(SB, 'wrap.js'), 'mcp'); // path has no @claude-flow/cli root
 await publish();
-if (staleWriters().some((w) => w.pid === wrapper.pid)) fail('SW3 a process whose argv does not resolve to an @claude-flow/cli install was flagged — never touch what we cannot positively identify');
+if (detect().some((w) => w.pid === wrapper.pid)) fail('SW3 a process whose argv does not resolve to an @claude-flow/cli install was flagged — never touch what we cannot positively identify');
+
+// SW11: a same-named wrapper without the official package identity is never trusted.
+const impostor = fakeRuflo('impostor-ruflo', { patched: true, packageName: 'not-ruflo' });
+const impostorMcp = fakeWorker(impostor.entry, 'mcp', 'start');
+await publish();
+if (detect().some((w) => w.pid === impostorMcp.pid)) fail('SW11 an unverified .bin/ruflo executable was treated as an official writer');
 
 // ── SW5: the plugin MCP server's `.bin/cli` symlink is RESOLVED (unpatched copy: not killed) ─
 // The blind spot that let a live box report zero stale while five were running: `npm exec
@@ -160,17 +210,17 @@ fs.symlinkSync(path.join(symRoot, 'bin', 'cli.js'), path.join(binDir, 'cli'));
 const symServer = fakeWorker(path.join(binDir, 'cli')); // NO subcommand: the default stdio MCP client
 await publish();
 if (!alive(symServer.pid)) fail('fixture: the .bin/cli symlink server died before the test began');
-hit = staleWriters().find((w) => w.pid === symServer.pid);
+hit = detect().find((w) => w.pid === symServer.pid);
 if (!hit) fail('SW5 a plugin MCP server launched via the .bin/cli SYMLINK was NOT detected — the blind spot that reported zero stale on a box running five');
 if (hit.kind !== 'server') fail(`SW5 the default (no-subcommand) stdio server must be kind 'server', got '${hit.kind}'`);
-recoverStaleWriters();
+recover();
 if (!alive(symServer.pid)) fail('SW5 recovery KILLED a .bin/cli MCP client — MCP clients are never auto-killed');
 
 // ── SW4: the whole guard is inert unless the `memory` target is installed ─────
 const idle = fakeWorker(fakeCli('idle-unpatched', { patched: false }), 'daemon', 'start');
 await publish();
 setMemoryInstalled(false);
-if (staleWriters().length) fail('SW4 stale writers were reported with the memory target NOT installed — with no lock to protect, an unpatched copy is not a fault');
+if (detect().length) fail('SW4 stale writers were reported with the memory target NOT installed — with no lock to protect, an unpatched copy is not a fault');
 if (!alive(idle.pid)) fail('SW4 a writer was killed with memory uninstalled');
 setMemoryInstalled(true);
 
@@ -191,7 +241,7 @@ addProblems(['!! ruflo-source-patch KILLED 1 stale MCP client(s) to force fresh 
 const stored2 = JSON.parse(fs.readFileSync(PROBLEMS_PATH, 'utf8')).problems;
 if (stored2.filter((p) => p.includes('KILLED 1 stale MCP client')).length !== 1) fail('SW8 addProblems duplicated an already-recorded line instead of de-duping');
 
-console.log('✔ stale-writer guard (SW1 pre-patch daemon+MCP client both killed, SW1a/b dry-run+kill-switch inert, SW7 unpatched NOT killed, SW9 legacy fail-open rejected, SW2 patched-after-patch untouched, SW3 unresolvable untouched, SW5 .bin/cli unpatched not-killed, SW4 inert unless memory installed, SW8 addProblems merges not clobbers)');
+console.log('✔ stale-writer guard (SW1/SW6/SW10 direct+.bin/cli+.bin/ruflo pre-patch writers killed, SW1a/b dry-run+kill-switch inert, SW7 unpatched NOT killed, SW9 legacy fail-open rejected, SW2 patched-after-patch untouched, SW3/SW11 unresolvable or unverified untouched, SW5 .bin/cli unpatched not-killed, SW4 inert unless memory installed, SW8 addProblems merges not clobbers)');
 
 for (const p of spawned) { try { p.kill('SIGKILL'); } catch { /* gone */ } }
 process.exit(0);
