@@ -60,6 +60,7 @@ import {
   brainCodexSkillsCommand, rufloCodexSkillsCommand,
 } from '../lib/codex-skills/commands.mjs';
 import { brainReleaseLockstepCommand } from '../lib/brain-release-lockstep/commands.mjs';
+import { brainConsoleLifecycleCommand } from '../lib/brain-console-lifecycle/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -93,6 +94,7 @@ const PLUGIN_PATCH_TARGETS = {
   // ruvnet-brain's installer wires only MCP for Codex; this adds its user-global lifecycle plugin.
   'codex-hooks': codexHooksCommand,
   'brain-codex-skills': brainCodexSkillsCommand,
+  'brain-console-lifecycle': brainConsoleLifecycleCommand,
   'brain-release-lockstep': brainReleaseLockstepCommand,
 };
 
@@ -131,6 +133,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('flywheel-daily')}show the flywheel opt-in advisory once per local day/project (#53)
   ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
   ${pad('brain-codex-skills')}repair Brain what's-new release-note lookup in Codex (#76)
+  ${pad('brain-console-lifecycle')}reject stale detached Console generations safely (#79)
   ${pad('brain-release-lockstep')}fail doctor on bundle/package/host version drift (#77)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
@@ -296,7 +299,7 @@ if (target === 'all') {
       console.log(`[${t}] retired — skipped (upstream now does this; \`${t} status\` for why)`);
       continue;
     }
-    if (!PLUGIN_PATCH_TARGETS[t](action)) bad++;
+    if (!(await PLUGIN_PATCH_TARGETS[t](action))) bad++;
   }
 
   // The monitor keeps them live; on uninstall it comes down too; status reports it alongside.
@@ -312,7 +315,7 @@ if (target === 'all') {
 } else if (PATCH_TARGETS.includes(target)) {
   ok = patchCommand([target], action);
 } else if (PLUGIN_PATCH_TARGETS[target]) {
-  ok = PLUGIN_PATCH_TARGETS[target](action);
+  ok = await PLUGIN_PATCH_TARGETS[target](action);
 } else if (SCRIPT_TARGETS[target]) {
   // `run` forwards everything after the action to the script (e.g. `dedupe-bundle run . --dry-run`).
   ok = scriptCommand(target, action, process.argv.slice(4));

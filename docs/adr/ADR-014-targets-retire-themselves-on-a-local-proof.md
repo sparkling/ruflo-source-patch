@@ -11,6 +11,9 @@ release-note repair live. No #76 predicate is guessed before an upstream candida
 same rule applies to the new Brain #77 `brain-release-lockstep` reporting guard: it cannot retire
 until a published candidate proves one version across the bundle, package, Stable Spine, Claude,
 and Codex, so no marker-only predicate is guessed in advance. The
+Brain #79 `brain-console-lifecycle` target likewise keeps no guessed predicate: retirement requires a
+released candidate to execute stale-generation replacement, foreign-listener preservation, owned
+shutdown, doctor comparison, and persistent-runtime update convergence (ADR-025). The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
 Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and

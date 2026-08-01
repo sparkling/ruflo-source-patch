@@ -20,6 +20,10 @@ npm/npx and persistent Console-runtime `bin/install.mjs` copies. It changes only
 reporting and doctor health; the native updater, Stable Spine, caches, hooks, MCP, and learning plane
 remain untouched. It also exposes an exact reverse transform so a later target revision can prove and
 recover the vendor baseline instead of adopting the earlier target's output as “new upstream” bytes.
+Brain #79's `brain-console-lifecycle` target now composes beside #77 on `bin/install.mjs` and separately
+owns `onboarding-console.mjs`. Its updater-neutral doctor edits and Console identity edits are one atomic
+descriptor; uninstall authenticates and stops receipt-proven instances before composition restores the
+vendor bytes (ADR-025).
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -90,6 +94,8 @@ engine because no sibling target claims it.
 - The plugin side now shares the CLI side's proven composition discipline instead of a weaker parallel one.
 - The #77 guard cannot conceal a split release by relabelling or copying caches: it reports all
   resolved product versions and makes doctor fail until upstream artifacts genuinely converge.
+- The #79 target can share the installer with #77 without either patch adopting the other's output as a
+  vendor baseline, while Console runtime restoration occurs only after owned processes stop.
 
 ### Negative
 
@@ -107,5 +113,5 @@ engine because no sibling target claims it.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md)
 - `lib/plugin-compose.mjs`, `lib/plugin-command.mjs`, `lib/pristine.mjs` (`isOurs`), `lib/plugin-registry.mjs`
