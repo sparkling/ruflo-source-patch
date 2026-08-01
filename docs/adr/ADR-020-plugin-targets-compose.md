@@ -27,6 +27,9 @@ vendor bytes (ADR-025).
 Brain #81's `brain-memory-doctor-roots` target is a disjoint atomic descriptor over installed
 `scripts/memory-doctor.mjs` copies. It shares the same pristine, drift, desired-state, and exact-restore
 machinery without touching Brain data or its native updater (ADR-026).
+Brain #86's `brain-console-provider-keys` target composes beside #79 on `onboarding-console.mjs`. Its
+single fallback edit reuses Brain's native boolean detector when packaged catalog loading fails, while
+leaving Brain's assets and operating plane untouched (ADR-027).
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -116,5 +119,5 @@ engine because no sibling target claims it.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md)
 - `lib/plugin-compose.mjs`, `lib/plugin-command.mjs`, `lib/pristine.mjs` (`isOurs`), `lib/plugin-registry.mjs`

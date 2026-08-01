@@ -61,6 +61,7 @@ import {
 } from '../lib/codex-skills/commands.mjs';
 import { brainReleaseLockstepCommand } from '../lib/brain-release-lockstep/commands.mjs';
 import { brainConsoleLifecycleCommand } from '../lib/brain-console-lifecycle/commands.mjs';
+import { brainConsoleProviderKeysCommand } from '../lib/brain-console-provider-keys/commands.mjs';
 import { brainMemoryDoctorRootsCommand } from '../lib/brain-memory-doctor-roots/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
@@ -96,6 +97,7 @@ const PLUGIN_PATCH_TARGETS = {
   'codex-hooks': codexHooksCommand,
   'brain-codex-skills': brainCodexSkillsCommand,
   'brain-console-lifecycle': brainConsoleLifecycleCommand,
+  'brain-console-provider-keys': brainConsoleProviderKeysCommand,
   'brain-release-lockstep': brainReleaseLockstepCommand,
   'brain-memory-doctor-roots': brainMemoryDoctorRootsCommand,
 };
@@ -136,6 +138,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('codex-hooks')}adds Brain's user-global Codex lifecycle plugin; MCP remains single (#52)
   ${pad('brain-codex-skills')}repair Brain what's-new release-note lookup in Codex (#76)
   ${pad('brain-console-lifecycle')}reject stale detached Console generations safely (#79)
+  ${pad('brain-console-provider-keys')}report native OpenAI/Google key detection when the catalog is absent (#86)
   ${pad('brain-release-lockstep')}fail doctor on bundle/package/host version drift (#77)
   ${pad('brain-memory-doctor-roots')}scan common/configured AgentDB roots in the standalone doctor (#81)
 

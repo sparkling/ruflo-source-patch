@@ -35,6 +35,7 @@
 | `plugin-hosts.mjs` | Ruflo's issue-backed dual-host marketplace commands against fake host CLIs: install/sync/uninstall, dry-run, disabled state, exact scope ownership, idempotence, injection refusal, partial failure, bounded same-version refresh with cache-byte proof, and byte-perfect patch removal. |
 | `brain-release-lockstep.mjs` | Brain #77's read-only fail-closed version guard: bounded npm/npx/persistent-runtime discovery, bundle/package/Spine/Claude/Codex comparison, atomic anchor refusal, mutation proof, and byte-perfect removal without touching the updater. |
 | `brain-console-lifecycle.mjs` | Brain #79's detached Console contract: immutable generation identity, private per-project receipts, authenticated replacement, safe reuse, composition with #77, mutation proof, and byte-perfect removal without touching the updater. |
+| `brain-console-provider-keys.mjs` | Brain #86's packaged-catalog fallback: bounded Console discovery, native OpenAI/Google/Gemini key detection, composition with #79, mutation proof, no secret leakage, and byte-perfect removal. |
 | `brain-memory-doctor-roots.mjs` | Brain #81's standalone AgentDB fleet discovery: common/configured roots, explicit-root compatibility, bounded installed-copy discovery, atomic drift refusal, mutation proof, and byte-perfect removal without touching Brain data or its updater. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 

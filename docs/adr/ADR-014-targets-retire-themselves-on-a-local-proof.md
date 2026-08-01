@@ -16,7 +16,9 @@ released candidate to execute stale-generation replacement, foreign-listener pre
 shutdown, doctor comparison, and persistent-runtime update convergence (ADR-025). The
 Brain #81 `brain-memory-doctor-roots` target also has no guessed version predicate: retirement
 executes standalone common/configured-root discovery against active installed bytes and requires
-Console/CLI policy convergence (ADR-026). The
+Console/CLI policy convergence (ADR-026). Brain #86 `brain-console-provider-keys` likewise waits for
+a released packed/staged-runtime behavior proof; source-checkout catalog presence or issue closure
+cannot retire it (ADR-027). The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
 Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and
@@ -88,5 +90,5 @@ another surface to get wrong.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md)
 - `lib/supersede.mjs`
