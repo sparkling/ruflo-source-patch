@@ -35,6 +35,9 @@ Add the `brain-managed-memory-boundary` target, backed by
 - Add the MCP-only `agentdb_diagnostic_read` escape hatch. It accepts a canonical managed path plus an
   exact namespace/key and a reason, generates fixed read-only SQL itself, returns only a row count, and
   never accepts SQL or returns memory content.
+- Open a checkpointed WAL-mode image through SQLite's read-only immutable URI only when no WAL/SHM
+  sidecars exist. Refuse live sidecars without opening or deleting them, then compare file identity,
+  ctime, mtime, and size before and after the query.
 - Record private content-free audit receipts before refusal and around diagnostics. Hash paths and reasons;
   preserve and compare DB/WAL/SHM metadata around the read.
 - Preflight and apply the active native generation, matching Claude/Codex copies, and persistent MCP shell
@@ -49,7 +52,7 @@ KB/cache/model data, or the updater itself.
 The regression suite exercises the real current Brain parser, positive flag/nesting/substitution cases,
 negative prose/search/heredoc/comment cases, both host envelopes, a sentinel that proves denial prevents
 execution, Brain-off enforcement, non-Bash silence, exact SQLite flag parsing, canonical store identity,
-read-only diagnostics, unchanged DB sidecars, content-free private receipts, SQL-literal injection, atomic
+checkpointed WAL-mode diagnostics, live-sidecar refusal, content-free private receipts, SQL-literal injection, atomic
 anchor refusal, rollback, idempotency, exact uninstall, and a native `active.json` generation flip.
 
 ## Limits

@@ -135,10 +135,16 @@ const project = path.join(HOME, 'source', 'project');
 const db = path.join(project, '.swarm', 'memory.db');
 fs.mkdirSync(path.dirname(db), { recursive: true });
 const seeded = spawnSync('sqlite3', [db], {
-  input: "CREATE TABLE memory_entries(id TEXT PRIMARY KEY,key TEXT,namespace TEXT,content TEXT,UNIQUE(namespace,key));\nINSERT INTO memory_entries VALUES('1','wanted','patterns','secret-content');\n",
+  input: "PRAGMA journal_mode=WAL;\nCREATE TABLE memory_entries(id TEXT PRIMARY KEY,key TEXT,namespace TEXT,content TEXT,UNIQUE(namespace,key));\nINSERT INTO memory_entries VALUES('1','wanted','patterns','secret-content');\nPRAGMA wal_checkpoint(TRUNCATE);\n",
   encoding: 'utf8',
 });
-check('BMB7 SQLite fixture is available', seeded.status === 0, seeded.stderr);
+// sqlite3 3.51 leaves a zero-byte WAL and SHM after its process exits. Ruflo's sql.js whole-image
+// writer produces the checkpointed WAL header without those native sidecars, so model that state.
+for (const sidecar of [`${db}-wal`, `${db}-shm`]) fs.rmSync(sidecar, { force: true });
+const sqliteHeader = fs.readFileSync(db).subarray(18, 20);
+check('BMB7 checkpointed WAL-mode SQLite fixture is available without sidecars',
+  seeded.status === 0 && sqliteHeader[0] === 2 && sqliteHeader[1] === 2
+    && !fs.existsSync(`${db}-wal`) && !fs.existsSync(`${db}-shm`), seeded.stderr);
 const gate = path.join(ACTIVE, 'scripts', 'managed-memory-gate.mjs');
 const event = (command, tool_name = 'Bash') => JSON.stringify({ tool_name, cwd: project, tool_input: { command } });
 const runGate = (command, extra = {}, tool = 'Bash') => spawnSync(process.execPath, [gate], {
@@ -199,6 +205,15 @@ check('BMB19 the bounded diagnostic reports only an exact row count, never conte
   !valid.isError && /matched rows = 1/.test(valid.content[0].text) && !valid.content[0].text.includes('secret-content'),
   JSON.stringify(valid));
 check('BMB20 the diagnostic leaves the database bytes unchanged', hash(db) === beforeDb);
+fs.writeFileSync(`${db}-wal`, 'live-sidecar-fixture');
+const sidecarHash = hash(`${db}-wal`);
+const liveSidecar = await diagnostic.callManagedMemoryDiagnostic({
+  path: canonicalDb, namespace: 'patterns', key: 'wanted', reason: 'prove live sidecars are never opened or removed',
+}, process.env);
+check('BMB20a a live WAL sidecar is refused without mutation or deletion',
+  liveSidecar.isError && /live WAL\/SHM/.test(liveSidecar.content[0].text)
+    && hash(`${db}-wal`) === sidecarHash);
+fs.rmSync(`${db}-wal`);
 const audit = path.join(BRAIN, 'audit', 'managed-memory-boundary.jsonl');
 const receipts = fs.readFileSync(audit, 'utf8').trim().split('\n').map(JSON.parse);
 check('BMB21 refusal + start/completion receipts are private and content-free',
