@@ -81,10 +81,12 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
-- Patch only installed npm/npx package or plugin bytes through a named, issue-backed patch target. NEVER alter RuvNet Brain's native operating plane: do not disable, delay, pin, redirect, shadow, replace, or bypass its downloads, background updater, `active.json`, immutable version store, cache/KB, MCP, hooks, or self-learning runtime.
+- Patch only installed npm/npx package or plugin source bytes through a named, issue-backed patch target.
+- Brain executable source, including hooks and MCP handlers in the active installed generation, may be patched by that framework with exact anchors, pristine restoration, monitor re-application, behavioural proof, and an upstream retirement condition.
+- NEVER interfere with RuvNet Brain's native KB and release-update plane: do not disable, delay, pin, redirect, shadow, replace, or bypass its downloads, background updater, `active.json`, version selection/promotion, KB/cache data, update receipts, or self-learning data. Do not rewrite Brain version identity or present locally patched bytes as a different upstream release.
 - NEVER add Brain environment guards or local runtime substitutes. This includes `RUVNET_BRAIN_IMPORT_ONLY`, dev overrides, manual mirrors/caches, replacement update jobs, or frozen version-specific entrypoints. Never delete or move Brain update/cache assets unless the user explicitly requests that exact upstream-supported operation.
 - NEVER download, seed, promote, or otherwise upgrade RuvNet Brain manually. If a newer Brain is required, stop and tell the user; the user will restart the session so Brain's native session lifecycle performs the upgrade.
-- A patch must coexist with Brain's unmodified native update behavior and be reapplied only after the native update completes. If it cannot, stop and ask the user; do not install a workaround.
+- A Brain source patch must let the native updater activate its generation first, then patch only the installed executable bytes it owns. It must never drive or impersonate an upgrade. If it cannot coexist with native KB/release updates, stop and ask the user; do not install a workaround.
 - NEVER create files unless absolutely necessary; prefer editing existing files
 - NEVER create documentation files unless explicitly requested
 - NEVER save working files or tests to root; use `/src`, `/tests`, `/docs`, `/config`, `/scripts`
