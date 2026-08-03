@@ -63,6 +63,7 @@ import { brainReleaseLockstepCommand } from '../lib/brain-release-lockstep/comma
 import { brainConsoleLifecycleCommand } from '../lib/brain-console-lifecycle/commands.mjs';
 import { brainConsoleProviderKeysCommand } from '../lib/brain-console-provider-keys/commands.mjs';
 import { brainMemoryDoctorRootsCommand } from '../lib/brain-memory-doctor-roots/commands.mjs';
+import { brainManagedMemoryBoundaryCommand } from '../lib/brain-managed-memory-boundary/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -100,6 +101,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-console-provider-keys': brainConsoleProviderKeysCommand,
   'brain-release-lockstep': brainReleaseLockstepCommand,
   'brain-memory-doctor-roots': brainMemoryDoctorRootsCommand,
+  'brain-managed-memory-boundary': brainManagedMemoryBoundaryCommand,
 };
 
 function usage() {
@@ -141,6 +143,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-console-provider-keys')}report native OpenAI/Google key detection when the catalog is absent (#86)
   ${pad('brain-release-lockstep')}fail doctor on bundle/package/host version drift (#77)
   ${pad('brain-memory-doctor-roots')}scan common/configured AgentDB roots in the standalone doctor (#81)
+  ${pad('brain-managed-memory-boundary')}refuse raw SQLite access to managed AgentDB stores; audited diagnostic only (#102/#103)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

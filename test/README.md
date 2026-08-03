@@ -37,6 +37,7 @@
 | `brain-console-lifecycle.mjs` | Brain #79's detached Console contract: immutable generation identity, private per-project receipts, authenticated replacement, safe reuse, composition with #77, mutation proof, and byte-perfect removal without touching the updater. |
 | `brain-console-provider-keys.mjs` | Brain #86's packaged-catalog fallback: bounded Console discovery, native OpenAI/Google/Gemini key detection, composition with #79, mutation proof, no secret leakage, and byte-perfect removal. |
 | `brain-memory-doctor-roots.mjs` | Brain #81's standalone AgentDB fleet discovery: common/configured roots, explicit-root compatibility, bounded installed-copy discovery, atomic drift refusal, mutation proof, and byte-perfect removal without touching Brain data or its updater. |
+| `brain-managed-memory-boundary.mjs` | Brain #102/#103's managed AgentDB boundary: SQLite option parsing, structural host denial, negative prose/unmanaged-store cases, audited content-free diagnostic, atomic multi-surface install, native-generation flip, and exact removal without changing `active.json`, KB, or updater bytes. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
 ## Three rules, all learned the hard way
