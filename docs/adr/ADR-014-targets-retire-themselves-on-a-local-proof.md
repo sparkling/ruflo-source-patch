@@ -18,7 +18,10 @@ Brain #81 `brain-memory-doctor-roots` target also has no guessed version predica
 executes standalone common/configured-root discovery against active installed bytes and requires
 Console/CLI policy convergence (ADR-026). Brain #86 `brain-console-provider-keys` likewise waits for
 a released packed/staged-runtime behavior proof; source-checkout catalog presence or issue closure
-cannot retire it (ADR-027). The
+cannot retire it (ADR-027). Brain #102/#103's `brain-managed-memory-boundary` also has no guessed
+predicate: retirement requires a published candidate to execute the real direct-access refusal,
+negative detector cases, Brain-off behavior, structured diagnostic, and native generation-flip
+convergence (ADR-028). The
 `adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
 Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and
@@ -90,5 +93,5 @@ another surface to get wrong.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md)
 - `lib/supersede.mjs`

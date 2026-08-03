@@ -22,7 +22,7 @@ how a fix silently stops existing.
 |---|---|---|---|
 | `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
-| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/` | **Brain/Codex package and plugin patches** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
+| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/` | **Brain/Codex package and plugin patches** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`) | *nothing*. They set up or repair **your projects/host registration** | nobody; you run them by hand |
 
 ## Two files to read before writing a patcher
@@ -33,6 +33,10 @@ monitor, `status` and `monitor check` all pick it up for free.
 `pristine.mjs` is the safety floor for every patcher that **edits** a vendor file: resolve the pristine
 bytes, re-baseline when upstream replaces the file, and **never** truncate or destroy on a poisoned
 backup. Read it before writing a new patcher.
+
+`brain-managed-memory-boundary/` owns an atomic cross-surface transaction rather than one composed
+plugin file. It preflights the active native generation, matching host copies, and the persistent MCP
+shell before writing any of them; a missing anchor leaves every surface untouched.
 
 ## The rule this whole package exists to enforce
 

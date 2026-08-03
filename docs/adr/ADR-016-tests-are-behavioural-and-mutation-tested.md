@@ -5,6 +5,10 @@
 **Updated**: 2026-08-01. Rendered-artifact checks now pair literal replacement-token probes with
 structural output assertions. Ownership hashes, idempotency, exact restore, and loose substring checks all
 stayed green while JavaScript expanded Markdown's dollar-plus-backtick sequence and duplicated part of a skill.
+Brain #102/#103 adds a host-simulated denial test: a sentinel after a raw managed-store command must
+remain absent, while prose, searches, comments, unmanaged stores, and non-Bash events must still pass.
+Its diagnostic test proves row-count-only output, unchanged DB/WAL/SHM snapshots, bounded arguments,
+private receipts, and resistance to SQL-literal injection.
 **Deciders**: Henrik Pettersen
 **Tags**: testing, core, safety
 
@@ -40,6 +44,8 @@ happened, repeatedly, and every instance was caught only by deliberately breakin
 - **Never silently truncate coverage.** If a bound is applied, say so.
 - **Treat inserted vendor text as literal bytes.** Probe JavaScript replacement tokens directly and assert
   the rendered structure; marker presence and selected substrings do not prove that a transform is correct.
+- **Test the host contract, not only the handler.** A valid denial must prevent a following sentinel from
+  executing in both host envelopes; empty allow output is different from malformed success JSON.
 
 ## Consequences
 
@@ -60,5 +66,5 @@ happened, repeatedly, and every instance was caught only by deliberately breakin
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md)
 - `test/`, `scripts/run-tests.sh`

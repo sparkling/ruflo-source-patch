@@ -53,6 +53,7 @@ npx github:sparkling/ruflo-source-patch brain-console-lifecycle install # reject
 npx github:sparkling/ruflo-source-patch brain-console-provider-keys install # preserve native provider-key detection when packaged catalog data is absent (#86)
 npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail doctor on bundle/package/Spine/host version drift without touching Brain's updater (#77)
 npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # make standalone AgentDB fleet discovery scan common/configured roots (#81)
+npx github:sparkling/ruflo-source-patch brain-managed-memory-boundary install # refuse raw SQLite on managed AgentDB stores; audited exact diagnostic only (#102/#103)
 ```
 
 ### Keep it live (actions add `run | check`)
