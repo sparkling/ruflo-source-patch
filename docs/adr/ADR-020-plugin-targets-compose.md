@@ -30,6 +30,9 @@ machinery without touching Brain data or its native updater (ADR-026).
 Brain #86's `brain-console-provider-keys` target composes beside #79 on `onboarding-console.mjs`. Its
 single fallback edit reuses Brain's native boolean detector when packaged catalog loading fails, while
 leaving Brain's assets and operating plane untouched (ADR-027).
+MetaHarness #168's `metaharness-codex-hooks` target also joins composition. It owns authenticated
+installed `metaharness` and `@metaharness/host-codex` runtime files, adds no output when hooks are
+absent, and keeps an exact reverse transform for safe npm/npx re-baselining and removal (ADR-029).
 Brain #102/#103's `brain-managed-memory-boundary` intentionally stays outside per-file composition.
 It must atomically coordinate vendor transforms and marker-owned additive modules across the native active
 generation, matching host copies, and the persistent MCP shell. It therefore preflights one global
@@ -124,5 +127,5 @@ engine because no sibling target claims it.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md), [ADR-029](ADR-029-metaharness-codex-project-hooks.md)
 - `lib/plugin-compose.mjs`, `lib/plugin-command.mjs`, `lib/pristine.mjs` (`isOurs`), `lib/plugin-registry.mjs`

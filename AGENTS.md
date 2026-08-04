@@ -1,7 +1,7 @@
 # ruflo-source-patch
 
 > A zero-dependency Node CLI that source-patches the installed `ruflo` / `@claude-flow/cli` (and its
-> `ruflo-adr` / `ruvnet-brain` plugins) by exact literal anchors, and keeps the patches applied across
+> `ruflo-adr` / `ruvnet-brain` plugins, plus MetaHarness host packages) by exact literal anchors, and keeps the patches applied across
 > npx re-fetches via a SessionStart hook plus a launchd/cron monitor. The governing thesis: **a failure
 > must never look like success.** Architecture and rationale live in [`docs/adr/`](docs/adr/).
 >
@@ -35,7 +35,7 @@ npx github:sparkling/ruflo-source-patch init install      # keep init plugin-nat
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 ```
 
-### Plugin patches (`ruflo-adr`, `ruvnet-brain`)
+### Plugin/package patches (`ruflo-adr`, `ruvnet-brain`, MetaHarness)
 
 ```bash
 npx github:sparkling/ruflo-source-patch adr-template install      # legacy creator/parser compatibility; auto-retires on four-copy behavior proof (#2659)
@@ -54,6 +54,7 @@ npx github:sparkling/ruflo-source-patch brain-console-provider-keys install # pr
 npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail doctor on bundle/package/Spine/host version drift without touching Brain's updater (#77)
 npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # make standalone AgentDB fleet discovery scan common/configured roots (#81)
 npx github:sparkling/ruflo-source-patch brain-managed-memory-boundary install # refuse raw SQLite on managed AgentDB stores; audited exact diagnostic only (#102/#103)
+npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)
 ```
 
 ### Keep it live (actions add `run | check`)

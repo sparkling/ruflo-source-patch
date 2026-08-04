@@ -56,8 +56,8 @@
     .metric span { color: var(--muted); font-size: .78rem; }
     .distribution { max-width: 52rem; margin: 1.25rem 0 0; }
     .bar { display: flex; height: .8rem; overflow: hidden; border-radius: 999px; background: var(--line); }
-    .bar span:nth-child(1) { width: 78.95%; background: var(--open); }
-    .bar span:nth-child(2) { width: 21.05%; background: var(--partial); }
+    .bar span:nth-child(1) { width: 80%; background: var(--open); }
+    .bar span:nth-child(2) { width: 20%; background: var(--partial); }
     .legend { display: flex; flex-wrap: wrap; gap: .45rem 1rem; margin-top: .55rem; color: var(--muted); font-size: .78rem; }
     .legend i { display: inline-block; width: .62rem; height: .62rem; margin-right: .35rem; border-radius: 50%; }
     section { margin-top: 4.5rem; scroll-margin-top: 1.5rem; }
@@ -160,7 +160,8 @@
     <nav aria-label="Report sections">
       <a href="#summary">Summary</a>
       <a href="#ruflo">Ruflo · 5 patches</a>
-      <a href="#brain">RuvNet Brain · 5 patches</a>
+      <a href="#brain">RuvNet Brain · 6 patches</a>
+      <a href="#metaharness">MetaHarness · 1 patch</a>
       <a href="#decisions">What happens next</a>
       <a href="#evidence">Evidence</a>
     </nav>
@@ -169,21 +170,21 @@
 
   <main>
     <header id="summary">
-      <div class="eyebrow">Evidence snapshot · updated 3 August 2026</div>
+      <div class="eyebrow">Evidence snapshot · updated 4 August 2026</div>
       <h1>What still needs patching—and why</h1>
-      <p class="lede">Eleven patches remain live because their upstream replacement is absent, incomplete, or not delivered to the host surface actually in use. Nineteen issue records remain material to patch or closure decisions; a closed label does not override executable evidence.</p>
-      <p class="snapshot">The base fleet audit used @claude-flow/cli 3.33.0, ruflo-core 0.2.6, ruflo-adr 0.4.1, and marketplace history at Ruflo <code>48d532b</code>. The managed-memory boundary was additionally reproduced and validated against active RuvNet Brain 4.0.7 and the ruflo-source-patch 4.34.0 working tree on 3 August.</p>
+      <p class="lede">Twelve patches remain live because their upstream replacement is absent, incomplete, or not delivered to the host surface actually in use. Twenty issue records remain material to patch or closure decisions; a closed label does not override executable evidence.</p>
+      <p class="snapshot">The base fleet audit used @claude-flow/cli 3.33.0, ruflo-core 0.2.6, ruflo-adr 0.4.1, and marketplace history at Ruflo <code>48d532b</code>. The managed-memory boundary was additionally reproduced against active RuvNet Brain 4.0.7. MetaHarness #168 was verified against main <code>4db1c8f</code> and the installed <code>metaharness</code> 0.3.1 renderer on 4 August.</p>
 
       <div class="metrics" aria-label="Report metrics">
-        <div class="metric"><strong>11</strong><span>live monitored patches</span></div>
-        <div class="metric"><strong>13</strong><span>direct upstream issues driving them</span></div>
-        <div class="metric"><strong>19</strong><span>issue records requiring a verdict</span></div>
+        <div class="metric"><strong>12</strong><span>live monitored patches</span></div>
+        <div class="metric"><strong>14</strong><span>direct upstream issues driving them</span></div>
+        <div class="metric"><strong>20</strong><span>issue records requiring a verdict</span></div>
         <div class="metric"><strong>7</strong><span>threads with maintainer responses</span></div>
       </div>
       <div class="distribution" aria-label="Unresolved issue distribution">
-        <div class="bar" role="img" aria-label="13 open or live issues and 4 closed incomplete or superseded issues"><span></span><span></span></div>
+        <div class="bar" role="img" aria-label="16 open or live issues and 4 closed incomplete or superseded issues"><span></span><span></span></div>
         <div class="legend">
-          <span><i style="background:var(--open)"></i>13 open/live</span>
+          <span><i style="background:var(--open)"></i>16 open/live</span>
           <span><i style="background:var(--partial)"></i>4 closed-incomplete or superseded</span>
         </div>
       </div>
@@ -198,7 +199,7 @@
     </div>
     <div class="toolbar" aria-label="Issue filters">
       <input id="issue-search" type="search" placeholder="Search all issue evidence and Ruv responses" aria-label="Search issues">
-      <button class="issue-filter filter" data-filter="all" aria-pressed="true">All 17 issues</button>
+      <button class="issue-filter filter" data-filter="all" aria-pressed="true">All 20 issues</button>
       <button class="issue-filter filter" data-filter="open" aria-pressed="false">Open/live</button>
       <button class="issue-filter filter" data-filter="partial" aria-pressed="false">Closed incomplete</button>
     </div>
@@ -264,11 +265,26 @@
       <div class="callout"><strong>#76</strong><div><b>Discovery is not execution.</b> #56 proved that Codex lists the native skill and no alias points at an absent sibling. #76 requires the second boundary: the installed skill must actually open its exact-version notes after the source package has vanished.</div></div>
     </section>
 
+    <section id="metaharness">
+      <div class="eyebrow">Product 3 · ruvnet/metaharness</div>
+      <h2>MetaHarness</h2>
+      <p class="section-intro">One monitored package patch and one open issue cover the stale Codex host model. The local target fixes supplied hook declarations; upstream still owns declaration plumbing, helper packaging, trust guidance, tests, and documentation across every generator.</p>
+      <h3 class="subsection-title">Live MetaHarness patch</h3>
+      <div class="patch-grid">
+        <article class="patch-card" data-project="metaharness" data-severity="high"><div class="card-head"><h3 class="target">metaharness-codex-hooks</h3><span class="chip high">silent host capability loss</span></div><div class="chips"><span class="chip">6/6 installed copies</span><a class="chip" href="https://github.com/ruvnet/metaharness/issues/168">MetaHarness #168 — Codex drops declared hooks</a></div><p>Renders non-empty MetaHarness hook declarations as a strict project <code>.codex/hooks.json</code> plus a project-local Node bridge, while leaving hook-free scaffolds unchanged.</p><p class="evidence">The active installed renderer and five npx copies are patched. A live generated fixture parsed with only <code>description</code>/<code>hooks</code>, translated <code>Bash(rm *)</code> to <code>^Bash$</code>, denied a matching nested-cwd invocation, and returned empty success for a non-match. Unsupported declarations fail generation; Codex trust remains user-owned through <code>/hooks</code>.</p><details><summary>Retirement proof</summary><p>A published candidate must prove adapter, CLI, and Studio parity; strict current-Codex discovery; inner matcher preservation; packaged, resolvable handlers; native Windows and subdirectory execution; manifest/witness inclusion; trust messaging; and the documentation reconciliation listed in #168.</p></details></article>
+      </div>
+
+      <h3 class="subsection-title">MetaHarness issues not fully resolved</h3>
+      <table class="issue-table"><thead><tr><th>Issue</th><th>Verified verdict</th><th>Local consequence</th><th>Ruv response</th><th>What would resolve it</th></tr></thead><tbody>
+        <tr class="issue-row" data-project="metaharness" data-kind="open"><td class="issue" data-label="Issue"><a href="https://github.com/ruvnet/metaharness/issues/168">MetaHarness #168 — Codex host drops lifecycle hooks</a><span class="issue-title">GitHub open · filed 4 Aug from sparkling</span></td><td class="verdict open" data-label="Verdict">Open, reproduced on main and installed runtime</td><td class="consequence" data-label="Local consequence"><code>metaharness-codex-hooks</code> repairs the two runtime renderers when declarations are supplied; it deliberately does not fabricate template hooks.</td><td class="comment-note" data-label="Ruv response"><span class="comment-none">No maintainer response yet.</span></td><td data-label="Resolution">Consume <code>HarnessSpec.hooks</code> natively in Codex, wire declarations through adapter/CLI/Studio, package every handler, preserve matcher policy and trust, test current Codex behavior, and update README, ADR-004, ADR-236, host/CLI/Studio/example docs, and the changelog.</td></tr>
+      </tbody></table>
+    </section>
+
     <section id="decisions">
       <h2>What happens next</h2>
       <p class="section-intro">The right action depends on whether the gap is upstream behavior, release delivery, or issue bookkeeping.</p>
       <div class="decision-grid">
-        <article class="decision"><h3>Keep patched and monitored</h3><ul><li><code>cwd</code>, <code>daemon</code>, <code>memory</code>, <code>init</code>, and <code>plugin-hosts</code>.</li><li><code>brain-codex-skills</code> until native installed release-note execution works.</li><li><code>brain-console-lifecycle</code> until detached runtime identity and native persistent-runtime activation are complete.</li><li><code>brain-console-provider-keys</code> until packed and staged runtimes ship and validate the provider catalog.</li><li><code>brain-release-lockstep</code> until one published Brain identity converges across every release-bearing component.</li><li><code>brain-memory-doctor-roots</code> until standalone and Console fleet discovery share one common/configured-root implementation.</li><li><code>brain-managed-memory-boundary</code> until direct managed-store access is natively refused with an audited diagnostic escape hatch.</li></ul></article>
+        <article class="decision"><h3>Keep patched and monitored</h3><ul><li><code>cwd</code>, <code>daemon</code>, <code>memory</code>, <code>init</code>, and <code>plugin-hosts</code>.</li><li><code>brain-codex-skills</code> until native installed release-note execution works.</li><li><code>brain-console-lifecycle</code> until detached runtime identity and native persistent-runtime activation are complete.</li><li><code>brain-console-provider-keys</code> until packed and staged runtimes ship and validate the provider catalog.</li><li><code>brain-release-lockstep</code> until one published Brain identity converges across every release-bearing component.</li><li><code>brain-memory-doctor-roots</code> until standalone and Console fleet discovery share one common/configured-root implementation.</li><li><code>brain-managed-memory-boundary</code> until direct managed-store access is natively refused with an audited diagnostic escape hatch.</li><li><code>metaharness-codex-hooks</code> until every public MetaHarness generator preserves declared hooks with native Codex behavior.</li></ul></article>
         <article class="decision"><h3>Do not replace Brain's runtime</h3><ul><li>Brain #64 is fixed by the native updater; #77 and #79 report or control their narrow boundaries but never substitute for that updater.</li><li>Brain #41/#44 converged through the structured #48 replacement, not a more elaborate Bash parser.</li><li>#76 edits only a Codex skill document; #78 remains upstream because tool discovery and warmup belong inside Brain's MCP server.</li></ul></article>
         <article class="decision"><h3>Retire only on local proof</h3><ul><li>Execute the real replacement, not a version-marker grep.</li><li>Require active marketplace/cache delivery where plugins are versioned separately.</li><li>Unknown or partially rolled-out replacements bias toward keeping the patch.</li></ul></article>
         <article class="decision"><h3>Current retired set</h3><p class="retired"><code>adr-template</code>, <code>adr-index</code>, <code>adr-reindex</code>, <code>verify-interface</code>, <code>ruflo-hooks-schema</code>, <code>mcp-prefix</code>, <code>design-wall</code>, <code>flywheel-daily</code>, <code>codex-hooks</code>, and <code>ruflo-codex-skills</code>.</p></article>
@@ -279,11 +295,11 @@
       <h2>Evidence and reproducibility</h2>
       <p class="section-intro">This report is a snapshot, not a remote control. It makes no upstream changes and performs no Brain cache or updater substitutions.</p>
       <div class="sources">
-        <article><h3>Installed patch state</h3><p><code>all status</code> reports nine monitored targets after the #81 install, all complete; <code>monitor check</code> reports no patch drift. <code>adr-template</code> and <code>adr-index</code> are terminally retired after their respective active four-copy behavior proofs passed.</p></article>
+        <article><h3>Installed patch state</h3><p><code>metaharness-codex-hooks status</code> reports 6/6 installed copies patched and tracked. The same 4 August readout also exposed unrelated Brain target drift after native Brain bytes changed; those unmatched files were left untouched and are not represented as a successful MetaHarness install.</p></article>
         <article><h3>Hook execution</h3><p>Both Ruflo manifests, both Ruflo shims, and all 17 installed Brain handlers passed live Codex contract probes.</p></article>
-        <article><h3>Regression suite</h3><p>The current suite passed on the current tree: fuzz, cross-process and same-process memory concurrency, fail-closed locking, WAL refusal, exact restore, retirement, literal replacement metasyntax, Brain #76 skill rendering, Brain #77 five-component drift classification, Brain #79 live generation replacement and authenticated shutdown, Brain #81 common/configured-root discovery, and documentation checks.</p></article>
+        <article><h3>Regression suite</h3><p>The focused MetaHarness suite passes 29 checks: authenticated discovery, atomic anchors, strict schema, matcher translation, nested-cwd execution, symlink refusal, unsupported-declaration refusal, mutation proof, CLI lifecycle, and exact restore. The full shared suite also covers memory concurrency, retirement, Brain boundaries, and documentation checks.</p></article>
         <article><h3>Marketplace identity audit</h3><p>Git history at Ruflo <code>48d532b</code> proved 32 clean current identities and exactly 3 version collisions; both user-level hosts were refreshed through native plugin commands.</p></article>
-        <article><h3>Issue metadata and comments</h3><p>The fleet issue audit was run on 1 August 2026; Brain #102, #103, and the existing #48 follow-up were rechecked live on 3 August. #102/#103 carry active-4.0.7 reproducers and upstream implementation guidance. Every summarized maintainer response links to the exact comment.</p></article>
+        <article><h3>Issue metadata and comments</h3><p>The fleet issue audit was run on 1 August 2026; Brain #102/#103 were rechecked on 3 August, and MetaHarness #168 was filed from <code>sparkling</code> on 4 August with implementation, acceptance, and documentation requirements. Every summarized maintainer response links to the exact comment.</p></article>
         <article><h3>Governing decision</h3><p>See <a href="adr/ADR-014-targets-retire-themselves-on-a-local-proof.md">ADR-014 — Targets retire themselves on a local proof</a>.</p></article>
         <article><h3>Re-run locally</h3><p><code>npx github:sparkling/ruflo-source-patch all status</code><br><code>npx github:sparkling/ruflo-source-patch monitor check</code></p></article>
       </div>
@@ -294,7 +310,7 @@
       </div>
     </section>
 
-    <footer>Generated from installed behavior and issue/comment evidence · base audit 1 August 2026, managed-memory update 3 August 2026 · Europe/London · Local-only artifact</footer>
+    <footer>Generated from installed behavior and issue/comment evidence · base audit 1 August 2026, MetaHarness update 4 August 2026 · Europe/London · Local-only artifact</footer>
   </main>
 </div>
 
@@ -346,7 +362,7 @@
       const link = row.querySelector('a');
       return `- [${link.textContent}](${link.href}): ${row.querySelector('.verdict').textContent}`;
     }).join('\n');
-    const text = `# Remaining patches and unresolved issues\n\n## Ruflo\n\n### Live patches\n\n${live('ruflo')}\n\n### Issues not fully resolved\n\n${unresolved('ruflo')}\n\n## RuvNet Brain\n\n### Live patches\n\n${live('brain')}\n\n### Issues not fully resolved\n\n${unresolved('brain')}\n`;
+    const text = `# Remaining patches and unresolved issues\n\n## Ruflo\n\n### Live patches\n\n${live('ruflo')}\n\n### Issues not fully resolved\n\n${unresolved('ruflo')}\n\n## RuvNet Brain\n\n### Live patches\n\n${live('brain')}\n\n### Issues not fully resolved\n\n${unresolved('brain')}\n\n## MetaHarness\n\n### Live patches\n\n${live('metaharness')}\n\n### Issues not fully resolved\n\n${unresolved('metaharness')}\n`;
     const status = document.querySelector('#copy-status');
     try { await navigator.clipboard.writeText(text); status.textContent = 'Copied.'; }
     catch { status.textContent = 'Clipboard unavailable; use Print / save PDF.'; }

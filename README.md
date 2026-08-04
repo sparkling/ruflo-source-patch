@@ -24,6 +24,7 @@ keep the rest.
     - [ruflo-adr](#ruflo-adr)
     - [Ruflo plugins under Codex](#ruflo-plugins-under-codex)
     - [ruvnet-brain](#ruvnet-brain)
+    - [MetaHarness under Codex](#metaharness-under-codex)
     - [all ruflo plugins](#all-ruflo-plugins)
   - [Script targets](#script-targets)
   - [Monitor](#monitor)
@@ -189,6 +190,16 @@ these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
 A new Codex session is required after install
 because the session loads its skill inventory at startup.
+
+#### MetaHarness under Codex
+
+MetaHarness declares lifecycle hooks in its host-neutral `HarnessSpec`, but its Codex adapter and CLI
+renderer currently discard them. This package target patches only authenticated installed
+`metaharness` / `@metaharness/host-codex` runtime files. Actions: `install` · `uninstall` · `status`
+
+| Target | What it fixes | Upstream |
+|--------|---------------|----------|
+| **`metaharness-codex-hooks`** | Converts non-empty declared hooks into a strict project `.codex/hooks.json` and a project-local Node bridge. It translates the outer tool matcher to Codex's regex surface, enforces any inner command/path glob against event input, resolves helpers from nested working directories, rejects unsupported events and non-command handler kinds, and leaves hook-free harnesses unchanged. It never edits Codex trust; users still review generated hooks with `/hooks`. The local patch repairs the runtime renderers only. Template, CLI-model, and Studio declaration plumbing remains part of the upstream fix | [ruvnet/metaharness#168](https://github.com/ruvnet/metaharness/issues/168) |
 
 #### all ruflo plugins
 
@@ -1279,6 +1290,7 @@ Issue state is evidence to inspect, never the retirement signal. This audit was 
 4.0.2, and exact published behavior. The ordinary-writer residual was filed as focused #2878;
 closed #2621 received one cross-link rather than a rewritten scope. Brain's remaining installed
 release-note boundary was split cleanly from #56 into focused #76.
+MetaHarness #168 separately tracks Codex hook declarations that its host renderers still discard.
 
 **"Fixed upstream" is a claim about a runnable artifact, not a branch, version string, or
 closed label.** The table records the full acceptance result.
@@ -1305,6 +1317,7 @@ closed label.** The table records the full acceptance result.
 | [#2854](https://github.com/ruvnet/ruflo/issues/2854) | **Open.** No native dual-host marketplace reconciliation | Keep `plugin-hosts` |
 | [#2870](https://github.com/ruvnet/ruflo/issues/2870) | **Open.** Three current plugin versions identify multiple source trees; all 35 current identities were audited | `plugin-hosts host-refresh` repaired the three local host pairs through supported CLIs; wait for bumped versions plus a fleet-wide release guard |
 | [#2877](https://github.com/ruvnet/ruflo/issues/2877) | **Open, live.** Clean 3.33.0 produced four live daemons and four PID files from four subdirectories because direct daemon commands key the native lock to raw cwd | Keep the narrowed `daemon` command-root patch |
+| [MetaHarness #168](https://github.com/ruvnet/metaharness/issues/168) | **Open; reproduced on main and the installed package.** `HarnessSpec.hooks` exists, Claude consumes it, but the Codex adapter, CLI scaffold, and Studio path omit native project hooks while ADR-004 still says Codex has none | Keep `metaharness-codex-hooks` for supplied declarations; upstream must complete all generator paths, packaged handlers, trust messaging, tests, and the listed documentation updates |
 | [Brain #12](https://github.com/stuinfla/ruvnet-brain/issues/12), [#13](https://github.com/stuinfla/ruvnet-brain/issues/13), [#17](https://github.com/stuinfla/ruvnet-brain/issues/17) | **Fixed completely** and behaviorally proved | `verify-interface`, `design-wall` retired |
 | [Brain #41](https://github.com/stuinfla/ruvnet-brain/issues/41) | **Closure not sound after its body was broadened.** The closing comment proves the earlier quote fix, not the edited nested-invocation acceptance | Superseded by #44/#48; no new patch |
 | [Brain #42](https://github.com/stuinfla/ruvnet-brain/issues/42), [#43](https://github.com/stuinfla/ruvnet-brain/issues/43) | **Fixed completely.** Codex MCP/plugin packaging is present without the retracted `skill.toml` proposal | No patch |

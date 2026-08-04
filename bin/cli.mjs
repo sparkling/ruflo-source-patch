@@ -64,6 +64,7 @@ import { brainConsoleLifecycleCommand } from '../lib/brain-console-lifecycle/com
 import { brainConsoleProviderKeysCommand } from '../lib/brain-console-provider-keys/commands.mjs';
 import { brainMemoryDoctorRootsCommand } from '../lib/brain-memory-doctor-roots/commands.mjs';
 import { brainManagedMemoryBoundaryCommand } from '../lib/brain-managed-memory-boundary/commands.mjs';
+import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -102,6 +103,8 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-release-lockstep': brainReleaseLockstepCommand,
   'brain-memory-doctor-roots': brainMemoryDoctorRootsCommand,
   'brain-managed-memory-boundary': brainManagedMemoryBoundaryCommand,
+  // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
+  'metaharness-codex-hooks': metaharnessCodexHooksCommand,
 };
 
 function usage() {
@@ -148,6 +151,9 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
   ${pad('')}  under plugin loading — legacy #2685 rewrite; self-retires on local upstream proof
+
+Package patches (metaharness) (actions: install | uninstall | status)
+  ${pad('metaharness-codex-hooks')} render declared lifecycle hooks as strict project Codex hooks (#168)
 
 Keep it live                   (actions: install | uninstall | status | run | check)
   ${pad('monitor')}re-apply patches when npx/ruflo-update/plugin-update overwrites them
