@@ -12,6 +12,9 @@ re-applied while its sibling is being removed. #79 is different: the native laun
 identity, receipt, shutdown, and replacement proof, but the released doctor still does not compare the
 candidate, persistent runtime, receipt, live endpoint, PID, and API identity required by the issue. Its
 target is therefore narrowed, not retired. #77 still sees a real package/KB/release identity split.
+After this review, upstream added fail-closed workflow-variable and canonical release-envelope checks,
+but its 4.0.19 publication attempt failed and `main` returned to 4.0.20-dev. npm latest remains 4.0.12
+while GitHub `releases/latest` remains v4.0.7, so that source progress does not authorize retirement.
 #102's source fix and #103's opt-in boundary are unreleased; #103 also lacks host non-execution proof and
 the audited diagnostic, so `brain-managed-memory-boundary` remains live (ADR-028). The
 MetaHarness #168 `metaharness-codex-hooks` target likewise has no guessed version predicate: a
