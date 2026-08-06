@@ -82,10 +82,10 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(new 
 }
 `;
 
-function fullRoot(root, version) {
+function fullRoot(root, version, { native = false } = {}) {
   write(path.join(root, '.claude-plugin', 'plugin.json'), `${JSON.stringify({ name: 'ruvnet-brain', version })}\n`);
-  write(path.join(root, 'scripts', 'hijack-ruvnet.sh'), fixtures.hijack, 0o755);
-  write(path.join(root, 'scripts', 'hook-shim.mjs'), fixtures.shim, 0o755);
+  write(path.join(root, 'scripts', 'hijack-ruvnet.sh'), native ? fixtures.nativeHijack : fixtures.hijack, 0o755);
+  write(path.join(root, 'scripts', 'hook-shim.mjs'), native ? fixtures.nativeShim : fixtures.shim, 0o755);
   write(path.join(root, 'scripts', 'hook-input.mjs'), fakeHookInput, 0o644);
   write(path.join(root, 'mcp', 'server.mjs'), fixtures.mcp, 0o755);
   write(path.join(root, 'mcp', 'managed-cli-interface.mjs'), 'export const MANAGED_CLI_TOOLS=[]; export async function callManagedCli(){}\n');
@@ -238,7 +238,7 @@ check('BMB23 quote-bearing values stay data and return zero',
 console.log('\nNative generation flip and exact removal');
 const NEXT_VERSION = '10.0.0';
 const nextRoot = path.join(BRAIN, 'versions', NEXT_VERSION);
-fullRoot(nextRoot, NEXT_VERSION);
+fullRoot(nextRoot, NEXT_VERSION, { native: true });
 const nextActive = `${JSON.stringify({ generation: 2, version: NEXT_VERSION, codeRoot: `versions/${NEXT_VERSION}` })}\n`;
 fs.writeFileSync(path.join(BRAIN, 'active.json'), nextActive);
 const afterFlip = patcher.apply();
@@ -247,6 +247,17 @@ check('BMB24 a native generation flip is discovered and patched without changing
   JSON.stringify(afterFlip));
 check('BMB25 old owned surfaces remain verifiable for sessions that predate the flip',
   patcher.status().files === 33 && patcher.status().patched === 33, JSON.stringify(patcher.status()));
+const nativeHijack = fs.readFileSync(path.join(nextRoot, 'scripts', 'hijack-ruvnet.sh'), 'utf8');
+const nativeShim = fs.readFileSync(path.join(nextRoot, 'scripts', 'hook-shim.mjs'), 'utf8');
+const nextGate = spawnSync(process.execPath, [path.join(nextRoot, 'scripts', 'managed-memory-gate.mjs')], {
+  input: event(`sqlite3 -readonly "${db}"`), encoding: 'utf8',
+  env: { ...process.env, CLAUDE_PROJECT_DIR: project, RUVNET_BRAIN_OFF: '1' },
+});
+check('BMB25a the released #102/#103 source shape keeps its structural detector while the local gate adds the missing default refusal',
+  nativeHijack.includes('_direct_managed_access=0')
+    && nativeHijack.includes('managed-memory-gate.mjs')
+    && nativeShim.includes("mode: 'blocking', offBehavior: 'partial'")
+    && nextGate.stdout.includes('permissionDecision'));
 const drifted = path.join(nextRoot, 'scripts', 'hook-shim.mjs');
 const exactPatched = fs.readFileSync(drifted, 'utf8');
 fs.writeFileSync(drifted, `${exactPatched}\n// foreign drift\n`);

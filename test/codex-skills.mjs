@@ -115,6 +115,35 @@ updated: 2026-07-28
 3. State the installed version exactly.
 `;
 
+const releasedWhatsNew = `---
+name: whats-new
+description: Explain what is new in the installed RuvNet Brain release
+updated: 2026-07-28
+---
+
+# What is new
+
+1. Run the installed plugin's \`scripts/whats-new.mjs\` executable. It reads the version manifest and
+   curated notes from the same immutable plugin payload and exits nonzero if either asset is missing.
+   Do not substitute a checkout, download, or another installed version when it fails.
+2. Read that command's output before summarizing it.
+3. State the installed version exactly.
+4. Summarize only the curated highlights.
+
+If the release notes are missing, say they are unavailable and do not fabricate a highlight.
+`;
+
+const releasedWhatsNewExecutable = `#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const manifest = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'));
+const notes = path.join(root, 'docs', 'RELEASE-NOTES-4.0.md');
+if (!fs.existsSync(notes)) { console.error('installed release notes are missing'); process.exit(1); }
+process.stdout.write('RuvNet Brain ' + manifest.version + '\\n\\n' + fs.readFileSync(notes, 'utf8'));
+`;
+
 const rvbc = `---
 description: "RvBC — RuvNet Brain Console. Opens the live console page."
 updated: 2026-07-20
@@ -268,6 +297,20 @@ function seedNativeBrain() {
   write(path.join(brainRoot, 'skills', 'whats-new', 'SKILL.md'), nativeWhatsNew);
   setRows('0.2.4', version);
   return brainRoot;
+}
+
+function seedReleasedBrain() {
+  seed();
+  const version = '4.0.12';
+  const root = seedPlugin({
+    marketplace: 'ruvnet-brain', name: 'ruvnet-brain', version, source: BRAIN_SOURCE,
+    commands: { 'whats-new': 'native command\n' },
+  });
+  write(path.join(root, 'skills', 'whats-new', 'SKILL.md'), releasedWhatsNew);
+  write(path.join(root, 'scripts', 'whats-new.mjs'), releasedWhatsNewExecutable, 0o755);
+  write(path.join(root, 'docs', 'RELEASE-NOTES-4.0.md'), '# Release notes\n\n- Native installed workflow.\n');
+  setRows('0.2.4', version);
+  return root;
 }
 
 function snapshot(root) {
@@ -488,6 +531,30 @@ check('CS20 uninstall restores the upstream native skill exactly',
     && !fs.existsSync(`${nativeNewsFile}.rsp-backup`)
     && passThroughFiles.every((file) => fs.readFileSync(file, 'utf8') === passThroughBytes.get(file)),
   JSON.stringify(nativeBrainRestore));
+
+console.log('\nReleased Brain skill retirement');
+const releasedRoot = seedReleasedBrain();
+const releasedSkill = path.join(releasedRoot, 'skills', 'whats-new', 'SKILL.md');
+const releasedExecutable = path.join(releasedRoot, 'scripts', 'whats-new.mjs');
+state.writeState({ patchTargets: [], pluginTargets: ['brain-codex-skills'], retired: {}, all: false });
+const releasedApply = patcher.apply('brain-codex-skills');
+check('CS21 the immutable installed workflow is accepted without a local edit',
+  releasedApply.unchanged === 1 && !releasedApply.patched
+    && patcher.status('brain-codex-skills').patched === 1
+    && !fs.existsSync(`${releasedSkill}.rsp-backup`));
+write(releasedExecutable, "console.log('RuvNet Brain 4.0.12\\n\\nmade up notes');\n", 0o755);
+check('CS22 a script that cannot fail closed on missing notes cannot retire the patch',
+  supersede.evaluate('brain-codex-skills').state === 'live');
+write(releasedExecutable, releasedWhatsNewExecutable, 0o755);
+const releasedRetirement = supersede.retireSuperseded(state.readState());
+const releasedState = state.readState();
+check('CS23 executable native proof retires #76 and preserves every upstream byte',
+  releasedRetirement.retired === 1
+    && !releasedState.pluginTargets.includes('brain-codex-skills')
+    && releasedState.retired['brain-codex-skills']?.issue === 'https://github.com/stuinfla/ruvnet-brain/issues/76'
+    && fs.readFileSync(releasedSkill, 'utf8') === releasedWhatsNew
+    && fs.readFileSync(releasedExecutable, 'utf8') === releasedWhatsNewExecutable,
+  JSON.stringify({ releasedRetirement, releasedState }));
 
 if (failures) {
   console.error(`\n${failures} Codex skill test(s) failed`);

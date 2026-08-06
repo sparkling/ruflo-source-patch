@@ -30,10 +30,10 @@ const check = (label, condition) => { if (!condition) fail(label); };
 const fixture = lifecycle.fixtureSource();
 const combinedInstaller = `${fixture.installer}\n\n${lockstep.fixtureSource()}`;
 
-function writeRoot(root, { console = fixture.console, installer = combinedInstaller, name = 'ruvnet-brain' } = {}) {
+function writeRoot(root, { console = fixture.console, installer = combinedInstaller, name = 'ruvnet-brain', version = '4.0.2' } = {}) {
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ name, version: '4.0.2' })}\n`);
+  fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ name, version })}\n`);
   fs.writeFileSync(path.join(root, 'scripts', 'onboarding-console.mjs'), console);
   fs.writeFileSync(path.join(root, 'bin', 'install.mjs'), installer);
   return [path.join(root, 'scripts', 'onboarding-console.mjs'), path.join(root, 'bin', 'install.mjs')];
@@ -50,11 +50,40 @@ const files = roots.flatMap((root) => writeRoot(root));
 writeRoot(path.join(BRAIN_HOME, 'versions', '4.0.2'));
 writeRoot(path.join(BRAIN_HOME, 'kb', 'backups', '4.0.2'));
 writeRoot(path.join(NPX, 'other', 'node_modules', 'not-brain'), { name: 'not-brain' });
+const staleNpx = path.join(NPX, 'stale', 'node_modules', 'ruvnet-brain');
+writeRoot(staleNpx, { version: '4.0.1' });
 
 check('BC1 discovery is bounded to executable host/npm/persistent surfaces',
   JSON.stringify(lifecycle.discover().sort()) === JSON.stringify([...files].sort()));
 check('BC2 immutable version-store and backup copies are never patched',
   !lifecycle.discover().some((file) => file.includes('/versions/') || file.includes('/backups/')));
+check('BC2a inactive unowned npx generations do not keep a current patch target falsely red',
+  !lifecycle.discover().some((file) => file.startsWith(staleNpx)));
+
+const nativeConsole = `
+import { consoleRuntimeDigest } from './console-runtime-identity.mjs';
+const RUNTIME_SOURCE_SHA256 = consoleRuntimeDigest(REPO);
+const receipt = { sourceSha256: RUNTIME_SOURCE_SHA256 };
+const identityKeys = ['scriptRealpath', 'runtimeVersion', 'sourceSha256'];
+const request = { path: '/api/runtime/shutdown' };
+if (url === '/api/runtime') {}
+if (url === '/api/runtime/shutdown') {}
+const status = { state: current ? 'current' : 'stale-running' };
+const foreign = found ? { state: 'foreign-port' } : null;
+const legacy = found ? { state: 'legacy-unowned' } : null;
+await requestRuntimeShutdown(receipt.port, receipt.controlToken);
+await waitForRuntimeToStop(receipt.port);
+export { inspectConsoleRuntime, launchConsole, runtimeReceiptPath, startServer };
+`;
+const nativeResult = lifecycle.patchSource(nativeConsole);
+check('BC2b the native whole-runtime launcher satisfies only the launcher half of the target',
+  nativeResult.missing.length === 0 && nativeResult.applied.length === 0
+    && nativeResult.next === nativeConsole && lifecycle.isPatched(nativeConsole));
+check('BC2c a one-entrypoint digest cannot masquerade as the native #79 replacement',
+  !lifecycle.isPatched(nativeConsole.replace(
+    'const RUNTIME_SOURCE_SHA256 = consoleRuntimeDigest(REPO);',
+    "const RUNTIME_SOURCE_SHA256 = crypto.createHash('sha256').update(fs.readFileSync(RUNTIME_SCRIPT)).digest('hex');",
+  )));
 
 for (const [kind, pristine] of Object.entries(fixture)) {
   const transformed = lifecycle.patchSource(pristine);
