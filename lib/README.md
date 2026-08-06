@@ -22,7 +22,7 @@ how a fix silently stops existing.
 |---|---|---|---|
 | `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
-| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/` | **Brain/Codex package and plugin patches** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
+| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `metaharness-codex-hooks/` | **MetaHarness Codex host patch** | authenticated installed `metaharness` and `@metaharness/host-codex` runtime bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`) | *nothing*. They set up or repair **your projects/host registration** | nobody; you run them by hand |
 
@@ -38,6 +38,11 @@ backup. Read it before writing a new patcher.
 `brain-managed-memory-boundary/` owns an atomic cross-surface transaction rather than one composed
 plugin file. It preflights the active native generation, matching host copies, and the persistent MCP
 shell before writing any of them; a missing anchor leaves every surface untouched.
+
+`brain-native/` contains fail-closed executable retirement probes. They copy the active persistent
+runtime to a temporary directory, restore locally owned vendor bytes only in that copy, and prove the
+replacement plus a deliberate mutation before terminally retiring #81 or #86. #76 uses the same rule
+against its active immutable Codex payload. These probes never alter Brain's update or selection plane.
 
 `metaharness-codex-hooks/` is a composed, exact-anchor package target. It does not invent default
 hooks: only a non-empty declaration produces `.codex/hooks.json` and its project-local bridge. The

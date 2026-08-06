@@ -2,13 +2,19 @@
 
 **Status**: Implemented
 **Date**: 2026-08-03
+**Updated**: 2026-08-06. #102 is fixed on `main` at `12c29c1`, and #103 is closed with the opt-in
+`managedMemoryBoundary` setting at `af373f0`; neither change is in active Brain 4.0.12. The maintainer's
+final #103 measurement explicitly says host non-execution is asserted but unproved. The default remains
+`advise`, and the finite audited diagnostic plus truthful doctor/Console state did not land. The patch now
+accepts the forthcoming native detector shape, preserves it, and adds only the still-missing default
+refusal and diagnostic boundary.
 **Deciders**: Henrik Pettersen
 **Tags**: brain, agentdb, hooks, mcp, enforcement, patch-target
 
 ## Context
 
-Brain #48 correctly moved ordinary AgentDB work toward structured Ruflo CLI/MCP interfaces. The shipped
-raw-command advisory still contains two separate residual problems:
+Brain #48 correctly moved ordinary AgentDB work toward structured Ruflo CLI/MCP interfaces. Brain
+4.0.12's shipped raw-command advisory still contains two separate residual problems:
 
 - its flat Category 4 payload matcher misses valid `sqlite3` invocations when flags precede the database
   and fires on prose, searches, comments, and other non-executable text (#102); and
@@ -53,7 +59,9 @@ The regression suite exercises the real current Brain parser, positive flag/nest
 negative prose/search/heredoc/comment cases, both host envelopes, a sentinel that proves denial prevents
 execution, Brain-off enforcement, non-Bash silence, exact SQLite flag parsing, canonical store identity,
 checkpointed WAL-mode diagnostics, live-sidecar refusal, content-free private receipts, SQL-literal injection, atomic
-anchor refusal, rollback, idempotency, exact uninstall, and a native `active.json` generation flip.
+anchor refusal, rollback, idempotency, exact uninstall, and a native `active.json` generation flip. A
+second fixture uses the unreleased #102/#103 source shape to prove the upstream structural detector remains
+in place while the local boundary adds its missing default enforcement and diagnostic behavior.
 
 ## Limits
 
@@ -65,9 +73,10 @@ doctor/Console reporting, telemetry, and packaged host contract tests.
 ## Retirement
 
 Do not guess a version predicate. Retire only after one published active candidate passes the same direct
-denial and negative matrix in Claude and Codex, keeps enforcement active with retrieval off, exposes the
-audited structured diagnostic without content leakage or mutation, and survives a native generation flip.
-Issue closure or source-only code is insufficient under ADR-014.
+denial and negative matrix in Claude and Codex, proves the proposed command does not execute, keeps
+enforcement active with retrieval off, exposes the audited structured diagnostic without content leakage
+or mutation, reports truthful doctor/Console state, and survives a native generation flip. #102/#103 issue
+closure and source-only code are insufficient under ADR-014.
 
 ## Links
 

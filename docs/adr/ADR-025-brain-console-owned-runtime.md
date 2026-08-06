@@ -2,6 +2,11 @@
 
 **Status**: accepted
 **Date**: 2026-08-01
+**Updated**: 2026-08-06. Brain 4.0.12 natively supplies whole-runtime identity, receipts, the runtime
+API, token-bound shutdown, stale/foreign classification, and detached-process replacement. The local
+target recognizes and preserves that launcher. It remains live only because the released doctor reads a
+host-convergence receipt instead of independently comparing candidate bytes, persistent runtime, receipt,
+live endpoint, PID, and API identity as #79 requires.
 **Deciders**: Henrik Pettersen
 **Tags**: brain, lifecycle, security, patching
 
@@ -13,15 +18,16 @@ response containing “RuvNet Brain” as current. On this machine a 18 July pro
 assets with an old in-memory router, so the current UI called `/api/capabilities` and received 404.
 Restarting Codex could not help: the Console had PPID 1 and was no longer owned by a host session.
 
-The native `--update` path also omits `installConsoleRuntime()`. This patch repository must not repair
-that by changing Brain's updater, persistent-runtime activation, cache, Stable Spine, immutable version
-store, or `active.json`; that half remains upstream in
-[stuinfla/ruvnet-brain#79](https://github.com/stuinfla/ruvnet-brain/issues/79).
+The original native `--update` path also omitted `installConsoleRuntime()`. PR #110 replaced the copy
+list and one-file hash with one whole-runtime surface and native replacement transaction. This patch
+repository does not modify that updater, activation, cache, Stable Spine, immutable version store, or
+`active.json`.
 
 ## Decision
 
 `brain-console-lifecycle` is an atomic composed target over executable `onboarding-console.mjs` and
-read-only `bin/install.mjs` copies only.
+read-only `bin/install.mjs` copies only. On the current release the native launcher satisfies the first
+surface without an edit; the doctor surface remains patched.
 
 - The patcher stamps an immutable vendor SHA-256 plus patch-protocol revision into each transformed
   Console. A process never derives its advertised generation by rereading a path that an update may have
@@ -57,18 +63,18 @@ process involved in this incident may be stopped only as a separately verified o
 
 ### Negative
 
-- This downstream target cannot guarantee that future Brain updates refresh `.console-runtime`, because
-  modifying that native transaction would violate the repository's operating-plane boundary. Doctor
-  reports that gap; upstream #79 must close it.
+- Issue closure was not sufficient retirement evidence: the native lifecycle is delivered, but doctor
+  still trusts `host-convergence.json` without a live identity probe. The narrowed overlay remains until
+  the health command proves the same boundary as the launcher.
 - A four-second lifecycle-lock timeout and strict receipt validation bias toward a loud refusal instead of
   guessing during contention or corruption.
 
 ## Retirement proof
 
-Retire only after a released upstream candidate passes #79's behavior matrix: immutable runtime identity,
-per-scope current reuse, authenticated stale replacement, legacy/foreign preservation, random-port reuse,
-doctor generation comparison, and `.console-runtime` staged in the same verified update transaction as
-the bundle and both host payloads. Issue closure or a version marker is not proof.
+Retire only after a released upstream candidate passes the remaining #79 behavior matrix: doctor must
+compare candidate bytes, persistent runtime, receipt, live endpoint, PID, and API identity and fail on a
+deliberately stale or mixed instance. The native launcher/update transaction already passes its separate
+replacement proof. Issue closure or a version marker is not proof.
 
 ## Links
 

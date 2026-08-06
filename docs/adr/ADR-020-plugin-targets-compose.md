@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-08-01. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-08-06. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
@@ -10,26 +10,20 @@ a `reverse` (its substitution is a pure, invertible literal replace), so a poiso
 patched now self-heals on the next apply instead of requiring another one-off manual fix.
 `adr-index` additionally recovers a non-empty, self-patched marketplace backup from the bounded
 Git HEAD object and preserves the file's executable mode across atomic replacement. Cache-local
-Codex skill targets remain outside composition: additive files use exact ownership, while the one
-remaining native Brain #76 edit retains an independent pristine because no sibling target claims it.
-That native edit also uses function-form string replacement so Markdown containing JavaScript's
-replacement metacharacters stays literal; its readiness check rejects duplicated headings, commands,
-or a damaged exact-version regex before status may report success. Brain #77's
+Codex skill targets remain outside composition: additive files use exact ownership. Brain #76's former
+single-file edit now retires after executing the immutable installed workflow and a missing-notes
+mutation. Brain #77's
 `brain-release-lockstep` guard joins composition as an atomic eight-edit descriptor over installed
 npm/npx and persistent Console-runtime `bin/install.mjs` copies. It changes only read-only version
 reporting and doctor health; the native updater, Stable Spine, caches, hooks, MCP, and learning plane
 remain untouched. It also exposes an exact reverse transform so a later target revision can prove and
 recover the vendor baseline instead of adopting the earlier target's output as “new upstream” bytes.
-Brain #79's `brain-console-lifecycle` target now composes beside #77 on `bin/install.mjs` and separately
-owns `onboarding-console.mjs`. Its updater-neutral doctor edits and Console identity edits are one atomic
-descriptor; uninstall authenticates and stops receipt-proven instances before composition restores the
-vendor bytes (ADR-025).
-Brain #81's `brain-memory-doctor-roots` target is a disjoint atomic descriptor over installed
-`scripts/memory-doctor.mjs` copies. It shares the same pristine, drift, desired-state, and exact-restore
-machinery without touching Brain data or its native updater (ADR-026).
-Brain #86's `brain-console-provider-keys` target composes beside #79 on `onboarding-console.mjs`. Its
-single fallback edit reuses Brain's native boolean detector when packaged catalog loading fails, while
-leaving Brain's assets and operating plane untouched (ADR-027).
+Brain #79's `brain-console-lifecycle` target composes beside #77 on `bin/install.mjs`. Brain 4.0.12's
+native whole-runtime launcher is recognized as ready and preserved; only the missing live-doctor
+comparison remains an edit on current bytes. Owned older copies remain discoverable for exact restoration
+(ADR-025). Brain #81 and #86 now retire together on executable installed behavior. Retirement computes
+the full superseded set before reconciliation so neither composed target is accidentally re-applied while
+the other is removed (ADR-026, ADR-027).
 MetaHarness #168's `metaharness-codex-hooks` target also joins composition. It owns authenticated
 installed `metaharness` and `@metaharness/host-codex` runtime files, adds no output when hooks are
 absent, and keeps an exact reverse transform for safe npm/npx re-baselining and removal (ADR-029).
@@ -92,10 +86,9 @@ A shared composition engine (`lib/plugin-compose.mjs`) owns every plugin-patched
   "any file with a sibling `.rsp-backup`", which is what let it hijack the surgical targets' files.
 
 `adr-reindex` and additive files created by `ruflo-codex-skills` / older
-`brain-codex-skills` copies are NOT part of this: they keep exact ownership checks. Brain 4.0.2
-natively replaces five of the old six skill/alias repairs. The remaining #76 `whats-new` file uses
-the shared pristine helper directly, with exact uninstall restoration, rather than the composition
-engine because no sibling target claims it.
+`brain-codex-skills` copies are NOT part of this: they keep exact ownership checks. Brain 4.0.12
+natively replaces the final #76 `whats-new` file. Its retirement still uses the shared pristine helper
+for exact restoration because no sibling target claims it.
 
 ## Consequences
 
@@ -109,7 +102,9 @@ engine because no sibling target claims it.
 - The #77 guard cannot conceal a split release by relabelling or copying caches: it reports all
   resolved product versions and makes doctor fail until upstream artifacts genuinely converge.
 - The #79 target can share the installer with #77 without either patch adopting the other's output as a
-  vendor baseline, while Console runtime restoration occurs only after owned processes stop.
+  vendor baseline. Native launcher bytes remain untouched while the read-only doctor delta stays live.
+- Multiple superseded composed targets reconcile in one removal set; retirement order cannot cause a
+  sibling target to be re-applied between proofs.
 
 ### Negative
 

@@ -1,15 +1,19 @@
 # ADR-027: A missing packaged catalog must not look like missing credentials
 
-**Status**: Implemented
+**Status**: Superseded
 **Date**: 2026-08-01
+**Updated**: 2026-08-06. Brain 4.0.12 passes the packed/staged catalog, synthetic-key, explicit degraded
+state, UI truth-state, and missing-asset activation-refusal probes. The local target retires terminally;
+issue closure and PR markers alone were not used as evidence.
 **Deciders**: Henrik Pettersen
 **Tags**: brain, console, packaging, provider-detection, patch-target
 
 ## Context
 
 Brain #24 / PR #26 added real provider-key checks to the Console. Those checks load
-`data/model-catalog.json` through `scripts/model-catalog.mjs`. Brain 4.0.2 and current upstream source
-omit that data file from both the npm `files` allow-list and the persistent Console-runtime transaction.
+`data/model-catalog.json` through `scripts/model-catalog.mjs`. At this ADR's adoption, Brain 4.0.2 and
+then-current upstream source omitted that data file from both the npm `files` allow-list and the
+persistent Console-runtime transaction.
 
 `gatherRouterEngine()` catches the resulting catalog-load error but leaves `providerKeys` empty. Its API
 therefore reports only the separately detected OpenRouter key, even while the same response's native
@@ -59,6 +63,10 @@ bytes prove all of the following:
    credential negatives.
 
 Issue closure, a version string, or source-checkout behavior alone is insufficient under ADR-014.
+
+The released replacement now passes all four conditions. The retirement probe copies the active runtime,
+removes only locally owned overlays in that copy, executes positive and deliberately missing-catalog paths,
+and then restores the real installed target from its verified pristine.
 
 ## Links
 

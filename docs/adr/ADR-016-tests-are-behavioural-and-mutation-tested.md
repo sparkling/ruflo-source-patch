@@ -2,13 +2,13 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-08-01. Rendered-artifact checks now pair literal replacement-token probes with
-structural output assertions. Ownership hashes, idempotency, exact restore, and loose substring checks all
-stayed green while JavaScript expanded Markdown's dollar-plus-backtick sequence and duplicated part of a skill.
-Brain #102/#103 adds a host-simulated denial test: a sentinel after a raw managed-store command must
-remain absent, while prose, searches, comments, unmanaged stores, and non-Bash events must still pass.
-Its diagnostic test proves row-count-only output, unchanged DB/WAL/SHM snapshots, bounded arguments,
-private receipts, and resistance to SQL-literal injection.
+**Updated**: 2026-08-06. Brain retirement now executes active installed replacements in an isolated
+copy and deliberately removes or corrupts the asset that matters. #76 must fail when curated notes are
+missing; #81 must fail when common roots disappear; #86 must reject a missing catalog and render an
+unverified state. The tests also prove two simultaneously superseded composed targets retire without
+re-applying each other. #79 distinguishes its native launcher half from the still-missing doctor proof.
+#102/#103 fixtures now include the unreleased upstream detector/setting shape and prove the local default
+refusal remains active while preserving that structural detector.
 **Deciders**: Henrik Pettersen
 **Tags**: testing, core, safety
 
@@ -61,7 +61,7 @@ happened, repeatedly, and every instance was caught only by deliberately breakin
 
 ### Neutral
 
-- The suite runs the seven groups in parallel (each takes its own sandbox), which turns the sum into the max.
+- The suite runs independent groups in parallel (each takes its own sandbox), which turns the sum into the max.
   Failure propagation is itself mutation-tested.
 
 ## Links

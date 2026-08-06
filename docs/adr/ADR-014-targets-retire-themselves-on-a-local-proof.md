@@ -2,30 +2,22 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-08-01. Predicates now cover `adr-index`, `adr-reindex`, `verify-interface`,
-`design-wall`, `mcp-prefix`, `flywheel-daily`, `ruflo-hooks-schema`, `codex-hooks`, and
-`ruflo-codex-skills`. The latest audit retired the last three only after executing their
-installed replacements. Brain 4.0.2 then proved #64's native dual-host convergence locally;
-#56's discovery scope is complete, while focused #76 keeps only the installed `whats-new`
-release-note repair live. No #76 predicate is guessed before an upstream candidate lands. The
-same rule applies to the new Brain #77 `brain-release-lockstep` reporting guard: it cannot retire
-until a published candidate proves one version across the bundle, package, Stable Spine, Claude,
-and Codex, so no marker-only predicate is guessed in advance. The
-Brain #79 `brain-console-lifecycle` target likewise keeps no guessed predicate: retirement requires a
-released candidate to execute stale-generation replacement, foreign-listener preservation, owned
-shutdown, doctor comparison, and persistent-runtime update convergence (ADR-025). The
-Brain #81 `brain-memory-doctor-roots` target also has no guessed version predicate: retirement
-executes standalone common/configured-root discovery against active installed bytes and requires
-Console/CLI policy convergence (ADR-026). Brain #86 `brain-console-provider-keys` likewise waits for
-a released packed/staged-runtime behavior proof; source-checkout catalog presence or issue closure
-cannot retire it (ADR-027). Brain #102/#103's `brain-managed-memory-boundary` also has no guessed
-predicate: retirement requires a published candidate to execute the real direct-access refusal,
-negative detector cases, Brain-off behavior, structured diagnostic, and native generation-flip
-convergence (ADR-028). The
+**Updated**: 2026-08-06. Brain 4.0.12 supplied three executable replacements: #76 now runs curated
+exact-version notes from one immutable installed payload and fails closed when that asset is missing;
+#81 shares common/configured-root discovery between standalone doctor and Console; and #86 stages and
+validates the provider catalog while exposing an explicit unverified state when it is unavailable.
+Positive probes plus deliberate missing-asset/root/catalog mutations authorize terminal retirement of
+those three targets. A simultaneous-retirement set prevents one superseded composed target from being
+re-applied while its sibling is being removed. #79 is different: the native launcher passes whole-runtime
+identity, receipt, shutdown, and replacement proof, but the released doctor still does not compare the
+candidate, persistent runtime, receipt, live endpoint, PID, and API identity required by the issue. Its
+target is therefore narrowed, not retired. #77 still sees a real package/KB/release identity split.
+#102's source fix and #103's opt-in boundary are unreleased; #103 also lacks host non-execution proof and
+the audited diagnostic, so `brain-managed-memory-boundary` remains live (ADR-028). The
 MetaHarness #168 `metaharness-codex-hooks` target likewise has no guessed version predicate: a
 published candidate must execute adapter, CLI, and Studio generation, strict Codex parsing, matcher
 preservation, packaged handler resolution, and trust messaging before retirement (ADR-029). The
-`adr-reindex` predicate now requires the current fail-closed #2878 lock markers, so the older
+`adr-reindex` predicate requires the current fail-closed #2878 lock markers, so the older
 fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
 Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and
 the native deletion route passes that same reindex lock proof.

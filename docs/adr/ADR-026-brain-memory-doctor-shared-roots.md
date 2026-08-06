@@ -1,10 +1,10 @@
 # ADR-026: Brain memory-doctor scans the machine it describes
 
-**Status**: Implemented
+**Status**: Superseded
 **Date**: 2026-08-01
-**Updated**: 2026-08-01. Added the issue-backed `brain-memory-doctor-roots` target for
-stuinfla/ruvnet-brain#81 and installed it across bounded npm/npx, marketplace, and persistent
-Console-runtime copies.
+**Updated**: 2026-08-06. Brain 4.0.12 passes the executable replacement predicate against active
+installed bytes. The target retired terminally after common/configured, explicit-root, invalid-config,
+malformed-config, and Console-convergence probes plus a mutation that reintroduced the false zero.
 **Deciders**: Henrik Pettersen
 **Tags**: brain, agentdb, discovery, correctness, patch-target
 
@@ -63,6 +63,10 @@ bytes:
    regression.
 
 Issue closure or a version string alone is insufficient under ADR-014.
+
+The released replacement now passes all five conditions. Retirement restores locally owned vendor bytes,
+records the executable evidence in `state.json`, and prevents SessionStart or the monitor from re-applying
+the obsolete target.
 
 ## Links
 
