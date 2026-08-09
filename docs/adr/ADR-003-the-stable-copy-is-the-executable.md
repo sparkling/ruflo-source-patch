@@ -2,6 +2,9 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-08-09. The provenance manifest records the source `lib/` root. Version discovery must
+read `package.json` from that library's owning package, one directory above it; treating the recorded
+library root as a package root silently disabled tagged self-updates on a live Linux client.
 **Deciders**: Henrik Pettersen
 **Tags**: runtime, safety, self-update
 
@@ -24,6 +27,10 @@ invisible).
 
 The freshness invariant is **provenance, not location**: the source path is recorded at sync time, and
 drift is measured against THAT source.
+
+The same provenance supplies the running release identity for ADR-015. Because the manifest records
+`lib/`, the package version is read from its parent. An absent or unreadable package stays unknown; it
+must never be confused with current.
 
 Diffing against the globally-installed package is the obvious answer and it is wrong. Develop from a clone
 and the global install is OLDER, so the CLI would sync the clone in and the monitor would heal it BACKWARD

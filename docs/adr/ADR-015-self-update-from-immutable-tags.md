@@ -2,6 +2,9 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
+**Updated**: 2026-08-09. Fixed a fail-silent version-resolution defect: stable-copy provenance names the
+source `lib/` root, while `package.json` belongs to its parent package. The monitor now resolves that
+exact owner and mutation-tests the live layout before comparing immutable tags.
 **Deciders**: Henrik Pettersen
 **Tags**: lifecycle, security, self-update
 
@@ -34,6 +37,8 @@ Every rule is load-bearing and tested:
 - FORWARD only. A downgrade would reinstate patches upstream already fixed and un-retire what was retired on
   proof
 - installs the PINNED tag, never `#main`
+- derives the running version from the package that owns the provenance-recorded `lib/` directory;
+  an unresolved version must not silently impersonate an up-to-date install
 - offline, or GitHub down: keep the working version, silently. A tool that breaks itself upgrading is worse
   than a stale one
 - a FAILED install stays on the old version and SAYS SO

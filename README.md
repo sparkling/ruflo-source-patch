@@ -981,6 +981,10 @@ version exists, it runs the package's own installer at that exact tag:
 npx -y github:sparkling/ruflo-source-patch#v4.15.0 monitor install
 ```
 
+The running version comes from the package that owns the provenance-recorded `lib/` directory. A former
+off-by-one path lookup searched for `package.json` *inside* `lib/`, resolved no version, and silently
+disabled this entire comparison; the real stable-copy layout is now a regression fixture.
+
 That re-syncs the stable copy, re-registers the hook and the schedule. The new code takes effect on the
 **next tick**: the child rewrites `~/.ruflo-source-patch/lib` while the current process already holds its
 modules in memory, which is the same "effective next tick" rule `healStableLib()` follows.

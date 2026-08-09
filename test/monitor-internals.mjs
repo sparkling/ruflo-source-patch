@@ -445,6 +445,18 @@ const up = await import(`file://${path.join(REPO, 'lib', 'cwd', 'update-check.mj
 const KILL = process.env.RSP_NO_SELF_UPDATE;
 delete process.env.RSP_NO_SELF_UPDATE;
 
+// UP0 — lib-source.json records the SOURCE LIB ROOT. The package version lives one directory ABOVE
+// it. Reading `<lib>/package.json` silently returns null, which disables every update without an error:
+// the exact reason a live Linux install stayed on 4.31.0 while v4.37.0 was tagged.
+const updateSource = path.join(SB, 'self-update-source');
+fs.mkdirSync(path.join(updateSource, 'lib'), { recursive: true });
+fs.writeFileSync(path.join(updateSource, 'package.json'), '{"version":"4.31.7"}\n');
+fs.mkdirSync(STATE, { recursive: true });
+fs.writeFileSync(path.join(STATE, 'lib-source.json'), `${JSON.stringify({ root: path.join(updateSource, 'lib') })}\n`);
+if (up.currentVersion() !== '4.31.7') {
+  fail(`UP0 provenance points at lib/, but currentVersion resolved ${JSON.stringify(up.currentVersion())} instead of its owning package`);
+}
+
 // UP1 — numeric compare, not lexical. `4.10.0` > `4.9.9`; a string compare says the opposite and would
 // strand every user on 4.9.x forever.
 if (!up.isNewer('v4.10.0', '4.9.9')) fail('UP1 4.10.0 was not newer than 4.9.9 — lexical compare');
@@ -531,4 +543,4 @@ const off = await up.selfUpdate({ fetchJson: async () => ([{ name: 'v999.0.0' }]
 if (off.updated || ran) fail('UP7 RSP_NO_SELF_UPDATE=1 did not disable self-update');
 if (KILL === undefined) delete process.env.RSP_NO_SELF_UPDATE; else process.env.RSP_NO_SELF_UPDATE = KILL;
 
-console.log('✔ self-update (UP1 numeric compare, UP2 immutable SEMVER TAGS only — never a branch, UP3 forward only, UP4 installs the pinned tag, UP5 offline keeps the working version, UP6 a failed install is reported not swallowed, UP7 kill switch, UP8 all-mode adopts via `all install`, UP9 curated stays `monitor install`)');
+console.log('✔ self-update (UP0 resolves the package owning recorded lib/, UP1 numeric compare, UP2 immutable SEMVER TAGS only — never a branch, UP3 forward only, UP4 installs the pinned tag, UP5 offline keeps the working version, UP6 a failed install is reported not swallowed, UP7 kill switch, UP8 all-mode adopts via `all install`, UP9 curated stays `monitor install`)');
