@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-08-06. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-08-09. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
@@ -18,6 +18,9 @@ npm/npx and persistent Console-runtime `bin/install.mjs` copies. It changes only
 reporting and doctor health; the native updater, Stable Spine, caches, hooks, MCP, and learning plane
 remain untouched. It also exposes an exact reverse transform so a later target revision can prove and
 recover the vendor baseline instead of adopting the earlier target's output as “new upstream” bytes.
+Published 4.0.36 repairs the release rail but not that doctor boundary: all eight current literal
+anchors still compose exactly, and the target remains live until component-by-component executable
+mutation proves the native doctor fails on a split or pending generation.
 Brain #79's `brain-console-lifecycle` target composes beside #77 on `bin/install.mjs`. Brain 4.0.12's
 native whole-runtime launcher is recognized as ready and preserved; only the missing live-doctor
 comparison remains an edit on current bytes. Owned older copies remain discoverable for exact restoration

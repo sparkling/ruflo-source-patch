@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-08-06. Brain 4.0.12 supplied three executable replacements: #76 now runs curated
+**Updated**: 2026-08-09. Brain 4.0.12 supplied three executable replacements: #76 now runs curated
 exact-version notes from one immutable installed payload and fails closed when that asset is missing;
 #81 shares common/configured-root discovery between standalone doctor and Console; and #86 stages and
 validates the provider catalog while exposing an explicit unverified state when it is unavailable.
@@ -11,10 +11,12 @@ those three targets. A simultaneous-retirement set prevents one superseded compo
 re-applied while its sibling is being removed. #79 is different: the native launcher passes whole-runtime
 identity, receipt, shutdown, and replacement proof, but the released doctor still does not compare the
 candidate, persistent runtime, receipt, live endpoint, PID, and API identity required by the issue. Its
-target is therefore narrowed, not retired. #77 still sees a real package/KB/release identity split.
-After this review, upstream added fail-closed workflow-variable and canonical release-envelope checks,
-but its 4.0.19 publication attempt failed and `main` returned to 4.0.20-dev. npm latest remains 4.0.12
-while GitHub `releases/latest` remains v4.0.7, so that source progress does not authorize retirement.
+target is therefore narrowed, not retired. #77's protected release rail now publishes 4.0.36
+coherently, but its separate executable doctor criterion is still unmet: pristine 4.0.36 compares
+only bundle and Claude wrapper, calls their drift normal, and omits it from `allGreen`. The existing
+eight-edit read-only target applies without ambiguity to the exact published installer. Issue closure
+therefore still does not authorize retirement; a future predicate must mutate each live component
+independently and prove doctor fails before the target can stand down.
 #102's source fix and #103's opt-in boundary are unreleased; #103 also lacks host non-execution proof and
 the audited diagnostic, so `brain-managed-memory-boundary` remains live (ADR-028). The
 MetaHarness #168 `metaharness-codex-hooks` target likewise has no guessed version predicate: a
