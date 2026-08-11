@@ -122,13 +122,13 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 INIT_FLAGS=(--with-embeddings)   # default preset, NOT --full (see #2640)
 [[ $FORCE -eq 1 ]] && INIT_FLAGS+=(--force)
 say "==> ruflo init ${INIT_FLAGS[*]}   (in $PROJECT_DIR)"
-if ! ( cd "$PROJECT_DIR" && RUFLO_DAEMON_AUTOSTART=0 npx --yes ruflo init "${INIT_FLAGS[@]}" $QUIET ); then
+if ! ( cd "$PROJECT_DIR" && npx --yes ruflo init "${INIT_FLAGS[@]}" $QUIET ); then
   die "ruflo init failed. See output above."
 fi
 
 # ---- 2. ruflo memory init --force (always, BEFORE any daemon exists) -------
 say "==> ruflo memory init --force   (in $PROJECT_DIR)"
-if ! ( cd "$PROJECT_DIR" && RUFLO_DAEMON_AUTOSTART=0 npx --yes ruflo memory init --force $QUIET ); then
+if ! ( cd "$PROJECT_DIR" && npx --yes ruflo memory init --force $QUIET ); then
   die "ruflo memory init failed. See output above."
 fi
 

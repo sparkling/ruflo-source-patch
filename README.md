@@ -757,8 +757,6 @@ just adds more), so the fresh-project script runs the plugin-only sweep by defau
 opts out). The conversion deliberately retains the exact audited
 `@claude-flow/codex@3.0.1` transaction because its side effects are fully bounded here; native
 Ruflo 3.32.36 separately fixed #2635 for ordinary `--codex`/`--dual` initialization.
-The pre-daemon init and memory-init steps run with Ruflo's documented daemon autostart disabled;
-after memory is safely initialized, the script starts the project daemon explicitly.
 
 The adapter runs behind a failing private `codex` shim, so it cannot overwrite the user's MCP registry.
 Afterward, the wrapper queries Codex's **user-global** registry and adds `ruflo` only when that exact
