@@ -96,6 +96,11 @@ const args = process.argv.slice(2);
 if (process.env.FAKE_NPX_RUFLO_OK === '1'
     && args[0] === '--yes'
     && args[1] === 'ruflo') {
+  if ((args[2] === 'init' || args[2] === 'memory')
+      && process.env.RUFLO_DAEMON_AUTOSTART !== '0') {
+    process.stderr.write('pre-daemon Ruflo command ran with daemon autostart enabled\\n');
+    process.exit(67);
+  }
   process.exit(0);
 }
 if (args[0] !== '--yes'

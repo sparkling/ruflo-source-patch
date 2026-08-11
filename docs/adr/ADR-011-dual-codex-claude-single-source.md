@@ -7,7 +7,9 @@
 skills, and protects root secrets. #2638 remains open: the two hosts still generate divergent
 instruction sources, so this script remains the single-source and policy-preserving conversion.
 The public `dual run <project>` route now selects the fresh initializer; the separately materialized
-`ruflo-add-codex.sh` remains the explicit existing-project conversion.
+`ruflo-add-codex.sh` remains the explicit existing-project conversion. Ruflo's native daemon
+autostart is disabled only for the pre-daemon init and memory-init commands, preventing a native
+WAL holder from racing the fresh database initializer.
 **Deciders**: Henrik Pettersen
 **Tags**: script-target, dual, codex
 
@@ -85,7 +87,8 @@ only its marker-owned `.env`, runtime, and `*.bak` rules. It no longer installs 
 ### Neutral
 
 - The ordering inside the script is load-bearing and was established by direct test: memory init must
-  complete before the daemon starts.
+  complete before the daemon starts. The script sets Ruflo's documented
+  `RUFLO_DAEMON_AUTOSTART=0` only around those pre-daemon commands, then starts the daemon normally.
 
 ## Links
 
