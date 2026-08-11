@@ -329,22 +329,6 @@ try { await lock.__rufloWithLock(null, () => { ran = true; }); } catch (e) {
 }
 if (ran) fail('ML4 lock failure still ran the mutation');
 
-// ML4b — only fresh initialization may create the missing database parent. An
-// ordinary writer must still fail closed rather than turning a typo into a new tree.
-const freshTarget = path.join(SB, 'fresh-memory-parent', '.swarm', 'memory.db');
-let freshRan = false;
-try { await lock.__rufloWithLock(freshTarget, () => { freshRan = true; }); } catch (e) {
-  if (e?.code !== 'RSP_MEMORY_LOCK_UNAVAILABLE') fail(`ML4b wrong missing-parent error: ${e}`);
-}
-if (freshRan || fs.existsSync(path.dirname(freshTarget))) {
-  fail('ML4b an ordinary writer created a missing database parent or ran unlocked');
-}
-await lock.__rufloWithLock(freshTarget, () => { freshRan = true; }, true);
-if (!freshRan || !fs.statSync(path.dirname(freshTarget)).isDirectory()
-    || fs.existsSync(`${freshTarget}.rsp-lock`)) {
-  fail('ML4b fresh initialization did not create its parent and release the lock cleanly');
-}
-
 // ML5 — a late release cannot unlink a replacement lock it does not own.
 const h = await lock.__rufloLockAcquire(target);
 fs.unlinkSync(`${target}.rsp-lock`);
@@ -357,12 +341,11 @@ fs.unlinkSync(`${target}.rsp-lock`);
 const memoryEntry = lib.ENTRIES.find((entry) => entry.id === 'memory/write-lock');
 const lockReplacement = memoryEntry?.edits.map((edit) => edit.replace).join('\n') || '';
 for (const needle of ['initializeMemoryDatabase = __rufloGuard(initializeMemoryDatabase',
-  '}, true);',
   'storeEntry = __rufloGuard(storeEntry);', 'purgeNamespace = __rufloGuard(purgeNamespace);']) {
   if (!lockReplacement.includes(needle)) fail(`ML6 writer is not wired through the shared .rsp-lock guard: ${needle}`);
 }
 
-console.log('✔ memory write lock (cross-process + sibling serialization, nested reentry, initializer-only parent creation, fail-closed acquisition, owner-safe release, all writers share it)');
+console.log('✔ memory write lock (cross-process + sibling serialization, nested reentry, fail-closed acquisition, owner-safe release, all writers share it)');
 
 // ─── IG: the injected INTEGRITY GATE actually refuses a torn image ───────────
 // We inject __rufloIntegrityCheck (ADR-023) so a whole-file flush can never land on an

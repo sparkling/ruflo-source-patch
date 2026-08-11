@@ -2,13 +2,11 @@
 
 **Status**: accepted
 **Date**: 2026-07-14
-**Updated**: 2026-08-11. Ruflo 3.33.0 still acknowledges concurrent whole-image writes
+**Updated**: 2026-07-30. Ruflo 3.33.0 still acknowledges concurrent whole-image writes
 that it loses (12 successes, 2 rows persisted in the clean reproducer). The focused residual is
 [#2878](https://github.com/ruvnet/ruflo/issues/2878); closed #2621 remains the historical report.
 The local lock now fails closed and is async-context reentrant. The former global WAL checkpoint
-has been removed in favour of the fail-closed sidecar policy established by #2735. Fresh database
-initialization alone creates a missing database parent before acquiring the lock; every ordinary
-writer still refuses a missing parent.
+has been removed in favour of the fail-closed sidecar policy established by #2735.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, durability, data-loss
 
@@ -45,9 +43,6 @@ Inject one `<db>.rsp-lock` protocol around `initializeMemoryDatabase`, `storeEnt
 - An unresolved path, filesystem error, or five-second timeout throws
   `RSP_MEMORY_LOCK_UNAVAILABLE` before the operation runs. An unavailable lock never becomes an
   acknowledged unlocked mutation.
-- `initializeMemoryDatabase` may create its missing database parent before acquiring the lock, so
-  the first `ruflo memory init` in a fresh project can run. No other writer receives that ability;
-  a missing parent remains a fail-closed error for ordinary operations.
 - Each claim records a unique token. Release verifies both the open file's inode and its token,
   so a late cleanup cannot unlink another writer's successor claim.
 - The patch deliberately does not steal a lock by age. Age is not proof that a large write died,
