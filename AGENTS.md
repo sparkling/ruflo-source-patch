@@ -67,7 +67,7 @@ npx github:sparkling/ruflo-source-patch monitor check     # exit 1 if anything h
 ### Script targets (project scaffolding; action adds `run <args…>`)
 
 ```bash
-npx github:sparkling/ruflo-source-patch dual run <project>          # create a fresh single-source dual Claude Code + Codex project (alias: dual)
+npx github:sparkling/ruflo-source-patch dual run <project>          # single-source dual Claude Code + Codex (alias: dual)
 npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run  # strip the ~260 duplicated files + hooks + MCP registration (aliases: dedupe, dedupe-bundle)
 npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run        # repair an existing Codex install without touching its global Ruflo MCP (#2801)
 ```

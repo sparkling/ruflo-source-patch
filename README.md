@@ -87,7 +87,7 @@ They are also the most immediately useful thing here, so don't skip past them, a
 one directly, no separate install step:
 
 ```bash
-npx github:sparkling/ruflo-source-patch dual run <project>       # create a fresh dual project with one instruction file
+npx github:sparkling/ruflo-source-patch dual run <project>       # one instruction file for Code + Codex
 npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run   # strip the ~260 duplicated files + hooks + MCP registration
 npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run     # add canonical Ruflo hooks to an existing Codex install
 ```
@@ -743,8 +743,6 @@ only in the file that platform reads. Nothing to keep in sync, so nothing drifts
 
 ```bash
 # a NEW dual project, from scratch
-npx github:sparkling/ruflo-source-patch dual run <project-dir>
-# equivalent materialized entrypoint:
 ~/.ruflo-source-patch/dual/ruflo-new-dual.sh <project-dir> [--no-start-all] [--no-dedupe] [--template <t>] [--force]
 
 # convert an EXISTING ruflo/Claude Code project

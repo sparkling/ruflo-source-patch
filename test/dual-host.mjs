@@ -192,14 +192,6 @@ for (const [name, script] of [['ruflo-add-codex.sh', addCodex], ['ruflo-new-dual
     fail(`DH2 ${name} --help failed or printed nothing:\n${output(help)}`);
   }
 }
-const cliFreshHelp = spawnSync(process.execPath, [CLI, 'dual', 'run', '--help'], {
-  encoding: 'utf8',
-  env: baseEnv,
-  timeout: 15000,
-});
-if (cliFreshHelp.status !== 0 || !/Create a FRESH single-source dual/.test(output(cliFreshHelp))) {
-  fail(`DH2a \`dual run\` did not dispatch to the fresh-project initializer:\n${output(cliFreshHelp)}`);
-}
 const newDualSource = fs.readFileSync(newDual, 'utf8');
 const unsafeEmptyArrays = [...newDualSource.matchAll(/^([A-Z][A-Z0-9_]*)=\(\)$/gm)]
   .map((match) => match[1])

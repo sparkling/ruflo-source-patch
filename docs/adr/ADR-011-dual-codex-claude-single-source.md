@@ -2,12 +2,10 @@
 
 **Status**: accepted
 **Date**: 2026-07-14 (corrected 2026-07-25)
-**Updated**: 2026-08-11. Ruflo 3.32.36/3.32.37 fixed #2634, #2635, #2636, and
+**Updated**: 2026-07-30. Ruflo 3.32.36/3.32.37 fixed #2634, #2635, #2636, and
 #2637: native dual init now runs both initializers, fetches the adapter, emits canonical backed
 skills, and protects root secrets. #2638 remains open: the two hosts still generate divergent
 instruction sources, so this script remains the single-source and policy-preserving conversion.
-The public `dual run <project>` route now selects the fresh initializer; the separately materialized
-`ruflo-add-codex.sh` remains the explicit existing-project conversion.
 **Deciders**: Henrik Pettersen
 **Tags**: script-target, dual, codex
 
@@ -31,9 +29,7 @@ Codex stays in `CLAUDE.md` (skill syntax, the `Agent`/`SendMessage` tools, the C
 tool's commit-template caveat, and the plugin-owned Claude setup).
 
 Shipped as a script (`ruflo-add-codex.sh` for an existing project, `ruflo-new-dual.sh` from scratch) rather
-than a source patch, because it produces PROJECT files, not vendor files. The public
-`dual run <project>` command dispatches to `ruflo-new-dual.sh`; conversion remains an explicit call to
-the materialized `ruflo-add-codex.sh`. It fetches the exact audited
+than a source patch, because it produces PROJECT files, not vendor files. It fetches the exact audited
 `@claude-flow/codex@3.0.1` package with `npx --yes`, rather than depending on a local adapter install or
 silently accepting a future adapter release, and defaults away from the Codex stub-skill templates.
 
