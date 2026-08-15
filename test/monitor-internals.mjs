@@ -214,7 +214,7 @@ if (!/memory purge/.test(noPurge) || !/ruflo-adr-reindex\.sh/.test(noPurge)) {
 fs.writeFileSync(cliMemoryJs, "const subs = ['store', 'delete', 'purge', 'cleanup'];\n");
 fs.writeFileSync(cliMemoryInit, 'export async function purgeNamespace() {}\n');
 const purgeWrongLock = rx.apply().log.find((l) => /skip:upstream-owns-it/.test(l)) ?? '';
-if (!/Do NOT uninstall/i.test(purgeWrongLock) || !/rsp-lock/.test(purgeWrongLock)) {
+if (!/Do NOT uninstall/i.test(purgeWrongLock) || !/one proven lock/.test(purgeWrongLock)) {
   fail(`AR5 \`memory purge\` uses a different lock, but the advice did not keep the target:\n  ${purgeWrongLock}`);
 }
 
@@ -292,7 +292,7 @@ const retiredRun = cmds.applyInstalled();
 const st3 = stateMod.readState();
 if (st3.pluginTargets.includes('adr-reindex')) fail('SU4 the replacement is present AND runnable, but the target did not retire');
 if (!st3.retired['adr-reindex']) fail('SU4 retired the target but recorded nothing — the next install would just put it back');
-if (!/memory purge/.test(st3.retired['adr-reindex'].evidence || '') || !/rsp-lock/.test(st3.retired['adr-reindex'].evidence || '')) {
+if (!/memory purge/.test(st3.retired['adr-reindex'].evidence || '') || !/one proven lock/.test(st3.retired['adr-reindex'].evidence || '')) {
   fail(`SU4 the retirement records no usable command/lock evidence: ${JSON.stringify(st3.retired['adr-reindex'])}`);
 }
 if (!retiredRun.log.some((l) => /^retired adr-reindex/.test(l))) {
@@ -329,7 +329,7 @@ if (!/RETIRED/.test(out(inst)) || !/evidence/.test(out(inst))) {
 const retiredStatus = cli(['adr-reindex', 'status']);
 if (!/RETIRED/.test(out(retiredStatus))
     || !/current revalidation: superseded/.test(out(retiredStatus))
-    || !/rsp-lock/.test(out(retiredStatus))
+    || !/one proven lock/.test(out(retiredStatus))
     || /NOT tracked|run `adr-reindex install`/.test(out(retiredStatus))) {
   fail(`SU7 retired status contradicts terminal state or suggests reinstalling:\n${out(retiredStatus)}`);
 }

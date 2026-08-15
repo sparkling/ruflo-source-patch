@@ -278,22 +278,33 @@ console.log('✔ monitor liveness (H1 silent when absent, H2 stale+not-loaded re
 // branches run without a real launchd job: a stale heartbeat is "down" ONLY when the scheduler confirms
 // the job is not loaded; a stale-but-loaded job (idle/slept — the lunch case) is SILENT.
 {
-  const health = await import(`file://${path.join(REPO, 'lib', 'cwd', 'health.mjs')}`);
   freshSandbox();
   fs.mkdirSync(STATE, { recursive: true });
   fs.writeFileSync(path.join(STATE, 'monitor.json'), JSON.stringify({
     node: process.execPath, script: path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs'), intervalSec: 300, label: 'x',
   }));
   fs.writeFileSync(path.join(STATE, 'heartbeat'), 'x');
-  const stale = Date.now() + 60 * 60 * 1000;    // pretend "now" is an hour after the last beat
-  if (health.monitorHealthProblems(stale, () => true).length !== 0) {
+  // fixtures.mjs loaded paths.mjs before the sandbox env existed, so importing health.mjs
+  // in this process would inspect the developer's REAL monitor. Execute the probe in a
+  // fresh child whose module graph starts with the sandbox environment instead.
+  const healthProbe = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const health = await import(${JSON.stringify(path.join(REPO, 'lib', 'cwd', 'health.mjs'))});
+    const stale = Date.now() + 60 * 60 * 1000;
+    const loaded = health.monitorHealthProblems(stale, () => true);
+    const dropped = health.monitorHealthProblems(stale, () => false);
+    let probed = false;
+    const fresh = health.monitorHealthProblems(Date.now(), () => { probed = true; return false; });
+    process.stdout.write(JSON.stringify({ loaded, dropped, fresh, probed }));
+  `], { env, encoding: 'utf8' });
+  if (healthProbe.status !== 0) fail(`HL fixture failed: ${healthProbe.stderr}`);
+  const health = JSON.parse(healthProbe.stdout);
+  if (health.loaded.length !== 0) {
     fail('HL1 a stale-but-LOADED monitor (idle/slept — lunch) was flagged; the probe must silence it');
   }
-  if (!health.monitorHealthProblems(stale, () => false).some((p) => /NOT loaded/.test(p))) {
+  if (!health.dropped.some((p) => /NOT loaded/.test(p))) {
     fail('HL2 a stale AND not-loaded monitor (genuinely dropped) was NOT reported');
   }
-  const fresh = Date.now();                       // heartbeat fresh -> never probe, never flag
-  if (health.monitorHealthProblems(fresh, () => { throw new Error('probed on a fresh heartbeat'); }).length !== 0) {
+  if (health.fresh.length !== 0 || health.probed) {
     fail('HL3 a healthy (fresh-heartbeat) monitor was flagged, or the expensive probe ran on the hot path');
   }
   console.log('✔ monitor liveness probe (HL1 loaded+stale is silent, HL2 not-loaded+stale reported, HL3 fresh never probes)');
