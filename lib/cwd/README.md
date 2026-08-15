@@ -18,12 +18,12 @@ the engine everything else stands on.
 | Target | Fixes |
 |---|---|
 | `cwd` | `.claude-flow`/`.swarm` follow a drifted `process.cwd()`, giving you a state dir per visited subdirectory |
-| `daemon` | direct start/stop/status/supervisor paths key Ruflo's native lock/PID state to one project root (#2877) |
-| `memory` | `memory.db` durability: fail-closed async-context **writer lock** (#2878), raw **WAL-sidecar refusal** (#2735), integrity gate, and native-purge lock participation |
+| `daemon` | legacy #2877 compatibility; current Ruflo retires it only after structural and executable project-root proof |
+| `memory` | stronger `memory.db` durability above native #2878: token/inode-safe fail-closed lock ownership, raw **WAL-sidecar refusal** (#2735), integrity gate, and stale-writer recovery |
 | `init` | suppress plugin-duplicated bundle/hooks/MCP generation while retaining bounded upstream init fixes |
 | `plugin-hosts` | add issue-backed dual-host Ruflo marketplace install/sync/uninstall commands |
 
-`patch-library.mjs` holds the entry table (36 entries across the 5 targets) and the engine that composes
+`patch-library.mjs` holds the entry table (38 declared entries across the 5 targets) and the engine that composes
 them. Several entries share a file, so the rebuild is **from pristine plus the desired entry set**, never
 a sequence of in-place edits. That is what makes `memory uninstall` able to remove the write lock while
 leaving `cwd`'s anchoring in the same file untouched.
@@ -41,7 +41,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 | `state.mjs` | What is installed, and what has **retired**. A small lock protects each `state.json` read-modify-write; an outer fail-closed lock makes **state change + vendor-file rebuild** one transaction (see below). |
 | `update-check.mjs` | Self-update, from **immutable semver tags** and never a branch. On the tick, not the hook: sessions run for days, so a hook-gated update leaves an invalidated patch re-applying itself for a week. Forward only; a failed install keeps the working version and says so. |
 | `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. `strayStateDirs()` is also the LEAK DETECTOR the SessionStart hook reports from: a state dir in a subdirectory is an anchor that leaked, whatever form it took. |
-| `stale-writer.mjs` | The other process-signaller (ADR-023). Detects a ruflo MCP client/daemon still writing `memory.db` with old code, including direct CLI, `.bin/cli`, and verified `.bin/ruflo` launch shapes. Its bounded machine-wide process read is large enough for real Codex/Claude argv streams rather than turning `ENOBUFS` into a false zero. **Kills every `pre-patch` writer** (daemon and MCP client alike) to force fresh code, guarded like cleanup (only a positively-resolved ruflo writer). A killed MCP client needs a manual `/mcp` reconnect afterward; that warning is pushed through `problems.mjs`'s `addProblems()` so it reaches the user's next prompt in any session. `unpatched` writers are never killed (a respawn would gain nothing). `RSP_NO_STALE_WRITER_KILL` disables every kill. |
+| `stale-writer.mjs` | The other process-signaller (ADR-023). Detects a ruflo MCP client/daemon still writing `memory.db` with old code, including direct CLI, `.bin/cli`, verified `.bin/ruflo`, and authenticated launchers under custom PATH prefixes. Its bounded machine-wide process read is large enough for real Codex/Claude argv streams rather than turning `ENOBUFS` into a false zero. **Kills every positively resolved `pre-patch` writer** (daemon and MCP client alike) to force fresh code, guarded like cleanup. A killed MCP client needs a manual `/mcp` reconnect afterward; that warning is pushed through `problems.mjs`'s `addProblems()` so it reaches the user's next prompt in any session. Unknown and `unpatched` writers are never killed. `RSP_NO_STALE_WRITER_KILL` disables every kill. |
 
 ## The one that bites
 
@@ -65,8 +65,8 @@ is one the next monitor tick **actively un-patches**. A concurrent install didn'
 It silently reverted a patch that was already applied.
 
 That is precisely the lost-update class historically reported in
-[#2621](https://github.com/ruvnet/ruflo/issues/2621) and now focused in
-[#2878](https://github.com/ruvnet/ruflo/issues/2878). Each state mutation now takes the
+[#2621](https://github.com/ruvnet/ruflo/issues/2621) and fixed for Ruflo's ordinary writers by
+[#2878](https://github.com/ruvnet/ruflo/issues/2878). Each patch-state mutation takes the
 same `O_EXCL` lock pattern we inject into ruflo. But that alone was not enough: after serializing
 `state.json`, concurrent commands still rebuilt the same vendor file and `.rsp-backup`, and one
 measured run entered a non-terminating kernel copy against an in-flight zero-byte backup.

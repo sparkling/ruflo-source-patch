@@ -1,12 +1,12 @@
 # ADR-006: memory: fail-closed serialization and WAL-sidecar refusal for memory.db
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. Ruflo 3.33.0 still acknowledges concurrent whole-image writes
-that it loses (12 successes, 2 rows persisted in the clean reproducer). The focused residual is
-[#2878](https://github.com/ruvnet/ruflo/issues/2878); closed #2621 remains the historical report.
-The local lock now fails closed and is async-context reentrant. The former global WAL checkpoint
-has been removed in favour of the fail-closed sidecar policy established by #2735.
+**Updated**: 2026-08-15. Exact published Ruflo 3.38.12 now routes ordinary sql.js mutators and
+native purge through shared `withMemoryDbLock()`, delivering the basic #2878 lost-update baseline.
+The local target remains for its stronger outer bridge/fallback serialization, fail-closed token and
+inode-safe ownership, no mtime-only lock theft, raw WAL-sidecar refusal, integrity gate, and stale-writer
+enforcement. Closed #2621 remains the historical report.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, durability, data-loss
 
@@ -19,9 +19,9 @@ prevents a torn file but cannot prevent this lost update.
 
 The clean 3.33.0 reproducer forced the documented fallback with
 `CLAUDE_FLOW_DISABLE_BRIDGE=1`: all 12 `storeEntry` calls returned success, only 2 rows remained,
-and `integrity_check` still passed. Upstream's `withMemoryDbLock()` is opt-in and still has only
-the purge caller, so ordinary writers bypass it. This is now tracked precisely by #2878 rather
-than broadening the closed #2621 body again.
+and `integrity_check` still passed. That historical implementation used `withMemoryDbLock()` only
+for purge. Ruflo 3.38.12 now makes the ordinary sql.js writers participate too, so the local overlay
+is no longer the first or only serialization layer.
 
 There is a separate engine-boundary hazard. The AgentDB bridge uses native SQLite in WAL mode;
 the fallback reads and replaces the main file as a complete image. `sql.js` cannot see frames in
@@ -33,7 +33,7 @@ state by checkpointing or removing another connection's sidecars.
 
 ### Serialize every exported writer, and fail closed
 
-Inject one `<db>.rsp-lock` protocol around `initializeMemoryDatabase`, `storeEntry`, `getEntry`,
+Inject one outer `<db>.rsp-lock` protocol around `initializeMemoryDatabase`, `storeEntry`, `getEntry`,
 `deleteEntry`, `applyTemporalDecay`, `ensureSchemaColumns`, and native `purgeNamespace`.
 
 - `O_EXCL` creation provides cross-process exclusion across the complete read-modify-write.
@@ -52,6 +52,9 @@ Inject one `<db>.rsp-lock` protocol around `initializeMemoryDatabase`, `storeEnt
 The EOF wrapper serializes both native bridge and fallback paths so they cannot race each other,
 but the image-safety checks below run only when Ruflo actually crosses its raw `fs-secure` boundary.
 A successful transactional AgentDB bridge call is not falsely rejected as a whole-image rewrite.
+Ruflo's native `<db>.lock` remains nested and byte-for-byte upstream-owned. It coordinates patched
+and unpatched current writers; the outer lock adds the stronger ownership and failure semantics that
+native 3.38.12 does not yet provide.
 
 ### Refuse raw access while WAL sidecars exist
 
@@ -78,7 +81,8 @@ per-function gates remain useful, but the boundary also covers `ensureSchemaColu
 - Lock acquisition failure aborts before the callback, so failure cannot look like success.
 - A raw fallback cannot read or replace the main database while native WAL state exists.
 - The patch no longer mutates a live database merely because a helper attempted a read.
-- Native purge participates in the ordinary writers' protocol, satisfying #2666 locally.
+- Native purge and ordinary sql.js writers now share the upstream protocol. The executable retirement
+  probe for #2666 accepts that complete native set without requiring local `.rsp-lock` bytes.
 
 ### Negative
 
@@ -90,10 +94,11 @@ per-function gates remain useful, but the boundary also covers `ensureSchemaColu
 
 ### Neutral
 
-- Upstream's private `<db>.lock` remains nested inside purge. It is redundant locally but is left
-  byte-for-byte intact.
-- The historical #2621 evidence remains relevant, but #2878 is the acceptance target for ordinary
-  writers and fail-closed locking.
+- Upstream's `<db>.lock` remains nested and is left byte-for-byte intact. It now covers ordinary
+  sql.js writers as well as purge, but still uses mtime-based stale takeover and lacks this target's
+  token/inode-safe release and outer bridge/fallback boundary.
+- The historical #2621 evidence remains relevant. #2878 now establishes the native serialization
+  baseline; the local target tracks the stronger fail-closed durability policy above.
 
 ## Links
 

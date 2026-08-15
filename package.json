@@ -4,7 +4,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Patches ruflo / @claude-flow's cwd-anchoring defect (ruvnet/ruflo#2633) at source in the installed npm library, stopping .claude-flow/.swarm folder and daemon proliferation caused by Claude Code working-directory drift.",
+  "description": "Issue-backed source patches for installed Ruflo, RuvNet Brain, Ruflo plugins, and MetaHarness, with exact-anchor reapplication and behavioral retirement.",
   "type": "module",
   "bin": {
     "ruflo-source-patch": "bin/cli.mjs"

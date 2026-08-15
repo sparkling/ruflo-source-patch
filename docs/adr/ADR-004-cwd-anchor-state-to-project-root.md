@@ -1,11 +1,12 @@
 # ADR-004: cwd: anchor durable state to the project root, not a drifted working directory
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-01. Revalidated against Ruflo 3.32.39: #2633 remains open and current
-CLI state/daemon paths still follow raw `process.cwd()`. The target remains live. Session-end now
-atomically writes the snapshot it advertises beneath the resolved project root instead of returning a
-plausible path for a file that does not exist.
+**Updated**: 2026-08-15. Revalidated against the exact published Ruflo 3.38.12 artifact. Native
+`resolveDaemonProjectRoot()` now covers daemon autostart and every direct daemon identity, so that
+part is native-satisfied and #2877 can retire. #2633 remains live for residual durable-state paths:
+swarm canonical reads, permission audit/grants, neural WEFT defaults, and generated helper scripts.
+Session-end still atomically writes the snapshot it advertises beneath the resolved project root.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, data-loss, cwd
 
@@ -28,15 +29,15 @@ to zero, and it looks exactly like normal operation.
 
 Measured on one 12-repo working set: 109 `.claude-flow` directories, 97 of them stray.
 
-cwd-dependence takes three syntactic forms, and only one is greppable: 62 explicit
-`path.join(process.cwd(), '.claude-flow', ...)`; 11 implicit (a one-arg `resolve()` is ALREADY
-cwd-relative, so there is no `process.cwd()` token to find); and 87 argument-passing, where the callee
-builds the path from a parameter.
+cwd-dependence takes three syntactic forms, and only one is greppable: explicit
+`path.join(process.cwd(), '.claude-flow', ...)`; implicit one-argument `resolve()` calls; and
+argument-passing, where the callee builds the path from a parameter. Counts are release-specific. The
+current patch inventory and executable current-release fixture are authoritative, not old grep totals.
 
 ## Decision
 
 Resolve the project root and anchor every durable-state path to it. Ported from `sparkling/ruflo`'s ADR-0100
-and ADR-0137, which triaged all 91 sites (70 fixed, 21 kept as deliberate `intentional-cwd`).
+and ADR-0137, whose original triage distinguishes durable state from deliberate invocation-relative paths.
 
 **The resolver**, by marker priority: `.ruflo-project` sentinel, then `CLAUDE.md` AND `.claude/` (both
 required, so a `docs/CLAUDE.md` is not mistaken for a project), then `.git`, then the start dir unchanged.
@@ -58,13 +59,20 @@ anchor that leaked, whatever form it took. The SessionStart hook reports them, a
 handler must atomically write the corresponding snapshot beneath `<project>/.claude/sessions/` before
 returning success. A bridge-store write does not make a second, nonexistent JSON path true.
 
+**Current residuals are explicit.** Ruflo 3.38.12 still needs project-root defaults for
+`commands/swarm.js`'s canonical agent/hive/activity reads, `permission/permission-audit.js`, neural
+WEFT export/SFT/DPO defaults, and the helper scripts emitted by `init/helpers-generator.js`. User-supplied
+output paths remain invocation-relative. The generated scripts resolve from their own installed project
+location, not from whatever cwd later invokes them.
+
 ## Consequences
 
 ### Positive
 
 - Durable state stops silently resetting. Verified end to end: from `src/deep/nested`, state lands at the
   project root with zero stray directories.
-- Daemon proliferation collapses as a side effect, because a stray folder is the daemon spawn gate.
+- Daemon identity is now upstream-owned in 3.38.12; the resolver proof ensures the native gate and direct
+  commands agree on one project root.
 - A monorepo package keeps its own store instead of pooling into the outer repo.
 
 ### Negative
@@ -74,7 +82,8 @@ returning success. A bridge-store write does not make a second, nonexistent JSON
   READER of `harness-active-policy.json`) was anchored while `applyChampion` (its WRITER) still followed the
   drifted cwd, so the reader looked at the project root for a file the writer had put elsewhere and silently
   found nothing. Unpatched, both sides at least AGREED on the drifted directory.
-- 29 anchors in vendor `dist` output is a real maintenance surface.
+- The current target has 31 declared entries, 30 applicable in the exact 3.38.12 fixture; that remains a
+  real maintenance surface and is checked as a complete set.
 
 ### Neutral
 

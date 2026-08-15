@@ -31,6 +31,13 @@ how a fix silently stops existing.
 `plugin-registry.mjs` is the one place plugin targets are declared. Add a patcher there and the hook, the
 monitor, `status` and `monitor check` all pick it up for free.
 
+CLI entries have a fourth state besides patched, absent, and drifted: **behaviorally native**. A
+`nativeSatisfied()` predicate proves the upstream replacement while preserving pristine vendor bytes.
+Install, target status, monitor status/check, and `all status` all consume the same `satisfied` count;
+zero discovered files, an unsatisfied entry, or an uncovered runnable build is a nonzero result.
+`lib/daemon/supersede.mjs` adds an executable mutation proof before terminally retiring #2877, so older
+Ruflo installations remain patchable while current ones stay untouched.
+
 `pristine.mjs` is the safety floor for every patcher that **edits** a vendor file: resolve the pristine
 bytes, re-baseline when upstream replaces the file, and **never** truncate or destroy on a poisoned
 backup. Read it before writing a new patcher.

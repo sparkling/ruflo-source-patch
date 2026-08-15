@@ -3,9 +3,9 @@
 [← ruflo-source-patch](../../README.md)
 
 > **Superseded only when the complete replacement is runnable here.** Ruflo now ships the
-> reconcile and `memory purge`, but native purge takes a private `<db>.lock` that ordinary writers
-> do not. This repository's `memory` target wraps it with the same `<db>.rsp-lock` as every writer;
-> the legacy command retires only after that three-part proof.
+> reconcile and `memory purge`. Ruflo 3.38.12 routes purge and every ordinary sql.js mutator through
+> the same native `withMemoryDbLock()`; older builds may instead qualify through this repository's
+> stronger `<db>.rsp-lock`. The legacy command retires only after that three-part proof.
 
 The historical reconcile that `ruflo-adr` did not ship. It is the only target that **adds** a command
 rather than fixing a broken one. Filed upstream as
@@ -68,8 +68,8 @@ holding a *pre-delete* image will flush it back and **resurrect every row we jus
 [#2878](https://github.com/ruvnet/ruflo/issues/2878)). The reconcile is the most delete-heavy
 operation in the system and therefore the one most exposed to this.
 
-The `memory` target already solves both halves, so this **depends on it rather than reimplementing a
-weaker copy**:
+On a legacy installation the `memory` target solves both halves, so this compatibility script
+**depends on it rather than reimplementing a weaker copy**:
 
 - `memory/write-lock` makes `<db>.rsp-lock` mean something. **A lock nothing else takes protects
   nothing.** It works only because the other side takes it too, and the other side only does so when
@@ -77,9 +77,13 @@ weaker copy**:
 - `memory/wal-sidecar-refusal` stops raw access while a native connection owns WAL state, without
   checkpointing or deleting its sidecars.
 
-The script takes that same lock around its `DELETE`. That is **participation** in the protocol, not
+The legacy script takes that same lock around its `DELETE`. That is **participation** in the protocol, not
 duplication of it: the CLI's lock lives inside node and cannot cover a `sqlite3` subprocess. It releases
 *before* the re-import, because the patched CLI takes the lock per store and fails closed on contention.
+
+The retirement probe separately accepts current native Ruflo only after it proves that
+`ensureSchemaColumns`, temporal decay, store, get, delete, and purge all call the same native lock.
+Finding one lock helper or a purge-only call is deliberately insufficient.
 
 An earlier version warned-and-proceeded when `memory` was absent. That was wrong: it gambled the user's
 index on a race the warning had just finished explaining it could not win. It now **refuses**.

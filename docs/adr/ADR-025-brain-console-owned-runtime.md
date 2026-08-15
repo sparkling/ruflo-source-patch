@@ -1,12 +1,13 @@
 # ADR-025: A detached Brain Console needs an owned runtime identity
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-08-01
-**Updated**: 2026-08-06. Brain 4.0.12 natively supplies whole-runtime identity, receipts, the runtime
-API, token-bound shutdown, stale/foreign classification, and detached-process replacement. The local
-target recognizes and preserves that launcher. It remains live only because the released doctor reads a
-host-convergence receipt instead of independently comparing candidate bytes, persistent runtime, receipt,
-live endpoint, PID, and API identity as #79 requires.
+**Updated**: 2026-08-15. Published Brain 4.0.36 natively supplies whole-runtime identity, receipts,
+the runtime API, token-bound shutdown, stale/foreign classification, and detached-process replacement.
+The local target recognizes and preserves that launcher. It remains live only because pristine 4.0.36
+doctor reads a host-convergence receipt instead of independently comparing candidate bytes, persistent
+runtime, receipt, live endpoint, PID, and API identity as #79 requires. A separately staged 4.0.52-dev
+host copy is not treated as published retirement evidence.
 **Deciders**: Henrik Pettersen
 **Tags**: brain, lifecycle, security, patching
 
@@ -19,7 +20,8 @@ assets with an old in-memory router, so the current UI called `/api/capabilities
 Restarting Codex could not help: the Console had PPID 1 and was no longer owned by a host session.
 
 The original native `--update` path also omitted `installConsoleRuntime()`. PR #110 replaced the copy
-list and one-file hash with one whole-runtime surface and native replacement transaction. This patch
+list and one-file hash with one whole-runtime surface and native replacement transaction. That native
+launcher remains present in 4.0.36. This patch
 repository does not modify that updater, activation, cache, Stable Spine, immutable version store, or
 `active.json`.
 

@@ -1,31 +1,16 @@
 # ADR-014: Targets retire themselves on a local proof, never on a published verdict
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-09. Brain 4.0.12 supplied three executable replacements: #76 now runs curated
-exact-version notes from one immutable installed payload and fails closed when that asset is missing;
-#81 shares common/configured-root discovery between standalone doctor and Console; and #86 stages and
-validates the provider catalog while exposing an explicit unverified state when it is unavailable.
-Positive probes plus deliberate missing-asset/root/catalog mutations authorize terminal retirement of
-those three targets. A simultaneous-retirement set prevents one superseded composed target from being
-re-applied while its sibling is being removed. #79 is different: the native launcher passes whole-runtime
-identity, receipt, shutdown, and replacement proof, but the released doctor still does not compare the
-candidate, persistent runtime, receipt, live endpoint, PID, and API identity required by the issue. Its
-target is therefore narrowed, not retired. #77's protected release rail now publishes 4.0.36
-coherently, but its separate executable doctor criterion is still unmet: pristine 4.0.36 compares
-only bundle and Claude wrapper, calls their drift normal, and omits it from `allGreen`. The existing
-eight-edit read-only target applies without ambiguity to the exact published installer. Issue closure
-therefore still does not authorize retirement; a future predicate must mutate each live component
-independently and prove doctor fails before the target can stand down.
-#102's source fix and #103's opt-in boundary are unreleased; #103 also lacks host non-execution proof and
-the audited diagnostic, so `brain-managed-memory-boundary` remains live (ADR-028). The
-MetaHarness #168 `metaharness-codex-hooks` target likewise has no guessed version predicate: a
-published candidate must execute adapter, CLI, and Studio generation, strict Codex parsing, matcher
-preservation, packaged handler resolution, and trust messaging before retirement (ADR-029). The
-`adr-reindex` predicate requires the current fail-closed #2878 lock markers, so the older
-fail-open wrapper cannot falsely authorize retirement. `adr-index` retires only after every active
-Claude/Codex copy executes native convergence, its pristine importer reports stores honestly, and
-the native deletion route passes that same reindex lock proof.
+**Updated**: 2026-08-15. Exact Ruflo 3.38.12 supplies two new executable replacements. #2877 now
+routes every daemon identity through one native project-root resolver, so `daemon` retires only after
+all installed copies pass structural and executable resolver mutations. #2878 now makes ordinary
+sql.js writers share native `withMemoryDbLock()` with purge, so `adr-reindex` accepts that complete
+native writer set while `memory` remains for stronger residual safeguards. Brain 4.0.36 now contains
+the #102 structural detector and opt-in #103 setting, but not the default refusal, host non-execution
+proof, audited diagnostic, or truthful doctor/Console state, so its boundary target stays live.
+Published MetaHarness 0.4.7 and `@metaharness/host-codex` 0.1.2 still fail #168's renderer proof.
+Issue closure alone retired none of these; local behavior and deliberate mutations decide each result.
 **Deciders**: Henrik Pettersen
 **Tags**: lifecycle, safety, core
 
@@ -38,10 +23,10 @@ wrong once upstream restructures around it.
 The obvious mechanism is a published list of "fixed" issues that the tool reads and acts on. It is the wrong
 mechanism, and one week proved it twice:
 
-- **#2621** was CLOSED and NOT FIXED. Its focused ordinary-writer residual is now open as #2878.
-- **#2666** was CLOSED with both a skill and `memory purge`, but its first acceptance point was not
-  complete: purge takes `<db>.lock` while ordinary writers take no lock. The plugin/CLI release split
-  also left an earlier window where the skill existed and its command did not.
+- **#2621** was CLOSED without ordinary-writer serialization. The focused #2878 replacement later
+  shipped in Ruflo 3.38.x, after the historical reproducer proved the gap.
+- **#2666** was CLOSED with both a skill and `memory purge`, but the first delivery locked only purge.
+  The plugin/CLI release split also left an earlier window where the skill existed and its command did not.
 - **Brain #52** showed the reverse ordering: the installed 4.0.1 artifact passed the full native
   lifecycle/stable-wrapper predicate before the issue closed with the 4.0.2 release. Issue state is
   neither necessary nor sufficient evidence.
@@ -76,6 +61,8 @@ another surface to get wrong.
 
 - `adr-index` and `adr-reindex` retired themselves on this machine, on proof, and the audit record
   says exactly why.
+- `daemon` now does the same only after the native resolver is executed against nested roots,
+  independent nested projects, `.git` boundaries, and no-marker fallback. A mutated route keeps it live.
 - Announced ONCE, then silence. The old behaviour was a warning that fired every session and could never
   resolve itself, and a banner that always cries wolf is a banner people stop reading.
 - A retirement is explicitly NOT reported as a problem, because crying wolf over good news is how the

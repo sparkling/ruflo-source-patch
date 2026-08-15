@@ -1,7 +1,10 @@
 # ADR-001: Source-patch the installed library by exact literal anchors, rebuilt from pristine
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14
+**Updated**: 2026-08-15. A target is now satisfied only when every discovered entry is either
+locally patched or passes an explicit behavioral native-replacement predicate. Zero discovered
+files, an unsatisfied entry, or an uncovered runnable build is failure, including in `all status`.
 **Deciders**: Henrik Pettersen
 **Tags**: patching, safety, core
 
@@ -47,12 +50,20 @@ Interdependent edits are **atomic**. Bash ERE has no non-capturing group, so a r
 capture indices its readers use; a partial apply would leave a gate reading the wrong group. On a partial
 match, write nothing.
 
+An upstream-native implementation may satisfy an entry without local bytes. That is a separate state
+from `patched`: the predicate must prove the actual replacement behavior or structure and be
+mutation-tested. Native bytes remain pristine and uninstallable; a marker, version, closed issue, or
+missing old anchor is not evidence. Status, monitor checks, and mutating applies all use the same
+`patched | native | not-applicable | drift` outcome model.
+
 ## Consequences
 
 ### Positive
 
 - A patch that no longer applies is LOUD, never silent. The one thing we refuse to ship is a target that
   reports `installed` while doing nothing.
+- A tracked target with zero discovered files, a partial entry set, or an uncovered executable package
+  exits nonzero instead of printing a healthy checkmark.
 - Upstream reformatting breaks an anchor into a visible skip, not a corrupted file.
 - Targets compose: several may patch the same file and each can be removed independently.
 - A superseded patch version is replaced, not stacked, because every apply starts from pristine.

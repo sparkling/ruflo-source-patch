@@ -29,8 +29,8 @@ npx github:sparkling/ruflo-source-patch all status       # the full readout in o
 
 ```bash
 npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/.swarm + durable state to the project root (#2633)
-npx github:sparkling/ruflo-source-patch daemon install    # direct daemon commands share one project-root lock/PID identity (#2877; umbrella #2633)
-npx github:sparkling/ruflo-source-patch memory install    # fail-closed memory.db writer lock (#2878) + raw WAL-sidecar refusal (#2735) + integrity gate + stale-writer guard: kills every pre-patch writer, daemon AND MCP client, to force fresh code; a killed MCP client needs a manual /mcp reconnect after, so it warns loudly, machine-wide (ADR-006/ADR-023; RSP_NO_STALE_WRITER_KILL disables the kill)
+npx github:sparkling/ruflo-source-patch daemon install    # legacy #2877 compatibility; auto-retires on executable native project-root proof (umbrella #2633)
+npx github:sparkling/ruflo-source-patch memory install    # stronger fail-closed memory.db writer boundary above native #2878 + raw WAL refusal (#2735) + integrity/stale-writer guards; killed MCP clients need manual /mcp reconnect (ADR-006/ADR-023; RSP_NO_STALE_WRITER_KILL disables kills)
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 ```
@@ -40,7 +40,7 @@ npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install
 ```bash
 npx github:sparkling/ruflo-source-patch adr-template install      # legacy creator/parser compatibility; auto-retires on four-copy behavior proof (#2659)
 npx github:sparkling/ruflo-source-patch adr-index install         # retired after active native convergence + reindex-route proof (#2660)
-npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share `memory`'s writer lock (#2666)
+npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share one proven lock with every writer (#2666/#2878)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)
 npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # retired on Ruflo's native read-only status skill (#2821)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
@@ -48,12 +48,12 @@ npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #268
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate
 npx github:sparkling/ruflo-source-patch flywheel-daily install     # legacy #53 cadence fix; auto-retires on Brain's behavioral replacement
 npx github:sparkling/ruflo-source-patch codex-hooks install        # retired; Brain 4.0.2 publishes the native six-event Codex lifecycle (#52)
-npx github:sparkling/ruflo-source-patch brain-codex-skills install # retired on Brain 4.0.12's executable immutable installed workflow (#76)
+npx github:sparkling/ruflo-source-patch brain-codex-skills install # retired on Brain 4.0.12+'s executable immutable installed workflow (#76)
 npx github:sparkling/ruflo-source-patch brain-console-lifecycle install # native launcher is accepted; repair the still-incomplete live doctor comparison (#79)
-npx github:sparkling/ruflo-source-patch brain-console-provider-keys install # retired on staged catalog + explicit degraded-state behavior in Brain 4.0.12 (#86)
+npx github:sparkling/ruflo-source-patch brain-console-provider-keys install # retired on staged catalog + explicit degraded-state behavior in Brain 4.0.12+ (#86)
 npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail doctor on bundle/package/Spine/host version drift without touching Brain's updater (#77)
-npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # retired on shared common/configured-root behavior in Brain 4.0.12 (#81)
-npx github:sparkling/ruflo-source-patch brain-managed-memory-boundary install # refuse raw SQLite on managed AgentDB stores; audited exact diagnostic only (#102/#103)
+npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # retired on shared common/configured-root behavior in Brain 4.0.12+ (#81)
+npx github:sparkling/ruflo-source-patch brain-managed-memory-boundary install # preserve Brain 4.0.36's detector; add default raw-SQL refusal + audited exact diagnostic (#102/#103)
 npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)
 ```
 

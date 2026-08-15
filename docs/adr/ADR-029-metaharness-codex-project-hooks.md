@@ -1,16 +1,20 @@
 # ADR-029: Render declared MetaHarness lifecycle hooks as native project Codex hooks
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-08-04
+**Updated**: 2026-08-15. The exact published packages `metaharness@0.4.7` and
+`@metaharness/host-codex@0.1.2` still require both renderer edits. MetaHarness #168 remains open. The
+downstream target stays deliberately limited to supplied declarations; upstream still owns CLI/Studio
+models, templates, packaged helpers, witnesses, tests, and the ADR/documentation correction.
 **Deciders**: Henrik Pettersen
 **Tags**: metaharness, codex, hooks, patching, safety
 
 ## Context
 
-MetaHarness owns a host-neutral `HarnessSpec.hooks` model. Its Claude Code adapter consumes that
-field, but its Codex adapter drops it. The standalone CLI and Studio scaffold paths also emit only
-Codex TOML and instructions. MetaHarness ADR-004 therefore describes Codex as having no native hooks
-and claims a kernel fallback that the generated JavaScript harness does not actually wire.
+MetaHarness owns a host-neutral `HarnessSpec.hooks` model. In the published packages above, its Claude
+Code adapter consumes that field, but its Codex adapter drops it. The standalone CLI and Studio scaffold
+paths also emit only Codex TOML and instructions. MetaHarness ADR-004 therefore describes Codex as having
+no native hooks and claims a kernel fallback that the generated JavaScript harness does not actually wire.
 
 Codex now discovers project `.codex/hooks.json` files, subject to project trust and explicit hook
 review. Treating Codex as hookless is stale, but blindly copying Claude declarations is also wrong:

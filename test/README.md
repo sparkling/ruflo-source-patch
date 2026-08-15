@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **twenty-five suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
+`npm test` runs **thirty suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
 
 ## Contents
 
@@ -18,14 +18,17 @@
 | `plugin-notify.mjs` | The plugin patches, the notifier, and the monitor's own liveness. |
 | `reporting.mjs` | **Every path where a failure could be mistaken for success.** For a package that is almost entirely notification paths, that is the only thing that matters. |
 | `untested.mjs` | The SessionStart hook body, `cleanup`'s directory half, the script targets, the shell scripts. All of them had *zero* coverage until it was measured rather than assumed. |
-| `concurrency.mjs` | Concurrent installs; the **injected fail-closed memory lock actually executing** across processes and sibling Promises, nested reentrancy, owner-safe release, native purge, torn-image and WAL-sidecar refusal; plus the plugin-throw guard, uncovered-build detector, and legacy daemon-lock retirement boundary. |
+| `concurrency.mjs` | Concurrent installs; the **injected fail-closed memory lock actually executing** across processes and sibling Promises, nested reentrancy, owner-safe release, native purge, torn-image and WAL-sidecar refusal; plus plugin-throw handling, uncovered-build and zero-file failure, and status/check/all-status parity. |
+| `cwd-current.mjs` | Exact Ruflo 3.38.12 residual cwd coverage: permission state, permission audit, swarm state, neural-weft defaults, generated helpers, and byte-safe uninstall. |
+| `daemon-native.mjs` | Native #2877 structural and executable root-resolution proof, deliberate resolver/route mutations, mixed legacy/native fleets, terminal retirement, and pristine preservation. |
 | `cleanup-procs.mjs` | `cleanup`'s **kill** half. Real processes, real `pgrep`/`lsof`/`ps`. |
-| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including direct, `.bin/cli`, and verified `.bin/ruflo` launch shapes; dry-run/kill-switch boundaries; and rejection of older fail-open or same-named impostor wrappers. |
+| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including direct, `.bin/cli`, verified `.bin/ruflo`, and custom-prefix launcher shapes; dry-run/kill-switch boundaries; and rejection of older fail-open or same-named impostor wrappers. |
 | `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup, and `adr-reindex`'s reporting branches. |
 | `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |
 | `adr-template-retirement.mjs` | Active Claude/Codex parser discovery plus executable creator/parser proof, orphaned project handling, byte-exact restore, and terminal retirement. |
 | `adr-index-retirement.mjs` | Active Claude/Codex native convergence, honest importer counting, poisoned-backup refusal, runnable reindex routing, byte-exact restore, and terminal retirement. |
+| `adr-reindex-native.mjs` | Native #2666 retirement only when purge and all ordinary sql.js mutators share one proven `withMemoryDbLock()`; one unlocked-writer mutation and nested global Ruflo discovery fail closed. |
 | `design-wall.mjs` | The real hook behavior and fail-closed retirement of the legacy design-wall patch. |
 | `flywheel-daily.mjs` | The flywheel advisory's daily/project scope, concurrent atomic claim, fail-silent path, and byte-safe lifecycle. |
 | `codex-hooks.mjs` | Brain's additive Codex lifecycle plugin, adapter protocol, registration, and exact-owned uninstall. |
@@ -38,7 +41,7 @@
 | `brain-console-provider-keys.mjs` | Brain #86's packaged-catalog fallback: bounded Console discovery, native OpenAI/Google/Gemini key detection, composition with #79, mutation proof, no secret leakage, and byte-perfect removal. |
 | `brain-memory-doctor-roots.mjs` | Brain #81's standalone AgentDB fleet discovery: common/configured roots, explicit-root compatibility, bounded installed-copy discovery, atomic drift refusal, mutation proof, and byte-perfect removal without touching Brain data or its updater. |
 | `brain-native-retirement.mjs` | Executable #81/#86 delivery proof: copied active runtime, positive and degraded provider states, staging refusal, UI truth state, common/configured/exact-root discovery, deliberate regressions, and simultaneous terminal retirement. |
-| `brain-managed-memory-boundary.mjs` | Brain #102/#103's managed AgentDB boundary: SQLite option parsing, structural host denial, negative prose/unmanaged-store cases, audited content-free diagnostic, atomic multi-surface install, native-generation flip including the unreleased upstream source shape, and exact removal without changing `active.json`, KB, or updater bytes. |
+| `brain-managed-memory-boundary.mjs` | Brain #102/#103's managed AgentDB boundary: SQLite option parsing, structural host denial, negative prose/unmanaged-store cases, audited content-free diagnostic, atomic multi-surface install, native-generation flip including published 4.0.36's detector/setting shape, and exact removal without changing `active.json`, KB, or updater bytes. |
 | `metaharness-codex-hooks.mjs` | MetaHarness #168's Codex renderer: authenticated package discovery, exact two-surface transforms, strict manifest schema, tool/inner matcher translation, nested-cwd helper execution, unsupported-declaration refusal, mutation proof, public CLI lifecycle, and byte-exact uninstall. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 

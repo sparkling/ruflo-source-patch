@@ -1,11 +1,12 @@
 # ADR-005: daemon: key native deduplication to the project root
 
-**Status**: accepted
+**Status**: Superseded
 **Date**: 2026-07-14
-**Updated**: 2026-07-30. A clean `@claude-flow/cli` 3.33.0 reproduction started four live
-foreground daemons, with four PID files, from four subdirectories of one project. Filed the
-focused residual as #2877. The legacy lock injection is retired: #2407/#2484 correctly provide
-the native same-directory lock, and this target now changes only its project identity.
+**Updated**: 2026-08-15. Exact published `@claude-flow/cli` 3.38.12 now exports one
+`resolveDaemonProjectRoot()` and routes autostart plus direct start/stop/status/trigger/enable/
+supervisor identities through it. The executable resolver proof covers nested cwd, an independently
+initialized nested project, `.git` boundary stopping, and no-marker fallback. #2877 is therefore
+fixed locally and this target retires terminally; older installed releases remain patchable.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, daemon, cost
 
@@ -17,10 +18,9 @@ A `.claude-flow` folder is the daemon spawn gate (`ensureDaemonRunning` returns 
 that cwd), and deduplication is per-folder (`isDaemonAlive` checks `<cwd>/.claude-flow/daemon.pid`). So
 every stray folder created by cwd drift (ADR-004) becomes a live daemon target.
 
-The `cwd` target now normalizes the autostart service and its daemon callees. Direct
-`ruflo daemon start|stop|status` commands are a separate path: the CLI deliberately skips
-autostart for the `daemon` command, and `commands/daemon.js` still derives its lock, PID file,
-status, stop, and supervisor identity from raw `process.cwd()`.
+The historical gap was that the `cwd` target normalized the autostart service and its daemon callees,
+while direct `ruflo daemon start|stop|status` commands skipped autostart and derived lock, PID, stop,
+status, and supervisor identity from raw `process.cwd()`.
 
 Ruflo's #2407/#2484 `O_EXCL` lock is correct for concurrent starts in one directory. It cannot
 deduplicate two starts whose raw cwd values point to different lock paths. The 3.33.0 reproduction
@@ -33,7 +33,8 @@ dropped the live count from ~25 to 1: direct causal confirmation.
 
 ## Decision
 
-Keep Ruflo's native lock algorithm unchanged. Normalize the project identity fed to it:
+Keep Ruflo's native lock algorithm unchanged. For affected legacy releases, normalize the project
+identity fed to it:
 
 - `cwd` resolves the root in `ensureDaemonRunning`, `getDaemon`, and `startDaemon`, covering
   autostart and worker-daemon callers.
@@ -41,6 +42,10 @@ Keep Ruflo's native lock algorithm unchanged. Normalize the project identity fed
   which bypass autostart (#2877).
 - An explicit `--workspace` remains authoritative.
 - Distinct Git worktrees remain distinct project roots.
+
+For current releases, preserve upstream bytes and classify both daemon entries as native-satisfied.
+Retirement requires every discovered runnable copy to pass structural classification and an executable
+resolver probe; mixed, unknown, or mutated copies keep the target live.
 
 Remove the former `@sparkleideas/cli` legacy-lock entry and its injected lock fragment. That fork
 is not an installed or monitored target, and current Ruflo already owns the concurrency primitive.
@@ -57,8 +62,8 @@ is not an installed or monitored target, and current Ruflo already owns the conc
 
 ### Negative
 
-- The patch remains until #2877 supplies one shared canonical root resolver to every direct daemon
-  path. The broader durable-state work remains tracked by #2633 and ADR-004.
+- The broader durable-state work remains tracked separately by #2633 and ADR-004; native daemon
+  retirement does not imply that all `.claude-flow`/`.swarm` paths are fixed.
 
 ### Neutral
 

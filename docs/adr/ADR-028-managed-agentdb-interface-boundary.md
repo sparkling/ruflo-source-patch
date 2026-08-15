@@ -2,24 +2,24 @@
 
 **Status**: Implemented
 **Date**: 2026-08-03
-**Updated**: 2026-08-06. #102 is fixed on `main` at `12c29c1`, and #103 is closed with the opt-in
-`managedMemoryBoundary` setting at `af373f0`; neither change is in active Brain 4.0.12. The maintainer's
-final #103 measurement explicitly says host non-execution is asserted but unproved. The default remains
-`advise`, and the finite audited diagnostic plus truthful doctor/Console state did not land. The patch now
-accepts the forthcoming native detector shape, preserves it, and adds only the still-missing default
-refusal and diagnostic boundary.
+**Updated**: 2026-08-15. Published Brain 4.0.36 contains #102's structural invocation detector and
+#103's opt-in `managedMemoryBoundary` setting. The maintainer's final #103 measurement explicitly says
+host non-execution is asserted but unproved. The default remains `advise`, and the finite audited
+diagnostic plus truthful doctor/Console state did not land. The patch preserves the native detector and
+setting and adds only the still-missing default refusal, host proof, and diagnostic boundary.
 **Deciders**: Henrik Pettersen
 **Tags**: brain, agentdb, hooks, mcp, enforcement, patch-target
 
 ## Context
 
 Brain #48 correctly moved ordinary AgentDB work toward structured Ruflo CLI/MCP interfaces. Brain
-4.0.12's shipped raw-command advisory still contains two separate residual problems:
+4.0.36's shipped managed-memory boundary still contains two separate residual problems:
 
-- its flat Category 4 payload matcher misses valid `sqlite3` invocations when flags precede the database
-  and fires on prose, searches, comments, and other non-executable text (#102); and
-- direct `sqlite3` access to managed `.swarm/memory.db` and user-memory stores remains possible, while
-  switching Brain retrieval off also silences the whole advisory (#103).
+- #102's structural parser now distinguishes actual `sqlite3` invocations from prose and understands
+  flags before the database operand; and
+- #103's native setting remains opt-in/advisory by default, so direct `sqlite3` access to managed
+  `.swarm/memory.db` and user-memory stores remains possible without explicit hardening. Host
+  non-execution, an audited diagnostic, and truthful doctor/Console state remain unproved.
 
 The earlier project rule against modifying Brain versions was written after manual version pinning left
 the KB stale. Its intended boundary is the native updater and KB plane, not exact issue-backed source
@@ -60,8 +60,8 @@ negative prose/search/heredoc/comment cases, both host envelopes, a sentinel tha
 execution, Brain-off enforcement, non-Bash silence, exact SQLite flag parsing, canonical store identity,
 checkpointed WAL-mode diagnostics, live-sidecar refusal, content-free private receipts, SQL-literal injection, atomic
 anchor refusal, rollback, idempotency, exact uninstall, and a native `active.json` generation flip. A
-second fixture uses the unreleased #102/#103 source shape to prove the upstream structural detector remains
-in place while the local boundary adds its missing default enforcement and diagnostic behavior.
+second fixture uses the published 4.0.36 #102/#103 source shape to prove the upstream structural detector
+remains in place while the local boundary adds its missing default enforcement and diagnostic behavior.
 
 ## Limits
 

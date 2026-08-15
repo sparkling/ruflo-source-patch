@@ -1,7 +1,12 @@
 # ADR-017: Optional anchors, and covering npm's hidden-alias package layout
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-08-15. Discovery now follows authenticated `ruflo`, `claude-flow`, and
+`claude-flow-mcp` launchers on PATH, including custom npm prefixes with no `npm` binary, and still
+checks nested public-wrapper dependencies. All reporting surfaces share one satisfied-count contract:
+patched, behaviorally native, deliberately not applicable, or drift. A tracked target with no files,
+an unsatisfied entry, or an uncovered runnable build exits nonzero.
 **Deciders**: Henrik Pettersen
 **Tags**: patching, safety, cwd
 
@@ -56,6 +61,18 @@ also starts with `.cli-`. With the alias copy now genuinely patched, `scanUncove
 identifies a build by its `package.json` name rather than its directory basename, so the
 now-covered alias stops being flagged while a genuinely foreign daemon-spawning CLI still is.
 
+Global discovery follows the executable surface rather than assuming Node and npm share a prefix.
+For each absolute PATH directory, resolve recognized Ruflo launchers, walk a bounded number of parents,
+validate the owning `package.json` identity, and infer its containing `node_modules`. A non-symlink npm
+shim may use the sibling `<prefix>/lib/node_modules` fallback only after the `ruflo` or
+`@claude-flow/cli` package identity is proven. `RUFLO_GLOBAL_ROOT` remains the exact test and unusual-layout
+override; no user-specific prefix is hardcoded.
+
+Native satisfaction is not absence of an old anchor. An entry with `nativeSatisfied()` must prove the
+replacement independently, remains pristine, and contributes to `satisfied` rather than `patched`.
+Apply and every status/check command use that same count. `scanUncoveredBuilds()` is a coverage failure,
+not a warning-only side channel.
+
 ## Consequences
 
 ### Positive
@@ -70,6 +87,8 @@ now-covered alias stops being flagged while a genuinely foreign daemon-spawning 
   root-anchored like every other copy, which is the whole reason the `cwd` and `daemon` targets
   exist.
 - `status` / `monitor check` and the apply log agree on every state, by construction.
+- A runnable CLI under a custom prefix is covered even when `npm` itself is supplied by a different
+  toolchain or is absent from that prefix's `bin` directory.
 
 ### Negative
 

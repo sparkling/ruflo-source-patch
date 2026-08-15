@@ -1,12 +1,13 @@
 # ADR-023: The memory target refuses torn writes and restarts stale writers
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-17
-**Updated**: 2026-08-01. The atomic-flush finding remains valid in Ruflo 3.34.0. Clean
-ordinary writers still lose acknowledged updates, now tracked by #2878. The integrity check has
-moved to the actual `fs-secure` whole-image write boundary, so schema repair and every other raw
-writer are covered without rejecting successful native bridge calls. The stale-process resolver now
-also follows the public `.bin/ruflo` wrapper used by `npx ruflo@latest mcp start`.
+**Updated**: 2026-08-15. Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
+sql.js writers. This target remains for the integrity gate, raw WAL refusal, stronger outer lock, and
+stale-process recovery. Writer discovery now shares current runnable-root coverage: npx, authenticated
+global launchers on PATH, custom prefixes without npm, the public `.bin/ruflo` wrapper, and its nested
+or hoisted CLI. A pre-patch writer is never claimed fully covered until those launch shapes pass mutation
+tests.
 Supersedes: none
 Related: ADR-006 (fail-closed serialization and WAL refusal), ADR-013 (cleanup's guarded kill), ADR-021 (the monitor acts on its own tick)
 
@@ -62,10 +63,10 @@ probe never blesses a stale main file while another native connection owns unche
 The EOF wrapper only supplies serialization and pre-unlink protection for force initialization;
 it does not run an image gate on a successful transactional AgentDB bridge call.
 
-The same EOF wrapper conditionally guards native `purgeNamespace`. Upstream's own
-`withMemoryDbLock()` uses `<db>.lock`, but no ordinary writer opts into it; nesting purge inside
-the shared `.rsp-lock` is what satisfies #2666's requirement that deletion coordinate with those
-writers. The private upstream guard may remain nested and redundant.
+The same EOF wrapper conditionally guards native `purgeNamespace`. In Ruflo 3.38.12 the upstream
+`withMemoryDbLock()` now covers purge and ordinary sql.js writers. The outer `.rsp-lock` remains for
+the stricter failure and ownership semantics in ADR-006, but #2666 retirement may rely on the complete
+native writer set without mistaking a purge-only implementation for success.
 
 **The stale-writer guard (outside the patched module).** A new `lib/cwd/stale-writer.mjs` detects
 running ruflo workers writing memory.db with old code. It resolves a worker's `@claude-flow/cli` root
@@ -109,6 +110,11 @@ ADR-013's cleanup bar: a process is only ever signalled when we can positively r
 `@claude-flow/cli` install. The detector is inert unless the `memory` target is installed, and
 `RSP_NO_STALE_WRITER_KILL` disables the kill while keeping detection.
 
+Installed-root discovery must match the patch engine. The guard resolves direct CLI argv, `.bin/cli`,
+verified `.bin/ruflo`, and launcher-discovered custom global prefixes. A wrapper is followed only after
+its package identity is proven, with a bounded walk to a nested or hoisted `@claude-flow/cli`. Failure to
+resolve remains visible as unpatched/unknown and never authorizes a signal.
+
 ## Consequences
 
 ### Positive
@@ -116,9 +122,9 @@ ADR-013's cleanup bar: a process is only ever signalled when we can positively r
 - A whole-file flush can no longer silently overwrite a torn store: the write is refused, loudly,
   and the corrupt image is left untouched for recovery. The measured `no such table` data-loss path
   is closed at the last moment before the write.
-- Every pre-patch writer, daemon or MCP client, is forced onto patched code on the next monitor tick,
-  and both `.bin/cli` and `.bin/ruflo` resolution mean the plugin and public-wrapper MCP clients are
-  actually seen, not skipped.
+- Every positively resolved pre-patch writer, daemon or MCP client, is forced onto patched code on the
+  next monitor tick. Direct, `.bin/cli`, `.bin/ruflo`, and custom-prefix launch shapes are all tested;
+  an unresolved writer is reported rather than silently counted as covered.
 - The daemon half of the kill disrupts no live session (it respawns on next use); the MCP-client half
   is paired with a warning routed through the shared problem feed, reaching the user's next prompt in
   any session rather than depending on them noticing a dead tool call first.

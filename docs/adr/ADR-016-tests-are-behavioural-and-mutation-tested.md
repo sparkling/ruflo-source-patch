@@ -1,14 +1,13 @@
 # ADR-016: Tests are behavioural and mutation-tested; a green suite must be able to fail
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-06. Brain retirement now executes active installed replacements in an isolated
-copy and deliberately removes or corrupts the asset that matters. #76 must fail when curated notes are
-missing; #81 must fail when common roots disappear; #86 must reject a missing catalog and render an
-unverified state. The tests also prove two simultaneously superseded composed targets retire without
-re-applying each other. #79 distinguishes its native launcher half from the still-missing doctor proof.
-#102/#103 fixtures now include the unreleased upstream detector/setting shape and prove the local default
-refusal remains active while preserving that structural detector.
+**Updated**: 2026-08-15. Current-release tests now cover Ruflo 3.38.12's native daemon resolver,
+native #2878 writer-sharing baseline, residual permission/swarm/neural/helper cwd sites, runnable
+custom-prefix discovery without an npm binary, and fail-honest status parity. Brain #102/#103 fixtures
+now represent published 4.0.36 bytes rather than an unreleased shape. The complete suite also sandboxes
+the monitor-health probe in a fresh process so a green result cannot depend on the developer's real
+user-level heartbeat.
 **Deciders**: Henrik Pettersen
 **Tags**: testing, core, safety
 
@@ -46,6 +45,15 @@ happened, repeatedly, and every instance was caught only by deliberately breakin
   the rendered structure; marker presence and selected substrings do not prove that a transform is correct.
 - **Test the host contract, not only the handler.** A valid denial must prevent a following sentinel from
   executing in both host envelopes; empty allow output is different from malformed success JSON.
+- **Use the same discovery and outcome model everywhere.** `install`, target `status`, `monitor check`,
+  `monitor status`, and `all status` must agree on patched, native-satisfied, not-applicable, and drift.
+  A tracked zero-file target or uncovered runnable build is nonzero.
+- **Probe the executable replacement.** Native daemon retirement executes root resolution and mutates a
+  route back to raw cwd. Native reindex retirement removes one writer's lock call. Either mutation must
+  keep the downstream target live.
+- **Sandbox module-load configuration.** A test that imported `paths.mjs` before setting its sandbox
+  once inspected the real monitor heartbeat. HOME-dependent probes run in a fresh process with the
+  sandbox environment established before imports.
 
 ## Consequences
 
