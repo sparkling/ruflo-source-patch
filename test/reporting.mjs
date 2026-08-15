@@ -857,7 +857,14 @@ if (cli(['monitor', 'check']).status !== 0) fail('OA2 monitor check reports drif
 // patch BECAUSE it writes state no longer does. It must be loud (skip:anchor-not-found), reach the
 // notifier, fail the gate, and leave the file pristine — the exact opposite of OA1/OA2.
 freshSandbox();
-fs.writeFileSync(vendor(NEURAL), without(without(neuralPristine, CF), SW));
+const neuralWithoutAnyOwnedState = without(without(neuralPristine, CF), SW)
+  .replace(
+    "        const outDir = path.resolve(process.cwd(), (ctx.flags['out-dir'] ?? ctx.flags.outDir) || '.claude-flow/neural/weft-export');",
+    '        const outDir = ELSEWHERE();',
+  )
+  .split("ctx.flags.sft || path.resolve(process.cwd(), '.claude-flow/neural/weft-export/sft.jsonl')").join('ctx.flags.sft || ELSEWHERE()')
+  .split("ctx.flags.dpo || path.resolve(process.cwd(), '.claude-flow/neural/weft-export/dpo.jsonl')").join('ctx.flags.dpo || ELSEWHERE()');
+fs.writeFileSync(vendor(NEURAL), neuralWithoutAnyOwnedState);
 const oa3 = cli(['cwd', 'install']);
 if (!/skip:anchor-not-found .*commands-neural/.test(out(oa3))) fail(`OA3 a file anchoring NEITHER state dir was NOT reported — optional went too far:\n${out(oa3)}`);
 if (fs.readFileSync(vendor(NEURAL), 'utf8').includes('__rufloResolveRoot')) fail('OA3 a skipped entry still wrote patched bytes');

@@ -1,5 +1,4 @@
 // The gaps an independent audit found, and the bug hiding in one of them.
-//
 //   CC  state.json had NO LOCK around its read-modify-write. Three concurrent installs lost a target
 //       in 12 runs out of 12 — the default outcome, not a rare race. And state.json is what the hook
 //       and the monitor re-apply FROM, so a dropped target is one the next tick actively UN-PATCHES.
@@ -9,13 +8,12 @@
 //   PG  applyPlugins()'s per-target try/catch: one throwing patcher used to blind the whole watchdog
 //       while it reported health. Never tested.
 //   UB  scanUncoveredBuilds(): the detector for the 38-daemons incident. `return []` passed everything.
-
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
-
+import { DAEMON_AUTOSTART_REL, legacyDaemonBytes } from './daemon-fixtures.mjs';
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
@@ -30,8 +28,10 @@ const FILES = [...new Set(lib.ENTRIES
   .filter((entry) => TARGETS.includes(entry.target) && entry.suffix[0] === '@claude-flow')
   .map((entry) => entry.suffix.join('/')))]
   .filter((rel) => fs.existsSync(path.join(REAL, rel)));
-const PRISTINE = new Map(FILES.map((rel) => [rel, pristineBytes(path.join(REAL, rel))]));
-const DAEMON_AUTOSTART_REL = '@claude-flow/cli/dist/src/services/daemon-autostart.js';
+const PRISTINE = new Map(FILES.map((rel) => {
+  const bytes = pristineBytes(path.join(REAL, rel));
+  return [rel, legacyDaemonBytes(rel, bytes, lib)];
+}));
 const nm = path.join(SB, 'npx', 'h', 'node_modules');
 const vendor = (rel) => path.join(nm, rel);
 
@@ -60,7 +60,7 @@ function requireCompleteStatus(label) {
   if (status.status !== 0) fail(`CC3 ${label}: status failed:\n${out(status)}`);
   const text = out(status);
   for (const targetName of TARGETS) {
-    const match = text.match(new RegExp(`✔\\s+${targetName}\\s+(\\d+)\\/(\\d+)\\s+file\\(s\\) patched`));
+    const match = text.match(new RegExp(`✔\\s+${targetName}\\s+(\\d+)\\/(\\d+)\\s+file\\(s\\) satisfied`));
     if (!match) fail(`CC3 ${label}: status has no installed ratio for ${targetName}:\n${text}`);
     const patched = Number(match[1]);
     const total = Number(match[2]);
@@ -475,9 +475,14 @@ if (!/WARN/.test(out(chk))) {
 if (!/someone-else/.test(out(chk))) fail(`UB the warning does not name the uncovered package:\n${out(chk)}`);
 
 const stat = cli(['monitor', 'status']);
+const allStat = cli(['all', 'status']);
 if (!/WARN/.test(out(stat))) fail('UB `monitor status` does not surface the uncovered build');
 
 console.log('✔ uncovered builds (UB an unpatched CLI with its own daemon command is named by monitor check + status)');
+
+if (chk.status === 0 || stat.status === 0 || allStat.status === 0) {
+  fail('UB uncovered runnable builds were printed but did not fail monitor check/status/all status');
+}
 
 // ─── DR: the obsolete legacy daemon-lock shim stays retired ─────────────────
 // #2407/#2484 are native and sound. The supported target now owns exactly the

@@ -239,7 +239,7 @@ check('PH2 exact Ruflo command layer is patched and backed up',
     && fs.readFileSync(`${PLUGINS}.rsp-backup`, 'utf8') === pristine);
 const status = cli('plugin-hosts', 'status');
 check('PH3 status proves the target live', status.status === 0
-  && /plugin-hosts\s+1\/1 file\(s\) patched/.test(status.stdout),
+  && /plugin-hosts\s+1\/1 file\(s\) satisfied \(1 patched, 0 native\)/.test(status.stdout),
 `${status.stdout}${status.stderr}`);
 
 Object.assign(process.env, env);

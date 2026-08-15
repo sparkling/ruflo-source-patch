@@ -15,6 +15,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+import { legacyDaemonBytes } from './daemon-fixtures.mjs';
 
 const SB = process.argv[2];
 const REAL = findVendorRoot(); // discovered — the npx cache hash is content-addressed, not fixed
@@ -36,7 +37,7 @@ function freshSandbox() {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     // pristineBytes() REFUSES a patched file with no backup, rather than adopting it as the
     // baseline — which is what the old `backup ?? file` fallback did, silently.
-    fs.writeFileSync(dest, pristineBytes(path.join(REAL, rel)));
+    fs.writeFileSync(dest, legacyDaemonBytes(rel, pristineBytes(path.join(REAL, rel)), lib));
   }
 }
 const filePath = (rel) => path.join(SB, 'npx', 'h', 'node_modules', rel);

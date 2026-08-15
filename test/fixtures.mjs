@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import url from 'node:url';
-import { PATCH_MARKER } from '../lib/cwd/paths.mjs';
+import { GLOBAL_ROOTS, PATCH_MARKER } from '../lib/cwd/paths.mjs';
 // HAZARD FOR CALLERS: this pulls in paths.mjs's HOME_BASE (a module-level constant, frozen at
 // import time from RUFLO_SOURCE_PATCH_HOME) transitively through every patcher plugin-compose.mjs
 // composes. Every EXISTING caller of this file is safe: none of them ever call a HOME_BASE-dependent
@@ -52,10 +52,11 @@ function vendorRoots() {
   try {
     for (const h of fs.readdirSync(npx)) roots.push(path.join(npx, h, 'node_modules'));
   } catch { /* no npx cache */ }
-  const globalRoot = path.join(path.dirname(path.dirname(process.execPath)), 'lib', 'node_modules');
-  roots.push(globalRoot);
-  roots.push(path.join(globalRoot, 'ruflo', 'node_modules'));
-  return roots;
+  for (const globalRoot of GLOBAL_ROOTS) {
+    roots.push(globalRoot);
+    roots.push(path.join(globalRoot, 'ruflo', 'node_modules'));
+  }
+  return [...new Set(roots)];
 }
 
 export function findVendorRoot() {
