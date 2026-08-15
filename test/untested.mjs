@@ -445,6 +445,39 @@ console.log('✔ project-root resolver, EXECUTED (CW1 drift resolves to root, CW
 }
 console.log('✔ global npm discovery (CW7 npm-on-PATH is found even when Node uses a different prefix)');
 
+// CW8 — a custom global prefix may expose the ruflo launcher without exposing npm.
+// Discovery must follow the runnable package identity or status can report a complete
+// patch while the first `ruflo` on PATH is an entirely unpatched copy.
+{
+  const customPrefix = path.join(SB, 'path-ruflo-only');
+  const customBin = path.join(customPrefix, 'bin');
+  const packageRoot = path.join(customPrefix, 'lib', 'node_modules', 'ruflo');
+  fs.mkdirSync(path.join(packageRoot, 'bin'), { recursive: true });
+  fs.mkdirSync(customBin, { recursive: true });
+  fs.writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ name: 'ruflo', version: '9.9.9' }));
+  fs.writeFileSync(path.join(packageRoot, 'bin', 'ruflo.js'), '#!/usr/bin/env node\n');
+  fs.symlinkSync(path.join('..', 'lib', 'node_modules', 'ruflo', 'bin', 'ruflo.js'), path.join(customBin, 'ruflo'));
+  const { globalRootsFromPath } = await import(`file://${path.join(REPO, 'lib', 'cwd', 'paths.mjs')}`);
+  const inferred = globalRootsFromPath(customBin);
+  const expected = path.join(customPrefix, 'lib', 'node_modules');
+  if (!inferred.includes(expected)) {
+    fail(`CW8 runnable ruflo-only prefix was not inferred: ${JSON.stringify(inferred)}`);
+  }
+
+  const foreignPrefix = path.join(SB, 'path-foreign-only');
+  const foreignBin = path.join(foreignPrefix, 'bin');
+  const foreignRoot = path.join(foreignPrefix, 'lib', 'node_modules', 'ruflo');
+  fs.mkdirSync(path.join(foreignRoot, 'bin'), { recursive: true });
+  fs.mkdirSync(foreignBin, { recursive: true });
+  fs.writeFileSync(path.join(foreignRoot, 'package.json'), JSON.stringify({ name: 'not-ruflo', version: '1.0.0' }));
+  fs.writeFileSync(path.join(foreignRoot, 'bin', 'ruflo.js'), '#!/usr/bin/env node\n');
+  fs.symlinkSync(path.join('..', 'lib', 'node_modules', 'ruflo', 'bin', 'ruflo.js'), path.join(foreignBin, 'ruflo'));
+  if (globalRootsFromPath(foreignBin).includes(path.join(foreignPrefix, 'lib', 'node_modules'))) {
+    fail('CW8 a foreign package named by a ruflo-looking launcher was trusted');
+  }
+}
+console.log('✔ runnable Ruflo discovery (CW8 custom prefix found without npm; foreign launcher refused)');
+
 // ─── LK: the leak detector ───────────────────────────────────────────────────
 //
 // The `state` target cannot be complete — cwd-dependence hides in one-arg `resolve()` and in
