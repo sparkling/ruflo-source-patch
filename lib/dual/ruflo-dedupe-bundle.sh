@@ -266,19 +266,25 @@ if [[ $STRIP_MCP -eq 1 ]]; then
     if [[ -f "$CLAUDE_JSON" ]]; then
       [[ $DRY -eq 0 ]] && cp "$CLAUDE_JSON" "$CLAUDE_JSON.rsp-bak"
       DRY=$DRY node -e '
-        const fs=require("fs");
+        const fs=require("fs"), path=require("path");
         const p=process.argv[1], dir=process.argv[2], dirReal=process.argv[3];
         let j; try{ j=JSON.parse(fs.readFileSync(p,"utf8")); }catch{ console.error("GMCP_REMOVED=0"); process.exit(0); }
         const projs=j.projects||{};
-        const key=[dir,dirReal].find(k=>projs[k]&&projs[k].mcpServers&&Object.keys(projs[k].mcpServers).length);
-        if(!key){ console.error("GMCP_REMOVED=0"); process.exit(0); }
-        const s=projs[key].mcpServers; const removed=[]; const markers=[];
+        const keys=Object.keys(projs).filter(k=>{
+          const s=projs[k]&&projs[k].mcpServers;
+          return s&&Object.keys(s).length&&(k===dir||k===dirReal||(path.isAbsolute(k)&&!fs.existsSync(k)));
+        });
+        if(keys.length===0){ console.error("GMCP_REMOVED=0"); process.exit(0); }
+        const removed=[]; const markers=[];
         const isLocalRufloStandalone=(v)=>{ if(String(v&&v.command||"")!=="npx") return false; const a=(v&&v.args||[]).join(" "); return /\bmcp\b/.test(a)&&/\bstart\b/.test(a)&&/(ruflo|claude-flow)/.test(a); };
-        for(const k of Object.keys(s)){ if(isLocalRufloStandalone(s[k])){
-          removed.push(k);
-          const e=(s[k].env)||{}; for(const [ek,ev] of Object.entries(e)){ if(/^CLAUDE_FLOW_/.test(ek)&&ek!=="CLAUDE_FLOW_MCP_TRANSPORT"&&ev) markers.push(ek+"="+ev); }
-          delete s[k];
-        } }
+        for(const projectKey of keys){
+          const s=projs[projectKey].mcpServers;
+          for(const k of Object.keys(s)){ if(isLocalRufloStandalone(s[k])){
+            removed.push(projectKey+"::"+k);
+            const e=(s[k].env)||{}; for(const [ek,ev] of Object.entries(e)){ if(/^CLAUDE_FLOW_/.test(ek)&&ek!=="CLAUDE_FLOW_MCP_TRANSPORT"&&ev) markers.push(ek+"="+ev); }
+            delete s[k];
+          } }
+        }
         if(removed.length===0){ console.error("GMCP_REMOVED=0"); process.exit(0); }
         if(process.env.DRY!=="1"){ const t=p+".ddb-tmp"; fs.writeFileSync(t, JSON.stringify(j,null,2)+"\n"); fs.renameSync(t,p); }
         console.error("GMCP_REMOVED="+removed.length+" GMCP_KEYS="+removed.join(","));

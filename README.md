@@ -817,7 +817,10 @@ a second server on the same root: **two writers on one `.swarm/memory.db`**
 `ruv-swarm` / `flow-nexus` and any unrelated server are **kept**; the file is deleted if it empties) from
 **both** places it can live. That means the project's `.mcp.json` **and** `~/.claude.json`'s
 `projects[<dir>].mcpServers` (Claude Code's per-project MCP config in the global file, where a **remote**
-`ssh` server is a real capability, not a duplicate, and is kept). By **default** it also **SIGTERMs the
+`ssh` server is a real capability, not a duplicate, and is kept). When a host migration leaves the same
+local standalone under an absolute project root that no longer exists, the sweep removes only that dead
+Ruflo entry; entries for other live projects and every unrelated/remote server remain untouched. By
+**default** it also **SIGTERMs the
 now-orphaned server process** so the second writer is gone immediately, not just after a restart.
 
 ```bash

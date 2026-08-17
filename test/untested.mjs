@@ -363,7 +363,34 @@ spawnSync('bash', [dedupe, s6c, '--no-backup'], { encoding: 'utf8', env: { ...pr
 if (!JSON.parse(fs.readFileSync(gjson2, 'utf8')).projects[s6c].mcpServers['claude-flow'])
   fail('SH6c removed the ~/.claude.json entry though the plugin provides no MCP server — the global prune is not gated');
 
-console.log('✔ shell scripts (SH1 all parse, SH2 dry-run deletes nothing, SH3 `run` materializes+forwards, SH4 .mcp.json dedup, SH5 stop-server default+guarded, SH6 the ~/.claude.json channel: removes the dup, keeps non-ruflo + ssh-remote, dry-run inert, gated on the plugin)');
+// SH6d — a host migration can leave a local standalone under a project root that no longer exists on
+// this machine. It is still a duplicate because the user plugin provides the MCP server. Reconcile that
+// stale entry without widening the operation to another live project or touching unrelated/remote MCPs.
+const s6d = mkGlobalProj('gj6d');
+const liveOther = mkGlobalProj('gj6d-live-other');
+const staleRoot = path.join(SB, 'missing-old-host', 'semantic-control');
+const gjson3 = path.join(SB, 'fake-claude3.json');
+fs.writeFileSync(gjson3, JSON.stringify({ projects: {
+  [s6d]: { mcpServers: {} },
+  [staleRoot]: { mcpServers: {
+    'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'] },
+    'unrelated-local': { command: 'npx', args: ['-y', 'unrelated-mcp', 'serve'] },
+    'remote-hz': { command: 'ssh', args: ['hz', 'npx', 'ruflo@latest', 'mcp', 'start'] },
+  } },
+  [liveOther]: { mcpServers: {
+    'claude-flow': { command: 'npx', args: ['-y', 'ruflo@latest', 'mcp', 'start'] },
+  } },
+} }));
+spawnSync('bash', [dedupe, s6d, '--no-backup'], { encoding: 'utf8', env: { ...gEnv, RSP_CLAUDE_JSON: gjson3 } });
+const migrated = JSON.parse(fs.readFileSync(gjson3, 'utf8')).projects;
+if (migrated[staleRoot].mcpServers['claude-flow'])
+  fail('SH6d stale migrated standalone MCP survived under a nonexistent project root');
+if (!migrated[staleRoot].mcpServers['unrelated-local'] || !migrated[staleRoot].mcpServers['remote-hz'])
+  fail('SH6d stale-root cleanup removed an unrelated or remote MCP server');
+if (!migrated[liveOther].mcpServers['claude-flow'])
+  fail('SH6d stale-root cleanup widened into another live project');
+
+console.log('✔ shell scripts (SH1 all parse, SH2 dry-run deletes nothing, SH3 `run` materializes+forwards, SH4 .mcp.json dedup, SH5 stop-server default+guarded, SH6 the ~/.claude.json channel: removes current/stale-root dups, keeps live-other/non-ruflo/ssh-remote, dry-run inert, gated on the plugin)');
 
 // ─── CW: the project-root resolver, EXECUTED (not grepped) ───────────────────
 //
