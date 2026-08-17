@@ -137,11 +137,14 @@ export const pluginsCommand = {
 
   for (const host of ['claude', 'codex']) {
     write(path.join(BIN, host), fakeHost(host), 0o755);
+    write(path.join(HOME, '.local', 'bin', host),
+      fakeHost(host).replace('#!/usr/bin/env node', `#!${process.execPath}`), 0o755);
   }
 }
 
 const env = {
   ...process.env,
+  HOME,
   PATH: `${BIN}${path.delimiter}${process.env.PATH || ''}`,
   RUFLO_SOURCE_PATCH_HOME: HOME,
   RUFLO_NPX_ROOT: NPX,
@@ -248,11 +251,20 @@ const command = (name) => module.pluginsCommand.subcommands.find((item) => item.
 check('PH4 all five commands are registered',
   ['host-install', 'host-uninstall', 'host-sync', 'host-refresh', 'host-update']
     .every((name) => command(name)));
+const directHostPath = process.env.PATH;
+process.env.PATH = ['/usr/bin', '/bin']
+  .filter((entry, index, rows) => entry && rows.indexOf(entry) === index)
+  .join(path.delimiter);
+const userBinUpdate = await command('host-update').action({ flags: { format: 'json' } });
+process.env.PATH = directHostPath;
+check('PH4a host CLIs resolve from the user install root when noninteractive PATH omits it',
+  userBinUpdate.success,
+  JSON.stringify(userBinUpdate.data));
 const beforeIdempotentUpdate = calls().length;
 const idempotentUpdate = await command('host-update').action({ flags: { format: 'json' } });
 const updateMutations = calls().slice(beforeIdempotentUpdate).filter((argv) =>
   ['install', 'uninstall', 'add', 'remove', 'update'].includes(argv[2]));
-check('PH4a automatic all-plugin update is idempotent and preserves disabled plugins',
+check('PH4b automatic all-plugin update is idempotent and preserves disabled plugins',
   idempotentUpdate.success
     && updateMutations.length === 0
     && idempotentUpdate.data.entries.some((entry) => entry.pluginId === 'ruflo-adr@ruflo'
@@ -262,7 +274,7 @@ check('PH4a automatic all-plugin update is idempotent and preserves disabled plu
 write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale-again\n');
 write(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale-again\n');
 const monitorInstall = cli('monitor', 'install');
-check('PH4b patch-system self-update path also repairs stale host copies',
+check('PH4c patch-system self-update path also repairs stale host copies',
   monitorInstall.status === 0
     && fs.readFileSync(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n'
     && fs.readFileSync(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n',

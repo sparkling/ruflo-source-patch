@@ -2,11 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-08-15. Discovery now follows authenticated `ruflo`, `claude-flow`, and
+**Updated**: 2026-08-17. Discovery now follows authenticated `ruflo`, `claude-flow`, and
 `claude-flow-mcp` launchers on PATH, including custom npm prefixes with no `npm` binary, and still
 checks nested public-wrapper dependencies. All reporting surfaces share one satisfied-count contract:
 patched, behaviorally native, deliberately not applicable, or drift. A tracked target with no files,
-an unsatisfied entry, or an uncovered runnable build exits nonzero.
+an unsatisfied entry, or an uncovered runnable build exits nonzero. Dual-host plugin reconciliation
+also resolves the authenticated Claude and Codex CLIs from PATH plus standard user/npm install roots,
+because noninteractive SSH and monitor environments do not necessarily source the user's shell PATH.
 **Deciders**: Henrik Pettersen
 **Tags**: patching, safety, cwd
 
@@ -68,6 +70,12 @@ shim may use the sibling `<prefix>/lib/node_modules` fallback only after the `ru
 `@claude-flow/cli` package identity is proven. `RUFLO_GLOBAL_ROOT` remains the exact test and unusual-layout
 override; no user-specific prefix is hardcoded.
 
+The injected dual-host plugin commands apply the same executable-boundary rule to `claude` and
+`codex`: prefer PATH, then bounded standard user and npm-prefix bin roots, require an executable
+regular-file realpath, and spawn that exact path without a shell. A noninteractive environment that
+omits `~/.local/bin` therefore remains functional without accepting arbitrary command text or a
+machine-specific home directory.
+
 Native satisfaction is not absence of an old anchor. An entry with `nativeSatisfied()` must prove the
 replacement independently, remains pristine, and contributes to `satisfied` rather than `patched`.
 Apply and every status/check command use that same count. `scanUncoveredBuilds()` is a coverage failure,
@@ -89,6 +97,9 @@ not a warning-only side channel.
 - `status` / `monitor check` and the apply log agree on every state, by construction.
 - A runnable CLI under a custom prefix is covered even when `npm` itself is supplied by a different
   toolchain or is absent from that prefix's `bin` directory.
+- Automatic dual-host refresh reaches the same installed Claude and Codex CLIs from login shells,
+  SSH commands, and the monitor; a narrow PATH can no longer turn a valid installation into a false
+  `claude unavailable` failure.
 
 ### Negative
 
