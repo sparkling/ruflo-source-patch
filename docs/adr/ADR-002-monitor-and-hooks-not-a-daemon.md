@@ -1,8 +1,9 @@
 # ADR-002: Keep patches live with a scheduled monitor and session hooks, not a daemon
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-07-15 (ADR-021): the UserPromptSubmit notifier now also RE-BOOTSTRAPS a monitor it finds dead (a dead tick cannot repair itself); it still only reports everything else.
+**Updated**: 2026-08-17. Hook reconciliation now recognizes exact patch-owned stable-runtime
+commands across migrated home prefixes and collapses duplicate marked entries to one hook per event.
 **Deciders**: Henrik Pettersen
 **Tags**: runtime, monitor, safety
 
@@ -30,6 +31,11 @@ Three surfaces, each with a distinct job:
 - **The monitor tick**: close the mid-session window the hook cannot reach.
 - **UserPromptSubmit notifier**: the monitor is detached and cannot reach a running session, so it leaves
   a note; the notifier surfaces it on the next prompt.
+
+Registration is a reconciliation, not an append: copied user settings can carry absolute stable-runtime
+paths from another host. Exact `node "<absolute>/.ruflo-source-patch/lib/..."` commands for this package
+are owned migration residue and are removed; duplicate marked entries collapse to one current command per
+event. Commands outside that finite signature remain untouched.
 
 And the watchdog is itself watched: a heartbeat plus liveness checks, because a dead monitor is
 indistinguishable from a healthy system, which is the most dangerous state a watchdog can be in and the one

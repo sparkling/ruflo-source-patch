@@ -33,7 +33,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 | File | Job |
 |---|---|
 | `stable.mjs` | `~/.ruflo-source-patch/lib` is **not a cache; it is the executable**. The hook and the monitor run *that* copy. Provenance is recorded at sync time, so "is it stale?" has an answer. |
-| `hooks.mjs` | Registers the SessionStart + UserPromptSubmit hooks. Also reaps our own **unmarked** legacy hooks, which install and uninstall could both see straight past, so they outlived `uninstall` itself. |
+| `hooks.mjs` | Registers exactly one SessionStart + UserPromptSubmit hook. It reaps exact patch-owned unmarked commands across old layouts and migrated home prefixes, collapses duplicate marked entries, and leaves unrelated hooks untouched. |
 | `monitor.mjs` | The scheduled re-apply. **Not a daemon**: this project exists partly *because* ruflo daemons multiply. launchd/cron runs a short-lived check and exits. |
 | `problems.mjs` | **One** definition of "a line a human must see." Used by the hook, the monitor log, and the notifier. It was three copies, and they had all drifted the same way. |
 | `health.mjs` | Watches the watchman. A dead monitor is indistinguishable from a healthy system, the most dangerous state a watchdog can be in, and one it cannot report on itself. |
