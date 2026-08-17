@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **thirty-one suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
+`npm test` runs **thirty-two suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
 
 ## Contents
 
@@ -36,7 +36,9 @@
 | `codex-hooks-native.mjs` | Mixed upstream #52 rollout: source-only stays unhealthy; complete native wiring is preserved. |
 | `codex-skills.mjs` | Cache-local Ruflo/Brain skill parity: exact ownership, literal replacement-metacharacter handling, executable #76 native retirement with a missing-asset mutation, byte-perfect restoration, collision refusal, active-version updates, and no Brain update-plane mutation. |
 | `ruflo-codex-hooks.mjs` | Ruflo's canonical Codex plugin repair: idempotency, disabled-state preservation, collision refusal, loud failures, and zero MCP mutation. |
-| `plugin-hosts.mjs` | Ruflo's issue-backed dual-host marketplace commands against fake host CLIs: install/sync/uninstall, dry-run, disabled state, exact scope ownership, noninteractive user-bin discovery, idempotence, injection refusal, partial failure, bounded same-version refresh with cache-byte proof, and byte-perfect patch removal. |
+| `plugin-hosts-discovery.mjs` | Cross-host executable and package-root boundaries: migrated `HOME` versus effective account home, narrow monitor PATH, bounded npm/pnpm/Volta/Bun/mise/asdf/Homebrew roots, persisted identity checks, Windows PATHEXT candidates, validated npm `.cmd` ownership, and forged-wrapper refusal. |
+| `plugin-hosts-codex-init.mjs` | The bundled Codex initializer under a narrow PATH: exact source anchors, shared executable discovery, literal MCP/plugin argv, no `which codex` or shell-string calls, pristine backup, and byte-perfect uninstall. |
+| `plugin-hosts.mjs` | Ruflo's issue-backed dual-host marketplace commands against fake host CLIs: install/sync/uninstall, dry-run, disabled state, exact scope ownership, noninteractive user-bin discovery, stale canonical marketplace repair through supported CLIs, noncanonical-source refusal, fragment-revision migration, idempotence, injection refusal, partial failure, bounded same-version refresh with cache-byte proof, and byte-perfect patch removal. |
 | `brain-release-lockstep.mjs` | Brain #77's read-only fail-closed version guard: bounded npm/npx/persistent-runtime discovery, bundle/package/Spine/Claude/Codex comparison, atomic anchor refusal, mutation proof, and byte-perfect removal without touching the updater. |
 | `brain-console-lifecycle.mjs` | Brain #79's detached Console contract plus partial-native rollout: native whole-runtime launcher recognition, the remaining live-doctor overlay, stale unowned-cache exclusion, composition with #77, mutation proof, and byte-perfect removal without touching the updater. |
 | `brain-console-provider-keys.mjs` | Brain #86's packaged-catalog fallback: bounded Console discovery, native OpenAI/Google/Gemini key detection, composition with #79, mutation proof, no secret leakage, and byte-perfect removal. |

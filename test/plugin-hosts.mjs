@@ -27,7 +27,6 @@ const PLUGINS = path.join(
   NPX, 'fixture', 'node_modules', '@claude-flow', 'cli',
   'dist', 'src', 'commands', 'plugins.js',
 );
-
 let failures = 0;
 function check(name, condition, detail = '') {
   if (condition) console.log(`  ✓ ${name}`);
@@ -36,27 +35,22 @@ function check(name, condition, detail = '') {
     console.log(`  ✘ ${name}${detail ? ` — ${detail}` : ''}`);
   }
 }
-
 function write(file, body, mode = 0o644) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body);
   fs.chmodSync(file, mode);
 }
-
 function readState() {
   return JSON.parse(fs.readFileSync(STATE, 'utf8'));
 }
-
 function writeState(state) {
   fs.writeFileSync(STATE, `${JSON.stringify(state, null, 2)}\n`);
 }
-
 function calls() {
   if (!fs.existsSync(CALLS)) return [];
   return fs.readFileSync(CALLS, 'utf8').trim().split('\n')
     .filter(Boolean).map((line) => JSON.parse(line));
 }
-
 function seed() {
   fs.rmSync(SB, { recursive: true, force: true });
   fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
@@ -64,7 +58,13 @@ function seed() {
   write(path.join(HOME, '.claude', 'settings.json'), '{}\n');
   writeState({
     claudeMarketplace: true,
+    claudeMarketplaceSource: 'github',
+    claudeMarketplaceRepo: 'ruvnet/ruflo',
+    claudeMarketplaceLocation: MARKETPLACE,
     codexMarketplace: true,
+    codexMarketplaceRoot: CODEX_MARKETPLACE,
+    codexMarketplaceSourceType: 'git',
+    codexMarketplaceSource: 'https://github.com/ruvnet/ruflo.git',
     catalog,
     claude: [
       {
@@ -141,7 +141,6 @@ export const pluginsCommand = {
       fakeHost(host).replace('#!/usr/bin/env node', `#!${process.execPath}`), 0o755);
   }
 }
-
 const env = {
   ...process.env,
   HOME,
@@ -158,13 +157,11 @@ const env = {
   RSP_NO_LAUNCHCTL: '1',
   RSP_NO_HOST_AUTO_UPDATE: '0',
 };
-
 function cli(...args) {
   return spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), ...args], {
     env, encoding: 'utf8',
   });
 }
-
 seed();
 write(path.join(env.RSP_MARKETPLACE_ROOT, '.claude-plugin', 'marketplace.json'),
   `${JSON.stringify({
@@ -244,7 +241,19 @@ const status = cli('plugin-hosts', 'status');
 check('PH3 status proves the target live', status.status === 0
   && /plugin-hosts\s+1\/1 file\(s\) satisfied \(1 patched, 0 native\)/.test(status.stdout),
 `${status.stdout}${status.stderr}`);
-
+const oldRevision = fs.readFileSync(PLUGINS, 'utf8')
+  .replace('const __RSP_HOST_PLUGIN_REVISION = "2026-08-17.6";',
+    'const __RSP_HOST_PLUGIN_REVISION = "2026-08-15.1";');
+write(PLUGINS, oldRevision);
+const staleRevisionStatus = cli('plugin-hosts', 'status');
+const revisionUpgrade = cli('plugin-hosts', 'install');
+const upgradedRevisionSource = fs.readFileSync(PLUGINS, 'utf8');
+check('PH3a status rejects and install upgrades an obsolete injected-fragment revision',
+  staleRevisionStatus.status !== 0
+    && revisionUpgrade.status === 0
+    && upgradedRevisionSource.includes('const __RSP_HOST_PLUGIN_REVISION = "2026-08-17.6";')
+    && !upgradedRevisionSource.includes('const __RSP_HOST_PLUGIN_REVISION = "2026-08-15.1";'),
+  `${staleRevisionStatus.stdout}${staleRevisionStatus.stderr}${revisionUpgrade.stdout}${revisionUpgrade.stderr}`);
 Object.assign(process.env, env);
 const module = await import(`${pathToFileURL(PLUGINS).href}?patched=${Date.now()}`);
 const command = (name) => module.pluginsCommand.subcommands.find((item) => item.name === name);
@@ -260,11 +269,47 @@ process.env.PATH = directHostPath;
 check('PH4a host CLIs resolve from the user install root when noninteractive PATH omits it',
   userBinUpdate.success,
   JSON.stringify(userBinUpdate.data));
+const migratedMarketplaceState = readState();
+migratedMarketplaceState.claudeMarketplaceLocation = '/Users/previous-host/.claude/ruflo';
+migratedMarketplaceState.codexMarketplaceRoot = '/Users/previous-host/.codex/ruflo';
+writeState(migratedMarketplaceState);
+const beforeMarketplaceRepair = calls().length;
+const marketplaceRepair = await command('host-update').action({ flags: { format: 'json' } });
+const repairedMarketplaceState = readState();
+const marketplaceRepairCalls = calls().slice(beforeMarketplaceRepair);
+const called = (host, argv) => marketplaceRepairCalls.some((entry) => entry[0] === host
+  && entry.slice(1).join(' ') === argv);
+check('PH4b stale canonical marketplace roots are repaired only through supported host CLIs',
+  marketplaceRepair.success && repairedMarketplaceState.claudeMarketplaceLocation === MARKETPLACE
+    && repairedMarketplaceState.codexMarketplaceRoot === CODEX_MARKETPLACE
+    && called('claude', 'plugin marketplace remove ruflo --scope user')
+    && called('claude', 'plugin marketplace add ruvnet/ruflo --scope user')
+    && called('codex', 'plugin marketplace remove ruflo --json')
+    && called('codex', 'plugin marketplace add ruvnet/ruflo --ref main'),
+  JSON.stringify(marketplaceRepair.data));
+
+const noncanonicalState = readState();
+noncanonicalState.claudeMarketplaceRepo = 'example/ruflo-fork';
+noncanonicalState.claudeMarketplaceLocation = '/Users/foreign/fork';
+writeState(noncanonicalState);
+const beforeMarketplaceRefusal = calls().length;
+const marketplaceRefusal = await command('host-update').action({ flags: { format: 'json' } });
+const marketplaceRefusalCalls = calls().slice(beforeMarketplaceRefusal);
+check('PH4c a noncanonical marketplace using the Ruflo name is refused without mutation',
+  !marketplaceRefusal.success && /noncanonical source/.test(marketplaceRefusal.data.error)
+    && !marketplaceRefusalCalls.some((argv) =>
+      ['add', 'remove', 'update', 'upgrade'].includes(argv[3])),
+  JSON.stringify(marketplaceRefusal.data));
+Object.assign(noncanonicalState, {
+  claudeMarketplaceRepo: 'ruvnet/ruflo', claudeMarketplaceLocation: MARKETPLACE,
+});
+writeState(noncanonicalState);
+
 const beforeIdempotentUpdate = calls().length;
 const idempotentUpdate = await command('host-update').action({ flags: { format: 'json' } });
 const updateMutations = calls().slice(beforeIdempotentUpdate).filter((argv) =>
   ['install', 'uninstall', 'add', 'remove', 'update'].includes(argv[2]));
-check('PH4b automatic all-plugin update is idempotent and preserves disabled plugins',
+check('PH4d automatic all-plugin update is idempotent and preserves disabled plugins',
   idempotentUpdate.success
     && updateMutations.length === 0
     && idempotentUpdate.data.entries.some((entry) => entry.pluginId === 'ruflo-adr@ruflo'
@@ -274,12 +319,11 @@ check('PH4b automatic all-plugin update is idempotent and preserves disabled plu
 write(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale-again\n');
 write(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'stale-again\n');
 const monitorInstall = cli('monitor', 'install');
-check('PH4c patch-system self-update path also repairs stale host copies',
+check('PH4e patch-system self-update path also repairs stale host copies',
   monitorInstall.status === 0
     && fs.readFileSync(path.join(CLAUDE_CACHE, 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n'
     && fs.readFileSync(path.join(CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', 'payload.txt'), 'utf8') === 'current\n',
   `${monitorInstall.stdout}${monitorInstall.stderr}`);
-
 const beforeDry = JSON.stringify(readState());
 // Ruflo's parser canonicalizes --dry-run to camelCase before invoking the action.
 const dry = await command('host-sync').action({ flags: { dryRun: true, format: 'json' } });

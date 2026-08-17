@@ -3,12 +3,13 @@
 **Status**: Implemented
 **Date**: 2026-07-15
 **Updated**: 2026-08-17. Discovery now follows authenticated `ruflo`, `claude-flow`, and
-`claude-flow-mcp` launchers on PATH, including custom npm prefixes with no `npm` binary, and still
-checks nested public-wrapper dependencies. All reporting surfaces share one satisfied-count contract:
-patched, behaviorally native, deliberately not applicable, or drift. A tracked target with no files,
-an unsatisfied entry, or an uncovered runnable build exits nonzero. Dual-host plugin reconciliation
-also resolves the authenticated Claude and Codex CLIs from PATH plus standard user/npm install roots,
-because noninteractive SSH and monitor environments do not necessarily source the user's shell PATH.
+`claude-flow-mcp` launchers, validates persisted package roots across narrow monitor environments,
+and keeps the effective OS-account home independent from a migrated `HOME`. All reporting surfaces
+share one satisfied-count contract: patched, behaviorally native, deliberately not applicable, or
+drift. Injected fragments carry revision proofs, so an older patch body can no longer satisfy a newer
+target merely because its command-list edits remain. Dual-host reconciliation also repairs stale
+canonical marketplace roots through supported host CLIs, and the bundled Codex initializer shares
+the same literal-argv executable boundary.
 **Deciders**: Henrik Pettersen
 **Tags**: patching, safety, cwd
 
@@ -67,14 +68,30 @@ Global discovery follows the executable surface rather than assuming Node and np
 For each absolute PATH directory, resolve recognized Ruflo launchers, walk a bounded number of parents,
 validate the owning `package.json` identity, and infer its containing `node_modules`. A non-symlink npm
 shim may use the sibling `<prefix>/lib/node_modules` fallback only after the `ruflo` or
-`@claude-flow/cli` package identity is proven. `RUFLO_GLOBAL_ROOT` remains the exact test and unusual-layout
-override; no user-specific prefix is hardcoded.
+`@claude-flow/cli` package identity is proven. Foreground discovery records only identity-checked roots;
+the SessionStart/monitor path revalidates them before reuse. Bounded standard `.npm-global` / `.local`
+roots and an absolute `NPM_CONFIG_PREFIX` supplement that record. `RUFLO_GLOBAL_ROOT` remains the exact
+test and unusual-layout override; no user-specific prefix is hardcoded and no home-wide scan runs.
+Discovery also never executes a PATH-selected `npm` helper; candidate inspection is read-only.
 
 The injected dual-host plugin commands apply the same executable-boundary rule to `claude` and
-`codex`: prefer PATH, then bounded standard user and npm-prefix bin roots, require an executable
-regular-file realpath, and spawn that exact path without a shell. A noninteractive environment that
-omits `~/.local/bin` therefore remains functional without accepting arbitrary command text or a
-machine-specific home directory.
+`codex`: search PATH/PATHEXT, XDG/npm/pnpm configuration, the environment home and effective-account
+home independently, then bounded npm, Volta, Bun, mise/asdf, pnpm, and Homebrew launcher locations.
+Require an executable regular-file realpath. POSIX and Windows executables are spawned directly. A
+Windows npm `.cmd` shim is accepted only after the expected `@openai/codex` or
+`@anthropic-ai/claude-code` package and its declared `bin` target are proven; Node runs that exact JS
+entry with literal argv. Arbitrary batch wrappers and shell-string execution are refused.
+
+Presence in a host registry is not health. A canonical Ruflo marketplace row whose root disappeared
+during a host migration is removed and re-added only through the supported Claude/Codex CLI, then
+re-read and verified. A noncanonical source using the name `ruflo` is refused without mutation. The
+same discovery fragment patches the bundled `@claude-flow/codex` initializer, replacing its
+`which codex` and shell-string MCP/plugin calls with the shared literal-argv boundary.
+
+An entry that injects runtime fragments declares a revision-specific `proof`. `entryApplied()` checks
+that proof as well as the ordinary edit replacements. This is deliberately distinct from the global
+patch marker: the marker proves that some patch revision ran, while the entry proof demonstrates that
+the currently required executable body is present.
 
 Native satisfaction is not absence of an old anchor. An entry with `nativeSatisfied()` must prove the
 replacement independently, remains pristine, and contributes to `satisfied` rather than `patched`.
@@ -98,8 +115,14 @@ not a warning-only side channel.
 - A runnable CLI under a custom prefix is covered even when `npm` itself is supplied by a different
   toolchain or is absent from that prefix's `bin` directory.
 - Automatic dual-host refresh reaches the same installed Claude and Codex CLIs from login shells,
-  SSH commands, and the monitor; a narrow PATH can no longer turn a valid installation into a false
-  `claude unavailable` failure.
+  SSH commands, migrated shell snapshots, and the monitor; a narrow PATH or foreign-host `HOME` can no
+  longer turn a valid installation into a false `claude unavailable` failure.
+- A stale canonical marketplace path is self-healed without editing a host registry or cache, while a
+  same-named foreign marketplace cannot be overwritten by accident.
+- Ruflo's bundled Codex initialization now obeys the same executable and argv contract as later
+  plugin reconciliation instead of retaining a second PATH/shell implementation.
+- Status distinguishes the current fragment from an older locally injected body; reinstall rebuilds
+  the vendor file from its pristine backup and advances the revision byte-for-byte.
 
 ### Negative
 
@@ -110,6 +133,8 @@ not a warning-only side channel.
 - `discover()` now reads each scope directory and parses a `package.json` per candidate alias. That
   is more I/O per apply, bounded by the number of `.pkg-*` siblings and gated behind a cheap prefix
   check.
+- Repairing a stale canonical marketplace row can trigger a host-native marketplace refetch. That is
+  intentional: the supported host CLI owns cache replacement, and the patch never writes cache bytes.
 
 ### Neutral
 
@@ -126,3 +151,5 @@ not a warning-only side channel.
 - [ADR-004](ADR-004-cwd-anchor-state-to-project-root.md)
 - [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md)
 - `lib/cwd/patch-library.mjs`
+- [Ruflo #2854](https://github.com/ruvnet/ruflo/issues/2854)
+- [Ruflo #2870](https://github.com/ruvnet/ruflo/issues/2870)

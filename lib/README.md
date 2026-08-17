@@ -42,6 +42,11 @@ Ruflo installations remain patchable while current ones stay untouched.
 bytes, re-baseline when upstream replaces the file, and **never** truncate or destroy on a poisoned
 backup. Read it before writing a new patcher.
 
+Runtime fragments need their own revision proof in addition to the shared patch marker. The marker
+only says that some local patch ran; an entry-level `proof` says the executable body required by the
+current target is present. `plugin-hosts` uses this to rebuild obsolete injected command/discovery
+bodies from the pristine backup instead of reporting old runtime bytes as current.
+
 `brain-managed-memory-boundary/` owns an atomic cross-surface transaction rather than one composed
 plugin file. It preflights the active native generation, matching host copies, and the persistent MCP
 shell before writing any of them; a missing anchor leaves every surface untouched.

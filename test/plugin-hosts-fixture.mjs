@@ -50,10 +50,22 @@ let state = read();
 if (host === 'claude') {
   if (same('plugin', 'marketplace', 'list', '--json')) {
     process.stdout.write(JSON.stringify(state.claudeMarketplace
-      ? [{ name: 'ruflo', installLocation: process.env.RSP_MARKETPLACE_ROOT }]
+      ? [{
+          name: 'ruflo',
+          source: state.claudeMarketplaceSource,
+          repo: state.claudeMarketplaceRepo,
+          installLocation: state.claudeMarketplaceLocation,
+        }]
       : []));
-  } else if (same('plugin', 'marketplace', 'add', 'ruvnet/ruflo')) {
-    state.claudeMarketplace = true; save(state);
+  } else if (same('plugin', 'marketplace', 'add', 'ruvnet/ruflo', '--scope', 'user')) {
+    Object.assign(state, {
+      claudeMarketplace: true,
+      claudeMarketplaceSource: 'github',
+      claudeMarketplaceRepo: 'ruvnet/ruflo',
+      claudeMarketplaceLocation: process.env.RSP_MARKETPLACE_ROOT,
+    }); save(state);
+  } else if (same('plugin', 'marketplace', 'remove', 'ruflo', '--scope', 'user')) {
+    state.claudeMarketplace = false; save(state);
   } else if (same('plugin', 'marketplace', 'update', 'ruflo')) {
     process.stdout.write('updated');
   } else if (same('plugin', 'list', '--json')) {
@@ -95,10 +107,24 @@ if (host === 'claude') {
   }
 } else if (same('plugin', 'marketplace', 'list', '--json')) {
   process.stdout.write(JSON.stringify({
-    marketplaces: state.codexMarketplace ? [{ name: 'ruflo' }] : [],
+    marketplaces: state.codexMarketplace ? [{
+      name: 'ruflo',
+      root: state.codexMarketplaceRoot,
+      marketplaceSource: {
+        sourceType: state.codexMarketplaceSourceType,
+        source: state.codexMarketplaceSource,
+      },
+    }] : [],
   }));
 } else if (same('plugin', 'marketplace', 'add', 'ruvnet/ruflo', '--ref', 'main')) {
-  state.codexMarketplace = true; save(state);
+  Object.assign(state, {
+    codexMarketplace: true,
+    codexMarketplaceRoot: process.env.RSP_CODEX_MARKETPLACE_ROOT,
+    codexMarketplaceSourceType: 'git',
+    codexMarketplaceSource: 'https://github.com/ruvnet/ruflo.git',
+  }); save(state);
+} else if (same('plugin', 'marketplace', 'remove', 'ruflo', '--json')) {
+  state.codexMarketplace = false; save(state); process.stdout.write('{}');
 } else if (same('plugin', 'marketplace', 'upgrade', 'ruflo', '--json')) {
   process.stdout.write('{}');
 } else if (same('plugin', 'list', '--available', '--json')) {
