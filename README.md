@@ -40,6 +40,7 @@ keep the rest.
 - [The script targets in detail](#the-script-targets-in-detail)
   - [dual](#dual)
   - [plugin-only (dedupe)](#plugin-only-dedupe)
+  - [codex-switch](#codex-switch)
 - [The monitor](#the-monitor)
 - [How you find out when a patch stops working](#how-you-find-out-when-a-patch-stops-working)
 - [How a patch retires itself](#how-a-patch-retires-itself)
@@ -93,6 +94,7 @@ one directly, no separate install step:
 npx github:sparkling/ruflo-source-patch dual run <project>       # one instruction file for Code + Codex
 npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run   # strip the ~260 duplicated files + hooks + MCP registration
 npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run     # add canonical Ruflo hooks to an existing Codex install
+npx github:sparkling/ruflo-source-patch codex-switch run copilot   # continue THIS Codex thread on the Copilot proxy
 ```
 
 See [The script targets in detail](#the-script-targets-in-detail).
@@ -229,6 +231,7 @@ Actions: `install` · `uninstall` · `status` · `run`
 | **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634](https://github.com/ruvnet/ruflo/issues/2634) · [#2635](https://github.com/ruvnet/ruflo/issues/2635) · [#2636](https://github.com/ruvnet/ruflo/issues/2636) · [#2637](https://github.com/ruvnet/ruflo/issues/2637) · [#2638](https://github.com/ruvnet/ruflo/issues/2638)) |
 | **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** *Every* `ruflo init` bundles ~196 to 260 `.claude/{skills,commands,agents}` files (default preset, not just `--full`) that ~100% duplicate the installed plugins. Removes the bundle and, event-aware, the genuinely double-firing hooks (`PreToolUse`/`PostToolUse`/`PreCompact`), plus the standalone `.mcp.json` ruflo server the plugin already provides (a second writer on `memory.db`, [#2621](https://github.com/ruvnet/ruflo/issues/2621)) and, by default, its running process. Keeps `helpers/`, project-only hooks, and non-ruflo servers. ([#2640](https://github.com/ruvnet/ruflo/issues/2640)) |
 | **`ruflo-codex-hooks`** | **Repair an existing Codex installation created before Ruflo v3.32.24.** Registers the canonical `ruvnet/ruflo` marketplace and `ruflo-core@ruflo` plugin through Codex's public plugin CLI, preserves a disabled plugin and unrelated state, and never edits or re-registers MCP. Current init is handled upstream. ([#2801](https://github.com/ruvnet/ruflo/issues/2801)) |
+| **`codex-switch`** | **Continue one Codex thread on a different account.** Keeps the resume UUID and all visible conversation/tool history while moving between the ChatGPT subscription (`openai`) and a GitHub Copilot seat behind a local Responses proxy (`copilot`). Removes only provider-private encrypted replay state, at a boundary, against a SHA-256-verified backup; refuses an active session, an unrecognised encrypted location, and an undefined Copilot profile. ([ADR-030](docs/adr/ADR-030-codex-switch-one-resume-id-across-providers.md)) |
 
 [**What each script does, and how to run it →**](#the-script-targets-in-detail)
 
@@ -794,6 +797,48 @@ It adds the canonical `ruvnet/ruflo` marketplace at `main` only when absent, ins
 overwrite a different source using the `ruflo` marketplace name. It does not run any `codex mcp`
 command. After a successful install, start a new Codex session and review `/hooks`; Codex owns that
 trust decision.
+
+### `codex-switch`
+
+Continues **one** Codex resume ID while changing which account pays for it. Run it from the project
+directory; the session is pinned after the first use:
+
+```bash
+npx github:sparkling/ruflo-source-patch codex-switch run status
+npx github:sparkling/ruflo-source-patch codex-switch run copilot
+npx github:sparkling/ruflo-source-patch codex-switch run openai
+```
+
+The UUID and every visible message, tool call and protected assistant-message block are retained. Only
+provider-private encrypted replay items (`reasoning`, `compaction`, `context_compaction`) are removed,
+and only at a boundary. The other provider rejects those items, and the symptom is a stream that closes
+before `response.completed` rather than an error you can read. The retained content is hashed before
+and after; a mismatch restores the original. The pre-switch bytes are kept as a SHA-256-verified
+backup under `~/.local/state/codex-switch/backups/<uuid>/`.
+
+It refuses, changing nothing, when: another writer holds the session lock (exit Codex first), the
+rollout carries encrypted content in a location it does not recognise, or the `copilot` profile is not
+defined. That last one matters more than it looks. Codex does **not** error on an unknown `--profile`,
+it silently uses the default provider, so without the check a "Copilot" switch would quietly bill the
+subscription.
+
+`copilot` needs a Codex profile pointing at a Copilot-compatible Responses proxy. The template is
+materialized beside the script as `codex-switch-profile.toml`; copy it to `~/.codex/copilot.config.toml`
+(user-level, because project config cannot redirect providers) and run the proxy, pinned to an exact
+version:
+
+```bash
+npx @jeffreycao/copilot-api@1.15.0 auth        # once
+npx @jeffreycao/copilot-api@1.15.0 start --port 4141
+```
+
+Verify a switch actually reached the proxy: it must log `POST /responses 200`. Never pin the proxy to
+`@latest`. It holds credentials and sits between every request and response, so every version bump is a
+security review.
+
+Flags: `--session UUID` (pin explicitly), `--force-boundary`, `--prepare-only`, `--dry-run`, and
+`--safe`, which drops the default `--yolo`. Everything after a bare double-dash separator is forwarded
+to Codex, except `--profile`, which is refused; the provider is chosen by the subcommand.
 
 ### plugin-only (dedupe)
 

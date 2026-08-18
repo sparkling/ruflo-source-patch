@@ -37,6 +37,7 @@
 //   dual-codex-claude   single-source dual Claude Code + Codex project toolkit
 //   dedupe-bundle       slim a .claude bundle left behind by `ruflo init --full` (#2640)
 //   ruflo-codex-hooks   register canonical Ruflo lifecycle hooks in an existing Codex install (#2801)
+//   codex-switch        continue one Codex resume ID across the subscription and a Copilot proxy (ADR-030)
 //
 // There is no `all` and no bare-action default: every invocation names its target. An
 // `all` that silently meant "the three patch targets, but not the monitor and not the
@@ -165,6 +166,7 @@ Script targets                 (actions: install | uninstall | status | run <arg
   ${pad('dual-codex-claude')}${SCRIPT_TARGETS['dual-codex-claude'].blurb}  (alias: dual)
   ${pad('plugin-only')}${SCRIPT_TARGETS['dedupe-bundle'].blurb}  (aliases: dedupe, dedupe-bundle)
   ${pad('ruflo-codex-hooks')}${SCRIPT_TARGETS['ruflo-codex-hooks'].blurb}
+  ${pad('codex-switch')}${SCRIPT_TARGETS['codex-switch'].blurb}
   ${pad('')}\`run\` materializes the script and executes it, forwarding your args
 
 The whole setup, in one line:
@@ -174,6 +176,7 @@ Run a script directly (no separate install step):
   npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run
   npx github:sparkling/ruflo-source-patch dual run <project-path>
   npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run
+  npx github:sparkling/ruflo-source-patch codex-switch run status
 
 Other:
   npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest

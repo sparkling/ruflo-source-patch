@@ -70,6 +70,7 @@ npx github:sparkling/ruflo-source-patch monitor check     # exit 1 if anything h
 npx github:sparkling/ruflo-source-patch dual run <project>          # single-source dual Claude Code + Codex (alias: dual)
 npx github:sparkling/ruflo-source-patch plugin-only run . --dry-run  # strip the ~260 duplicated files + hooks + MCP registration (aliases: dedupe, dedupe-bundle)
 npx github:sparkling/ruflo-source-patch ruflo-codex-hooks run        # repair an existing Codex install without touching its global Ruflo MCP (#2801)
+npx github:sparkling/ruflo-source-patch codex-switch run copilot      # continue one Codex resume ID on a Copilot proxy instead of the subscription; `openai` switches back, `status` reports (ADR-030)
 ```
 
 `run` materializes the current script and executes it, forwarding your args, with no separate `install` step.

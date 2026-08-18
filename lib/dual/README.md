@@ -10,6 +10,7 @@ not the library. `install` just materializes them to `~/.ruflo-source-patch/<tar
 - [Why `status` byte-compares them](#why-status-byte-compares-them)
 - [`dual`](#dual)
 - [`ruflo-codex-hooks`](#ruflo-codex-hooks)
+- [`codex-switch`](#codex-switch)
 - [`dedupe`](#dedupe)
 
 ## Why `status` byte-compares them
@@ -84,6 +85,31 @@ It registers the canonical `ruvnet/ruflo` marketplace and installs `ruflo-core@r
 plugin CLI. It preserves disabled and unrelated plugin state, refuses a marketplace-name collision, and
 never invokes `codex mcp`. Ruflo v3.32.24 / `@claude-flow/codex` 3.0.2 handles new initializations
 upstream; this script remains for systems initialized earlier.
+
+## `codex-switch`
+
+Continue ONE Codex resume ID while changing which account pays for it ([ADR-030](../../docs/adr/ADR-030-codex-switch-one-resume-id-across-providers.md)):
+
+```bash
+npx github:sparkling/ruflo-source-patch codex-switch run status
+npx github:sparkling/ruflo-source-patch codex-switch run copilot
+```
+
+Three files: `codex-switch.sh` (the `bash` entry every script target needs), `codex-switch.mjs` (CLI,
+locking, the boundary decision, launch) and `codex-switch-core.mjs`, which is the part that must never
+lose history: rollout analysis, sanitization, backup and restore. `codex-switch-profile.toml` is a
+template you copy to `~/.codex/copilot.config.toml`; it is not installed, because it is user-level
+Codex config naming a proxy endpoint.
+
+The whole design is one rule: **the visible thread is untouchable.** Only provider-private encrypted
+replay items may be dropped, only at a provider boundary, only after the original is backed up and the
+backup's SHA-256 verified, and only if a re-analysis afterwards shows the same UUID, the same visible
+record counts and the same retained-content hash. Anything else restores the backup and aborts.
+
+Two things it refuses that look like they should "just work", both because succeeding would be worse:
+an **active** session (a held writer lock; exit Codex first), and an **undefined** Copilot profile.
+Codex silently ignores an unknown `--profile` and falls back to the subscription, so a missing profile
+would otherwise mean a Copilot switch that quietly bills the subscription account and reports success.
 
 ## `dedupe`
 

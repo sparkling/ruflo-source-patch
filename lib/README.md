@@ -24,7 +24,7 @@ how a fix silently stops existing.
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
 | `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `metaharness-codex-hooks/` | **MetaHarness Codex host patch** | authenticated installed `metaharness` and `@metaharness/host-codex` runtime bytes | SessionStart hook + monitor |
-| `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`) | *nothing*. They set up or repair **your projects/host registration** | nobody; you run them by hand |
+| `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`, `codex-switch`) | *nothing*. They set up or repair **your projects/host registration**, or move your own Codex session between accounts | nobody; you run them by hand |
 
 ## Two files to read before writing a patcher
 

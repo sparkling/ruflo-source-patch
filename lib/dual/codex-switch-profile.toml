@@ -1,0 +1,39 @@
+# The `copilot` Codex profile that `codex-switch copilot` selects.
+#
+# Copy to ~/.codex/copilot.config.toml — the profile is a SEPARATE user-level file, not a
+# [profiles.copilot] table inside config.toml, and NOT a project file: project config cannot
+# redirect providers. `codex-switch` refuses to launch when neither form exists, because Codex
+# ignores an unknown --profile silently and would bill the subscription account instead.
+#
+# Prerequisite: a Copilot-compatible Responses proxy listening on base_url. The audited setup is
+# copilot-api pinned to an exact version (never @latest — it holds credentials and sits between
+# every request and response), e.g.:
+#
+#   npx @jeffreycao/copilot-api@1.15.0 auth      # once: GitHub device login
+#   npx @jeffreycao/copilot-api@1.15.0 start --port 4141
+#
+# Verify a switch reached the proxy, not the subscription: the proxy must log
+# `POST /responses 200` with the model below.
+
+model_provider = "copilot_api"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "max"
+model_reasoning_summary = "auto"
+model_context_window = 272000
+model_auto_compact_token_limit = 244800
+notify = []
+
+[model_providers.copilot_api]
+name = "OpenAI"
+base_url = "http://127.0.0.1:4141"
+wire_api = "responses"
+requires_openai_auth = false
+# copilot-api 1.15.0 returns a generic internal_error over WebSocket while HTTP /responses
+# completes (caozhiyuan/copilot-api#347). Keep websockets off until that is fixed upstream.
+supports_websockets = false
+request_max_retries = 3
+stream_max_retries = 1
+stream_idle_timeout_ms = 300000
+
+[features]
+remote_compaction_v2 = true
