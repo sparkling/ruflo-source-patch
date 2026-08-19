@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Enterprise Security Assessment — Ruflo, MetaHarness and the rUv Stack</title>
+  <style>
+    :root{--bg:#f3f1eb;--paper:#fffdf8;--ink:#1e2527;--muted:#657073;--line:#d7d5ce;--accent:#165f66;--accent2:#c45b3c;--good:#34704a;--warn:#94621c;--bad:#a43a32;--info:#315f87;--soft:#e8efed;--shadow:0 12px 36px rgba(27,38,40,.08)}
+    @media(prefers-color-scheme:dark){:root{--bg:#151a1b;--paper:#1c2325;--ink:#eef1ee;--muted:#aab5b5;--line:#394345;--accent:#7bc4c7;--accent2:#f09572;--good:#82c99a;--warn:#e8b861;--bad:#ff9589;--info:#8fc0e4;--soft:#243437;--shadow:none}}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}a{color:var(--accent);text-underline-offset:.18em;overflow-wrap:anywhere}a:hover{text-decoration-thickness:2px}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;overflow-wrap:anywhere}.skip{position:absolute;left:-9999px}.skip:focus{left:1rem;top:1rem;z-index:10;padding:.6rem;background:var(--paper)}
+    .shell{display:grid;grid-template-columns:16rem minmax(0,1fr);min-height:100vh}aside{position:sticky;top:0;height:100vh;padding:2rem 1.2rem;border-right:1px solid var(--line);background:color-mix(in srgb,var(--paper) 90%,transparent)}.brand{font-weight:850;letter-spacing:-.02em}.brand small{display:block;margin-top:.35rem;color:var(--muted);font-weight:500}.nav{margin:2rem 0}.nav a{display:block;padding:.48rem .62rem;border-radius:.35rem;color:var(--muted);text-decoration:none}.nav a:hover{color:var(--ink);background:var(--soft)}.stamp{position:absolute;bottom:1.5rem;max-width:13rem;color:var(--muted);font-size:.78rem}
+    main{width:min(86rem,100%);padding:4rem clamp(1.2rem,4vw,4rem) 5rem}header{max-width:72rem}.eyebrow{color:var(--accent);font-size:.75rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase}h1{max-width:20ch;margin:.45rem 0 1rem;font:800 clamp(2.45rem,5.5vw,5.2rem)/.96 Georgia,serif;letter-spacing:-.045em}.lede{max-width:74ch;margin:0;color:var(--muted);font-size:1.18rem}.verdict{display:grid;grid-template-columns:1.3fr .7fr;gap:1rem;margin:2rem 0}.verdict-main,.verdict-side{padding:1.25rem;border:1px solid var(--line);background:var(--paper)}.verdict-main{border-left:.35rem solid var(--accent2)}.verdict h2{margin:0 0 .45rem;font-size:1.2rem}.verdict p{margin:.35rem 0}.big{font:800 1.65rem/1.12 Georgia,serif}.snapshot{color:var(--muted);font-size:.82rem}
+    section{margin-top:4.6rem;scroll-margin-top:1.5rem}h2{margin:0 0 .55rem;font:760 clamp(1.75rem,3vw,2.7rem)/1.08 Georgia,serif;letter-spacing:-.025em}h3{margin:0 0 .45rem;font-size:1.04rem}.intro{max-width:78ch;margin:0 0 1.4rem;color:var(--muted)}.callout{margin:1.2rem 0;padding:1rem 1.15rem;border-left:.35rem solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--paper))}.callout.danger{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--paper))}.callout strong{display:block;margin-bottom:.25rem}
+    .claim-ladder{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.65rem}.claim{padding:1rem;border:1px solid var(--line);background:var(--paper)}.claim b{display:block;margin-bottom:.3rem}.claim span{color:var(--muted);font-size:.83rem}.claim:nth-child(5){border-top:3px solid var(--good)}details.audit{margin:1rem 0;padding:.8rem 1rem;border:1px solid var(--line);background:var(--paper)}details.audit summary{cursor:pointer;font-weight:800}details.audit li{margin:.35rem 0;color:var(--muted)}
+    .architecture{overflow:auto;padding:1.2rem;border:1px solid var(--line);background:var(--paper)}.layers{min-width:720px;display:grid;grid-template-columns:1fr 2.15fr 1fr;gap:.8rem;align-items:stretch}.layer{padding:1rem;border:1px solid var(--line);background:var(--bg)}.layer.control{border-left:4px solid var(--accent)}.layer.evidence{border-left:4px solid var(--info)}.layer.enforce{border-left:4px solid var(--accent2)}.layer strong{display:block}.layer small{display:block;margin-top:.35rem;color:var(--muted)}.arrow{display:grid;place-items:center;color:var(--muted);font-size:.75rem;text-align:center}.boundary{grid-column:1/-1;padding:.8rem;border:1px dashed var(--accent2);color:var(--muted);text-align:center}.boundary b{color:var(--ink)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:1.1rem 0;padding:.7rem;border:1px solid var(--line);background:var(--paper)}button,input{font:inherit}.toolbar input{flex:1 1 16rem;min-width:0;padding:.55rem .65rem;color:var(--ink);border:1px solid var(--line);background:var(--bg)}.filter{padding:.5rem .65rem;border:1px solid var(--line);border-radius:.3rem;color:var(--ink);background:transparent;cursor:pointer}.filter[aria-pressed="true"],.filter:hover{border-color:var(--accent);background:var(--soft)}
+    .matrix{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem}.card{padding:1.1rem;border:1px solid var(--line);background:var(--paper)}.card-head{display:flex;justify-content:space-between;gap:.7rem;align-items:start}.tag{display:inline-flex;padding:.17rem .45rem;border-radius:999px;font-size:.69rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.delivered{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}.optin,.partial{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}.proposed{color:var(--info);background:color-mix(in srgb,var(--info) 14%,transparent)}.gap{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}.card p{margin:.5rem 0}.evidence{color:var(--muted);font-size:.84rem}.hidden{display:none!important}
+    .chain{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.45rem;margin:1.2rem 0}.chain-step{position:relative;padding:.85rem .65rem;border-top:3px solid var(--line);background:var(--paper);font-size:.82rem}.chain-step b{display:block}.chain-step span{color:var(--muted)}.chain-step.yes{border-color:var(--good)}.chain-step.some{border-color:var(--warn)}.chain-step.no{border-color:var(--bad)}
+    .table-scroll{overflow-x:auto}.table-scroll table{min-width:720px}table{width:100%;border-collapse:collapse;background:var(--paper);box-shadow:var(--shadow)}th,td{padding:.8rem;vertical-align:top;border-bottom:1px solid var(--line);text-align:left}th{background:var(--ink);color:var(--paper);font-size:.73rem;letter-spacing:.06em;text-transform:uppercase}tr:last-child td{border-bottom:0}.status{font-weight:800}.status.good{color:var(--good)}.status.warn{color:var(--warn)}.status.bad{color:var(--bad)}
+    .case-grid,.blueprint,.risks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}.case,.phase,.risk{padding:1.05rem;border:1px solid var(--line);background:var(--paper)}.case strong,.phase strong,.risk strong{display:block;margin-bottom:.35rem}.case p,.phase p,.risk p{margin:.35rem 0;color:var(--muted);font-size:.88rem}.risk{border-top:3px solid var(--bad)}.phase:nth-child(1){border-top:3px solid var(--accent)}.phase:nth-child(2){border-top:3px solid var(--warn)}.phase:nth-child(3){border-top:3px solid var(--good)}
+    .tests{counter-reset:test;display:grid;gap:.55rem}.test{display:grid;grid-template-columns:2.4rem 1fr 1fr;gap:.8rem;padding:.8rem;border:1px solid var(--line);background:var(--paper)}.test:before{counter-increment:test;content:counter(test);display:grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:var(--soft);font-weight:800}.test b{display:block}.test span{color:var(--muted);font-size:.85rem}
+    .sources{columns:2;column-gap:2rem}.sources li{break-inside:avoid;margin:0 0 .65rem}.source-meta{display:block;color:var(--muted);font-size:.78rem}footer{margin-top:5rem;padding-top:1rem;border-top:1px solid var(--line);color:var(--muted);font-size:.78rem}
+    @media(max-width:900px){.shell{display:block}aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}.nav{display:flex;flex-wrap:wrap;margin:1rem 0 0}.nav a{font-size:.82rem}.stamp{display:none}main{padding-top:2.5rem}.verdict,.matrix,.case-grid,.blueprint,.risks{grid-template-columns:1fr}.claim-ladder{grid-template-columns:repeat(2,1fr)}.chain{grid-template-columns:repeat(2,1fr)}.sources{columns:1}.test{grid-template-columns:2.4rem 1fr}.test span{grid-column:2}}
+    @media print{aside,.toolbar{display:none}.shell{display:block}main{padding:0;max-width:none}.card,.case,.phase,.risk,.architecture,table{break-inside:avoid;box-shadow:none}a{color:inherit}.hidden{display:block!important}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to report</a>
+<div class="shell">
+  <aside>
+    <div class="brand">rUv enterprise security<small>Source-backed assessment, not a certification</small></div>
+    <nav class="nav" aria-label="Report sections">
+      <a href="#verdict">Verdict</a><a href="#method">Method</a><a href="#architecture">Architecture</a><a href="#capabilities">Controls</a><a href="#evidence-chain">Evidence chain</a><a href="#standards">Standards</a><a href="#semantic-builder">Semantic Builder</a><a href="#risks">Blockers</a><a href="#blueprint">Deployment</a><a href="#tests">Falsification</a><a href="#sources">Sources</a>
+    </nav>
+    <div class="stamp">Evidence frozen 19 Aug 2026<br>Published packages, source, tests and workflows inspected.</div>
+  </aside>
+  <main id="content">
+    <header>
+      <div class="eyebrow">Independent implementation review</div>
+      <h1>Security controls, evidence and the boundary of the claim</h1>
+      <p class="lede">A deep source audit of Ruflo, MetaHarness, AgenticOW, RVM and RuVector’s RVF format—plus the way Semantic Builder composes them. The report asks a stricter question than “does a feature exist?”: <em>what is enforced, by whom, under which default, and what evidence would survive an adversarial review?</em></p>
+    </header>
+
+    <section id="verdict">
+      <div class="verdict">
+        <div class="verdict-main"><h2>Executive verdict</h2><p class="big">Credible security building blocks. Not a turnkey enterprise security boundary.</p><p>Ruflo has strong reusable primitives for policy, path/command safety, encrypted stores, telemetry consent and release consistency. MetaHarness adds static assessment, evaluation, red-team workflows and evidence artifacts. AgenticOW limits experimental memory blast radius. RVF and RVM contain real hash-chain, signature, capability and witness primitives. The composition becomes defensible only when default-on external identity, OS isolation, key management, durable audit and fail-closed release gates surround it.</p></div>
+        <div class="verdict-side"><h2>Safe claim</h2><p>“The stack can <strong>support</strong> enterprise AI governance, control testing and provenance when deployed within a hardened enterprise control plane.”</p><h2>Unsafe claim</h2><p>“The stack is intrinsically enterprise-secure, provides complete encrypted provenance, or is ISO/SOC/NIST/SLSA compliant.”</p></div>
+      </div>
+      <p class="snapshot">Snapshot: published Ruflo 3.38.12 / <code>44b9dad</code> and current-main inspection <code>fa13ee4</code>; MetaHarness <code>5453c8c</code>; AgenticOW 0.2.4 / <code>dd4f437</code>; RVM <code>1a05571</code>; RuVector <code>74d2a60</code>; Semantic Builder committed HEAD <code>f46d92a</code> on hz. Current package metadata was checked on 19 Aug 2026.</p>
+    </section>
+
+    <section id="method">
+      <h2>How the claims were tested</h2>
+      <p class="intro">The audit combined Brain-guided source discovery, pinned source inspection, published-package checks, executable tests, workflow inspection, a current Semantic Builder implementation review, and three independent adversarial workstreams. A green ADR, README, scorecard or generated manifest was treated as intent until code and an enforcement path supported it.</p>
+      <div class="claim-ladder" aria-label="Claim evidence ladder">
+        <div class="claim"><b>1 · Declared</b><span>README, marketing copy or policy says it exists.</span></div>
+        <div class="claim"><b>2 · Designed</b><span>ADR or schema defines the intended control.</span></div>
+        <div class="claim"><b>3 · Implemented</b><span>Source contains the control and focused tests.</span></div>
+        <div class="claim"><b>4 · Integrated</b><span>Real traffic reaches it; defaults and failures are known.</span></div>
+        <div class="claim"><b>5 · Assured</b><span>Independent, repeatable operating-effectiveness evidence exists.</span></div>
+      </div>
+      <div class="callout"><strong>Assessment rule</strong>Cryptography can establish integrity or identity for what was recorded. It cannot establish that every relevant event was captured, that the event was authorized, that hidden model reasoning was preserved, or that retention and access controls operated.</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Component</th><th>Version / snapshot</th><th>Assessed role</th><th>Deployment finding</th></tr></thead>
+        <tbody>
+          <tr><td>Ruflo</td><td>npm 3.38.12; stable <code>44b9dad</code>; main <code>fa13ee4</code></td><td>Runtime orchestration and security libraries</td><td>Source/published bytes assessed. No universal enabled-control claim is inferred.</td></tr>
+          <tr><td>MetaHarness</td><td>source <code>5453c8c</code>; CLI npm 0.4.7</td><td>Advisory assessment, evaluation and evidence generation</td><td>Semantic Builder integrates it; each scanner/kernel/witness backend still needs runtime proof.</td></tr>
+          <tr><td>AgenticOW</td><td>npm/source 0.2.4 / <code>dd4f437</code></td><td>Copy-on-write candidate memory</td><td>Pinned and adapted by Semantic Builder. Not an OS/tenant boundary.</td></tr>
+          <tr><td>RVF / RuVector</td><td><code>74d2a60</code></td><td>Evidence container, lineage and crypto primitives</td><td>Ecosystem source assessed; deployment and key custody were not established.</td></tr>
+          <tr><td>RVM</td><td><code>1a05571</code></td><td>Capability, witness and proposed runtime isolation</td><td>Semantic Builder explicitly defers RVM/RVFA authority; evaluated as a future substrate.</td></tr>
+          <tr><td>Semantic Builder</td><td>committed <code>f46d92a</code></td><td>Repository-local authority/evidence composition</td><td>Committed implementation assessed; concurrent uncommitted work and production operation excluded.</td></tr>
+        </tbody>
+      </table></div>
+      <details class="audit"><summary>Reproducibility and evidence-scope notes</summary><ul><li>The Ruflo dependency observation came from a clean public-registry install of <code>@claude-flow/cli@3.38.12</code> with optional dependencies, then <code>npm audit --omit=dev</code> using npm 9.6.6 on 19 Aug 2026. It reported 37 advisories (24 moderate, 12 high, one critical); the critical path was optional <code>@xenova/transformers → onnxruntime-web → onnx-proto → protobufjs@6.11.6</code>. Results are lockfile/toolchain/time-sensitive and do not prove reachability.</li><li>The MetaHarness provenance observation is narrower than “no provenance exists”: registry metadata responses inspected on 19 Aug for <code>metaharness@0.4.7</code>, <code>@metaharness/kernel@0.1.3</code>, <code>@metaharness/darwin@0.9.2</code>, <code>@metaharness/redblue@0.1.6</code> and <code>@metaharness/host-rvm@0.1.2</code> did not expose an attestation.</li><li>AgenticOW’s source and npm 0.2.4 bytes matched at the inspected commit; its package test suite ran 11/11. Exact counts are point-in-time implementation evidence, not enterprise control-effectiveness evidence.</li></ul></details>
+    </section>
+
+    <section id="architecture">
+      <h2>Where each component actually sits</h2>
+      <p class="intro">The useful architecture is layered: advice and evaluation above, instrumented runtime in the middle, evidence formats beside it, and a separate enforcement perimeter below. Conflating these layers is the main source of inflated security claims.</p>
+      <div class="architecture" role="img" aria-label="Layer map showing MetaHarness and Brain advising, Ruflo and AgenticOW orchestrating, RVF and RVM recording evidence, Semantic Builder applying local authority, and external enterprise controls enforcing the hard boundary.">
+        <div class="layers">
+          <div class="layer control"><strong>MetaHarness + Brain</strong><small>Threat models, MCP scans, scorecards, evaluation, guidance. Primarily advisory.</small></div>
+          <div class="layer control"><strong>Ruflo runtime</strong><small>Policy engine, MCP orchestration, memory, guardrails, agents, hooks and workflows. Some chokepoints; many controls opt-in.</small></div>
+          <div class="layer evidence"><strong>RVF + RVM witness</strong><small>Hashes, signatures, lineage, capability/witness records. Evidence only for instrumented events.</small></div>
+          <div class="arrow">proposes<br>and measures ↓</div>
+          <div class="layer control"><strong>Semantic Builder authority overlay</strong><small>Fail-closed local invariants, content-addressed receipts, external Ed25519 authorities, bounded advisory memory and atomic promotion.</small></div>
+          <div class="arrow">records<br>observable events →</div>
+          <div class="layer"><strong>AgenticOW</strong><small>Copy-on-write branches, diff, checkpoint, rollback and promote. Logical state isolation—not an OS sandbox.</small></div>
+          <div class="layer enforce"><strong>RVM ambition</strong><small>Capability and hosted/bare-metal abstractions. Current hosted OS mechanisms and hardware evidence are not yet an enforceable isolation boundary.</small></div>
+          <div class="layer"><strong>Enterprise operations</strong><small>IdP, KMS, SIEM, retention, approvals, incident response, vendor governance and independent assurance.</small></div>
+          <div class="boundary"><b>Hard enforcement perimeter:</b> non-root container/VM, immutable identity, scoped credentials, filesystem/network controls, resource quotas, central audit and protected release workflow.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="capabilities">
+      <h2>Control evidence matrix</h2>
+      <p class="intro">Filter by implementation maturity. “Delivered” means source and behavior were found; it does not mean enabled, complete, independently certified, or effective in your deployment.</p>
+      <div class="toolbar" aria-label="Control filters">
+        <input id="search" type="search" placeholder="Search controls, components or gaps" aria-label="Search control cards">
+        <button class="filter" data-filter="all" aria-pressed="true">All</button><button class="filter" data-filter="delivered" aria-pressed="false">Delivered</button><button class="filter" data-filter="optin" aria-pressed="false">Opt-in</button><button class="filter" data-filter="partial" aria-pressed="false">Partial</button><button class="filter" data-filter="proposed" aria-pressed="false">Proposed</button><button class="filter" data-filter="gap" aria-pressed="false">Gap</button>
+      </div>
+      <div class="matrix" id="control-matrix">
+        <article class="card" data-state="delivered" data-search="ruflo command path safe executor"><div class="card-head"><h3>Command and path safety</h3><span class="tag delivered">Delivered</span></div><p>Ruflo’s <code>SafeExecutor</code> uses literal argv, no shell, executable allowlists, timeouts and buffer limits; <code>PathValidator</code> resolves symlinks and boundary-safe prefixes.</p><p class="evidence">Strong primitives, but only at call sites that use them. They are not an OS sandbox.</p></article>
+        <article class="card" data-state="optin" data-search="ruflo policy authorization approval hmac"><div class="card-head"><h3>Agentic policy and approvals</h3><span class="tag optin">Opt-in</span></div><p>The policy engine models rules, principals, roles, tenant fields, capability envelopes, approvals, budgets, HMAC evidence and chained receipts.</p><p class="evidence">Runtime defaults to legacy allow; only explicit <code>enforce</code> mode blocks. Tenant fields do not establish tenant isolation, and tool classification remains heuristic.</p></article>
+        <article class="card" data-state="optin" data-search="ruflo prompt injection guardrail aidefence pii"><div class="card-head"><h3>Prompt and output defenses</h3><span class="tag optin">Opt-in</span></div><p>AIDefence, ChannelGuard and ToolOutputGuardrail detect/redact/reject known patterns; the MCP client offers a central hook.</p><p class="evidence">Strict guardrail is environment-gated, heuristics are bypassable, and missing security packages can fail open.</p></article>
+        <article class="card" data-state="partial" data-search="mcp authentication network ruflo"><div class="card-head"><h3>MCP network boundary</h3><span class="tag partial">Partial</span></div><p>Stdio and loopback are the safest defaults; the remediated bridge requires a token for public binding and gates terminal execution.</p><p class="evidence">Other HTTP paths still allow optional auth. Enterprise remote MCP needs TLS, scoped identity and a gateway.</p></article>
+        <article class="card" data-state="optin" data-search="encryption aes gcm memory kms"><div class="card-head"><h3>Data at rest</h3><span class="tag optin">Opt-in</span></div><p>Ruflo implements AES-256-GCM with random IVs and tamper rejection; secure file helpers use 0600/0700 and atomic writes.</p><p class="evidence">Encryption is off by default, plaintext compatibility remains, and the only shipped key source is an environment variable—not KMS/HSM lifecycle.</p></article>
+        <article class="card" data-state="gap" data-search="plugins supply chain sandbox integrity"><div class="card-head"><h3>Plugin trust</h3><span class="tag gap">Gap</span></div><p>Ruflo validates package names and has an integrity-verifier class.</p><p class="evidence">In the reviewed 3.38.12 CLI manager/loader path, install does not enforce signature, publisher or capability checks and npm plugin code initializes in-process. Treat that path as fully trusted code.</p></article>
+        <article class="card" data-state="partial" data-search="metaharness scan threat model static"><div class="card-head"><h3>MetaHarness assessment</h3><span class="tag partial">Partial</span></div><p>MCP scans, threat models, OIA manifests, security benches, red/blue orchestration and deterministic evaluation produce useful review evidence.</p><p class="evidence">Coverage is static and host-incomplete; malformed or missing surfaces can be SKIP/WARN/exit 0, so “healthy” is not a security attestation.</p></article>
+        <article class="card" data-state="gap" data-search="metaharness generated mcp server auth dispatch budget"><div class="card-head"><h3>Generated MCP runtime</h3><span class="tag gap">Gap</span></div><p>The MetaHarness web generator emits policy, timeout, audit and bearer-auth modules.</p><p class="evidence">Its server omits the dispatch loop, imports auth without calling it, and never enforces its call counter. The minimal CLI template registers an <code>mcp start</code> command that the generated CLI does not implement.</p></article>
+        <article class="card" data-state="gap" data-search="metaharness darwin sandbox tier2"><div class="card-head"><h3>Darwin execution isolation</h3><span class="tag gap">Gap</span></div><p>Normal mode avoids a shell, scrubs environment, bounds time/output and lexically inspects variants.</p><p class="evidence">Execution retains the user’s OS authority. Tier-2 can import variant TypeScript without calling the advertised inspection gate.</p></article>
+        <article class="card" data-state="delivered" data-search="agenticow branch rollback quarantine memory"><div class="card-head"><h3>AgenticOW branch isolation</h3><span class="tag delivered">Delivered</span></div><p>Copy-on-write branches, tombstones, diff, checkpoint, rollback and promote passed the published 11-test suite.</p><p class="evidence">This contains candidate memory state only. Promotion has no built-in reviewer/signature; persistence is unsigned plaintext JSON.</p></article>
+        <article class="card" data-state="partial" data-search="rvf witness signature lineage encryption"><div class="card-head"><h3>RVF evidence format</h3><span class="tag partial">Partial</span></div><p>SHAKE-256 witness chains, Ed25519 signing, lineage records and attestation-binding structures are implemented and tested.</p><p class="evidence">Post-quantum signing is TODO. The <code>ENCRYPTED</code> flag does not currently encrypt payload bytes; a test round-trips plaintext under that flag.</p></article>
+        <article class="card" data-state="partial" data-search="rvm capability witness gate"><div class="card-head"><h3>RVM capability and witness libraries</h3><span class="tag partial">Partial</span></div><p>Capability attenuation, rights, expiry/replay structures, gate decisions, hash chains and bounded witness logs are real libraries.</p><p class="evidence">P2 checks a non-zero commitment, actor id is zero, signed P3 accepts all-zero signatures, and default witness keys/signatures are unsuitable for production assurance.</p></article>
+        <article class="card" data-state="proposed" data-search="rvm hardware microvm isolation wasm"><div class="card-head"><h3>RVM runtime isolation</h3><span class="tag proposed">Proposed</span></div><p>The type model describes hosted, WASM and bare-metal enforcement mechanisms.</p><p class="evidence">Hosted sandbox mechanisms are unimplemented booleans, bare-metal evidence is forgeable in-memory state, and the WASM path registers lifecycle without an interpreter.</p></article>
+        <article class="card" data-state="partial" data-search="release provenance sbom dependency audit"><div class="card-head"><h3>Release and dependency assurance</h3><span class="tag partial">Partial</span></div><p>Ruflo stages and smoke-tests exact archives. MetaHarness runs CodeQL/audits, creates SPDX-shaped SBOMs and invokes npm publication with provenance.</p><p class="evidence">Witness isn’t a required release gate and some native build/audit paths are non-blocking. Inspected registry responses did not expose attestations. A reproducible optional-inclusive Ruflo consumer audit found a critical optional chain plus other advisories; see methodology.</p></article>
+        <article class="card" data-state="delivered" data-search="ruflo funnel telemetry privacy consent"><div class="card-head"><h3>Ruflo telemetry consent</h3><span class="tag delivered">Delivered</span></div><p>The Funnel requires current explicit consent, excludes raw prompts/commands/paths/repository names, bounds its local queue, rechecks consent before HTTPS transport and deletes queue/identity on opt-out.</p><p class="evidence">A strong boundary for Ruflo’s own funnel telemetry; it does not govern third-party LLM, MCP or provider data flows.</p></article>
+        <article class="card" data-state="gap" data-search="tenant project isolation credentials acl encryption"><div class="card-head"><h3>Tenant isolation</h3><span class="tag gap">Gap</span></div><p>Project roots, namespaces and selected path guards reduce accidental crossover.</p><p class="evidence">No reviewed component proves hostile tenant separation, per-tenant principals/ACLs, storage authorization, isolated backups or per-tenant keys. Namespaces are not a security boundary.</p></article>
+        <article class="card" data-state="gap" data-search="metaharness ruflo integration pin degraded"><div class="card-head"><h3>Ruflo ↔ MetaHarness integration</h3><span class="tag gap">Gap</span></div><p>Ruflo correctly presents itself as a wrapper around MetaHarness.</p><p class="evidence">The plugin helper pins <code>metaharness@~0.3.0</code> while current npm is 0.4.7; its drift check misses that constant. Missing integration returns <code>success:true, degraded:true</code>.</p></article>
+      </div>
+    </section>
+
+    <section id="evidence-chain">
+      <h2>The evidence-chain claim, decomposed</h2>
+      <p class="intro">The stack contains several useful provenance mechanisms, but “an encrypted evidence chain of all decisions” collapses seven separate properties into one sentence. The source supports some of them, partially supports others, and does not support complete hidden-decision capture.</p>
+      <div class="chain" aria-label="Evidence chain property assessment">
+        <div class="chain-step some"><b>Capture</b><span>Only instrumented actions and explicit artifacts</span></div><div class="chain-step yes"><b>Integrity</b><span>Hash chains and digest recomputation exist</span></div><div class="chain-step some"><b>Identity</b><span>Ed25519 exists; not universal/default</span></div><div class="chain-step no"><b>Completeness</b><span>No proof omitted events were captured</span></div><div class="chain-step no"><b>Confidentiality</b><span>RVF payload encryption not implemented</span></div><div class="chain-step no"><b>Authorization</b><span>A valid record does not authorize its action</span></div><div class="chain-step some"><b>Retention</b><span>Local/bounded logs; external WORM needed</span></div>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Mechanism</th><th>What it can prove</th><th>What it cannot prove</th></tr></thead>
+        <tbody>
+          <tr><td><strong>RVF WITNESS_SEG</strong></td><td>Recorded entries form a SHAKE-256 predecessor chain; tampering and broken lineage can be detected.</td><td>That all events were observed; that an action was permitted; confidentiality; non-repudiation without trusted signer/key custody.</td></tr>
+          <tr><td><strong>RVF Ed25519 + lineage</strong></td><td>Signature validity for signed bytes; parent/depth/link consistency.</td><td>Meaning or truth of the signed claim; post-quantum security; operational signer identity unless externally bound.</td></tr>
+          <tr><td><strong>RVM witness/gate</strong></td><td>Library-level decision records, capability checks and ordered events where callers traverse the gate.</td><td>Universal mediation. Several unchecked mutation paths and permissive/placeholder cryptography remain.</td></tr>
+          <tr><td><strong>Ruflo policy receipts</strong></td><td>Deterministic policy decisions and chained/HMAC evidence when enforce mode and keying are configured.</td><td>Default enforcement, OS containment, centralized immutability, or survival of swallowed audit-write failures.</td></tr>
+          <tr><td><strong>Semantic Builder receipts</strong></td><td>Deterministic canonical-JSON/SHA-256 digests, content/toolchain/Git closure, frontier/limit lineage and externally verified Ed25519 authority at selected boundaries.</td><td>Unsigned engineering receipts remain non-authoritative; witnesses are evidence, never ontology promotion authority.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout danger"><strong>No chain-of-thought claim</strong>None of the reviewed systems captures or should promise a complete record of hidden model reasoning. The auditable object is the observable decision surface: prompts retained under policy, tool requests/results, policy decisions, state transitions, approvals, artifacts and signed receipts.</div>
+    </section>
+
+    <section id="standards">
+      <h2>Enterprise framework crosswalk</h2>
+      <p class="intro">These mappings are candidate technical evidence only. They are not certifications, audit opinions, legal conclusions or proof of operating effectiveness.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Framework theme</th><th>Supporting evidence</th><th>What the enterprise must still own</th><th>Assessment</th></tr></thead>
+        <tbody>
+          <tr><td>NIST CSF 2.0</td><td>Technical artifacts for Protect/Detect plus some Govern/Identify inputs: policy intent, scans, logs, release and recovery evidence.</td><td>Organizational governance, asset/risk inventory, roles, supplier programme, incident response and recovery exercises.</td><td class="status warn">Candidate evidence</td></tr>
+          <tr><td>NIST AI RMF 1.0</td><td>ADRs, threat models, explicit authority partitions, evaluation artifacts, drift reports and promotion/rollback workflows.</td><td>Accountable owners, risk appetite, AI inventory, representative measurement, human oversight and independent review.</td><td class="status warn">Candidate evidence</td></tr>
+          <tr><td>NIST AI 600-1 GenAI Profile</td><td>Red/blue evaluation, prompt/output defenses, content provenance primitives and model/tool risk records.</td><td>Context-specific misuse testing, content provenance operations, privacy analysis, incident monitoring and human factors.</td><td class="status warn">Partial</td></tr>
+          <tr><td>OWASP Agentic Top 10</td><td>Tool policy, approvals, budgets, dependency scans, candidate-memory quarantine and authority partitioning.</td><td>Universal action enforcement, agent identity, privilege escalation tests, memory-poison recovery and cascading-failure controls.</td><td class="status warn">Partial</td></tr>
+          <tr><td>OWASP LLM Top 10</td><td>Prompt/output heuristics, PII/secret detection, tool restrictions, model-evaluation and supply-chain artifacts.</td><td>Measured indirect-injection resistance, output handling across every sink, data lifecycle and excessive-agency containment.</td><td class="status warn">Partial</td></tr>
+          <tr><td>NIST SSDF / SLSA</td><td>Tests, CodeQL, audits, SBOM generation, exact-archive smoke tests and npm provenance calls.</td><td>Hermetic isolated builder, complete provenance verification, immutable pins, blocking audits, witness-bound publication.</td><td class="status warn">Partial</td></tr>
+          <tr><td>ISO/IEC 42001</td><td>Potential inputs to an AI management system: risk records, evaluation evidence, authority boundaries and change history.</td><td>AIMS scope, leadership, objectives, impact assessment, operational processes, monitoring and continual improvement.</td><td class="status bad">No AIMS conformity claim</td></tr>
+          <tr><td>ISO/IEC 27001</td><td>Potential technical evidence for access intent, logging, secure development, vulnerability review and data protection.</td><td>ISMS scope, risk treatment, control owners, approvals, operating history, HR/physical/vendor controls, IR and BCP.</td><td class="status bad">No ISMS conformity claim</td></tr>
+          <tr><td>SOC 2 Trust Services Criteria</td><td>Potential artifacts for logical access, change, monitoring, confidentiality and processing-integrity controls.</td><td>System description, management criteria, operating-period samples, access reviews, incidents, retention, vendor review and auditor testing.</td><td class="status bad">No examination opinion</td></tr>
+          <tr><td>EU AI Act</td><td>Potential support for technical documentation, logging, risk records, human gates and evaluation evidence.</td><td>System classification, provider/deployer duties, data governance, post-market monitoring and legal assessment.</td><td class="status bad">Legal programme required</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="semantic-builder">
+      <h2>Semantic Builder: the strongest composition reviewed</h2>
+      <p class="intro">Semantic Builder does not simply inherit upstream security claims. Its accepted ADRs deliberately subordinate Ruflo, MetaHarness and AgenticOW to repository-local authority rules. The hz checkout was inspected at committed HEAD <code>f46d92a</code>; modified helper files, untracked GitHub state and an untracked orchestrator test were excluded from stable claims.</p>
+      <div class="case-grid">
+        <div class="case"><strong>Authority separation</strong><p>Ruflo is replaceable orchestration substrate, not ontology truth. MetaHarness is offline evaluation, not production authority. RVM/RVFA remain deferred. A witness proves attribution, not promotion authority.</p></div>
+        <div class="case"><strong>Bounded advisory memory</strong><p>AgenticOW 0.2.4 is pinned behind frontier binding, branch/depth/count/capacity guards, strict roots, 0600 files and no authority method. Candidate memory can be rolled back without contaminating the base.</p></div>
+        <div class="case"><strong>Evidence closure</strong><p>Deterministic canonical-JSON/SHA-256 records bind exact Git HEAD/tree/ancestry, predecessor ADR bytes, command bytes, filesystem before/after state and effect counters. Selected pre-existing authorities verify Ed25519 signatures; explicit non-claims deny promotion, release, publication and production authority.</p></div>
+        <div class="case"><strong>Fail-closed filesystem</strong><p>Tests reject relative, symlinked, permissive, non-empty or substituted roots; atomic no-clobber authority transactions survive SIGKILL and use stable-epoch reads.</p></div>
+        <div class="case"><strong>Protected promotion</strong><p>Generation-zero policy requires external evidence and unresolved findings yield changes-required. The normal developer path is distinct from protected preflight and protected CI.</p></div>
+        <div class="case"><strong>Residual reality</strong><p>Accepted ADRs are design commitments, not production certification. No finalized V1–V2 run receipt was committed at this snapshot. Direct pushes, enterprise IAM/KMS/SIEM, deployment isolation and independent operating-effectiveness tests remain outside the repository.</p></div>
+      </div>
+      <div class="callout"><strong>Why this matters</strong>Semantic Builder improves the stack by making authority local, explicit and narrower than capability. It uses upstream tools as advisory/evidence substrates and refuses to infer authorization from a signature, a score, a swarm result or an ADR.</div>
+    </section>
+
+    <section id="risks">
+      <h2>Top blockers to an enterprise claim</h2>
+      <div class="risks">
+        <div class="risk"><strong>1 · No universal mediation</strong><p>Policy, identity, output scanning and witness calls are not guaranteed on every MCP/tool/agent mutation path.</p></div>
+        <div class="risk"><strong>2 · Defaults are developer-friendly</strong><p>Legacy allow, optional auth, opt-in encryption/guardrails and degraded-success responses can make absent controls look healthy.</p></div>
+        <div class="risk"><strong>3 · “Sandbox” exceeds implementation</strong><p>Darwin and current RVM paths do not provide a hardened OS/microVM boundary; same-UID code retains ambient authority.</p></div>
+        <div class="risk"><strong>4 · Audit is not yet enterprise-grade</strong><p>Local JSONL/bounded logs, swallowed writes, incomplete identity and no central immutable retention prevent strong non-repudiation.</p></div>
+        <div class="risk"><strong>5 · Supply-chain gaps remain</strong><p>Plugin execution is fully trusted, release witness gates are incomplete, pins drift, and consumer dependencies include serious optional advisories.</p></div>
+        <div class="risk"><strong>6 · Compliance is organizational</strong><p>No software package supplies governance ownership, HR/physical controls, legal duties, incident response or independent audit opinion.</p></div>
+      </div>
+    </section>
+
+    <section id="blueprint">
+      <h2>A defensible deployment blueprint</h2>
+      <p class="intro">Use the stack as an instrumented agent platform inside a conventional enterprise control plane. Promotion should require evidence from every layer, with unknown or degraded states failing closed.</p>
+      <div class="blueprint">
+        <div class="phase"><strong>1 · Harden the boundary</strong><p>Per-project/tenant non-root container or VM; read-only root; restricted mounts; seccomp/AppArmor/SELinux; default-deny egress; process/token quotas; stdio/loopback MCP; remote access only through OIDC/mTLS gateway.</p></div>
+        <div class="phase"><strong>2 · Make controls explicit</strong><p>Ruflo policy <code>enforce</code>; strict output guardrail; reviewed/pinned plugins; KMS-backed per-project keys; scoped workload identity; two-person approvals for irreversible operations; fail on <code>degraded</code>.</p></div>
+        <div class="phase"><strong>3 · Prove operation</strong><p>Actor-bound signed events to SIEM/WORM; trusted time and retention; signed/provenanced artifacts; protected tags; independent red-team and restore exercises; recurring access/vendor/model-risk review.</p></div>
+      </div>
+    </section>
+
+    <section id="tests">
+      <h2>Falsification suite</h2>
+      <p class="intro">These tests turn attractive claims into observable pass/fail conditions. Run them against the deployed composition, not only the source packages.</p>
+      <div class="tests">
+        <div class="test"><div><b>Authorization</b>Attempt anonymous, replayed, revoked and cross-tool calls; instruct a read-only agent to write or shell.</div><span>Every unauthorized action is blocked by host/runtime enforcement and recorded with actor identity.</span></div>
+        <div class="test"><div><b>Audit failure</b>Make the audit target full, unwritable, deleted and symlink-substituted.</div><span>High-risk actions fail closed, central monitoring alerts, and no success receipt is issued.</span></div>
+        <div class="test"><div><b>Evidence completeness</b>Bypass one dispatcher, mutate state directly, reorder/drop events and alter the wall clock.</div><span>The deployment either prevents the path or proves an explicit coverage gap; a valid chain never masquerades as complete.</span></div>
+        <div class="test"><div><b>Confidentiality</b>Seed canaries into memory, sessions, WAL, backups, traces, RVF segments and crash artifacts.</div><span>No plaintext remains outside approved stores; key rotation, revocation, restore and cryptographic deletion work.</span></div>
+        <div class="test"><div><b>Isolation</b>Use PATH shadowing, child processes, network calls, inherited descriptors, <code>/tmp</code>, sibling repos and symlink races.</div><span>OS-level controls—not regex or model compliance—prevent access and produce evidence.</span></div>
+        <div class="test"><div><b>MetaHarness fail-closed</b>Remove witness/kernel/MCP policy, corrupt OIA, break the package pin and force a security-tool timeout.</div><span>Enterprise mode exits non-zero, never says release-ready, and reports the exact unavailable control.</span></div>
+        <div class="test"><div><b>Supply chain</b>Tamper tarball/SBOM/witness, move a tag, poison PATH/cache/installer and force native build or audit failure.</div><span>Publish/install gates reject each mismatch using immutable identity and verified provenance.</span></div>
+        <div class="test"><div><b>Memory quarantine</b>Poison an AgenticOW branch, promote without verifier, crash during persistence and query another tenant.</div><span>Promotion requires external authorization; state is atomic/authenticated; no cross-tenant disclosure or residual effects.</span></div>
+        <div class="test"><div><b>Incident exercise</b>Assume a provider-key theft plus poisoned memory and unavailable upstream package.</div><span>Detection, containment, evidence preservation, key rotation, clean recovery and notification meet agreed RTO/RPO/SLA.</span></div>
+      </div>
+    </section>
+
+    <section id="sources">
+      <h2>Primary evidence ledger</h2>
+      <p class="intro">Links point to pinned source snapshots where practical. Standards links are official publishers. Private Semantic Builder evidence is identified by commit rather than exposed externally.</p>
+      <ol class="sources">
+        <li><a href="https://github.com/ruvnet/ruflo/tree/44b9dad1fe10955b8d600724f5706dfa020db6bf">Ruflo 3.38.12 source snapshot</a><span class="source-meta">Policy, MCP, security, encryption, release and plugin paths</span></li>
+        <li><a href="https://github.com/ruvnet/ruflo/security/advisories/GHSA-c4hm-4h84-2cf3">Ruflo GHSA-c4hm-4h84-2cf3</a><span class="source-meta">Historical unauthenticated MCP bridge RCE; fixed in 3.16.3</span></li>
+        <li><a href="https://github.com/ruvnet/ruflo/blob/44b9dad1fe10955b8d600724f5706dfa020db6bf/v3/%40claude-flow/security/src/policy/engine.ts">Ruflo policy engine</a><span class="source-meta">Rules, capabilities, approvals, budgets and receipts</span></li>
+        <li><a href="https://github.com/ruvnet/ruflo/blob/44b9dad1fe10955b8d600724f5706dfa020db6bf/v3/%40claude-flow/cli/src/services/policy-runtime.ts">Ruflo policy runtime</a><span class="source-meta">Default mode and local trust anchor</span></li>
+        <li><a href="https://github.com/ruvnet/ruflo/blob/44b9dad1fe10955b8d600724f5706dfa020db6bf/v3/%40claude-flow/cli/src/encryption/vault.ts">Ruflo AES-GCM vault</a><span class="source-meta">Implemented encryption and key-source constraints</span></li>
+        <li><a href="https://github.com/ruvnet/ruflo/blob/44b9dad1fe10955b8d600724f5706dfa020db6bf/v3/%40claude-flow/cli/src/funnel/consent.ts">Ruflo Funnel consent</a><span class="source-meta">Explicit consent, opt-out and queue deletion</span></li>
+        <li><a href="https://github.com/ruvnet/metaharness/tree/5453c8c990824b54e05f289774e5a8b2cea0a32e">MetaHarness source snapshot</a><span class="source-meta">Scanners, validation, witness, Darwin, RedBlue and release workflows</span></li>
+        <li><a href="https://github.com/ruvnet/metaharness/blob/5453c8c990824b54e05f289774e5a8b2cea0a32e/packages/create-agent-harness/src/mcp-scan.ts">MetaHarness MCP scan</a><span class="source-meta">Static rules and discovery boundary</span></li>
+        <li><a href="https://github.com/ruvnet/metaharness/blob/5453c8c990824b54e05f289774e5a8b2cea0a32e/apps/web-ui/src/generator/mcp.ts">MetaHarness generated MCP runtime</a><span class="source-meta">Declared auth/policy versus omitted dispatch enforcement</span></li>
+        <li><a href="https://github.com/ruvnet/metaharness/blob/5453c8c990824b54e05f289774e5a8b2cea0a32e/packages/darwin-mode/src/sandbox.ts">Darwin sandbox implementation</a><span class="source-meta">Same-UID execution, environment and resource bounds</span></li>
+        <li><a href="https://github.com/ruvnet/ruflo/blob/fa13ee4ad60ac2090b1480656eb233521790d640/plugins/ruflo-metaharness/scripts/_harness.mjs">Ruflo MetaHarness helper</a><span class="source-meta">Runtime package pin and integration behavior</span></li>
+        <li><a href="https://github.com/ruvnet/agenticow/tree/dd4f437b92d2dbbc1f40dfa00023eed6e9c3bd84">AgenticOW 0.2.4</a><span class="source-meta">Copy-on-write memory, diff, promote, checkpoint and rollback</span></li>
+        <li><a href="https://github.com/ruvnet/rvm/tree/1a055716c9c544b35f89162e32e7946e3ac2f8f2">RVM source snapshot</a><span class="source-meta">Capabilities, gate, witnesses, adapters and lifecycle</span></li>
+        <li><a href="https://github.com/ruvnet/rvm/blob/1a055716c9c544b35f89162e32e7946e3ac2f8f2/crates/rvm-security/src/gate.rs">RVM unified security gate</a><span class="source-meta">P1/P2/P3 checks and signed-chain caveat</span></li>
+        <li><a href="https://github.com/ruvnet/ruvector/blob/74d2a60171402992206dddc172e068ce1808ed8b/crates/rvf/README.md">RVF README</a><span class="source-meta">Format claims inspected against implementation</span></li>
+        <li><a href="https://github.com/ruvnet/ruvector/blob/74d2a60171402992206dddc172e068ce1808ed8b/crates/rvf/rvf-crypto/src/witness.rs">RVF witness implementation</a><span class="source-meta">SHAKE-256 predecessor chain and tamper tests</span></li>
+        <li><a href="https://github.com/ruvnet/ruvector/blob/74d2a60171402992206dddc172e068ce1808ed8b/crates/rvf/rvf-crypto/src/sign.rs">RVF signing implementation</a><span class="source-meta">Ed25519 delivered; post-quantum path deferred</span></li>
+        <li><strong>Semantic Builder <code>f46d92ad0103f99772a4fc54bb5aac29e8876c1e</code></strong><span class="source-meta">Private hz checkout: ADR-0026/0028/0037/0039; advisory memory; authority stores; exact Git/command/filesystem capture; receipts; recovery and mutation tests</span></li>
+        <li><a href="https://www.nist.gov/cyberframework">NIST Cybersecurity Framework 2.0</a><span class="source-meta">Govern, Identify, Protect, Detect, Respond and Recover</span></li>
+        <li><a href="https://www.nist.gov/itl/ai-risk-management-framework">NIST AI Risk Management Framework</a><span class="source-meta">Govern, Map, Measure and Manage</span></li>
+        <li><a href="https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf">NIST AI 600-1 Generative AI Profile</a><span class="source-meta">GenAI risks and suggested actions</span></li>
+        <li><a href="https://csrc.nist.gov/pubs/sp/800/218/final">NIST SSDF SP 800-218</a><span class="source-meta">Secure software development practices</span></li>
+        <li><a href="https://slsa.dev/spec/v1.2/provenance">SLSA v1.2 provenance</a><span class="source-meta">Build provenance model and requirements</span></li>
+        <li><a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a><span class="source-meta">Agentic threat categories</span></li>
+        <li><a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a><span class="source-meta">LLM application threat categories</span></li>
+        <li><a href="https://www.iso.org/standard/42001">ISO/IEC 42001</a><span class="source-meta">AI management systems overview</span></li>
+        <li><a href="https://www.iso.org/standard/27001">ISO/IEC 27001</a><span class="source-meta">Information security management systems overview</span></li>
+        <li><a href="https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai">EU AI Act official policy page</a><span class="source-meta">Regulatory framework and obligations</span></li>
+        <li><a href="https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022">AICPA Trust Services Criteria</a><span class="source-meta">Security, availability, confidentiality, processing integrity and privacy</span></li>
+      </ol>
+    </section>
+
+    <footer>Prepared as a source-backed engineering assessment. No source repository, package, deployment or public site was modified. Ratings are point-in-time and should be rerun after security-bearing releases.</footer>
+  </main>
+</div>
+<script>
+  const buttons=[...document.querySelectorAll('.filter')],cards=[...document.querySelectorAll('.card')],search=document.querySelector('#search');let active='all';
+  function apply(){const q=search.value.trim().toLowerCase();for(const card of cards){const state=active==='all'||card.dataset.state===active;const text=(card.textContent+' '+card.dataset.search).toLowerCase();card.classList.toggle('hidden',!(state&&text.includes(q)));}}
+  for(const button of buttons)button.addEventListener('click',()=>{active=button.dataset.filter;for(const b of buttons)b.setAttribute('aria-pressed',String(b===button));apply();});search.addEventListener('input',apply);
+</script>
+</body>
+</html>
