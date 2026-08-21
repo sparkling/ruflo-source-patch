@@ -2,11 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-15. Revalidated against the exact published Ruflo 3.38.12 artifact. Native
+**Updated**: 2026-08-21. Revalidated against the exact published Ruflo 3.38.16 artifact. Native
 `resolveDaemonProjectRoot()` now covers daemon autostart and every direct daemon identity, so that
 part is native-satisfied and #2877 can retire. #2633 remains live for residual durable-state paths:
-swarm canonical reads, permission audit/grants, neural WEFT defaults, and generated helper scripts.
-Session-end still atomically writes the snapshot it advertises beneath the resolved project root.
+swarm canonical reads, permission audit/grants, neural WEFT defaults, generated helper scripts, and
+hook-session state. Ruflo 3.38.16 changed session-end accounting without fixing its unwritten relative
+`statePath`; release-shaped legacy/current entries now keep the atomic snapshot repair explicit while
+the shared root entry anchors `.swarm` and pending-insight reads.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, data-loss, cwd
 
@@ -59,11 +61,11 @@ anchor that leaked, whatever form it took. The SessionStart hook reports them, a
 handler must atomically write the corresponding snapshot beneath `<project>/.claude/sessions/` before
 returning success. A bridge-store write does not make a second, nonexistent JSON path true.
 
-**Current residuals are explicit.** Ruflo 3.38.12 still needs project-root defaults for
+**Current residuals are explicit.** Ruflo 3.38.16 still needs project-root defaults for
 `commands/swarm.js`'s canonical agent/hive/activity reads, `permission/permission-audit.js`, neural
-WEFT export/SFT/DPO defaults, and the helper scripts emitted by `init/helpers-generator.js`. User-supplied
-output paths remain invocation-relative. The generated scripts resolve from their own installed project
-location, not from whatever cwd later invokes them.
+WEFT export/SFT/DPO defaults, the helper scripts emitted by `init/helpers-generator.js`, and hook-session
+pending-insight/snapshot state. User-supplied output paths remain invocation-relative. The generated
+scripts resolve from their own installed project location, not from whatever cwd later invokes them.
 
 ## Consequences
 
@@ -82,8 +84,9 @@ location, not from whatever cwd later invokes them.
   READER of `harness-active-policy.json`) was anchored while `applyChampion` (its WRITER) still followed the
   drifted cwd, so the reader looked at the project root for a file the writer had put elsewhere and silently
   found nothing. Unpatched, both sides at least AGREED on the drifted directory.
-- The current target has 31 declared entries, 30 applicable in the exact 3.38.12 fixture; that remains a
-  real maintenance surface and is checked as a complete set.
+- Release-shaped session-end entries are mutually exclusive: the legacy fixed-duration form and the
+  3.38.16 activity-derived form are each exact-anchored and mutation-tested. A future third shape cannot
+  silently pass as patched.
 
 ### Neutral
 

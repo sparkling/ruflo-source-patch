@@ -24,7 +24,48 @@ const REL = {
   statusline: 'dist/src/init/statusline-generator.js',
   swarm: 'dist/src/commands/swarm.js',
   neural: 'dist/src/commands/neural.js',
+  hooks: 'dist/src/mcp-tools/hooks-tools.js',
 };
+const CURRENT_HOOKS_SOURCE = [
+  "import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';",
+  "import * as nodeFs from 'fs';",
+  "import * as pathMod from 'path';",
+  "import { join, resolve } from 'path';",
+  "import { getProjectCwd } from './types.js';",
+  "const memoryPath = pathMod.resolve(process.cwd(), '.swarm', 'memory.db');",
+  'export async function endSession(saveState, sessionId, duration, currentActivity) {',
+  '    const daemonStopped = true;',
+  "    const sessionPersistence = { controller: 'fixture', persisted: true };",
+  '    const allEntries = [];',
+  '    const agentCount = 0;',
+  '    const trajectoryCount = 0;',
+  '    let insightCount = 0;',
+  '    const summary = {};',
+  "    const insightsPath = resolve(join('.claude-flow', 'data', 'pending-insights.jsonl'));",
+  '    if (existsSync(insightsPath)) insightCount = readFileSync(insightsPath).length;',
+  '    const observed = pathMod.resolve(process.cwd(), \'.swarm\', \'observed.json\');',
+  '    const activity = loadSessionActivity(session, endedAt);',
+  '    void memoryPath; void observed; void summary; void currentActivity;',
+  '        return {',
+  '            sessionId,',
+  '            duration,',
+  "            statePath: saveState ? `.claude/sessions/${sessionId}.json` : undefined,",
+  '            daemon: { stopped: daemonStopped },',
+  "            sessionPersistence: sessionPersistence || { controller: 'none', persisted: false },",
+  '            summary: {',
+  '                tasksExecuted: activity.tasksCompleted,',
+  '                filesModified: activity.editsRecorded,',
+  '                agentsSpawned: agentCount,',
+  '                pendingInsights: insightCount,',
+  '                memoryEntries: allEntries.length,',
+  '            },',
+  '            learningUpdates: {',
+  '                patternsLearned: activity.patternsLearned,',
+  '                trajectoriesRecorded: trajectoryCount,',
+  '            },',
+  '        };',
+  '}',
+].join('\n');
 const env = {
   ...process.env,
   RUFLO_SOURCE_PATCH_HOME: HOME,
@@ -49,10 +90,14 @@ function reset() {
     name: '@claude-flow/cli', type: 'module', version: 'fixture',
   }));
   for (const rel of Object.values(REL)) {
-    const source = path.join(SOURCE, '@claude-flow', 'cli', rel);
     const destination = path.join(CLI, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, pristineBytes(source));
+    if (rel === REL.hooks) {
+      fs.writeFileSync(destination, CURRENT_HOOKS_SOURCE);
+    } else {
+      const source = path.join(SOURCE, '@claude-flow', 'cli', rel);
+      fs.writeFileSync(destination, pristineBytes(source));
+    }
   }
 }
 
@@ -68,6 +113,30 @@ for (const key of ['permission', 'helpers', 'swarm', 'neural']) {
   const checked = spawnSync(process.execPath, ['--check', path.join(CLI, REL[key])], { encoding: 'utf8' });
   if (checked.status !== 0) fail(`${key} output does not parse:\n${out(checked)}`);
 }
+
+const hooks = read('hooks');
+for (const stale of [
+  "statePath: saveState ? `.claude/sessions/${sessionId}.json` : undefined,",
+  "const insightsPath = resolve(join('.claude-flow', 'data', 'pending-insights.jsonl'));",
+  "process.cwd(), '.swarm'",
+]) {
+  if (hooks.includes(stale)) fail(`current hooks build retains stale session state behavior: ${stale}`);
+}
+for (const required of [
+  "const stateDir = join(__rufloResolveRoot(getProjectCwd()), '.claude', 'sessions');",
+  'const sessionSummary = {',
+  'return { ...snapshot, statePath };',
+]) {
+  if (!hooks.includes(required)) fail(`current hooks build missed the 3.38.16 repair: ${required}`);
+}
+const hooksChecked = spawnSync(process.execPath, ['--check', path.join(CLI, REL.hooks)], { encoding: 'utf8' });
+if (hooksChecked.status !== 0) fail(`current hooks output does not parse:\n${out(hooksChecked)}`);
+const hooksFile = path.join(CLI, REL.hooks);
+fs.writeFileSync(hooksFile, hooks.replace('        return { ...snapshot, statePath };', '        return snapshot;'));
+if (cli(['cwd', 'status']).status === 0 || cli(['monitor', 'check']).status === 0) {
+  fail('mutated 3.38.16 session snapshot still passed status or monitor check');
+}
+fs.writeFileSync(hooksFile, hooks);
 
 const project = path.join(SB, 'project');
 const deep = path.join(project, 'src', 'deep');

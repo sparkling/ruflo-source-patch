@@ -80,7 +80,8 @@ if (sessionTool.includes('statePath: saveState ? `.claude/sessions/${sessionId}.
   fail('S0 session-end still returns the unwritten relative statePath');
 }
 for (const required of [
-  "const stateDir = join(getProjectCwd(), '.claude', 'sessions');",
+  "const stateDir = join(__rufloResolveRoot(getProjectCwd()), '.claude', 'sessions');",
+  "const insightsPath = resolve(join(__rufloResolveRoot(getProjectCwd()), '.claude-flow', 'data', 'pending-insights.jsonl'));",
   "writeFileSync(tempPath, JSON.stringify({ ...snapshot, savedAt:",
   'nodeFs.renameSync(tempPath, statePath);',
   'return { ...snapshot, statePath };',
