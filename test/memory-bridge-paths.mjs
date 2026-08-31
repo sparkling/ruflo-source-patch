@@ -25,6 +25,34 @@ const check = (condition, message) => {
   if (!condition) fail(message);
 };
 
+// Ruflo 3.32.9 inserts a diagnostic between the two global-state assignments
+// and `return null`; older releases do not. This exact layout escaped the first
+// fixture fleet and made a real install correctly fail closed. Pin both forms.
+const legacyEntry = patchLib.ENTRIES.find((entry) => entry.id === 'memory/path-keyed-bridge-legacy');
+const failureEdit = legacyEntry?.edits.find((edit) => edit.find.includes('bridgeAvailable = false;'));
+const demotionEdit = legacyEntry?.edits.find((edit) => edit.find.includes("logDemotionOnce('getRegistry"));
+const applyLegacyFailure = (source) => {
+  let output = source.replace(failureEdit.find, failureEdit.replace);
+  if (output.includes(demotionEdit.find)) output = output.replace(demotionEdit.find, demotionEdit.replace);
+  return output;
+};
+const simpleFailure = `            catch {
+                bridgeAvailable = false;
+                registryPromise = null;
+                return null;
+            }`;
+const demotionFailure = `            catch (err) {
+                bridgeAvailable = false;
+                registryPromise = null;
+                logDemotionOnce('getRegistry (process-wide, cached for the rest of this process)', err instanceof Error ? err.message : String(err));
+                return null;
+            }`;
+check(failureEdit && demotionEdit
+  && applyLegacyFailure(simpleFailure).includes("__rufloSetBridgeFailure(dbPath, 'ControllerRegistry initialization failed')")
+  && applyLegacyFailure(demotionFailure).includes('__rufloSetBridgeFailure(dbPath, err instanceof Error ? err.message : String(err))')
+  && !applyLegacyFailure(demotionFailure).includes('process-wide, cached for the rest of this process'),
+  'MBP0b legacy plain/demotion failure layouts are not both path-scoped');
+
 const bridgeRel = path.join('@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-bridge.js');
 const initRel = path.join('@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 const fsRel = path.join('@claude-flow', 'cli', 'dist', 'src', 'fs-secure.js');
@@ -137,7 +165,7 @@ for (const file of [patchedBridge, patchedInit]) {
 }
 const bridgeSource = fs.readFileSync(patchedBridge, 'utf8');
 const initSource = fs.readFileSync(patchedInit, 'utf8');
-check(bridgeSource.includes('const __RSP_MEMORY_BRIDGE_PATHS_REVISION = "2026-08-31.1";'),
+check(bridgeSource.includes('const __RSP_MEMORY_BRIDGE_PATHS_REVISION = "2026-08-31.2";'),
   'MBP3 path-keyed bridge revision proof is absent');
 check(!bridgeSource.includes('if (registryInstance)\n        return registryInstance;'),
   'MBP3 process-global first-open return remains live');
