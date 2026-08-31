@@ -34,7 +34,7 @@ export RSP_NO_STALE_WRITER_KILL=1
 # registries; plugin-hosts overrides this with its fake host CLIs and exercises the automatic path.
 export RSP_NO_HOST_AUTO_UPDATE=1
 
-SUITES=(sequence-fuzz plugin-notify reporting hooks-migration untested concurrency cwd-current daemon-native cleanup-procs stale-writer monitor-internals dual-host mcp-prefix adr-template-retirement adr-index-retirement adr-reindex-native design-wall flywheel-daily codex-hooks codex-hooks-native codex-skills ruflo-codex-hooks codex-switch plugin-hosts-discovery plugin-hosts-codex-init plugin-hosts brain-release-lockstep brain-console-lifecycle brain-console-provider-keys brain-memory-doctor-roots brain-native-retirement brain-managed-memory-boundary metaharness-codex-hooks)
+SUITES=(sequence-fuzz plugin-notify reporting hooks-migration untested concurrency memory-bridge-paths cwd-current daemon-native cleanup-procs stale-writer monitor-internals dual-host mcp-prefix adr-template-retirement adr-index-retirement adr-reindex-native design-wall flywheel-daily codex-hooks codex-hooks-native codex-skills ruflo-codex-hooks codex-switch plugin-hosts-discovery plugin-hosts-codex-init plugin-hosts brain-release-lockstep brain-console-lifecycle brain-console-provider-keys brain-memory-doctor-roots brain-native-retirement brain-managed-memory-boundary metaharness-codex-hooks)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

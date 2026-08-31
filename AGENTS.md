@@ -30,7 +30,7 @@ npx github:sparkling/ruflo-source-patch all status       # the full readout in o
 ```bash
 npx github:sparkling/ruflo-source-patch cwd install       # anchor .claude-flow/.swarm + durable state to the project root (#2633)
 npx github:sparkling/ruflo-source-patch daemon install    # legacy #2877 compatibility; auto-retires on executable native project-root proof (umbrella #2633)
-npx github:sparkling/ruflo-source-patch memory install    # stronger fail-closed memory.db writer boundary above native #2878 + raw WAL refusal (#2735) + integrity/stale-writer guards; killed MCP clients need manual /mcp reconnect (ADR-006/ADR-023; RSP_NO_STALE_WRITER_KILL disables kills)
+npx github:sparkling/ruflo-source-patch memory install    # canonical path-keyed bridge identity (#3143) + stronger fail-closed memory.db writer boundary above native #2878 + raw WAL refusal (#2735) + integrity/stale-writer guards; killed MCP clients need manual /mcp reconnect (ADR-006/ADR-023; RSP_NO_STALE_WRITER_KILL disables kills)
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 ```

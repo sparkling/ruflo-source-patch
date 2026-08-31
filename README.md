@@ -126,7 +126,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`cwd`** | **Silent data loss.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | **Retired on executable proof in Ruflo 3.38.11+.** Older releases need direct start/stop/status/supervisor paths normalized to one project-root lock/PID identity. Current releases export and use `resolveDaemonProjectRoot()` throughout; retirement executes nested, nested-project, `.git` stop, and no-marker behavior and rejects route/resolver mutations | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
-| **`memory`** | `.swarm/memory.db` durability above Ruflo 3.38.12's native #2878 shared-lock baseline: stricter token/inode-safe fail-closed lock ownership and outer fallback/bridge serialization, **WAL-sidecar refusal**, an **integrity gate**, and a **stale-writer guard**. The monitor forces every positively resolved pre-patch daemon/MCP writer onto current bytes and names the manual `/mcp` reconnect required after an MCP kill; `RSP_NO_STALE_WRITER_KILL` disables kills | [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
+| **`memory`** | Keeps an explicit project/user database path an authority boundary: one long-lived bridge process gets one canonical registry state per database instead of silently reusing whichever store opened first. Above Ruflo 3.38.12's native #2878 shared-lock baseline it also retains stricter token/inode-safe fail-closed lock ownership and outer fallback/bridge serialization, **WAL-sidecar refusal**, an **integrity gate**, and a **stale-writer guard**. The monitor forces every positively resolved pre-patch daemon/MCP writer onto current bytes and names the manual `/mcp` reconnect required after an MCP kill; `RSP_NO_STALE_WRITER_KILL` disables kills | [#3143](https://github.com/ruvnet/ruflo/issues/3143) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
 | **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, `host-update`, and bounded `host-refresh` commands. Installing or self-updating this patch automatically runs the all-installed update once through those injected commands. Normal version changes use each host's supported update/reinstall path; exact tree comparison also repairs same-version collisions. Claude user and active project/local scopes plus Codex are covered; disabled, managed, and orphaned-project registrations are preserved. Host CLIs are resolved through validated PATH/PATHEXT, effective-account and configured user roots (npm/pnpm/Volta/Bun/mise/asdf/Homebrew), plus revalidated persisted package roots, so a narrow PATH or migrated `HOME` cannot silently skip reconciliation. Stale canonical marketplace paths are repaired only through host CLIs; foreign same-named sources are refused. The bundled Codex initializer uses the same literal-argv boundary. Revision-specific fragment proof prevents an older injected body from reporting current. The patch never copies or directly edits host caches and reports partial completion as nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 
@@ -194,10 +194,16 @@ Codex does not turn third-party plugin commands into root slash commands like Cl
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
 A new Codex session is required after install because the session loads its skill inventory at
-startup. Brain 4.0.36 also exposes a live-update edge tracked in
-[#128](https://github.com/stuinfla/ruvnet-brain/issues/128): fresh sessions must discover only the
+startup. Brain 4.3.3 still exposes the Codex half of the live-update edge now tracked in
+[#223](https://github.com/stuinfla/ruvnet-brain/issues/223): fresh sessions must discover only the
 registry generation, while an already-open session must retain a readable catalog path until its
-lease/grace period ends. Immediate pruning satisfies only the first half and can strand the second.
+lease/grace period ends. [#128](https://github.com/stuinfla/ruvnet-brain/issues/128) fixed stale
+fresh-session discovery, and [#153](https://github.com/stuinfla/ruvnet-brain/issues/153) added
+PID-incarnation leases for Claude's cache. The shipped pruning path and `.in_use` leases remain
+Claude-only; Codex's host-native refresh can therefore delete the absolute versioned skill path held
+by a live boot catalogue. There is deliberately no downstream cache/updater shim: save work and
+restart the affected Codex session once to rebuild its catalogue, then wait for the upstream
+dual-host lease/GC fix.
 
 #### MetaHarness under Codex
 
@@ -363,18 +369,44 @@ state rooting remains tracked by [#2633](https://github.com/ruvnet/ruflo/issues/
 
 ### `memory`
 
-Fixes `.swarm/memory.db` durability: concurrent writers that silently drop acknowledged writes,
-and raw whole-image access that is unsafe while a native WAL connection is attached.
+Fixes three distinct memory authority failures: a long-lived bridge silently reusing the wrong
+database, concurrent writers silently dropping acknowledged writes, and raw whole-image access that
+is unsafe while a native WAL connection is attached.
 
 `memory.db` is written by **two different SQLite engines**: the AgentDB bridge
 (better-sqlite3, **WAL mode**) and a fallback that does a whole-file read-modify-write
 (sql.js: `db.export()` → atomic rename). Ruflo 3.25.2 made those flushes atomic
-([#2585](https://github.com/ruvnet/ruflo/pull/2585)), closing the *torn-write* class. The two
-distinct failures reproduced in 3.33.0 were cross-process lost updates
+([#2585](https://github.com/ruvnet/ruflo/pull/2585)), closing the *torn-write* class. The distinct
+durability failures reproduced in 3.33.0 were cross-process lost updates
 ([#2878](https://github.com/ruvnet/ruflo/issues/2878), focused follow-up to closed #2621) and
 WAL-incoherent sql.js access. Ruflo 3.38.12 now routes ordinary sql.js writers through native
 `withMemoryDbLock()`. This target retains the stronger fail-closed ownership/outer-serialization delta,
-WAL refusal, integrity gate, and stale-writer recovery without altering the native bridge.
+WAL refusal, integrity gate, and stale-writer recovery. It separately repairs the bridge identity
+defect tracked by [#3143](https://github.com/ruvnet/ruflo/issues/3143).
+
+#### The database path is an authority boundary
+
+`memory-bridge.js` accepts an explicit `dbPath`, but Ruflo 3.38.20 stores `registryPromise`,
+`registryInstance`, availability, and failure reason in four module-global variables. After the first
+successful open, every later call returns that same registry without comparing the requested path.
+Measured in one process against two populated stores:
+
+```text
+project A -> user B    6,462 project rows -> 0 user rows
+user B -> project A      212 user rows    -> 212 user rows, including a user-only key
+```
+
+The reverse-order result proves this is wrong-store reuse, not search quality or corruption. A live
+WAL only makes the downstream fallback refusal visible; refusing raw access is correct and must not
+be removed to hide this symptom.
+
+The patch keys the complete bridge state by a canonical database identity: absolute path, plus
+`realpath` for an existing file or its existing parent. Initialisation promises deduplicate one path, while project and user
+stores retain independent instances, availability, failure reasons, and shutdown lifecycles. First
+initialisations are queued because upstream temporarily replaces process-global `console.log`; after
+initialisation, operations remain independent. The regression suite proves A -> B, B -> A, concurrent
+reads, symlink identity, path-scoped availability and diagnostics, scoped shutdown, and all-registry
+shutdown. Retirement requires upstream #3143 to pass those behaviors through the shipped bridge API.
 
 #### The write lock
 
@@ -1364,12 +1396,13 @@ A test that cannot fail is worth nothing, and you only find out by making it fai
 
 Issue state is evidence to inspect, never the retirement signal. The full audit was refreshed on
 2026-08-15 against exact published Ruflo 3.38.12, `ruflo-core` 0.2.6, active Claude/Codex caches,
-published Brain 4.0.36, current upstream issue threads, and exact installed behavior. A separately
-staged Brain 4.0.52-dev host copy is not public release evidence. #2877 and #2666 now retire on
+published Brain 4.0.36, current upstream issue threads, and exact installed behavior. A focused
+2026-08-31 revalidation reproduced Ruflo #3143 on 3.38.20 and the Codex cache-lifecycle gap in active
+Brain 4.3.3; it did not reinterpret unrelated rows in this audit. #2877 and #2666 now retire on
 executable native proof; #2878 supplies the native ordinary-writer baseline while the stronger memory
 target remains. Brain #76, #81, and #86 remain retired after executable replacement and mutation proof.
 #79 remains narrowed despite closure; #77's release rail is fixed but its doctor acceptance remains
-incomplete; #128 tracks stale host-cache discovery plus live-session path retention; and #129/#130
+incomplete; #223 tracks the missing Codex live-generation lease after #128/#153; and #129/#130
 track native update-plane defects that this downstream package must not replace. MetaHarness #168
 remains reproducible in `metaharness@0.4.7` and `@metaharness/host-codex@0.1.2`.
 
@@ -1380,6 +1413,7 @@ closed label.** The table records the full acceptance result.
 |-------|------------------|--------------|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | **Closed historical/incomplete.** Its quoted-sequence fix did not make ordinary writers share a lock | Superseded as the active acceptance target by focused #2878 |
 | [#2878](https://github.com/ruvnet/ruflo/issues/2878) | **Closed and delivered for the ordinary-writer baseline in 3.38.12.** `ensureSchemaColumns`, temporal decay, store, get, delete, and purge share native `withMemoryDbLock()` | Keep `memory` only for its stronger fail-closed ownership/outer serialization, WAL refusal, integrity gate, and stale-writer recovery |
+| [#3143](https://github.com/ruvnet/ruflo/issues/3143) | **Open and reproduced in 3.38.20.** `getRegistry(dbPath)` accepts a path but returns one process-global registry after the first open; availability and failure state are global too. Project-first hides the user store, while user-first makes a project request return user rows | Keep the path-keyed `memory` bridge overlay. Retire only after executable A -> B, B -> A, concurrent-open, canonical-alias, per-path-failure, and scoped/all-shutdown proof |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | **Open, residual live in 3.38.16.** Durable permission/swarm/neural/helper/hook-session state still has raw or implicit cwd paths; daemon identity is fixed separately by #2877 | Keep `cwd` and `cleanup`; release-shaped session repairs fail closed on drift, and `daemon` retires on native proof |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634), [#2635](https://github.com/ruvnet/ruflo/issues/2635), [#2636](https://github.com/ruvnet/ruflo/issues/2636), [#2637](https://github.com/ruvnet/ruflo/issues/2637) | **Fixed completely** in 3.32.36/3.32.37: backed skills, adapter fallback, both native scaffolds, root secret ignores | `dual` remains for #2638 and its stricter transaction, not these defects |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | **Open.** Claude and Codex instructions still have separate generators | Keep `dual` |
@@ -1418,7 +1452,9 @@ closed label.** The table records the full acceptance result.
 | [Brain #86](https://github.com/stuinfla/ruvnet-brain/issues/86) | **Closed and delivered in active 4.0.12.** The catalog is packed/staged/validated and missing data produces an explicit unverified UI state | `brain-console-provider-keys` retires terminally on positive, degraded, staging-refusal, and UI behavior |
 | [Brain #102](https://github.com/stuinfla/ruvnet-brain/issues/102) | **Closed and published in 4.0.36.** The structural invocation classifier fixes flag misses, grep variance, and prose false positives | Keep `brain-managed-memory-boundary` only for #103's remaining default-enforcement/diagnostic delta; preserve the native detector |
 | [Brain #103](https://github.com/stuinfla/ruvnet-brain/issues/103) | **Closed but behaviorally incomplete in published 4.0.36.** The opt-in `managedMemoryBoundary` setting supplies `read-only` / `block`, but defaults to `advise`; the maintainer explicitly records that host non-execution is unproved, and no audited diagnostic or truthful doctor/Console state landed | Keep `brain-managed-memory-boundary` until the complete published boundary passes both hosts and the diagnostic/mutation matrix |
-| [Brain #128](https://github.com/stuinfla/ruvnet-brain/issues/128) | **Open on published 4.0.36.** Claude can discover retained stale generations; Codex shows the complementary failure when an update deletes the versioned skill path held by an already-open session | No downstream cache shim. Upstream must bind fresh discovery to registry `installPath`, keep retained copies inert to new sessions, and collect an old path only after its live-session lease/grace expires |
+| [Brain #128](https://github.com/stuinfla/ruvnet-brain/issues/128) | **Closed after fixing stale-generation discovery, but its recorded live-session counterexample was not covered by immediate pruning.** A fresh session must see only the registry generation; an open session must keep its boot-catalog paths readable | Fresh discovery remains native. Live-generation retention moved to #153 for Claude and now #223 for the missing Codex half |
+| [Brain #153](https://github.com/stuinfla/ruvnet-brain/issues/153) | **Closed and delivered for Claude in active 4.3.3.** Exact PID-incarnation `.in_use` leases protect Claude cache generations, registry bytes are re-read at deletion, and ambiguous state fails closed. The shipped pruner still reads only Claude's registry and Codex has no equivalent lease | Preserve the native Claude fix. Do not claim its “dual-host integration” test proves a live Codex boot catalogue; #223 supplies that real-host acceptance matrix |
+| [Brain #223](https://github.com/stuinfla/ruvnet-brain/issues/223) | **Open and reproduced in active 4.3.3.** A Codex session catalogued 4.2.2-dev; native convergence replaced its cache with 4.3.3, leaving the absolute `SKILL.md` path dangling. Claude has `.in_use` leases; Codex does not | No downstream cache, updater, stable-path, delay, or pin. Upstream must add an exact Codex session/app-server generation lease and lease-aware host GC; the current session recovers only by restart after saving work |
 | [Brain #129](https://github.com/stuinfla/ruvnet-brain/issues/129) | **Open on published 4.0.36.** Non-Darwin `--enable-nightly` exits successfully after printing a KB-only cron recipe; the installed macOS LaunchAgent invokes that same `forge-update.mjs --apply` path. Neither scheduled route runs full host convergence | Keep the one native SessionStart coordinator; do not add a downstream updater. Upstream should make every platform scheduler call one stable full coordinator, install/verify a systemd-or-cron Linux job, give Windows a real scheduler or explicit nonzero unsupported result, and add a coordinator-wide lock |
 | [Brain #130](https://github.com/stuinfla/ruvnet-brain/issues/130) | **Open on published 4.0.36.** One failed run created 23 full snapshots (~43 GiB) and downloaded the same combined bundle 23 times; four older copies made 27/~50 GiB cumulative. The internal reclaimer then refused every backup because `node_modules/.bin/semver` made its recursive inventory “incomplete” | No raw deletion or replacement reclaimer. Preserve the backups until upstream downloads/applies once per transaction, retains at most one full-copy-equivalent rollback, scopes inventory to governed stores, distinguishes pre-existing guard failure, and exposes a supported dry-run reclaim command; #131 is the duplicate macOS report |
 | [Brain #133](https://github.com/stuinfla/ruvnet-brain/issues/133) | **Open on published 4.0.36.** #122 intentionally exits an idle worker after 15 minutes, but the stable parent records that clean retirement as unexpected. Every live shell also overwrites one user-global readiness receipt, making multi-session health last-writer-wins | No downstream lifecycle shim. Upstream should add a structured worker-retirement handshake, per-shell readiness with PID-reuse-safe aggregation, healthy-idle/next-search respawn semantics, and multi-shell crash/idle/ready regression proof |

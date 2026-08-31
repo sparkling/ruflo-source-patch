@@ -1,12 +1,14 @@
-# ADR-006: memory: fail-closed serialization and WAL-sidecar refusal for memory.db
+# ADR-006: memory: path identity, fail-closed serialization, and WAL refusal
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-15. Exact published Ruflo 3.38.12 now routes ordinary sql.js mutators and
-native purge through shared `withMemoryDbLock()`, delivering the basic #2878 lost-update baseline.
-The local target remains for its stronger outer bridge/fallback serialization, fail-closed token and
-inode-safe ownership, no mtime-only lock theft, raw WAL-sidecar refusal, integrity gate, and stale-writer
-enforcement. Closed #2621 remains the historical report.
+**Updated**: 2026-08-31. Exact published Ruflo 3.38.12 routes ordinary sql.js mutators and native
+purge through shared `withMemoryDbLock()`, delivering the basic #2878 lost-update baseline. Ruflo
+3.38.20 still caches one process-global native registry despite accepting an explicit database path
+(#3143). The local target keys that state by canonical database identity and retains its stronger
+outer bridge/fallback serialization, fail-closed token/inode ownership, no mtime-only lock theft,
+raw WAL-sidecar refusal, integrity gate, and stale-writer enforcement. Closed #2621 remains the
+historical lost-update report.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, durability, data-loss
 
@@ -29,7 +31,27 @@ the fallback reads and replaces the main file as a complete image. `sql.js` cann
 image and replacing it can detach or mispair the holder's WAL. A helper must not "repair" that
 state by checkpointing or removing another connection's sidecars.
 
+There is also a separate identity hazard inside the native bridge. `getRegistry(dbPath)` accepts an
+explicit project or user database, but Ruflo 3.38.20 caches one module-global promise, instance,
+availability state, and failure reason. The first database opened wins for the process. Project-first
+made a later user request return no user rows; user-first made a later project request return all 212
+user rows, including a user-only key. That is an authority-boundary failure, not a WAL or search
+quality failure.
+
 ## Decision
+
+### Key native bridge state by canonical database identity
+
+Replace the process-global registry lifecycle with a map keyed by `path.resolve(dbPath)` and the
+`realpath` of an existing file or existing parent. Each database owns its initialization promise, registry instance,
+availability state, failure reason, and shutdown lifecycle. Relative, absolute, and symlink aliases
+of one existing store therefore share one state, while the user store and every project store remain
+independent.
+
+First initialization is queued because upstream temporarily replaces process-global `console.log`
+while `ControllerRegistry` starts. Once initialized, operations on independent registries remain
+concurrent. A failed A initialization cannot disable B. `shutdownBridge(path)` closes only that
+canonical store; `shutdownBridge()` closes every unique registry exactly once.
 
 ### Serialize every exported writer, and fail closed
 
@@ -78,6 +100,9 @@ per-function gates remain useful, but the boundary also covers `ensureSchemaColu
 
 - Concurrent cross-process and same-process sibling writes serialize; the executable regression
   keeps all 80/80 cross-process updates and 40/40 sibling updates.
+- An explicit project or user path remains authoritative in either call order; a first-opened store
+  cannot capture later requests in the same MCP process.
+- Availability, degraded-path diagnostics, and shutdown are scoped to the database that owns them.
 - Lock acquisition failure aborts before the callback, so failure cannot look like success.
 - A raw fallback cannot read or replace the main database while native WAL state exists.
 - The patch no longer mutates a live database merely because a helper attempted a read.
@@ -91,6 +116,8 @@ per-function gates remain useful, but the boundary also covers `ensureSchemaColu
   verify that no writer owns it before removing it; the patch intentionally refuses to guess.
 - Fallback access is unavailable while a native connection keeps WAL sidecars present. The native
   bridge must succeed, or the holder must close before retrying.
+- One process can now hold several native registries. Their resources remain live until a scoped or
+  all-registry shutdown; initialization is deliberately serialized around upstream's global logger.
 
 ### Neutral
 
@@ -103,8 +130,10 @@ per-function gates remain useful, but the boundary also covers `ensureSchemaColu
 ## Links
 
 - Upstream: [#2878](https://github.com/ruvnet/ruflo/issues/2878),
+  [#3143](https://github.com/ruvnet/ruflo/issues/3143),
   [#2735](https://github.com/ruvnet/ruflo/issues/2735),
   [#2621](https://github.com/ruvnet/ruflo/issues/2621),
   [#2584](https://github.com/ruvnet/ruflo/issues/2584)
-- `lib/cwd/patch-library.mjs` (`memLock`, `walRefusal`, `integrityGate` fragments)
+- `lib/cwd/patch-library.mjs` (`bridgeRegistryMap`, `memLock`, `walRefusal`, `integrityGate` fragments)
+- `test/memory-bridge-paths.mjs` (first-open defect, two-store identity, aliases, diagnostics, shutdown)
 - `test/concurrency.mjs` (cross-process, sibling, reentrancy, fail-closed, ownership, WAL tests)

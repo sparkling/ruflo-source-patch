@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **thirty-two suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
+`npm test` runs **thirty-four suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
 
 ## Contents
 
@@ -20,6 +20,7 @@
 | `hooks-migration.mjs` | User-level hook reconciliation across host/home migrations: stale unmarked paths and duplicate marked entries collapse to one current hook per event while unrelated hooks survive install and uninstall. |
 | `untested.mjs` | The SessionStart hook body, `cleanup`'s directory half, the script targets, the shell scripts. All of them had *zero* coverage until it was measured rather than assumed. |
 | `concurrency.mjs` | Concurrent installs; the **injected fail-closed memory lock actually executing** across processes and sibling Promises, nested reentrancy, owner-safe release, native purge, torn-image and WAL-sidecar refusal; plus plugin-throw handling, uncovered-build and zero-file failure, and status/check/all-status parity. |
+| `memory-bridge-paths.mjs` | Ruflo #3143's process-global registry defect and its path-keyed replacement: pristine first-open-wins proof, project/user A -> B and B -> A isolation, canonical symlink identity, per-path availability/diagnostics, scoped shutdown, all-registry shutdown, and source/status proof. |
 | `cwd-current.mjs` | Exact Ruflo 3.38.12 residual cwd coverage: permission state, permission audit, swarm state, neural-weft defaults, generated helpers, and byte-safe uninstall. |
 | `daemon-native.mjs` | Native #2877 structural and executable root-resolution proof, deliberate resolver/route mutations, mixed legacy/native fleets, terminal retirement, and pristine preservation. |
 | `cleanup-procs.mjs` | `cleanup`'s **kill** half. Real processes, real `pgrep`/`lsof`/`ps`. |

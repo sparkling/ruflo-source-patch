@@ -19,11 +19,11 @@ the engine everything else stands on.
 |---|---|
 | `cwd` | `.claude-flow`/`.swarm` follow a drifted `process.cwd()`, giving you a state dir per visited subdirectory |
 | `daemon` | legacy #2877 compatibility; current Ruflo retires it only after structural and executable project-root proof |
-| `memory` | stronger `memory.db` durability above native #2878: token/inode-safe fail-closed lock ownership, raw **WAL-sidecar refusal** (#2735), integrity gate, and stale-writer recovery |
+| `memory` | canonical per-database bridge identity (#3143), plus stronger `memory.db` durability above native #2878: token/inode-safe fail-closed lock ownership, raw **WAL-sidecar refusal** (#2735), integrity gate, and stale-writer recovery |
 | `init` | suppress plugin-duplicated bundle/hooks/MCP generation while retaining bounded upstream init fixes |
 | `plugin-hosts` | add issue-backed dual-host Ruflo marketplace install/sync/uninstall commands |
 
-`patch-library.mjs` holds the entry table (38 declared entries across the 5 targets) and the engine that composes
+`patch-library.mjs` holds the entry table (44 declared entries across the 5 targets) and the engine that composes
 them. Several entries share a file, so the rebuild is **from pristine plus the desired entry set**, never
 a sequence of in-place edits. That is what makes `memory uninstall` able to remove the write lock while
 leaving `cwd`'s anchoring in the same file untouched.
