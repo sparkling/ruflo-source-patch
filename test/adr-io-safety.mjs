@@ -207,7 +207,8 @@ const stateFile = process.env.FAKE_MEMORY_STATE;
 const logFile = process.env.FAKE_MEMORY_LOG;
 const args = process.argv.slice(2);
 fs.appendFileSync(logFile, JSON.stringify({ args, cwd: process.cwd() }) + '\\n');
-const op = args[2];
+const memoryAt = args.indexOf('memory');
+const op = args[memoryAt + 1];
 const option = (name) => {
   const eq = args.find((v) => v.startsWith('--' + name + '='));
   if (eq) return eq.slice(name.length + 3);
@@ -251,6 +252,7 @@ if (op === 'retrieve') {
 console.error('unexpected fake operation: ' + op); process.exit(9);
 `;
 fs.writeFileSync(path.join(BIN, 'npx'), FAKE_NPX, { mode: 0o755 });
+fs.writeFileSync(path.join(BIN, 'ruflo'), FAKE_NPX, { mode: 0o755 });
 
 process.env.RUFLO_SOURCE_PATCH_HOME = SANDBOX;
 process.env.RSP_NO_LAUNCHCTL = '1';
@@ -285,6 +287,10 @@ const run = (name, extra = {}) => {
   });
 };
 const calls = () => fs.readFileSync(LOG, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+const operation = (call) => {
+  const memoryAt = call.args.indexOf('memory');
+  return call.args[memoryAt + 1];
+};
 const reset = (state = { 'adr-patterns': {}, 'adr-edges': {}, listCalls: 0 }) => fs.writeFileSync(STATE, JSON.stringify(state));
 
 reset();
@@ -303,6 +309,13 @@ for (const mode of ['nonzero', 'signal', 'malformed', 'nonarray', 'bad-entry', '
   check(`AIS6 verifier fails closed on ${mode}`, result.status !== 0 && result.stdout.includes('readErrors'));
 }
 
+fs.renameSync(path.join(BIN, 'ruflo'), path.join(BIN, 'ruflo.missing'));
+reset();
+result = run('verify.mjs', { VERIFY_FORMAT: 'json', PATH: BIN });
+check('AIS6 a missing installed Ruflo CLI fails closed without falling back to npx',
+  result.status !== 0 && result.stdout.includes('ENOENT') && calls().length === 0);
+fs.renameSync(path.join(BIN, 'ruflo.missing'), path.join(BIN, 'ruflo'));
+
 const ALT_ROOT = path.join(SANDBOX, 'alternate-project');
 fs.mkdirSync(path.join(ALT_ROOT, '.swarm'), { recursive: true });
 fs.writeFileSync(path.join(ALT_ROOT, '.swarm', 'memory.db'), 'fake-not-sqlite\n');
@@ -311,7 +324,7 @@ result = run('verify.mjs', { VERIFY_FORMAT: 'json', ADR_DB_ROOT: ALT_ROOT, CLI_C
 check('AIS6 explicit ADR_DB_ROOT controls one path/backend independently of scan scope',
   result.status === 0 && result.stderr.includes('CLI_CORE=1 is ignored')
   && calls().every((call) => call.cwd === ALT_ROOT
-    && call.args[0] === '@claude-flow/cli@latest'
+    && call.args[0] === 'memory'
     && call.args.includes('--path=' + path.join(ALT_ROOT, '.swarm', 'memory.db'))));
 
 const ORPHAN_SCAN = path.join(SANDBOX, 'unowned-scan');
@@ -349,8 +362,8 @@ result = run('import.mjs', { IMPORT_FORMAT: 'json' });
 let report = JSON.parse(result.stdout);
 check('AIS8 importer proves each write in a fresh process and exact final key sets',
   result.status === 0 && report.verifiedWrites === 3 && report.postCondition.ok
-  && calls().filter((call) => call.args[2] === 'store').length === 3
-  && calls().filter((call) => call.args[2] === 'retrieve').length === 3);
+  && calls().filter((call) => operation(call) === 'store').length === 3
+  && calls().filter((call) => operation(call) === 'retrieve').length === 3);
 
 for (const mode of ['false-success', 'readback-mismatch', 'wrong-final']) {
   reset();

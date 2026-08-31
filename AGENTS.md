@@ -40,7 +40,7 @@ npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install
 ```bash
 npx github:sparkling/ruflo-source-patch adr-template install      # legacy creator/parser compatibility; auto-retires on four-copy behavior proof (#2659)
 npx github:sparkling/ruflo-source-patch adr-index install         # retired after active native convergence + reindex-route proof (#2660)
-npx github:sparkling/ruflo-source-patch adr-io-safety install     # complete fail-closed ADR reads + proven managed writes; refuse purge-first reindex (#3147/#3097)
+npx github:sparkling/ruflo-source-patch adr-io-safety install     # exact installed-Ruflo driver + fail-closed ADR reads/proven writes; refuse purge-first reindex (#3147/#3097)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share one proven lock with every writer (#2666/#2878)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)
 npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # retired on Ruflo's native read-only status skill (#2821)

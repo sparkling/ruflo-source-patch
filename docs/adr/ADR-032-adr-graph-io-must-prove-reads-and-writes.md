@@ -21,6 +21,12 @@ failed writes. A real dry run contained 107 records plus 460 edges, so the healt
 cold process starts. The 718 MB AgentDB observed during diagnosis existed before that importer run; the
 importer did not create it.
 
+A live hz reproduction exposed a second identity split even at the same semantic version. Installed
+`ruflo` 3.38.20 loaded native `better-sqlite3`; `npx @claude-flow/cli@latest` also reported 3.38.20 but
+loaded sql.js. Against the same explicit healthy database and live WAL, installed Ruflo returned all 95
+ADR rows while the npx child was correctly refused as unsafe whole-image access. Package/version identity
+therefore does not prove storage-driver identity.
+
 `reindex.mjs` purges both live namespaces and then performs the same independent writes. Ruflo 3.38.12's
 shared writer lock prevents concurrency races, which was enough to retire the legacy #2666 compatibility
 target. It does not make the purge and later rebuild one transaction. A failure after purge can leave the
@@ -40,7 +46,9 @@ the entire bundle. Status counts expected members before reading them.
 All runtime operations separate scan scope from store identity. A canonical project root must be proven
 from an explicit project marker unless `ADR_DB_PATH` or `ADR_DB_ROOT` supplies authority. Ruflo's existing
 managed path variables/configuration remain supported. Every managed call receives the same absolute
-`--path`; an existing database must be a regular non-symlink file.
+`--path`; an existing database must be a regular non-symlink file. Calls use the installed `ruflo`
+executable so verification and writes share the host's live native driver. An optional `RUFLO_ADR_CLI`
+override must be absolute and resolve to a regular file. Absence is fatal; there is no npx fallback.
 
 Verifier reads are discriminated and complete-or-failed. Each namespace request has a bounded timeout,
 buffer, and explicit cap-plus-one. The whole stdout must parse as one JSON array; every row must have a
@@ -72,6 +80,7 @@ retire the patch; marker or issue state alone is likewise insufficient.
 
 - An unreadable store cannot become a healthy empty graph.
 - Scan scope cannot silently redirect writes to another database.
+- Same-version npx cache drift cannot silently switch ADR I/O to a different storage driver.
 - A successful import means a fresh managed process read back every exact submitted value and the final
   deterministic key sets match.
 - The destructive purge-first path is unavailable instead of relying on recovery after partial failure.

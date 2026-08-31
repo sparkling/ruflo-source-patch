@@ -59,8 +59,9 @@ does not discover or alter stores, sidecars, models, updater receipts, versions,
 `adr-io-safety/` owns `verify.mjs`, `import.mjs`, and `reindex.mjs` as one interdependent bundle in
 every active `ruflo-adr` root. Its descriptor-level preflight proves all expected files, exact anchors,
 and regular-file boundaries before composition writes any member. The runtime uses one explicit managed
-database path, fails closed on incomplete reads and unproved writes, and refuses purge-first live
-reindex until upstream supplies an atomic managed reconcile (ADR-032).
+database path through the installed Ruflo executable, fails closed rather than falling back to an npx
+cache with a different AgentDB driver, rejects incomplete reads and unproved writes, and refuses
+purge-first live reindex until upstream supplies an atomic managed reconcile (ADR-032).
 
 `brain-native/` contains fail-closed executable retirement probes. They copy the active persistent
 runtime to a temporary directory, restore locally owned vendor bytes only in that copy, and prove the
