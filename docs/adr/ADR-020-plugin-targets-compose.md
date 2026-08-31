@@ -42,6 +42,10 @@ shared KB. Its `hasPatch` is deliberately narrower than `isPatched`: native-equi
 status, while only the local marker proves ownership during reconciliation. The composition engine now
 prefers that explicit ownership predicate, preventing a marker-free upstream fix from being mistaken for
 an orphaned local patch that requires a backup (ADR-031).
+Ruflo #3147/#3097's `adr-io-safety` adds a descriptor-level preflight for its three-file plugin bundle.
+All active `verify.mjs`, `import.mjs`, and `reindex.mjs` members and exact anchors must pass before any
+member is written; one missing or drifted file protects every claimed file and remains visible in the
+status denominator (ADR-032).
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety

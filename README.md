@@ -35,6 +35,7 @@ keep the rest.
   - [memory](#memory)
   - [adr-template](#adr-template)
   - [adr-index](#adr-index)
+  - [adr-io-safety](#adr-io-safety)
   - [adr-reindex](#adr-reindex)
   - [verify-interface](#verify-interface)
 - [The script targets in detail](#the-script-targets-in-detail)
@@ -159,7 +160,8 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`adr-template`** | Legacy compatibility for stale `ruflo-adr` copies: strips the four list markers old parsers cannot read. After `plugin-hosts` refreshes installed libraries, it executes the creator/parser round trip against both hosts' marketplace and active cache copies and retires itself only when all four pass | [#2659](https://github.com/ruvnet/ruflo/issues/2659) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 | **`adr-index`** | **Retired on executable active-copy proof.** All active Claude/Codex copies execute native stable-key upsert and edge de-duplication, their pristine importers report failed stores honestly, and native `adr-index` routes deletions to a runnable native `adr-reindex`. #2870 remains independent delivery hygiene | [#2660](https://github.com/ruvnet/ruflo/issues/2660) · [#2594](https://github.com/ruvnet/ruflo/issues/2594) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
-| **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. **Retired on Ruflo 3.38.12 executable proof:** the native skill and purge command are present, and purge plus every ordinary sql.js mutator share native `withMemoryDbLock()`. Older builds can qualify through the stronger local `.rsp-lock`; one missing writer keeps the target live | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) |
+| **`adr-io-safety`** | Makes verifier reads complete and fail-closed; separates the ADR scan root from one explicit managed database path; requires each importer write to survive a fresh managed readback; and refuses live purge-first reindex before any mutation. All three scripts preflight as one bundle, so a missing or drifted member leaves every member untouched | [#3147](https://github.com/ruvnet/ruflo/issues/3147) · [#3097](https://github.com/ruvnet/ruflo/issues/3097) |
+| **`adr-reindex`** | Legacy additive reconcile for installations without a runnable native replacement. It retired after proving the native skill, purge command, and shared writer lock in Ruflo 3.38.12. That proof prevents concurrent lost updates but does **not** make purge plus rebuild atomic; `adr-io-safety` now refuses the residual destructive path until #3097 supplies one managed transaction or staging/swap | [#2666](https://github.com/ruvnet/ruflo/issues/2666) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#3097](https://github.com/ruvnet/ruflo/issues/3097) |
 
 #### Ruflo plugins under Codex
 
@@ -622,9 +624,50 @@ difference, was rejected. It trades a stateless one-second rebuild for persisten
 drift, a new "manifest is wrong" failure mode, and a much larger patch surface. The files are the
 truth; nothing else should have to be.
 
+### `adr-io-safety`
+
+Keeps an unreadable or partially written ADR graph from looking healthy.
+
+Current `ruflo-adr` 0.4.1 has three coupled I/O defects:
+
+- `verify.mjs` maps spawn failures, nonzero exits, and malformed JSON to `[]`, omits `--limit`, and
+  can certify an unreadable or truncated graph as a healthy `0/0` graph.
+- `import.mjs` uses `ADR_ROOT` as both scan scope and database cwd, launches one serial `npx` process
+  per row, accepts a successful-looking receipt without proving persistence, and exits zero in both
+  output modes after failed writes.
+- `reindex.mjs` purges the live namespaces before rebuilding. A shared lock prevents concurrent
+  writers, but a later failure can still leave the graph empty or partial; the purge and rebuild are
+  not one transaction.
+
+The patch treats `verify.mjs`, `import.mjs`, and `reindex.mjs` as one bundle. Every active Claude and
+Codex marketplace/cache copy must contain all three regular files and every exact anchor before any
+file is written. Status counts expected files before reading them, so a missing member reports `0/3`,
+not the false comfort of `0/2`.
+
+At runtime, the ADR scan directory and managed store identity are separate. The patch resolves a
+canonical project root from an explicit marker, honors `ADR_DB_PATH` / `ADR_DB_ROOT` and Ruflo's
+managed-memory configuration, rejects a symlink/non-regular database, and passes one absolute
+`--path` to every managed CLI call.
+
+The verifier requests a bounded complete namespace with an explicit cap-plus-one, parses the whole
+stdout as JSON, validates every row and namespace, and treats spawn, signal, timeout, nonzero,
+malformed output, a bad edge key, or an unproved cap as fatal. A successfully read empty graph remains
+valid.
+
+The importer keeps the serial compatibility path because current `memory import` cannot yet prove
+durable writes. It preflights both namespaces before storing, fails on the first bad write, and accepts
+a write only after a fresh managed process retrieves the exact raw bytes. A final complete key-set
+comparison rejects missing and extra rows; JSON and Markdown share nonzero failure semantics.
+
+Live reindex is intentionally unavailable under this patch. Non-dry-run execution exits nonzero before
+calling purge or any writer and explains the missing atomic contract. Dry-run remains a read-only scan.
+Upstream can retire the target by providing either one managed transaction covering stale-row removal,
+upserts, and invariant proof, or a staging namespace/database followed by one atomic pointer/swap. A
+strict batch that runs **after** a separate purge is still unsafe.
+
 ### `adr-reindex`
 
-> **SUPERSEDED only with the shared-lock proof.** `ruflo-adr` 0.4.0+ ships `/adr-reindex`
+> **RETIRED for compatibility, but not a complete safety proof.** `ruflo-adr` 0.4.0+ ships `/adr-reindex`
 > and `@claude-flow/cli` 3.29.0+ ships `memory purge`, but #2666's first acceptance point
 > is not native: purge takes `<db>.lock` while ordinary writers do not. On this installation
 > the `memory` target wraps native purge with their `<db>.rsp-lock`, making the replacement safe.
@@ -635,9 +678,12 @@ truth; nothing else should have to be.
 > the help text and **exits 0**, so against a pre-3.29.0 CLI it reports `adr-patterns: purged` having
 > purged nothing. (Its post-condition catches the mismatch and exits 1, but blames a concurrent writer.)
 >
-> So `apply()` asks all three questions that decide it: **does this machine have the native skill,
+> So the legacy retirement asks all three compatibility questions: **does this machine have the native skill,
 > `memory purge`, and one lock shared with ordinary writers?** Only all three permit retirement.
-> Otherwise it keeps our raw-SQL script and never overwrites upstream's skill file.
+> Otherwise it keeps our raw-SQL script and never overwrites upstream's skill file. That closes the
+> concurrent-writer gap; it does not make purge and rebuild all-or-nothing. `adr-io-safety` owns that
+> newer residual and refuses live reindex until [#3097](https://github.com/ruvnet/ruflo/issues/3097)
+> has an atomic managed replacement.
 
 Rebuilds the graph from the ADR files, for a CLI that cannot yet do it itself.
 
@@ -692,9 +738,9 @@ finished explaining it cannot win.
   number of ADR files**, which catches both directions: too many (the delete didn't stick) and too few
   (stores are failing). It names the likely cause of each.
 
-Because the delete precedes the rebuild, a failed rebuild would leave an **empty** graph, which
-`verify` then certifies as healthy (0 records, 0 dangling refs, 0 cycles is a clean bill of health on
-nothing). The ADR files are never touched; re-running is always safe.
+Because the delete precedes the rebuild, a failed rebuild can leave an **empty or partial** graph. The
+files remain the source of truth, but "re-run it" is recovery after an avoidable destructive gap, not
+an atomicity guarantee. The current `adr-io-safety` target therefore blocks this live path before purge.
 
 ### `verify-interface`
 
@@ -1399,9 +1445,11 @@ Issue state is evidence to inspect, never the retirement signal. The full audit 
 2026-08-15 against exact published Ruflo 3.38.12, `ruflo-core` 0.2.6, active Claude/Codex caches,
 published Brain 4.0.36, current upstream issue threads, and exact installed behavior. A focused
 2026-08-31 revalidation reproduced Ruflo #3143 on 3.38.20 and the Codex cache-lifecycle gap in active
-Brain 4.3.3; it did not reinterpret unrelated rows in this audit. #2877 and #2666 now retire on
-executable native proof; #2878 supplies the native ordinary-writer baseline while the stronger memory
-target remains. Brain #76, #81, and #86 remain retired after executable replacement and mutation proof.
+Brain 4.3.3. It also reproduced the `ruflo-adr` verifier/import/reindex boundary in current main and
+active 0.4.1 host copies. #2877 and the legacy #2666 compatibility target retire on executable native
+proof; #2878 supplies the native ordinary-writer baseline, while #3097 records the still-non-atomic
+purge/rebuild and #3147 records incomplete fail-open reads. Brain #76, #81, and #86 remain retired after
+executable replacement and mutation proof.
 #79 remains narrowed despite closure; #77's release rail is fixed but its doctor acceptance remains
 incomplete; #223 tracks the missing Codex live-generation lease after #128/#153; and #129/#130
 track native update-plane defects that this downstream package must not replace. MetaHarness #168
@@ -1422,7 +1470,9 @@ closed label.** The table records the full acceptance result.
 | [#2651](https://github.com/ruvnet/ruflo/issues/2651) | **Fixed completely** in 3.32.37 | No patch |
 | [#2659](https://github.com/ruvnet/ruflo/issues/2659) | **Fixed completely for active hosts.** The automatic plugin refresh delivered current parser bytes and all four active Claude/Codex marketplace/cache copies pass the creator/indexer round trip | `adr-template` retires locally on executable proof; #2870 independently tracks the reused identity |
 | [#2660](https://github.com/ruvnet/ruflo/issues/2660) | **Fixed completely for active hosts.** All active Claude/Codex copies execute native convergence and honest counting, and native `adr-index` routes deletions to native `adr-reindex` | `adr-index` retired on local proof; #2870 remains a separate release-identity issue |
-| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | **Closed and behaviorally complete in the exact 3.38.12 installation.** Native reindex/purge exist and purge shares `withMemoryDbLock()` with every ordinary sql.js writer | `adr-reindex` retires terminally after the installed skill/command/shared-lock proof; older builds remain patchable |
+| [#2666](https://github.com/ruvnet/ruflo/issues/2666) | **Closed and complete for its compatibility/locking scope in the exact 3.38.12 installation.** Native reindex/purge exist and purge shares `withMemoryDbLock()` with every ordinary sql.js writer. That does not prove the later purge-plus-rebuild sequence is atomic | `adr-reindex` remains retired; `adr-io-safety` separately refuses the residual destructive path tracked in #3097 |
+| [#3097](https://github.com/ruvnet/ruflo/issues/3097) | **Open and reproduced in current main / active `ruflo-adr` 0.4.1.** Scan root and database identity are conflated; failed stores can exit zero; serial per-row startup has no timeout; and purge-first reindex can erase the live graph before a later failure | Keep `adr-io-safety`: exact store path, managed preflight, fresh-process byte readback, fail-fast/nonzero import, and zero-mutation live-reindex refusal until one atomic managed reconcile exists |
+| [#3147](https://github.com/ruvnet/ruflo/issues/3147) | **Open and reproduced in current main / active `ruflo-adr` 0.4.1.** Verifier failures become `[]`, the default 20-row page is treated as complete, and malformed edges are silently skipped | Keep `adr-io-safety` until the installed verifier proves complete namespace reads and fails every spawn/signal/timeout/nonzero/parse/schema/cap error while preserving a genuine empty graph |
 | [#2672](https://github.com/ruvnet/ruflo/issues/2672) | **Correctly retracted / not planned.** Its premise was false | No patch |
 | [#2685](https://github.com/ruvnet/ruflo/issues/2685), [#2706](https://github.com/ruvnet/ruflo/issues/2706) | **Fixed completely.** Fleet and missed core references are native | `mcp-prefix` retired |
 | [#2765](https://github.com/ruvnet/ruflo/issues/2765) | **Fixed completely** in 3.32.36 | No patch |

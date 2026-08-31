@@ -50,6 +50,7 @@ import { PATCH_TARGETS, TARGET_INFO } from '../lib/cwd/patch-library.mjs';
 import { scriptCommand, SCRIPT_TARGETS } from '../lib/dual/commands.mjs';
 import { adrTemplateCommand } from '../lib/adr-template/commands.mjs';
 import { adrIndexCommand } from '../lib/adr-index/commands.mjs';
+import { adrIoSafetyCommand } from '../lib/adr-io-safety/commands.mjs';
 import { adrReindexCommand } from '../lib/adr-reindex/commands.mjs';
 import { verifyInterfaceCommand } from '../lib/verify-interface/commands.mjs';
 import { mcpPrefixCommand } from '../lib/mcp-prefix/commands.mjs';
@@ -80,6 +81,7 @@ const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle', 'plugin-on
 const PLUGIN_PATCH_TARGETS = {
   'adr-template': adrTemplateCommand,
   'adr-index': adrIndexCommand,
+  'adr-io-safety': adrIoSafetyCommand,
   // Adds the /adr-reindex SKILL to ruflo-adr (and materializes the script it invokes). A plugin
   // target, not a script one: the skill lives inside ruflo-adr, so `/plugin update` deletes it.
   'adr-reindex': adrReindexCommand,
@@ -130,8 +132,9 @@ Patch targets                  (actions: install | uninstall | status)
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)
   ${pad('adr-index')}legacy convergence compatibility; self-retires on native behavior proof (#2660)
-  ${pad('adr-reindex')}ADDS the /adr-reindex skill — reconcile the deletions upsert can't reap
-  ${pad('')}  (requires \`memory\`: it hard-deletes rows and needs the write lock)
+  ${pad('adr-io-safety')}fail closed on incomplete ADR reads/writes; refuse unsafe purge-first reindex (#3147/#3097)
+  ${pad('adr-reindex')}legacy /adr-reindex compatibility; retired on native skill + shared-lock proof
+  ${pad('')}  (locking alone is not atomic reconcile; adr-io-safety refuses the residual live path)
 
 Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)

@@ -2,7 +2,7 @@
 
 [← ruflo-source-patch](../README.md)
 
-`npm test` runs **thirty-five suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
+`npm test` runs **thirty-six suites** plus the shared `fixtures.mjs` helper. No framework, no dependencies.
 
 ## Contents
 
@@ -30,6 +30,7 @@
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |
 | `adr-template-retirement.mjs` | Active Claude/Codex parser discovery plus executable creator/parser proof, orphaned project handling, byte-exact restore, and terminal retirement. |
 | `adr-index-retirement.mjs` | Active Claude/Codex native convergence, honest importer counting, poisoned-backup refusal, runnable reindex routing, byte-exact restore, and terminal retirement. |
+| `adr-io-safety.mjs` | Ruflo #3147/#3097's three-script bundle: complete fail-closed reads, exact managed-store identity, fresh-process byte readback, fail-fast/nonzero import, zero-op live-reindex refusal, legacy-target composition, missing/ambiguous bundle guards, exact-state native retirement probes, and byte-exact restoration without opening a real database. |
 | `adr-reindex-native.mjs` | Native #2666 retirement only when purge and all ordinary sql.js mutators share one proven `withMemoryDbLock()`; one unlocked-writer mutation and nested global Ruflo discovery fail closed. |
 | `design-wall.mjs` | The real hook behavior and fail-closed retirement of the legacy design-wall patch. |
 | `flywheel-daily.mjs` | The flywheel advisory's daily/project scope, concurrent atomic claim, fail-silent path, and byte-safe lifecycle. |

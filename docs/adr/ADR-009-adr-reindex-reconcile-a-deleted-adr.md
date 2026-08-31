@@ -2,11 +2,14 @@
 
 **Status**: Superseded
 **Date**: 2026-07-14
-**Updated**: 2026-08-15. Exact published Ruflo 3.38.12 now routes native purge and every ordinary
+**Updated**: 2026-08-31. Exact published Ruflo 3.38.12 now routes native purge and every ordinary
 sql.js mutator through shared `withMemoryDbLock()`. The retirement predicate accepts either that
 complete native writer set or the stronger local `.rsp-lock` overlay, rejects a single unlocked
 writer, and checks nested global `ruflo` installations. The additive compatibility target remains
-terminally retired where the native skill, purge command, and shared-lock proof all pass.
+terminally retired where the native skill, purge command, and shared-lock proof all pass. That proof
+prevents concurrent lost updates but does not make a purge followed by hundreds of independent writes
+atomic. ADR-032 supersedes that residual safety assumption and refuses live reindex until one managed
+transaction or staging/swap covers removal, rebuild, and invariant proof.
 **Deciders**: Henrik Pettersen
 **Tags**: patch-target, plugin, adr, superseded
 
@@ -31,7 +34,9 @@ namespaces are a derived cache, and for a derived cache the correct reconcile is
 The legacy script REQUIRES the `memory` target (ADR-006). This is the one operation whose entire job is
 to delete rows, and without a shared write lock a concurrent daemon holding a pre-delete image flushes
 it back and resurrects everything just removed. Current native reindex uses native purge, whose complete
-3.38.12 writer set now passes the same shared-lock retirement boundary.
+3.38.12 writer set passes the same shared-lock retirement boundary. Shared exclusion is necessary but
+insufficient: if purge commits and a later store, process, or readback fails, the live derived graph is
+empty or partial.
 
 It is a PLUGIN target rather than a script one because the skill file lives inside someone else's plugin: a
 `/plugin update` re-fetches `ruflo-adr` wholesale and takes the skill with it, silently.
@@ -47,15 +52,18 @@ It is a PLUGIN target rather than a script one because the skill file lives insi
 ### Negative
 
 - It hard-deletes rows, so it is the most destructive thing in the package and is gated on the write lock.
+- Purge and rebuild are separate commits. ADR-032 now blocks live execution of that residual rather than
+  treating successful lock acquisition as all-or-nothing reconcile.
 
 ### Neutral
 
-- The upstream skill and `memory purge` are necessary but not sufficient. Retirement additionally
+- The upstream skill and `memory purge` were necessary but not sufficient for compatibility retirement. Retirement additionally
   proves that purge shares one lock with `ensureSchemaColumns`, temporal decay, store, get, delete,
-  and purge itself. A partial or mixed installed fleet keeps the compatibility target live.
+  and purge itself. A partial or mixed installed fleet keeps the compatibility target live. Atomic
+  reindex is a separate acceptance boundary owned by ADR-032 / #3097.
 
 ## Links
 
 - Upstream: [ruvnet/ruflo#2666](https://github.com/ruvnet/ruflo/issues/2666) (closed)
-- [ADR-006](ADR-006-memory-write-lock-and-wal-coherent-reads.md), [ADR-014](ADR-014-targets-retire-themselves-on-a-local-proof.md)
+- [ADR-006](ADR-006-memory-write-lock-and-wal-coherent-reads.md), [ADR-014](ADR-014-targets-retire-themselves-on-a-local-proof.md), [ADR-032](ADR-032-adr-graph-io-must-prove-reads-and-writes.md)
 - `lib/adr-reindex/`

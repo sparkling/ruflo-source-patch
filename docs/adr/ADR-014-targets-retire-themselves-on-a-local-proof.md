@@ -2,11 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-15. Exact Ruflo 3.38.12 supplies two new executable replacements. #2877 now
+**Updated**: 2026-08-31. Exact Ruflo 3.38.12 supplies two executable replacements. #2877 now
 routes every daemon identity through one native project-root resolver, so `daemon` retires only after
 all installed copies pass structural and executable resolver mutations. #2878 now makes ordinary
 sql.js writers share native `withMemoryDbLock()` with purge, so `adr-reindex` accepts that complete
-native writer set while `memory` remains for stronger residual safeguards. Brain 4.0.36 now contains
+native writer set for its legacy compatibility retirement while `memory` remains for stronger residual
+safeguards. The later #3097 finding proves that shared locking does not make purge plus rebuild atomic;
+the separate `adr-io-safety` target stays live and refuses reindex until one managed transaction/swap
+passes executable proof. Brain 4.0.36 now contains
 the #102 structural detector and opt-in #103 setting, but not the default refusal, host non-execution
 proof, audited diagnostic, or truthful doctor/Console state, so its boundary target stays live.
 Published MetaHarness 0.4.7 and `@metaharness/host-codex` 0.1.2 still fail #168's renderer proof.
@@ -59,8 +62,9 @@ another surface to get wrong.
 
 ### Positive
 
-- `adr-index` and `adr-reindex` retired themselves on this machine, on proof, and the audit record
-  says exactly why.
+- `adr-index` and the legacy `adr-reindex` compatibility target retired themselves on this machine,
+  on proof, and the audit record says exactly why. ADR-032 records the separate atomic-reconcile gap so
+  that retirement cannot be misread as a broader safety verdict.
 - `daemon` now does the same only after the native resolver is executed against nested roots,
   independent nested projects, `.git` boundaries, and no-marker fallback. A mutated route keeps it live.
 - Announced ONCE, then silence. The old behaviour was a warning that fired every session and could never
@@ -80,5 +84,5 @@ another surface to get wrong.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md), [ADR-029](ADR-029-metaharness-codex-project-hooks.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-015](ADR-015-self-update-from-immutable-tags.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md), [ADR-029](ADR-029-metaharness-codex-project-hooks.md), [ADR-032](ADR-032-adr-graph-io-must-prove-reads-and-writes.md)
 - `lib/supersede.mjs`

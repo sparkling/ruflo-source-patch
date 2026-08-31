@@ -56,6 +56,12 @@ KB. It validates `symbolRoute()` by executing the exact installed function again
 malformed entries; generic outage guidance must remain nonzero/loud without prescribing mutation. It
 does not discover or alter stores, sidecars, models, updater receipts, versions, or host caches (ADR-031).
 
+`adr-io-safety/` owns `verify.mjs`, `import.mjs`, and `reindex.mjs` as one interdependent bundle in
+every active `ruflo-adr` root. Its descriptor-level preflight proves all expected files, exact anchors,
+and regular-file boundaries before composition writes any member. The runtime uses one explicit managed
+database path, fails closed on incomplete reads and unproved writes, and refuses purge-first live
+reindex until upstream supplies an atomic managed reconcile (ADR-032).
+
 `brain-native/` contains fail-closed executable retirement probes. They copy the active persistent
 runtime to a temporary directory, restore locally owned vendor bytes only in that copy, and prove the
 replacement plus a deliberate mutation before terminally retiring #81 or #86. #76 uses the same rule
@@ -99,6 +105,11 @@ Anchor uniqueness is a property of **upstream's** code. All of them are unique t
 same, and must: its regex edit shifts the capture-group indices its readers use, so a partial apply would
 leave the gate blocking on garbage. On a partial match it writes **nothing** and leaves the vendor file
 exactly as upstream shipped it.
+
+The composition engine also supports a descriptor-level `preflight()` for bundles spanning several
+files. If any bundle member is missing, unreadable, non-regular, or anchor-drifted, every file claimed by
+that descriptor is skipped. Status counts expected members before attempting reads, so missing files
+remain visible in the denominator.
 
 ### What none of this can catch
 
