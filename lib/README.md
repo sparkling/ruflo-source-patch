@@ -22,7 +22,7 @@ how a fix silently stops existing.
 |---|---|---|---|
 | `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
-| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
+| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-search-safety/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `metaharness-codex-hooks/` | **MetaHarness Codex host patch** | authenticated installed `metaharness` and `@metaharness/host-codex` runtime bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`, `codex-switch`) | *nothing*. They set up or repair **your projects/host registration**, or move your own Codex session between accounts | nobody; you run them by hand |
 
@@ -50,6 +50,11 @@ bodies from the pristine backup instead of reporting old runtime bytes as curren
 `brain-managed-memory-boundary/` owns an atomic cross-surface transaction rather than one composed
 plugin file. It preflights the active native generation, matching host copies, and the persistent MCP
 shell before writing any of them; a missing anchor leaves every surface untouched.
+
+`brain-search-safety/` owns only the three executable search files in the already-active shared Brain
+KB. It validates `symbolRoute()` by executing the exact installed function against inherited, own, and
+malformed entries; generic outage guidance must remain nonzero/loud without prescribing mutation. It
+does not discover or alter stores, sidecars, models, updater receipts, versions, or host caches (ADR-031).
 
 `brain-native/` contains fail-closed executable retirement probes. They copy the active persistent
 runtime to a temporary directory, restore locally owned vendor bytes only in that copy, and prove the

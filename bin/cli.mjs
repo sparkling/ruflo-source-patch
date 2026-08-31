@@ -65,6 +65,7 @@ import { brainConsoleLifecycleCommand } from '../lib/brain-console-lifecycle/com
 import { brainConsoleProviderKeysCommand } from '../lib/brain-console-provider-keys/commands.mjs';
 import { brainMemoryDoctorRootsCommand } from '../lib/brain-memory-doctor-roots/commands.mjs';
 import { brainManagedMemoryBoundaryCommand } from '../lib/brain-managed-memory-boundary/commands.mjs';
+import { brainSearchSafetyCommand } from '../lib/brain-search-safety/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
@@ -104,6 +105,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-release-lockstep': brainReleaseLockstepCommand,
   'brain-memory-doctor-roots': brainMemoryDoctorRootsCommand,
   'brain-managed-memory-boundary': brainManagedMemoryBoundaryCommand,
+  'brain-search-safety': brainSearchSafetyCommand,
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
 };
@@ -148,6 +150,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-release-lockstep')}fail doctor on bundle/package/host version drift (#77)
   ${pad('brain-memory-doctor-roots')}scan common/configured AgentDB roots in the standalone doctor (#81)
   ${pad('brain-managed-memory-boundary')}refuse raw SQLite access to managed AgentDB stores; audited diagnostic only (#102/#103)
+  ${pad('brain-search-safety')}ignore inherited symbol keys and refuse unproved automatic repair (#224/#225)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

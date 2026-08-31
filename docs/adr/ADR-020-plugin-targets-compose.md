@@ -2,7 +2,9 @@
 
 **Status**: accepted
 **Date**: 2026-07-15
-**Updated**: 2026-08-09. The manual recovery this ADR's own Negative section describes (six poisoned
+**Updated**: 2026-08-31. `brain-search-safety` now distinguishes native satisfaction from local
+ownership during reconciliation; the engine prefers a descriptor's explicit `hasPatch` predicate so
+marker-free upstream bytes are preserved. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
 an optional `recoverPoisoned(current)` that offers a candidate pristine plus a scoped `verify` function,
 and only ever accepts it if `verify(candidate)` reproduces `current` byte for byte. `mcp-prefix` exposes
@@ -35,6 +37,11 @@ It must atomically coordinate vendor transforms and marker-owned additive module
 generation, matching host copies, and the persistent MCP shell. It therefore preflights one global
 transaction and rolls every write back on failure, while still using exact pristine backups for vendor
 bytes (ADR-028).
+Brain #224/#225's `brain-search-safety` joins composition for the three executable files in the active
+shared KB. Its `hasPatch` is deliberately narrower than `isPatched`: native-equivalent behavior satisfies
+status, while only the local marker proves ownership during reconciliation. The composition engine now
+prefers that explicit ownership predicate, preventing a marker-free upstream fix from being mistaken for
+an orphaned local patch that requires a backup (ADR-031).
 **Deciders**: Henrik Pettersen
 
 **Tags**: plugin, patching, core, safety
@@ -108,6 +115,8 @@ for exact restoration because no sibling target claims it.
   vendor baseline. Native launcher bytes remain untouched while the read-only doctor delta stays live.
 - Multiple superseded composed targets reconcile in one removal set; retirement order cannot cause a
   sibling target to be re-applied between proofs.
+- Native-equivalent files can satisfy a target without becoming locally owned; retirement preserves those
+  bytes and removes only exact local compositions/backups.
 
 ### Negative
 
@@ -125,5 +134,5 @@ for exact restoration because no sibling target claims it.
 
 ## Links
 
-- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md), [ADR-029](ADR-029-metaharness-codex-project-hooks.md)
+- [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md), [ADR-029](ADR-029-metaharness-codex-project-hooks.md), [ADR-031](ADR-031-brain-search-failure-is-not-repair-authority.md)
 - `lib/plugin-compose.mjs`, `lib/plugin-command.mjs`, `lib/pristine.mjs` (`isOurs`), `lib/plugin-registry.mjs`
