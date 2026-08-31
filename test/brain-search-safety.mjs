@@ -47,7 +47,15 @@ const VENDORED_DEP_RE = /patches/;
 
 const MCP_VENDOR = `#!/usr/bin/env node
 function outage(id, repos, firstErr) {
-${patcher.MCP_GUIDANCE_ANCHOR}
+          const body =
+            \`🚨🚨🚨 RUVNET BRAIN IS DOWN — ALL \${repos.length} repos failed to search. 🚨🚨🚨\\n\\n\`
+            + \`This is NOT an empty result. Retrieval itself is broken; no RuvNet grounding is possible right now.\\n\`
+            + \`First error: \${firstErr}\\n\\n\`
+            + \`Most likely fix:  cd ~/.cache/ruvnet-brain/kb && npm i\\n\`
+            + \`Then verify:      npx github:stuinfla/ruvnet-brain --doctor\\n\\n\`
+            + \`➡ INSTRUCTION TO THE MODEL: tell the user PLAINLY and PROMINENTLY, before anything else, \`
+            + \`that the RuvNet Brain is broken and needs the fix above. Do NOT answer RuvNet questions \`
+            + \`from memory, and do NOT proceed as if this were a normal empty search.\`;
   return { id, content: [{ type: 'text', text: body }], isError: true };
 }
 `;
