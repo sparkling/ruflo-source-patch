@@ -68,6 +68,7 @@ import { brainMemoryDoctorRootsCommand } from '../lib/brain-memory-doctor-roots/
 import { brainManagedMemoryBoundaryCommand } from '../lib/brain-managed-memory-boundary/commands.mjs';
 import { brainSearchSafetyCommand } from '../lib/brain-search-safety/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
+import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -110,6 +111,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-search-safety': brainSearchSafetyCommand,
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
+  'ruflo-instruction-contract': rufloInstructionContractCommand,
 };
 
 function usage() {
@@ -139,6 +141,7 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
   ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
+  ${pad('ruflo-instruction-contract')}make generated Claude/Codex guidance MCP-first and schema-valid (#3153)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —

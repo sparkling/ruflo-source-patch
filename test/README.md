@@ -49,6 +49,8 @@
 | `brain-managed-memory-boundary.mjs` | Brain #102/#103's managed AgentDB boundary: SQLite option parsing, structural host denial, negative prose/unmanaged-store cases, audited content-free diagnostic, atomic multi-surface install, native-generation flip including published 4.0.36's detector/setting shape, and exact removal without changing `active.json`, KB, or updater bytes. |
 | `brain-search-safety.mjs` | Brain #224/#225's shared-KB search boundary: inherited `constructor`, own-array and malformed symbol routing, non-mutating outage guidance, exact-anchor drift refusal, composition lifecycle, native mutation proof, terminal retirement, and no updater/store mutation. |
 | `metaharness-codex-hooks.mjs` | MetaHarness #168's Codex renderer: authenticated package discovery, exact two-surface transforms, strict manifest schema, tool/inner matcher translation, nested-cwd helper execution, unsupported-declaration refusal, mutation proof, public CLI lifecycle, and byte-exact uninstall. |
+| `ruflo-instruction-contract.mjs` | Ruflo #3153's generated instruction contract: authenticated Claude/Codex generator bundles, every template, MCP-first runtime examples, valid schemas, enterprise evidence labels, exact anchors, mutation proof, DB/WAL non-interference, public CLI lifecycle, and byte-exact uninstall. |
+| `ruflo-instruction-migration.mjs` | Ruflo #3153's existing-project migration: exact generated-block attribution, shared-policy/Claude-overlay preservation, full-fleet preflight, symlink refusal, CRLF/mode retention, idempotence, and proof that databases/WAL/runtime processes are never touched. |
 | `fixtures.mjs` | Where the suites get their **pristine** vendor bytes. |
 
 ## Three rules, all learned the hard way

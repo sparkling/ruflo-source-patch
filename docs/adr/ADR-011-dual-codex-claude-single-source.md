@@ -1,8 +1,11 @@
 # ADR-011: dual-codex-claude: one canonical instruction file, no drift
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-14 (corrected 2026-07-25)
-**Updated**: 2026-07-30. Ruflo 3.32.36/3.32.37 fixed #2634, #2635, #2636, and
+**Updated**: 2026-09-01. The implemented single-source model remains correct. ADR-033 now makes its
+shared Ruflo runtime guidance MCP-first, removes the stale Claude STOP-after-spawn contradiction, and
+uses exact-block migration so project-specific additions survive. Ruflo 3.32.36/3.32.37 fixed #2634,
+#2635, #2636, and
 #2637: native dual init now runs both initializers, fetches the adapter, emits canonical backed
 skills, and protects root secrets. #2638 remains open: the two hosts still generate divergent
 instruction sources, so this script remains the single-source and policy-preserving conversion.

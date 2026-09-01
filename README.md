@@ -108,6 +108,7 @@ npx github:sparkling/ruflo-source-patch daemon install
 npx github:sparkling/ruflo-source-patch memory install
 npx github:sparkling/ruflo-source-patch init install
 npx github:sparkling/ruflo-source-patch plugin-hosts install
+npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install
 npx github:sparkling/ruflo-source-patch monitor install   # keeps them applied
 
 npx github:sparkling/ruflo-source-patch all status        # what's live, everything at once
@@ -173,6 +174,15 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`ruflo-hooks-schema`** | **Retired on proof in Ruflo 3.32.39 / `ruflo-core` 0.2.6.** The compatibility edit removed unsupported manifest fields and Cursor-only PreToolUse output only from Codex copies. PR #2857 version-bumped the plugins and fixed both branches; retirement executes both real handlers before standing down | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) · [PR #2857](https://github.com/ruvnet/ruflo/pull/2857) |
 | **`ruflo-codex-skills`** | **Retired on proof in Ruflo 3.32.39.** Older copies needed one read-only `ruflo-core:ruflo-status` skill. The native replacement's default doctor/status path is now read-only and `doctor --fix` requires explicit repair intent | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
+
+#### Ruflo instruction generators
+
+Ruflo generates both Claude Code and Codex instruction files from installed package code. Actions:
+`install` · `uninstall` · `status`
+
+| Target | What it fixes | Upstream |
+|--------|---------------|----------|
+| **`ruflo-instruction-contract`** | Rewrites all six Claude and four Codex templates at the generator boundary so routine swarm, agent, memory, hook, worker, workflow, session, claims, status, and benchmark work uses discovered structured MCP interfaces. It separates source truth from runtime health, corrects tool names and schemas, reserves direct shell for bootstrap/diagnostics, distinguishes native agents from Ruflo records, labels enterprise text as unconfigured scaffolding, and keeps memory failure non-blocking without raw database fallbacks. Existing projects are migrated only through attributable exact blocks; custom policy survives | [#3153](https://github.com/ruvnet/ruflo/issues/3153) |
 
 #### ruvnet-brain
 

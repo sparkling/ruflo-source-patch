@@ -22,6 +22,7 @@ how a fix silently stops existing.
 |---|---|---|---|
 | `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
+| `ruflo-instruction-contract/` | **Ruflo generator contract patch** | installed Claude/Codex instruction generators in authenticated `@claude-flow/cli` bundles | SessionStart hook + monitor |
 | `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-search-safety/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `metaharness-codex-hooks/` | **MetaHarness Codex host patch** | authenticated installed `metaharness` and `@metaharness/host-codex` runtime bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`, `codex-switch`) | *nothing*. They set up or repair **your projects/host registration**, or move your own Codex session between accounts | nobody; you run them by hand |
@@ -72,6 +73,12 @@ against its active immutable Codex payload. These probes never alter Brain's upd
 hooks: only a non-empty declaration produces `.codex/hooks.json` and its project-local bridge. The
 bridge preserves inner matcher policy, rejects unsupported declarations, and leaves Codex trust to
 the user's `/hooks` review.
+
+`ruflo-instruction-contract/` composes across every Claude generator and every authenticated Codex
+adapter generator present on the host. A standalone CLI cache legitimately contributes only its Claude
+surface. The target executes every available template, validates current core tool names and schemas,
+and retires only when marker-free upstream bytes pass that proof with both hosts represented overall.
+Its separate exact-block migrator has no Ruflo, Brain, npm, process, or database dependency.
 
 ## The rule this whole package exists to enforce
 

@@ -1,8 +1,12 @@
 # ADR-020: Plugin patch targets compose on a shared file, from one pristine
 
-**Status**: accepted
+**Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-08-31. `brain-search-safety` now distinguishes native satisfaction from local
+**Updated**: 2026-09-01. Ruflo #3153's `ruflo-instruction-contract` joins composition as one atomic
+discovered generator set. It patches every present Claude surface and each authenticated Codex adapter,
+validates every rendered template plus current core schemas, exposes an exact inverse, and retires only
+after marker-free executable native behavior proves both hosts overall (ADR-033).
+`brain-search-safety` now distinguishes native satisfaction from local
 ownership during reconciliation; the engine prefers a descriptor's explicit `hasPatch` predicate so
 marker-free upstream bytes are preserved. The manual recovery this ADR's own Negative section describes (six poisoned
 backups, reconstructed by hand) is now a permanent, automatic capability: `resolvePristine()` accepts
