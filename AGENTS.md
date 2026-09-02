@@ -44,7 +44,7 @@ npx github:sparkling/ruflo-source-patch adr-io-safety install     # exact instal
 npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share one proven lock with every writer (#2666/#2878)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)
 npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # retired on Ruflo's native read-only status skill (#2821)
-npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install # generated Claude/Codex guidance follows live structured interfaces (#3153)
+npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install # generated roots + packaged skills follow live structured interfaces (#3153)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
 npx github:sparkling/ruflo-source-patch mcp-prefix install         # legacy #2685 rewrite; auto-retires after proving current Ruflo HEAD + local compositions are native
 npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 fix; auto-retires after verifying upstream's stronger repo-identity gate

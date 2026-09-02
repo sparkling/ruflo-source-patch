@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { PLATFORM_GENERATOR, SKILLS } from './fixtures/ruflo-instruction-vendor.mjs';
 
 const SANDBOX = fs.realpathSync(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-instructions-')));
 const HOME = path.join(SANDBOX, 'home');
@@ -172,18 +173,30 @@ function writePackage(root, name) {
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ name, version: '0.0.0-test', type: 'module' })}\n`);
 }
+function writeCodexPackage(root, { crlf = false } = {}) {
+  writePackage(root, '@claude-flow/codex');
+  const generator = path.join(root, 'dist', 'generators', 'agents-md.js');
+  fs.mkdirSync(path.dirname(generator), { recursive: true });
+  fs.writeFileSync(generator, CODEX_VENDOR);
+  for (const [name, source] of Object.entries(SKILLS)) {
+    const file = path.join(root, '.agents', 'skills', name, 'SKILL.md');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, crlf ? source.replaceAll('\n', '\r\n') : source);
+  }
+  return generator;
+}
 const rufloRoot = path.join(GLOBAL, 'ruflo');
 const cliRoot = path.join(rufloRoot, 'node_modules', '@claude-flow', 'cli');
 const codexRoot = path.join(cliRoot, 'node_modules', '@claude-flow', 'codex');
 writePackage(rufloRoot, 'ruflo');
 writePackage(cliRoot, '@claude-flow/cli');
-writePackage(codexRoot, '@claude-flow/codex');
 const claudeFile = path.join(cliRoot, 'dist', 'src', 'init', 'claudemd-generator.js');
-const codexFile = path.join(codexRoot, 'dist', 'generators', 'agents-md.js');
+const codexFile = writeCodexPackage(codexRoot);
 fs.mkdirSync(path.dirname(claudeFile), { recursive: true });
-fs.mkdirSync(path.dirname(codexFile), { recursive: true });
 fs.writeFileSync(claudeFile, CLAUDE_VENDOR);
-fs.writeFileSync(codexFile, CODEX_VENDOR);
+const platformFile = path.join(cliRoot, 'dist', 'src', 'commands', 'init.js');
+fs.mkdirSync(path.dirname(platformFile), { recursive: true });
+fs.writeFileSync(platformFile, PLATFORM_GENERATOR);
 const registryFile = path.join(cliRoot, 'dist', 'src', 'mcp-tools', 'contract-tools.js');
 fs.mkdirSync(path.dirname(registryFile), { recursive: true });
 const registryNames = [
@@ -209,6 +222,11 @@ const standaloneRegistryFile = path.join(standaloneCliRoot, 'dist', 'src', 'mcp-
 fs.mkdirSync(path.dirname(standaloneRegistryFile), { recursive: true });
 fs.copyFileSync(registryFile, standaloneRegistryFile);
 
+// A direct @claude-flow/codex npx package is an independent installer source;
+// it must not disappear merely because it is not nested below a CLI package.
+const directCodexRoot = path.join(NPX, 'codex-only', 'node_modules', '@claude-flow', 'codex');
+const directCodexFile = writeCodexPackage(directCodexRoot, { crlf: true });
+
 const sentinelDir = path.join(HOME, 'project', '.swarm');
 fs.mkdirSync(sentinelDir, { recursive: true });
 const sentinels = ['memory.db', 'memory.db-wal', 'memory.db-shm'].map((name) => path.join(sentinelDir, name));
@@ -218,9 +236,11 @@ const sentinelState = sentinels.map((file) => [file, fs.statSync(file).mtimeMs, 
 const patcher = await import('../lib/ruflo-instruction-contract/patcher.mjs');
 const { applyComposed, composeSource, reconcile, statusComposed } = await import('../lib/plugin-compose.mjs');
 const discovered = patcher.discover().sort();
-check('RIC1 bounded discovery finds the pair plus standalone Claude surface',
-  discovered.length === 3 && discovered.includes(claudeFile) && discovered.includes(codexFile)
-    && discovered.includes(standaloneClaudeFile));
+const vendorBytes = new Map(discovered.map((file) => [file, fs.readFileSync(file, 'utf8')]));
+check('RIC1 bounded discovery finds generators, platform skill, packaged skills, and direct Codex',
+  discovered.length === 15 && discovered.includes(claudeFile) && discovered.includes(codexFile)
+    && discovered.includes(platformFile) && discovered.includes(standaloneClaudeFile)
+    && discovered.includes(directCodexFile));
 check('RIC2 bundle preflight proves every surface present without inventing a Codex requirement',
   patcher.preflight().ok);
 
@@ -231,6 +251,18 @@ for (const [label, source, edits] of [['Claude', CLAUDE_VENDOR, 2], ['Codex', CO
     patcher.isPatched(result.next) && patcher.patchSource(result.next).next === result.next);
   check(`RIC5 ${label} transform has a byte-exact inverse`, patcher.reverseSource(result.next) === source);
 }
+for (const [name, source] of Object.entries(SKILLS)) {
+  const result = patcher.patchSource(source);
+  check(`RIC5a ${name} skill gets one exact MCP-first replacement`, result.applied.length === 1 && !result.missing.length);
+  check(`RIC5b ${name} skill is idempotent and reversible`,
+    patcher.isPatched(result.next) && patcher.patchSource(result.next).next === result.next
+      && patcher.reverseSource(result.next) === source);
+}
+const platformResult = patcher.patchSource(PLATFORM_GENERATOR);
+check('RIC5c platform skill generator replaces all three contradictory anchors',
+  platformResult.applied.length === 3 && !platformResult.missing.length && patcher.isPatched(platformResult.next));
+check('RIC5d platform skill generator has a byte-exact inverse',
+  patcher.reverseSource(platformResult.next) === PLATFORM_GENERATOR);
 
 const drifted = CODEX_VENDOR.replace('            return generateFull(options);', '            return generateFull(options, true);');
 const drift = patcher.patchSource(drifted);
@@ -242,13 +274,11 @@ check('RIC7 duplicate anchors are ambiguous and refused',
 
 const applied = applyComposed(['ruflo-instruction-contract']);
 check(`RIC8 present generator surfaces apply atomically: ${applied.log.join(' | ')}`,
-  !applied.errors && !applied.incomplete && applied.patched === 3);
+  !applied.errors && !applied.incomplete && applied.patched === 15);
 const state = statusComposed()['ruflo-instruction-contract'];
-check('RIC9 status proves every present surface', state.files === 3 && state.patched === 3);
+check('RIC9 status proves every present surface', state.files === 15 && state.patched === 15);
 check('RIC10 pristine backups contain exact vendor bytes',
-  fs.readFileSync(`${claudeFile}.rsp-backup`, 'utf8') === CLAUDE_VENDOR
-    && fs.readFileSync(`${codexFile}.rsp-backup`, 'utf8') === CODEX_VENDOR
-    && fs.readFileSync(`${standaloneClaudeFile}.rsp-backup`, 'utf8') === CLAUDE_STANDALONE_VENDOR);
+  [...vendorBytes].every(([file, source]) => fs.readFileSync(`${file}.rsp-backup`, 'utf8') === source));
 
 const claudeApi = await import(`${pathToFileURL(claudeFile).href}?patched`);
 for (const template of Object.keys(claudeBodies)) {
@@ -287,10 +317,9 @@ for (const [file, mtime, bytes] of sentinelState) {
 }
 
 const restored = reconcile([], ['ruflo-instruction-contract']);
-check('RIC19 uninstall restores both generators byte-for-byte',
-  restored.restored === 3 && !restored.errors && fs.readFileSync(claudeFile, 'utf8') === CLAUDE_VENDOR
-    && fs.readFileSync(codexFile, 'utf8') === CODEX_VENDOR
-    && fs.readFileSync(standaloneClaudeFile, 'utf8') === CLAUDE_STANDALONE_VENDOR);
+check('RIC19 uninstall restores every instruction source byte-for-byte',
+  restored.restored === 15 && !restored.errors
+    && [...vendorBytes].every(([file, source]) => fs.readFileSync(file, 'utf8') === source));
 
 fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
 fs.writeFileSync(path.join(HOME, '.claude', 'settings.json'), '{}\n');
@@ -302,17 +331,18 @@ check(`RIC20 public CLI installs and tracks the target: ${installed.stdout} ${in
   installed.status === 0 && installed.stdout.includes('re-applied on session start and by the monitor'));
 const cliStatus = runCli('ruflo-instruction-contract', 'status');
 check('RIC21 public CLI reports both files patched and tracked',
-  cliStatus.status === 0 && cliStatus.stdout.includes('3/3 file(s) patched') && cliStatus.stdout.includes('tracked'));
+  cliStatus.status === 0 && cliStatus.stdout.includes('15/15 file(s) patched') && cliStatus.stdout.includes('tracked'));
 const removed = runCli('ruflo-instruction-contract', 'uninstall');
-check('RIC22 public CLI restores every present surface', removed.status === 0 && removed.stdout.includes('restored 3 file(s)'));
+check('RIC22 public CLI restores every present surface', removed.status === 0 && removed.stdout.includes('restored 15 file(s)'));
 
-const nativeClaude = patcher.patchSource(CLAUDE_VENDOR).next.replaceAll(patcher.PATCH_MARKER, 'ruflo native');
-const nativeCodex = patcher.patchSource(CODEX_VENDOR).next.replaceAll(patcher.PATCH_MARKER, 'ruflo native');
-const nativeStandaloneClaude = patcher.patchSource(CLAUDE_STANDALONE_VENDOR).next
-  .replaceAll(patcher.PATCH_MARKER, 'ruflo native');
-fs.writeFileSync(claudeFile, nativeClaude);
-fs.writeFileSync(codexFile, nativeCodex);
-fs.writeFileSync(standaloneClaudeFile, nativeStandaloneClaude);
+const nativeBytes = new Map();
+for (const [file, source] of vendorBytes) {
+  const native = patcher.patchSource(source).next.replaceAll(patcher.PATCH_MARKER, 'ruflo native');
+  nativeBytes.set(file, native);
+  fs.writeFileSync(file, native);
+}
+const nativeClaude = nativeBytes.get(claudeFile);
+const nativeCodex = nativeBytes.get(codexFile);
 const supersede = await import('../lib/ruflo-instruction-contract/supersede.mjs');
 const nativeVerdict = supersede.rufloInstructionContractSupersession.check();
 check(`RIC23 marker-free native equivalent passes all-template retirement: ${nativeVerdict.evidence}`,
@@ -322,6 +352,11 @@ fs.writeFileSync(claudeFile, nativeClaude.replaceAll('search_ruvnet', 'source_se
 const regressed = supersede.rufloInstructionContractSupersession.check();
 check('RIC24 one host-template authority regression prevents retirement', regressed.state === 'live');
 fs.writeFileSync(claudeFile, nativeClaude);
+const directMemory = path.join(directCodexRoot, '.agents', 'skills', 'memory-management', 'SKILL.md');
+fs.writeFileSync(directMemory, nativeBytes.get(directMemory).replaceAll('memory_search_unified', 'memory_lookup'));
+const skillRegressed = supersede.rufloInstructionContractSupersession.check();
+check('RIC24a one higher-priority skill regression prevents retirement', skillRegressed.state === 'live');
+fs.writeFileSync(directMemory, nativeBytes.get(directMemory));
 
 const { writeState, readState } = await import('../lib/cwd/state.mjs');
 const { retireSuperseded } = await import('../lib/supersede.mjs');
@@ -334,6 +369,7 @@ check('RIC25 executable native proof retires terminally without overwriting upst
     && retiredState.retired['ruflo-instruction-contract']?.issue
       === 'https://github.com/ruvnet/ruflo/issues/3153'
     && fs.readFileSync(claudeFile, 'utf8') === nativeClaude
-    && fs.readFileSync(codexFile, 'utf8') === nativeCodex);
+    && fs.readFileSync(codexFile, 'utf8') === nativeCodex
+    && [...nativeBytes].every(([file, source]) => fs.readFileSync(file, 'utf8') === source));
 
 console.log('✔ Ruflo instruction contract (#3153 all templates, exact anchors, native retirement, exact restore)');

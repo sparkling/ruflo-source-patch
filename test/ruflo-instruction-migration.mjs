@@ -5,8 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  migrateRoots, migrateText, SHARED_SECTIONS, CLAUDE_SECTIONS,
+  migrateRoots, migrateSkillRoots, migrateSkillText, migrateText, SHARED_SECTIONS, CLAUDE_SECTIONS,
 } from '../lib/ruflo-instruction-contract/migrate.mjs';
+import { PLATFORM_MARKDOWN, SKILLS } from './fixtures/ruflo-instruction-vendor.mjs';
 
 const SANDBOX = fs.realpathSync(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-instruction-migrate-')));
 let failures = 0;
@@ -90,6 +91,11 @@ function makeRoot(name, { agents = AGENTS, claude = CLAUDE, crlf = false } = {})
   fs.mkdirSync(path.join(root, '.git'), { recursive: true });
   fs.writeFileSync(path.join(root, 'AGENTS.md'), agents);
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), crlf ? claude.replaceAll('\n', '\r\n') : claude);
+  for (const [skillName, source] of [...Object.entries(SKILLS), ['ruflo', PLATFORM_MARKDOWN]]) {
+    const file = path.join(root, '.agents', 'skills', skillName, 'SKILL.md');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, crlf ? source.replaceAll('\n', '\r\n') : source);
+  }
   fs.chmodSync(path.join(root, 'AGENTS.md'), 0o640);
   fs.chmodSync(path.join(root, 'CLAUDE.md'), 0o600);
   return root;
@@ -103,12 +109,12 @@ for (const file of stateFiles) fs.writeFileSync(file, `sentinel:${path.basename(
 const state = stateFiles.map((file) => [file, fs.readFileSync(file), fs.statSync(file).mtimeMs]);
 
 const dry = migrateRoots([root], { known: KNOWN });
-check('RIM7 dry run reports both files and changes nothing', dry.changed.length === 2
+check('RIM7 dry run reports root and skill files and changes nothing', dry.changed.length === 8
   && fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8') === AGENTS);
 const applied = migrateRoots([root], { apply: true, known: KNOWN });
 const agentsAfter = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
 const claudeAfter = fs.readFileSync(path.join(root, 'CLAUDE.md'), 'utf8');
-check('RIM8 apply changes exactly the two root instruction files', applied.changed.length === 2);
+check('RIM8 apply changes exactly the two root and six skill instruction files', applied.changed.length === 8);
 check('RIM9 line endings and modes survive',
   claudeAfter.includes('\r\n')
     && claudeAfter.endsWith('\r\n')
@@ -118,6 +124,12 @@ check('RIM10 managed sections retain a blank separator before the next heading',
   agentsAfter.includes('a worker is appropriate.\n\n## Build & Test')
     && claudeAfter.includes('native host.\r\n\r\n## Project-only overlay'));
 check('RIM11 second pass is idempotent', migrateRoots([root], { known: KNOWN }).changed.length === 0);
+const memorySkill = fs.readFileSync(path.join(root, '.agents', 'skills', 'memory-management', 'SKILL.md'), 'utf8');
+const platformSkill = fs.readFileSync(path.join(root, '.agents', 'skills', 'ruflo', 'SKILL.md'), 'utf8');
+check('RIM11a task and platform skills are MCP-first with CRLF preserved',
+  memorySkill.includes('memory_search_unified') && !memorySkill.includes('npx @claude-flow/cli')
+    && platformSkill.includes('Runtime interface (MCP first)') && !platformSkill.includes('mcp__claude-flow__')
+    && memorySkill.includes('\r\n') && platformSkill.includes('\r\n'));
 for (const [file, bytes, mtime] of state) {
   check(`RIM12 runtime state untouched: ${path.basename(file)}`,
     fs.readFileSync(file).equals(bytes) && fs.statSync(file).mtimeMs === mtime);
@@ -131,6 +143,36 @@ catch (error) { preflightError = error.message; }
 check('RIM13 one unknown block refuses the fleet before the first write',
   preflightError.includes('edited or unknown')
     && fs.readFileSync(path.join(validBeforeError, 'AGENTS.md'), 'utf8') === AGENTS);
+
+const unsupportedSkill = SKILLS['memory-management'].replace('npx @claude-flow/cli memory search', 'custom-memory-driver search');
+const unsupported = migrateSkillText(unsupportedSkill, 'memory-management');
+check('RIM13a edited built-in skill is refused rather than overwritten', Boolean(unsupported.error));
+const legacyMemory = SKILLS['memory-management']
+  .replace('### Store Data\nStore a pattern in memory', '### Legacy Store\nVendor revision with the old command block')
+  .replace('### Search Data\nSemantic search in memory', '### Legacy Search\nVendor revision with the old search block')
+  .replace('## Best Practices', `## Scripts
+
+| Script | Path | Description |
+|--------|------|-------------|
+| \`memory-backup\` | \`.agents/scripts/memory-backup.sh\` | Backup memory to external storage |
+| \`memory-consolidate\` | \`.agents/scripts/memory-consolidate.sh\` | Consolidate and optimize memory |
+
+## Best Practices`);
+const legacy = { 'memory-management': new Set([digest(legacyMemory)]) };
+const migratedLegacy = migrateSkillText(legacyMemory, 'memory-management', { legacy });
+check('RIM13b an allowlisted legacy skill migrates only its Commands section',
+  migratedLegacy.changed
+    && !migratedLegacy.error
+    && migratedLegacy.next.includes('## Structured Interface')
+    && migratedLegacy.next.includes('## Best Practices\n1. fixture')
+    && !migratedLegacy.next.includes('memory-backup.sh')
+    && !migratedLegacy.next.includes('npx @claude-flow/cli'));
+const customRoot = makeRoot('custom-root', { agents: '# fully custom\n', claude: '@AGENTS.md\n\n# custom\n' });
+const skillOnly = migrateSkillRoots([customRoot], { apply: true });
+check('RIM13c skill-only migration preserves custom root instructions',
+  skillOnly.changed.length === 6
+    && fs.readFileSync(path.join(customRoot, 'AGENTS.md'), 'utf8') === '# fully custom\n'
+    && fs.readFileSync(path.join(customRoot, 'CLAUDE.md'), 'utf8') === '@AGENTS.md\n\n# custom\n');
 
 const noImport = migrateText(CLAUDE.replace('@AGENTS.md', '# no import'), 'claude', { known: KNOWN });
 check('RIM14 missing canonical import refuses Claude migration', Boolean(noImport.error));

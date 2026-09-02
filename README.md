@@ -182,7 +182,7 @@ Ruflo generates both Claude Code and Codex instruction files from installed pack
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`ruflo-instruction-contract`** | Rewrites all six Claude and four Codex templates at the generator boundary so routine swarm, agent, memory, hook, worker, workflow, session, claims, status, and benchmark work uses discovered structured MCP interfaces. It separates source truth from runtime health, corrects tool names and schemas, reserves direct shell for bootstrap/diagnostics, distinguishes native agents from Ruflo records, labels enterprise text as unconfigured scaffolding, and keeps memory failure non-blocking without raw database fallbacks. Existing projects are migrated only through attributable exact blocks; custom policy survives | [#3153](https://github.com/ruvnet/ruflo/issues/3153) |
+| **`ruflo-instruction-contract`** | Rewrites all six Claude and four Codex root templates, the generated Ruflo platform skill, and every packaged Codex task skill so routine swarm, agent, memory, hook, worker, workflow, session, claims, status, benchmark, and security work uses discovered structured MCP interfaces. It covers nested and standalone Codex packages, separates source truth from runtime health, corrects tool names and schemas, reserves direct shell for bootstrap/diagnostics, distinguishes native agents from Ruflo records, labels enterprise text as unconfigured scaffolding, and keeps memory failure non-blocking without raw database fallbacks. Existing roots and known installer skills migrate only through attributable exact revisions; custom policy survives | [#3153](https://github.com/ruvnet/ruflo/issues/3153) |
 
 #### ruvnet-brain
 

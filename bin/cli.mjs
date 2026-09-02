@@ -141,7 +141,7 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
   ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
-  ${pad('ruflo-instruction-contract')}make generated Claude/Codex guidance MCP-first and schema-valid (#3153)
+  ${pad('ruflo-instruction-contract')}make generated roots + packaged skills MCP-first and schema-valid (#3153)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
