@@ -75,6 +75,28 @@ check('RIM3 shared contract and marker are installed',
 check('RIM4 routine raw npx and stale hyphenated tools disappear',
   !pureAgents.next.includes('npx @claude-flow/cli')
     && !pureAgents.next.includes('hooks_post-task'));
+check('RIM4a managed CLI gaps select ruflo rather than guessing the legacy package name',
+  pureAgents.next.includes('ruvnet_cli_help({executable: "ruflo", argv:')
+    && pureAgents.next.includes('ruvnet_cli_run({executable: "ruflo", argv:')
+    && !pureAgents.next.includes('executable: "claude-flow"'));
+const CONTRACT_V1 = `**ruflo-interface-contract:v1**
+
+## Ruflo Interface Contract
+
+- Use \`search_ruvnet\` for RuvNet source and capability claims when the Brain is installed; cite its source.
+- Use \`guidance_brain\` / \`guidance_recommend\` and the live MCP registry for this process's actual registered, configured, reachable, healthy, and authorized state.
+- Prefer a live structured Ruflo MCP tool for coordination, memory, routing, learning, and status. Discover deferred tools and schemas; never guess names or arguments.
+- For a genuine CLI-only gap, use \`ruvnet_cli_help\`, then \`ruvnet_cli_run\` with literal \`argv\` when that bridge is registered. Exact requested help must authorize the run; parent help or exit code alone is insufficient.
+- Direct shell is for bootstrap and administration that cannot depend on MCP: install/init, first MCP registration/start, diagnostics, and deliberate daemon work.
+- Native Claude/Codex agents execute. Ruflo tracks a swarm only after \`swarm_init\` and \`agent_spawn\` create records; a native agent alone is not proof.
+- Before generic testing or security agents, discover specialized installed QE or adversarial-security capabilities and disclose any fallback.`;
+const priorRoot = pureAgents.next.replace(SHARED_SECTIONS['Ruflo Interface Contract'], CONTRACT_V1);
+const upgradedRoot = migrateText(priorRoot, 'agents');
+check('RIM4b the exact installed v1 contract upgrades without replacing custom policy',
+  upgradedRoot.changed && !upgradedRoot.error
+    && upgradedRoot.next.includes('**ruflo-interface-contract:v2**')
+    && upgradedRoot.next.includes('executable: "ruflo"')
+    && upgradedRoot.next.includes('CUSTOM-AGENTS-BEFORE'));
 
 const pureClaude = migrateText(CLAUDE, 'claude', { known: KNOWN });
 check('RIM5 Claude overlay keeps project-only content and continues after spawning',
@@ -130,6 +152,33 @@ check('RIM11a task and platform skills are MCP-first with CRLF preserved',
   memorySkill.includes('memory_search_unified') && !memorySkill.includes('npx @claude-flow/cli')
     && platformSkill.includes('Runtime interface (MCP first)') && !platformSkill.includes('mcp__claude-flow__')
     && memorySkill.includes('\r\n') && platformSkill.includes('\r\n'));
+const securitySkill = fs.readFileSync(path.join(root, '.agents', 'skills', 'security-audit', 'SKILL.md'), 'utf8');
+const securityV1 = securitySkill.replace(
+  '`ruvnet_cli_help({executable: "ruflo", argv: ["<group>", "<command>"]})`,\r\n'
+    + 'then use `ruvnet_cli_run({executable: "ruflo", argv: [...]})` only with the\r\n'
+    + 'authorized literal arguments. Otherwise inspect the installed `ruflo`\r\n'
+    + "executable's help; never guess flags or claim a scan ran.",
+  '`ruvnet_cli_help`, then use `ruvnet_cli_run` with literal argv. Otherwise\r\n'
+    + "inspect the installed executable's help; never guess flags or claim a scan ran.",
+);
+const upgradedSecurity = migrateSkillText(securityV1, 'security-audit');
+const platformV1 = platformSkill.replace(
+  'For a genuine Ruflo CLI-only gap, use\r\n'
+    + '`ruvnet_cli_help({executable: "ruflo", argv: ["<group>", "<command>"]})`,\r\n'
+    + 'then `ruvnet_cli_run({executable: "ruflo", argv: [...]})` only with the exact\r\n'
+    + 'literal arguments that help authorized. Native Claude/Codex agents perform\r\n'
+    + 'execution; Ruflo records do not launch them automatically.',
+  'For a genuine CLI-only gap, use `ruvnet_cli_help` and then `ruvnet_cli_run`\r\n'
+    + 'with literal argv when that managed bridge is registered. Native Claude/Codex agents\r\n'
+    + 'perform execution; Ruflo records do not launch them automatically.',
+);
+const upgradedPlatform = migrateSkillText(platformV1, 'ruflo');
+check('RIM11b exact v1 security and platform skills upgrade to executable-specific v2',
+  securityV1 !== securitySkill && platformV1 !== platformSkill
+    && upgradedSecurity.changed && !upgradedSecurity.error
+    && upgradedPlatform.changed && !upgradedPlatform.error
+    && upgradedSecurity.next.includes('executable: "ruflo"')
+    && upgradedPlatform.next.includes('executable: "ruflo"'));
 for (const [file, bytes, mtime] of state) {
   check(`RIM12 runtime state untouched: ${path.basename(file)}`,
     fs.readFileSync(file).equals(bytes) && fs.statSync(file).mtimeMs === mtime);

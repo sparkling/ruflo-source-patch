@@ -280,10 +280,21 @@ check('RIC9 status proves every present surface', state.files === 15 && state.pa
 check('RIC10 pristine backups contain exact vendor bytes',
   [...vendorBytes].every(([file, source]) => fs.readFileSync(`${file}.rsp-backup`, 'utf8') === source));
 
+const currentClaudePatch = fs.readFileSync(claudeFile, 'utf8');
+fs.writeFileSync(claudeFile, `// ${patcher.PATCH_MARKER}\n// exact prior installed patch revision\n`);
+const revisionUpgrade = applyComposed(['ruflo-instruction-contract']);
+check(`RIC10a a prior named patch revision upgrades from its proven pristine: ${revisionUpgrade.log.join(' | ')}`,
+  !revisionUpgrade.errors && !revisionUpgrade.incomplete
+    && fs.readFileSync(claudeFile, 'utf8') === currentClaudePatch);
+
 const claudeApi = await import(`${pathToFileURL(claudeFile).href}?patched`);
 for (const template of Object.keys(claudeBodies)) {
   const output = claudeApi.generateClaudeMd({}, template);
   check(`RIC11 Claude ${template} emits the structured contract`, output.includes('## Ruflo Interface Contract'));
+  check(`RIC11a Claude ${template} selects the installed Ruflo executable for managed CLI gaps`,
+    output.includes('ruvnet_cli_help({executable: "ruflo", argv:')
+      && output.includes('ruvnet_cli_run({executable: "ruflo", argv:')
+      && !output.includes('executable: "claude-flow"'));
   check(`RIC12 Claude ${template} keeps valid bootstrap`, output.includes('npx ruflo@latest doctor --fix'));
 }
 const standaloneClaudeApi = await import(`${pathToFileURL(standaloneClaudeFile).href}?patched`);
@@ -296,6 +307,10 @@ const codexApi = await import(`${pathToFileURL(codexFile).href}?patched`);
 for (const template of Object.keys(codexBodies)) {
   const output = await codexApi.generateAgentsMd({ template });
   check(`RIC13 Codex ${template} emits the structured contract`, output.includes('## Ruflo Interface Contract'));
+  check(`RIC13a Codex ${template} selects the installed Ruflo executable for managed CLI gaps`,
+    output.includes('ruvnet_cli_help({executable: "ruflo", argv:')
+      && output.includes('ruvnet_cli_run({executable: "ruflo", argv:')
+      && !output.includes('executable: "claude-flow"'));
   check(`RIC14 Codex ${template} has no stale task_orchestrate`, !output.includes('task_orchestrate'));
 }
 const enterprise = await codexApi.generateAgentsMd({ template: 'enterprise' });

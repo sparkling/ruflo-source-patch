@@ -80,7 +80,8 @@ generator and every present packaged task skill; a standalone CLI cache legitima
 its Claude/platform surfaces. The target executes every available root template, validates task/platform
 contracts and current core schemas, and retires only when marker-free upstream bytes pass the complete
 proof with both hosts represented overall. Its separate exact-revision migrator has no Ruflo, Brain,
-npm, process, or database dependency.
+npm, process, or database dependency. Managed Ruflo CLI-only gaps explicitly select the installed
+`ruflo` executable in both Brain bridge calls; exact v1 roots and skills upgrade to that v2 contract.
 
 ## The rule this whole package exists to enforce
 

@@ -19,7 +19,12 @@ runtime discovery and describe native host agents as Ruflo-coordinated before Ru
 
 The active RuvNet Brain contract requires structured Ruflo MCP first. A real CLI-only gap goes through
 the managed help/run bridge with literal argv when available; direct shell remains valid for bootstrap,
-diagnostics, and explicitly chosen process administration. Upstream issue
+diagnostics, and explicitly chosen process administration. On Hetzner, the installed command is
+`ruflo` 3.38.21 while `claude-flow` is absent. The Brain bridge accepts both executable names, so generic
+guidance caused an agent to choose `claude-flow` and fail with `ENOENT`. The live MCP memory schemas also
+have no explicit database-path or user-scope argument, while `ruflo memory search --path ...` does. Thus
+project memory remains MCP-first and a separately configured user database remains one narrow CLI-only
+scope until MCP exposes it. Upstream issue
 [#3153](https://github.com/ruvnet/ruflo/issues/3153) records the source locations, reproduction, proposed
 shared renderer, and all-template acceptance criteria. Open issue
 [#2638](https://github.com/ruvnet/ruflo/issues/2638) separately tracks Claude/Codex source divergence.
@@ -41,7 +46,8 @@ contract governs root output, the platform skill, and task skills:
 
 - distinguishes `search_ruvnet` source truth from `guidance_brain`/live-registry runtime truth;
 - selects structured MCP for MCP-capable runtime work;
-- uses managed help then literal-argv run only for genuine CLI gaps;
+- uses managed help then literal-argv run only for genuine Ruflo CLI gaps and selects
+  `executable: "ruflo"` for both calls instead of guessing the absent legacy binary;
 - reserves direct shell for bootstrap, first MCP registration/start, doctor, and deliberate daemon work;
 - distinguishes native executors from Ruflo-tracked agents;
 - replaces stale tool names/schemas and removes nonexistent commands;
@@ -72,6 +78,12 @@ The existing single-source model remains authoritative: shared policy lives in `
 contains only Claude-specific syntax and native-agent behavior. The old Claude instruction to stop after
 spawning is removed: the executor continues independent work and waits only on an actual dependency.
 
+An MCP `policy-state-lock-timeout` is not permission to start the CLI fallback. It is a separate Ruflo
+runtime failure tracked in [#3164](https://github.com/ruvnet/ruflo/issues/3164): ADR-324 appends every
+authorization receipt to one pretty-printed state file and verifies, clones, and rewrites its unbounded
+history under a five-second lock. The instruction patch reports that MCP failure and continues safely
+from repository evidence; it does not mutate, truncate, or replace the provenance ledger.
+
 ## Implementation proof
 
 - macOS: 60/60 installed sources are tracked: ten Claude generators, five platform-skill generators,
@@ -81,6 +93,9 @@ spawning is removed: the executor continues independent work and waits only on a
 - Existing-file migration converged idempotently for 14 local and 11 Hetzner dual-host projects. It
   repaired 77 local and 45 Hetzner higher-priority task skills after the root files had converged; four
   additional local custom-root projects used the skill-only path.
+- Contract v2 migrates the exact contract-v1 root, security-skill, and platform-skill revisions. The
+  generated templates and all managed CLI examples select `ruflo`; mutation tests reject
+  `executable: "claude-flow"`. A prior installed patch revision is rebuilt only from its proven pristine.
 - A second exact-block migration reports zero changes on both fleets. No migration operation starts or
   stops a process or reads, repairs, checkpoints, replaces, deletes, or renames a database or sidecar.
 
@@ -116,3 +131,4 @@ spawning is removed: the executor continues independent work and waits only on a
 - [ADR-019](ADR-019-all-mode-adopts-new-targets.md)
 - [ADR-020](ADR-020-plugin-targets-compose.md)
 - [Ruflo #3153](https://github.com/ruvnet/ruflo/issues/3153)
+- [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164)
