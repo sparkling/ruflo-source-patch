@@ -286,6 +286,16 @@ const revisionUpgrade = applyComposed(['ruflo-instruction-contract']);
 check(`RIC10a a prior named patch revision upgrades from its proven pristine: ${revisionUpgrade.log.join(' | ')}`,
   !revisionUpgrade.errors && !revisionUpgrade.incomplete
     && fs.readFileSync(claudeFile, 'utf8') === currentClaudePatch);
+const { patchPreviousPlatformGenerator } = await import('../lib/ruflo-instruction-contract/skill-contract.mjs');
+const currentPlatformPatch = fs.readFileSync(platformFile, 'utf8');
+const previousPlatformPatch = patchPreviousPlatformGenerator(vendorBytes.get(platformFile)).next;
+fs.writeFileSync(platformFile, previousPlatformPatch);
+fs.writeFileSync(`${platformFile}.rsp-backup`, '');
+const poisonedRevisionUpgrade = applyComposed(['ruflo-instruction-contract']);
+check(`RIC10b an exact v1 platform patch recovers a poisoned pristine before v2: ${poisonedRevisionUpgrade.log.join(' | ')}`,
+  !poisonedRevisionUpgrade.errors && !poisonedRevisionUpgrade.incomplete
+    && fs.readFileSync(platformFile, 'utf8') === currentPlatformPatch
+    && fs.readFileSync(`${platformFile}.rsp-backup`, 'utf8') === vendorBytes.get(platformFile));
 
 const claudeApi = await import(`${pathToFileURL(claudeFile).href}?patched`);
 for (const template of Object.keys(claudeBodies)) {
