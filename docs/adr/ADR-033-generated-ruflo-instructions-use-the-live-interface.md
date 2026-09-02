@@ -73,6 +73,8 @@ guidance changed, while repository-specific policy and deliberate package-surfac
 For an allowlisted older full skill, the migration also removes its exact generated helper-script table:
 those references point at the wrong location and lead back to raw npx. The dormant scripts are not
 deleted or rewritten.
+Customized roots use an even narrower revision path: it changes only the unique exact v1 contract marker
+and CLI sentence, refuses mixed or edited revisions, and leaves every project-specific byte around them.
 
 The existing single-source model remains authoritative: shared policy lives in `AGENTS.md`; `CLAUDE.md`
 contains only Claude-specific syntax and native-agent behavior. The old Claude instruction to stop after

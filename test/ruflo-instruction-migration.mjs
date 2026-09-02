@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  migrateRoots, migrateSkillRoots, migrateSkillText, migrateText, SHARED_SECTIONS, CLAUDE_SECTIONS,
+  migrateInterfaceRevisionRoots, migrateInterfaceRevisionText, migrateRoots, migrateSkillRoots,
+  migrateSkillText, migrateText, SHARED_SECTIONS, CLAUDE_SECTIONS,
 } from '../lib/ruflo-instruction-contract/migrate.mjs';
 import { PLATFORM_MARKDOWN, SKILLS } from './fixtures/ruflo-instruction-vendor.mjs';
 
@@ -97,6 +98,18 @@ check('RIM4b the exact installed v1 contract upgrades without replacing custom p
     && upgradedRoot.next.includes('**ruflo-interface-contract:v2**')
     && upgradedRoot.next.includes('executable: "ruflo"')
     && upgradedRoot.next.includes('CUSTOM-AGENTS-BEFORE'));
+const customV1 = priorRoot.replace(
+  '\n**ruflo-managed:swarm:v2**',
+  '\nCustom project qualification rules remain authoritative.\n\n**ruflo-managed:swarm:v2**',
+);
+const customRevision = migrateInterfaceRevisionText(customV1);
+check('RIM4c a custom contract section upgrades only the exact v1 marker and CLI sentence',
+  customRevision.changed && !customRevision.error
+    && customRevision.next.includes('Custom project qualification rules remain authoritative.')
+    && customRevision.next.includes('**ruflo-interface-contract:v2**')
+    && customRevision.next.includes('executable: "ruflo"'));
+check('RIM4d mixed or edited interface revisions are refused',
+  Boolean(migrateInterfaceRevisionText(customV1.replace('genuine CLI-only gap', 'custom CLI gap')).error));
 
 const pureClaude = migrateText(CLAUDE, 'claude', { known: KNOWN });
 check('RIM5 Claude overlay keeps project-only content and continues after spawning',
@@ -222,6 +235,12 @@ check('RIM13c skill-only migration preserves custom root instructions',
   skillOnly.changed.length === 6
     && fs.readFileSync(path.join(customRoot, 'AGENTS.md'), 'utf8') === '# fully custom\n'
     && fs.readFileSync(path.join(customRoot, 'CLAUDE.md'), 'utf8') === '@AGENTS.md\n\n# custom\n');
+const customRevisionRoot = makeRoot('custom-revision', { agents: customV1 });
+const revisionRootResult = migrateInterfaceRevisionRoots([customRevisionRoot], { apply: true });
+check('RIM13d custom-root revision mode changes only AGENTS through the atomic writer',
+  revisionRootResult.changed.length === 1
+    && fs.readFileSync(path.join(customRevisionRoot, 'AGENTS.md'), 'utf8') === customRevision.next
+    && fs.readFileSync(path.join(customRevisionRoot, 'CLAUDE.md'), 'utf8') === CLAUDE);
 
 const noImport = migrateText(CLAUDE.replace('@AGENTS.md', '# no import'), 'claude', { known: KNOWN });
 check('RIM14 missing canonical import refuses Claude migration', Boolean(noImport.error));
