@@ -199,7 +199,7 @@ codex mcp get ruvnet-brain
 codex mcp add ruvnet-brain -- node "$BRAIN_MCP"
 ```
 
-It no longer appends a TOML table directly. It is explicitly a fallback for an older
+It no longer appends a TOML table directly to Codex's user-global registry. It is explicitly a fallback for an older
 ruvnet-brain installation; current ruvnet-brain source intends to own its registration.
 
 Revalidate ownership behavior. A downstream fallback must never overwrite or silently

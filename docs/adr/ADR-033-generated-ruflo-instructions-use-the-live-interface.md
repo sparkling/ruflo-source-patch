@@ -98,7 +98,8 @@ from repository evidence; it does not mutate, truncate, or replace the provenanc
 - Contract v2 migrates the exact contract-v1 root, security-skill, and platform-skill revisions. The
   generated templates and all managed CLI examples select `ruflo`; mutation tests reject
   `executable: "claude-flow"`. A prior installed patch revision is rebuilt only from its proven pristine;
-  the exact v1 platform transform also has a round-trip-proved recovery when its old backup is poisoned.
+  the exact v1 and current platform transforms also have round-trip-proved recovery when a backup is
+  poisoned.
 - A second exact-block migration reports zero changes on both fleets. No migration operation starts or
   stops a process or reads, repairs, checkpoints, replaces, deletes, or renames a database or sidecar.
 

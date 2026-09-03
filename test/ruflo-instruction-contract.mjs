@@ -296,6 +296,12 @@ check(`RIC10b an exact v1 platform patch recovers a poisoned pristine before v2:
   !poisonedRevisionUpgrade.errors && !poisonedRevisionUpgrade.incomplete
     && fs.readFileSync(platformFile, 'utf8') === currentPlatformPatch
     && fs.readFileSync(`${platformFile}.rsp-backup`, 'utf8') === vendorBytes.get(platformFile));
+fs.writeFileSync(`${platformFile}.rsp-backup`, '');
+const poisonedCurrentRecovery = applyComposed(['ruflo-instruction-contract']);
+check(`RIC10c the exact current platform patch also rebuilds a poisoned pristine: ${poisonedCurrentRecovery.log.join(' | ')}`,
+  !poisonedCurrentRecovery.errors && !poisonedCurrentRecovery.incomplete
+    && fs.readFileSync(platformFile, 'utf8') === currentPlatformPatch
+    && fs.readFileSync(`${platformFile}.rsp-backup`, 'utf8') === vendorBytes.get(platformFile));
 
 const claudeApi = await import(`${pathToFileURL(claudeFile).href}?patched`);
 for (const template of Object.keys(claudeBodies)) {
