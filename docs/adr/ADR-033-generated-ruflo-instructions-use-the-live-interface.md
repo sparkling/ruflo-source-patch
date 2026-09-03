@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-09-01
-**Last updated**: 2026-09-02
+**Last updated**: 2026-09-03
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, init, instructions, mcp, codex, claude-code, migration
 
@@ -95,6 +95,11 @@ from repository evidence; it does not mutate, truncate, or replace the provenanc
 - Existing-file migration converged idempotently for 14 local and 11 Hetzner dual-host projects. It
   repaired 77 local and 45 Hetzner higher-priority task skills after the root files had converged; four
   additional local custom-root projects used the skill-only path.
+- The 2026-09-03 fleet revalidation reflects the currently present canonical roots: 13 attributable
+  local roots expose 79 instruction/skill files, five deliberately customized local roots expose 14
+  managed skills, and 11 Hetzner roots expose 67 files. Every set is byte-converged with zero pending
+  migration; the installed generator/platform/task-skill surfaces remain 60/60 local and 54/54 on
+  Hetzner.
 - Contract v2 migrates the exact contract-v1 root, security-skill, and platform-skill revisions. The
   generated templates and all managed CLI examples select `ruflo`; mutation tests reject
   `executable: "claude-flow"`. A prior installed patch revision is rebuilt only from its proven pristine;
