@@ -457,6 +457,17 @@ if (up.currentVersion() !== '4.31.7') {
   fail(`UP0 provenance points at lib/, but currentVersion resolved ${JSON.stringify(up.currentVersion())} instead of its owning package`);
 }
 
+// UP0a — a working checkout is an explicit-install source, never a five-minute deployment feed.
+// Clean versus dirty is immaterial: an untagged commit is still not a release, and the next edit can
+// land between ticks. This is the exact coupling that killed 11 live MCP clients on 2026-09-08.
+const stable = await import(`file://${path.join(REPO, 'lib', 'cwd', 'stable.mjs')}`);
+fs.mkdirSync(path.join(updateSource, '.git'));
+if (!stable.sourceIsMutableCheckout(path.join(updateSource, 'lib'))) fail('UP0a failed to recognize a Git checkout as mutable');
+if (stable.stableLibSourceKind() !== 'mutable-checkout') fail('UP0a did not expose the mutable checkout provenance to status reporting');
+if (stable.stableLibDrift() !== null) fail('UP0a monitor followed a mutable checkout instead of requiring an explicit install/tag');
+if (stable.healStableLib().skipped !== 'mutable-checkout') fail('UP0a healStableLib copied mutable checkout bytes into the scheduled executable');
+fs.rmSync(path.join(updateSource, '.git'), { recursive: true, force: true });
+
 // UP1 — numeric compare, not lexical. `4.10.0` > `4.9.9`; a string compare says the opposite and would
 // strand every user on 4.9.x forever.
 if (!up.isNewer('v4.10.0', '4.9.9')) fail('UP1 4.10.0 was not newer than 4.9.9 — lexical compare');

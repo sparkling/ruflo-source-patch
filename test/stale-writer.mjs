@@ -96,12 +96,9 @@ function fakeWorker(cliJs, ...args) {
 }
 const publish = () => new Promise((r) => setTimeout(r, 700)); // let ps see the argv
 
-// ── SW1 + SW6: pre-patch DAEMON *and* pre-patch MCP CLIENT are both killed ────
-// Per explicit user directive: kill every pre-patch writer, daemon or MCP client, to force fresh
-// code — even though an MCP-client kill is destructive (no auto-reconnect; needs a manual
-// /mcp -> Reconnect afterward). The loud warning half of that trade is covered separately by the
-// addProblems() feed (monitor-run.mjs), not by this module. Both need a patched copy + a process
-// older than the patch, so spawn both and share one wait.
+// ── SW1 + SW6: pre-patch daemon is restarted; MCP clients are detected but spared ──
+// A daemon can respawn patched. A detached monitor cannot reconnect a host's stdio MCP transport,
+// so killing that child creates a durable `Transport closed` outage. Both still need detection.
 const preDaemonMi = path.join(SB, 'pre-daemon', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 const preMcpMi = path.join(SB, 'pre-mcp', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 const preRuflo = fakeRuflo('pre-ruflo', { patched: true });
@@ -140,15 +137,14 @@ process.env.RSP_NO_STALE_WRITER_KILL = '1';
 recover();
 if (!alive(preDaemon.pid)) fail('SW1b RSP_NO_STALE_WRITER_KILL did not prevent the kill');
 delete process.env.RSP_NO_STALE_WRITER_KILL;
-// SW1c + SW6 — one real recovery: BOTH the daemon and the MCP client are killed.
+// SW1c + SW6 — one real recovery: daemon dies; both MCP launch shapes remain alive.
 const rec = recover();
 if (!rec.killed.some((w) => w.pid === preDaemon.pid)) fail('SW1c recovery did not restart the pre-patch daemon');
-if (!rec.killed.some((w) => w.pid === preMcp.pid)) fail('SW6 recovery did not kill the pre-patch MCP client — per directive it must, to force fresh code');
-if (!rec.killed.some((w) => w.pid === preRufloMcp.pid)) fail('SW10 recovery did not kill the .bin/ruflo MCP client');
+if (rec.killed.some((w) => w.pid === preMcp.pid || w.pid === preRufloMcp.pid)) fail('SW6/SW10 recovery killed an MCP client that the detached monitor cannot reconnect');
 await new Promise((r) => setTimeout(r, 400));
 if (alive(preDaemon.pid)) fail('SW1c the pre-patch daemon survived recovery — it should respawn patched');
-if (alive(preMcp.pid)) fail('SW6 the pre-patch MCP client survived recovery — it should have been killed');
-if (alive(preRufloMcp.pid)) fail('SW10 the .bin/ruflo MCP client survived recovery — it should have been killed');
+if (!alive(preMcp.pid)) fail('SW6 the pre-patch MCP client was killed — host transport cannot self-reconnect');
+if (!alive(preRufloMcp.pid)) fail('SW10 the .bin/ruflo MCP client was killed — host transport cannot self-reconnect');
 
 // ── SW7: an UNPATCHED writer (even a daemon) is detected but NEVER auto-killed ─
 // The copy has no lock because the patch could not apply; a respawn reads the same unpatched copy
@@ -224,24 +220,24 @@ if (detect().length) fail('SW4 stale writers were reported with the memory targe
 if (!alive(idle.pid)) fail('SW4 a writer was killed with memory uninstalled');
 setMemoryInstalled(true);
 
-// ── SW8: addProblems() MERGES a loud MCP-kill warning, it does not clobber ────
-// monitor-run.mjs feeds the "we killed your MCP client" warning through addProblems() specifically
+// ── SW8: addProblems() MERGES a deferred-reconnect warning, it does not clobber ────
+// monitor-run.mjs feeds the "MCP needs reconnect" warning through addProblems() specifically
 // because a plain recordProblems() call would REPLACE whatever runOnce() already recorded that same
 // tick (e.g. a genuine anchor-drift problem) — losing it. Prove the merge, not just that a message
-// lands: seed an unrelated problem first, add the MCP-kill lines, and confirm BOTH survive.
+// lands: seed an unrelated problem first, add the MCP-reconnect lines, and confirm BOTH survive.
 const { recordProblems, addProblems } = await import('../lib/cwd/problems.mjs');
 const { PROBLEMS_PATH } = await import('../lib/cwd/paths.mjs');
 recordProblems(['pre-existing: something runOnce found this tick']);
-addProblems(['!! ruflo-source-patch KILLED 1 stale MCP client(s) to force fresh code: pid 99999']);
+addProblems(['ruflo-source-patch deferred 1 stale MCP client(s): pid 99999']);
 const stored = JSON.parse(fs.readFileSync(PROBLEMS_PATH, 'utf8')).problems;
 if (!stored.some((p) => p.startsWith('pre-existing:'))) fail('SW8 addProblems CLOBBERED the pre-existing problem runOnce had already recorded this tick');
-if (!stored.some((p) => p.includes('KILLED 1 stale MCP client'))) fail('SW8 addProblems did not record the MCP-kill warning at all');
+if (!stored.some((p) => p.includes('deferred 1 stale MCP client'))) fail('SW8 addProblems did not record the deferred MCP warning at all');
 // Calling it again with the SAME lines must not duplicate them (de-dupe via Set).
-addProblems(['!! ruflo-source-patch KILLED 1 stale MCP client(s) to force fresh code: pid 99999']);
+addProblems(['ruflo-source-patch deferred 1 stale MCP client(s): pid 99999']);
 const stored2 = JSON.parse(fs.readFileSync(PROBLEMS_PATH, 'utf8')).problems;
-if (stored2.filter((p) => p.includes('KILLED 1 stale MCP client')).length !== 1) fail('SW8 addProblems duplicated an already-recorded line instead of de-duping');
+if (stored2.filter((p) => p.includes('deferred 1 stale MCP client')).length !== 1) fail('SW8 addProblems duplicated an already-recorded line instead of de-duping');
 
-console.log('✔ stale-writer guard (SW1/SW6/SW10 direct+.bin/cli+.bin/ruflo pre-patch writers killed, SW1a/b dry-run+kill-switch inert, SW7 unpatched NOT killed, SW9 legacy fail-open rejected, SW2 patched-after-patch untouched, SW3/SW11 unresolvable or unverified untouched, SW5 .bin/cli unpatched not-killed, SW4 inert unless memory installed, SW8 addProblems merges not clobbers)');
+console.log('✔ stale-writer guard (SW1 daemon recovery; SW6/SW10 pre-patch MCP detection without killing; SW1a/b dry-run+kill-switch inert; SW7/SW9 unpatched not killed; SW2 healthy untouched; SW3/SW11 unresolvable or unverified untouched; SW5 .bin/cli not killed; SW4 inert unless memory installed; SW8 warnings merge)');
 
 for (const p of spawned) { try { p.kill('SIGKILL'); } catch { /* gone */ } }
 process.exit(0);

@@ -32,7 +32,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 
 | File | Job |
 |---|---|
-| `stable.mjs` | `~/.ruflo-source-patch/lib` is **not a cache; it is the executable**. The hook and the monitor run *that* copy. Provenance is recorded at sync time, so "is it stale?" has an answer. |
+| `stable.mjs` | `~/.ruflo-source-patch/lib` is **not a cache; it is the executable**. Immutable package sources may self-heal; mutable Git checkouts require explicit install and are never followed on a timer. |
 | `hooks.mjs` | Registers exactly one SessionStart + UserPromptSubmit hook. It reaps exact patch-owned unmarked commands across old layouts and migrated home prefixes, collapses duplicate marked entries, and leaves unrelated hooks untouched. |
 | `monitor.mjs` | The scheduled re-apply. **Not a daemon**: this project exists partly *because* ruflo daemons multiply. launchd/cron runs a short-lived check and exits. |
 | `problems.mjs` | **One** definition of "a line a human must see." Used by the hook, the monitor log, and the notifier. It was three copies, and they had all drifted the same way. |
@@ -41,7 +41,7 @@ leaving `cwd`'s anchoring in the same file untouched.
 | `state.mjs` | What is installed, and what has **retired**. A small lock protects each `state.json` read-modify-write; an outer fail-closed lock makes **state change + vendor-file rebuild** one transaction (see below). |
 | `update-check.mjs` | Self-update, from **immutable semver tags** and never a branch. On the tick, not the hook: sessions run for days, so a hook-gated update leaves an invalidated patch re-applying itself for a week. Forward only; a failed install keeps the working version and says so. |
 | `cleanup.mjs` | Repairs a project already sprawled: stray daemons, subdirectory state dirs. The only code here that **signals processes and removes directories**. `strayStateDirs()` is also the LEAK DETECTOR the SessionStart hook reports from: a state dir in a subdirectory is an anchor that leaked, whatever form it took. |
-| `stale-writer.mjs` | The other process-signaller (ADR-023). Detects a ruflo MCP client/daemon still writing `memory.db` with old code, including direct CLI, `.bin/cli`, verified `.bin/ruflo`, and authenticated launchers under custom PATH prefixes. Its bounded machine-wide process read is large enough for real Codex/Claude argv streams rather than turning `ENOBUFS` into a false zero. **Kills every positively resolved `pre-patch` writer** (daemon and MCP client alike) to force fresh code, guarded like cleanup. A killed MCP client needs a manual `/mcp` reconnect afterward; that warning is pushed through `problems.mjs`'s `addProblems()` so it reaches the user's next prompt in any session. Unknown and `unpatched` writers are never killed. `RSP_NO_STALE_WRITER_KILL` disables every kill. |
+| `stale-writer.mjs` | Detects Ruflo MCP clients/daemons running old memory code across direct CLI and verified wrapper shapes. It automatically restarts only `pre-patch` daemons. MCP clients are reported but never killed because a detached monitor cannot reconnect their host stdio transport. Unknown and `unpatched` writers are also never killed. |
 
 ## The one that bites
 
@@ -49,10 +49,11 @@ leaving `cwd`'s anchoring in the same file untouched.
 hook and the monitor kept executing the old lib forever, and every reporting surface was *also* the old
 code, so it was silent. Found live at nine modules behind.
 
-The invariant is **provenance, not location**. Diffing against the globally-installed package is the
+The invariant is **immutable provenance, not location**. Diffing against the globally-installed package is the
 obvious answer and it is wrong: develop from a clone and the global is *older*, so the CLI would sync your
 clone in and the monitor would heal it **backward** to the stale release. Two writers fighting on a timer.
-The fuzz suite caught exactly that.
+The fuzz suite caught exactly that. A Git checkout is never an unattended source: following one deployed
+in-progress work and triggered an 11-session MCP outage on 8 September 2026.
 
 ## We had ruflo's own bug, in our own state file
 

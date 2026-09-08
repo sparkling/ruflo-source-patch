@@ -128,7 +128,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`cwd`** | **Silent data loss.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | **Retired on executable proof in Ruflo 3.38.11+.** Older releases need direct start/stop/status/supervisor paths normalized to one project-root lock/PID identity. Current releases export and use `resolveDaemonProjectRoot()` throughout; retirement executes nested, nested-project, `.git` stop, and no-marker behavior and rejects route/resolver mutations | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
-| **`memory`** | Keeps an explicit project/user database path an authority boundary: one long-lived bridge process gets one canonical registry state per database instead of silently reusing whichever store opened first. Above Ruflo 3.38.12's native #2878 shared-lock baseline it also retains stricter token/inode-safe fail-closed lock ownership and outer fallback/bridge serialization, **WAL-sidecar refusal**, an **integrity gate**, and a **stale-writer guard**. The monitor forces every positively resolved pre-patch daemon/MCP writer onto current bytes and names the manual `/mcp` reconnect required after an MCP kill; `RSP_NO_STALE_WRITER_KILL` disables kills | [#3143](https://github.com/ruvnet/ruflo/issues/3143) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
+| **`memory`** | Keeps an explicit project/user database path an authority boundary: one long-lived bridge process gets one canonical registry state per database instead of silently reusing whichever store opened first. Above Ruflo 3.38.12's native #2878 shared-lock baseline it also retains stricter token/inode-safe fail-closed lock ownership and outer fallback/bridge serialization, **WAL-sidecar refusal**, an **integrity gate**, and a **stale-writer guard**. The monitor restarts only positively resolved pre-patch daemons. It detects and reports stale MCP clients but never kills them because only their owning host can reconnect the stdio transport; `RSP_NO_STALE_WRITER_KILL` disables daemon restarts | [#3143](https://github.com/ruvnet/ruflo/issues/3143) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
 | **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, `host-update`, and bounded `host-refresh` commands. Installing or self-updating this patch automatically runs the all-installed update once through those injected commands. Normal version changes use each host's supported update/reinstall path; exact tree comparison also repairs same-version collisions. Claude user and active project/local scopes plus Codex are covered; disabled, managed, and orphaned-project registrations are preserved. Host CLIs are resolved through validated PATH/PATHEXT, effective-account and configured user roots (npm/pnpm/Volta/Bun/mise/asdf/Homebrew), plus revalidated persisted package roots, so a narrow PATH or migrated `HOME` cannot silently skip reconciliation. Stale canonical marketplace paths are repaired only through host CLIs; foreign same-named sources are refused. The bundled Codex initializer uses the same literal-argv boundary. Revision-specific fragment proof prevents an older injected body from reporting current. The patch never copies or directly edits host caches and reports partial completion as nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 
@@ -489,22 +489,18 @@ The public wrapper is what `npx ruflo@latest mcp start` actually leaves running;
 package identities before following Ruflo's bounded nested/hoisted-dependency walk. What the guard *does* depends on
 whether the on-disk copy is actually patched:
 
-- **A `pre-patch` writer** (copy patched, process older) is **killed**, daemon or MCP client alike, to
-  force it onto patched code. A daemon respawns invisibly on next use. An MCP client does not: Claude
-  Code will not reconnect a killed stdio server on its own (validated live, see the fragment comment
-  in `stale-writer.mjs`), so reloading one needs a SECOND, manual step in that exact session afterward:
-  `/mcp` -> Reconnect, or `/reload-plugins`. Reconnect alone on a still-alive stale process is a no-op,
-  which is why the kill has to happen first. **This is a deliberate trade the user chose**: forcing
-  fresh code onto every writer, at the cost of an MCP outage in each affected session until the user
-  notices and clears it. Every such kill is pushed into the shared problem feed (`addProblems`), so it
-  surfaces on the user's very next prompt in *any* session, naming the killed pid(s) and the fix.
+- **A `pre-patch` daemon** (copy patched, process older) is killed and restarts on current bytes at
+  next use. A `pre-patch` MCP client is detected and reported but never signalled: the detached
+  monitor cannot reconnect the owning Codex/Claude stdio transport. The host performs a controlled
+  `/mcp` reconnect when the user is ready. This prevents a scheduled repair from turning a safe
+  source update into machine-wide `Transport closed` failures.
 - **An `unpatched` writer** (copy lacks the current fail-closed lock, either because the patch could
   not apply or because the older fail-open wrapper remains): **never auto-killed**, because a respawn
   would reload the same unsafe bytes. That's patch drift; the fix is re-anchoring (the drift
   machinery already flags it).
 
-`RSP_NO_STALE_WRITER_KILL` keeps detection but disables every kill; `monitor run` triggers a recovery
-on demand, visible directly in that terminal.
+`RSP_NO_STALE_WRITER_KILL` keeps detection but disables daemon restarts; `monitor run` triggers the
+same bounded recovery and reports MCP clients that still need their host to reconnect them.
 
 #### The cost, stated plainly
 

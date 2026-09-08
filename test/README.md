@@ -24,7 +24,7 @@
 | `cwd-current.mjs` | Exact Ruflo 3.38.12 residual cwd coverage: permission state, permission audit, swarm state, neural-weft defaults, generated helpers, and byte-safe uninstall. |
 | `daemon-native.mjs` | Native #2877 structural and executable root-resolution proof, deliberate resolver/route mutations, mixed legacy/native fleets, terminal retirement, and pristine preservation. |
 | `cleanup-procs.mjs` | `cleanup`'s **kill** half. Real processes, real `pgrep`/`lsof`/`ps`. |
-| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including direct, `.bin/cli`, verified `.bin/ruflo`, and custom-prefix launcher shapes; dry-run/kill-switch boundaries; and rejection of older fail-open or same-named impostor wrappers. |
+| `stale-writer.mjs` | The machine-wide stale daemon/MCP writer guard, including daemon-only automatic recovery, proof that MCP transports are never killed, dry-run/kill-switch boundaries, and rejection of fail-open or impostor wrappers. |
 | `monitor-internals.mjs` | The plist, the cron spec, interval clamping, uninstall's cleanup, and `adr-reindex`'s reporting branches. |
 | `dual-host.mjs` | The `dual` shell scripts against deterministic adapter/Codex fakes: policy rollback, MCP ownership, legacy migration, failure and signal cleanup. |
 | `mcp-prefix.mjs` | MCP prefix rewriting, composed-target independence, re-baselining, and poisoned-backup recovery. |

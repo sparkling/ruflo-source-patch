@@ -2,12 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-17
-**Updated**: 2026-08-15. Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
+**Updated**: 2026-09-08. Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
 sql.js writers. This target remains for the integrity gate, raw WAL refusal, stronger outer lock, and
 stale-process recovery. Writer discovery now shares current runnable-root coverage: npx, authenticated
 global launchers on PATH, custom prefixes without npm, the public `.bin/ruflo` wrapper, and its nested
 or hoisted CLI. A pre-patch writer is never claimed fully covered until those launch shapes pass mutation
-tests.
+tests. A live incident proved that an unattended monitor cannot safely kill an MCP stdio child:
+11 clients became permanently `Transport closed` until host-local reconnect. Automatic recovery is
+therefore daemon-only; stale MCP clients are reported and require a controlled host reconnect.
 Supersedes: none
 Related: ADR-006 (fail-closed serialization and WAL refusal), ADR-013 (cleanup's guarded kill), ADR-021 (the monitor acts on its own tick)
 
@@ -81,21 +83,13 @@ stream and had been caught as an empty list, turning detector failure into a fal
 The action is decided by whether a restart would actually FIX the process at all, and separately, how
 loud the warning must be when it does:
 
-- **A `pre-patch` writer** (the copy on disk IS patched; the process predates it) is killed, daemon or
-  MCP client alike. A daemon respawns invisibly on next use. An MCP client does not: reloading one onto
-  patched code needs BOTH steps, validated live against this package's own session (2026-07-17): kill
-  the pid, THEN `/mcp` -> Reconnect (or `/reload-plugins` for a plugin server) inside that exact
-  session. Neither step alone works: `/mcp` -> Reconnect on a still-alive stale process just
-  re-attaches to that same stale process (confirmed live); a kill with no follow-up does not self-heal
-  either, confirmed by killing this session's own MCP client and immediately retrying a tool call with
-  no other action, which failed instantly with no on-demand respawn, matching Claude Code's own docs
-  ("stdio servers... are not reconnected automatically"). The monitor cannot perform step 2 (it is
-  bound to that session's live UI), so it kills anyway and pushes a loud, specific warning into the
-  shared problem feed (`addProblems`, `lib/cwd/problems.mjs`) naming the killed pid(s) and the exact
-  two-step fix, surfaced on the user's very next prompt in ANY session. **This is a deliberate,
-  user-directed trade**: automatically forcing fresh code onto every writer, at the cost of an MCP
-  client outage the user must notice and manually clear, chosen over the safer default (daemons only,
-  MCP clients merely warned) this ADR shipped with initially.
+- **A `pre-patch` daemon** (the copy on disk IS patched; the process predates it) is killed and
+  respawns patched on next use.
+- **A `pre-patch` MCP client** is detected and reported but never signalled by the monitor. The
+  8 September incident proved the boundary at machine scale: a scheduled repair rewrote 146 files,
+  killed 11 live MCP children, and every owning session retained a dead `Transport closed` channel.
+  The detached monitor cannot perform the required reconnect inside each Codex/Claude host. A
+  controlled host reconnect is therefore the only safe transition to the new bytes.
 - **An `unpatched` writer** (daemon or MCP client) is NEVER auto-killed, regardless of the above: the
   copy lacks the current fail-closed lock because the patch could not be applied (anchor drift), or
   it still carries the older fail-open wrapper. ANY respawn reads those same unsafe bytes and gains
@@ -103,9 +97,8 @@ loud the warning must be when it does:
   machinery reports), not by killing a process for no benefit.
 
 Following ADR-021's split (the hook REPORTS, the monitor ACTS), the SessionStart hook warns about every
-stale writer, flagging which pre-patch MCP clients WILL be killed; the monitor tick kills every
-pre-patch writer and, for each killed MCP client, merges a loud warning into the shared problem feed;
-`monitor run` does the same on demand, visible directly in that terminal. The kill is guarded to
+stale writer; the monitor tick restarts only eligible daemons and merges a controlled-reconnect warning
+for stale MCP clients into the shared problem feed. `monitor run` follows the same boundary. Daemon signalling is guarded to
 ADR-013's cleanup bar: a process is only ever signalled when we can positively resolve its argv to an
 `@claude-flow/cli` install. The detector is inert unless the `memory` target is installed, and
 `RSP_NO_STALE_WRITER_KILL` disables the kill while keeping detection.
@@ -122,22 +115,16 @@ resolve remains visible as unpatched/unknown and never authorizes a signal.
 - A whole-file flush can no longer silently overwrite a torn store: the write is refused, loudly,
   and the corrupt image is left untouched for recovery. The measured `no such table` data-loss path
   is closed at the last moment before the write.
-- Every positively resolved pre-patch writer, daemon or MCP client, is forced onto patched code on the
-  next monitor tick. Direct, `.bin/cli`, `.bin/ruflo`, and custom-prefix launch shapes are all tested;
-  an unresolved writer is reported rather than silently counted as covered.
-- The daemon half of the kill disrupts no live session (it respawns on next use); the MCP-client half
-  is paired with a warning routed through the shared problem feed, reaching the user's next prompt in
-  any session rather than depending on them noticing a dead tool call first.
+- Every positively resolved stale writer is detected. Eligible daemons are forced onto patched code;
+  MCP clients remain alive until their owning host can reconnect them deliberately.
+- A scheduled repair cannot silently destroy every live Ruflo tool transport on the machine.
 - The kill reuses cleanup's positive-identification discipline and never signals a process it has not
   resolved to a ruflo memory writer.
 
 ### Negative
 
-- Killing a pre-patch MCP client is genuinely destructive: ruflo MCP access in that session is dead
-  until the user manually runs `/mcp` -> Reconnect (or `/reload-plugins`) THERE, and nothing brings it
-  back on its own. This is a deliberate trade the user chose (forced freshness over avoiding the
-  outage), not a side effect discovered after the fact, but it means every affected session sees a
-  real capability loss until the user acts.
+- A pre-patch MCP client can continue running older in-memory code until its owning host reconnects.
+  The monitor reports that condition rather than pretending it forced convergence.
 - An `unpatched` writer is only warned about, never killed, because a restart would loop on the same
   unpatched copy for no benefit. The real fix there is re-anchoring the patch, surfaced by the drift
   machinery.
