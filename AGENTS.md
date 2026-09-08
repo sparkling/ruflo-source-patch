@@ -58,6 +58,7 @@ npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail do
 npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # retired on shared common/configured-root behavior in Brain 4.0.12+ (#81)
 npx github:sparkling/ruflo-source-patch brain-managed-memory-boundary install # preserve Brain 4.0.36's detector; add default raw-SQL refusal + audited exact diagnostic (#102/#103)
 npx github:sparkling/ruflo-source-patch brain-search-safety install # ignore inherited symbol keys and refuse unproved automatic repair (#224/#225)
+npx github:sparkling/ruflo-source-patch brain-dual-host-receipt install # emit MCP persistence request; never start a second Ruflo memory driver (#272)
 npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)
 ```
 

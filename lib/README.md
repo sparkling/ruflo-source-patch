@@ -24,7 +24,7 @@ how a fix silently stops existing.
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
 | `ruflo-instruction-contract/` | **Ruflo instruction contract patch** | installed Claude/Codex root generators, platform-skill generators, and packaged Codex task skills | SessionStart hook + monitor |
 | `ruflo-model-contract/` | **Ruflo model coordination contract patch** (CLI composition target) | installed `agent_spawn` and `hooks_model-route` MCP definitions/handlers | SessionStart hook + monitor |
-| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-search-safety/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
+| `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-search-safety/`, `brain-dual-host-receipt/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `metaharness-codex-hooks/` | **MetaHarness Codex host patch** | authenticated installed `metaharness` and `@metaharness/host-codex` runtime bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`, `codex-switch`) | *nothing*. They set up or repair **your projects/host registration**, or move your own Codex session between accounts | nobody; you run them by hand |
 
@@ -57,6 +57,11 @@ shell before writing any of them; a missing anchor leaves every surface untouche
 KB. It validates `symbolRoute()` by executing the exact installed function against inherited, own, and
 malformed entries; generic outage guidance must remain nonzero/loud without prescribing mutation. It
 does not discover or alter stores, sidecars, models, updater receipts, versions, or host caches (ADR-031).
+
+`brain-dual-host-receipt/` owns the identical active persistent-runtime and deployed copies of Brain's
+dual-host coordinator. It preserves the subscription duel and converts only receipt persistence into a
+caller-owned `memory_store` request. A callback must prove the exact key before the helper reports
+`learningPersisted`; without one, the completed duel remains valid and persistence stays explicitly false.
 
 `adr-io-safety/` owns `verify.mjs`, `import.mjs`, and `reindex.mjs` as one interdependent bundle in
 every active `ruflo-adr` root. Its descriptor-level preflight proves all expected files, exact anchors,
