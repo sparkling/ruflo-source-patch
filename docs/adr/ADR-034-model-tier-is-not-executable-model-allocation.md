@@ -46,6 +46,12 @@ competing over a backup. Every exact anchor is proved before its file changes; a
 the complete target fail nonzero. Uninstall recomposes shared files with their remaining targets. The
 target is re-applied by the existing SessionStart hook and monitor.
 
+If a patched CLI file has lost its pristine backup, recovery remains fail-closed. The composition
+engine may recover only from a different installed copy whose package name, exact version, and
+package-relative path match, and only when rebuilding that candidate with every recognized live
+entry reproduces the orphaned file byte-for-byte. A matching version or similar source alone is not
+enough; without the complete composition proof, the file remains untouched and installation fails.
+
 Retirement requires every installed copy, without local markers, to import successfully; its public
 schema must accept representative Astra and Fable exact IDs while rejecting empty/whitespace values;
 the handler source must preserve exact IDs; and both hook paths must expose a tier plus

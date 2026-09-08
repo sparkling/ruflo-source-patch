@@ -123,11 +123,30 @@ if (restored.errors !== 0 || fs.readFileSync(agentFile, 'utf8') !== AGENT_VENDOR
   console.log(JSON.stringify({ restored }, null, 2));
 }
 
+apply(['ruflo-model-contract']);
+const RECOVERY_ROOT = path.join(NODE_MODULES, 'ruflo', 'node_modules', '@claude-flow', '.cli-recovery');
+const RECOVERY_TOOLS = path.join(RECOVERY_ROOT, 'dist', 'src', 'mcp-tools');
+fs.mkdirSync(RECOVERY_TOOLS, { recursive: true });
+fs.writeFileSync(path.join(RECOVERY_ROOT, 'package.json'),
+  '{"name":"@claude-flow/cli","version":"fixture","type":"module"}\n');
+const recoveryAgentFile = path.join(RECOVERY_TOOLS, 'agent-tools.js');
+const recoveryHooksFile = path.join(RECOVERY_TOOLS, 'hooks-tools.js');
+fs.writeFileSync(recoveryAgentFile, AGENT_VENDOR);
+fs.writeFileSync(recoveryHooksFile, HOOKS_VENDOR);
+fs.rmSync(`${hooksFile}.rsp-backup`, { force: true });
+const recovered = apply(['ruflo-model-contract']);
+check('RMC7 a missing pristine is recovered only by exact same-version composition proof',
+  recovered.incomplete === 0
+    && recovered.log.some((line) => line.startsWith(`recovered-pristine ${hooksFile} from ${recoveryHooksFile}`))
+    && fs.readFileSync(`${hooksFile}.rsp-backup`, 'utf8') === HOOKS_VENDOR
+    && patcher.isPatched(fs.readFileSync(hooksFile, 'utf8')));
+apply([]);
+
 const mutation = AGENT_VENDOR.replace("enum: ['haiku', 'sonnet', 'opus', 'opus-4.7', 'inherit'],",
   "enum: ['haiku', 'sonnet', 'opus'],");
 fs.writeFileSync(agentFile, mutation);
 const refused = apply(['ruflo-model-contract']);
-check('RMC7 an unknown restricted schema is refused and makes the target incomplete',
+check('RMC8 an unknown restricted schema is refused and makes the target incomplete',
   refused.incomplete > 0 && fs.readFileSync(agentFile, 'utf8') === mutation);
 apply([]);
 fs.writeFileSync(agentFile, AGENT_VENDOR);
@@ -142,10 +161,10 @@ const status = spawnSync(process.execPath, [cli, 'ruflo-model-contract', 'status
 const uninstall = spawnSync(process.execPath, [cli, 'ruflo-model-contract', 'uninstall'], { env: cliEnv, encoding: 'utf8' });
 const lifecycleOk =
   install.status === 0 && status.status === 0 && uninstall.status === 0
-    && status.stdout.includes('2/2 file(s) satisfied')
+    && status.stdout.includes('4/4 file(s) satisfied')
     && fs.readFileSync(agentFile, 'utf8') === AGENT_VENDOR
     && fs.readFileSync(hooksFile, 'utf8') === HOOKS_VENDOR;
-check('RMC8 public install/status/uninstall tracks and restores the target', lifecycleOk);
+check('RMC9 public install/status/uninstall tracks and restores the target', lifecycleOk);
 if (!lifecycleOk) console.log(JSON.stringify({ install, status, uninstall }, null, 2));
 
 const nativeAgent = patcher.patchSource(AGENT_VENDOR).next.replaceAll(patcher.PATCH_MARKER, 'upstream contract');
@@ -153,16 +172,16 @@ const nativeHooks = patcher.patchSource(HOOKS_VENDOR).next.replaceAll(patcher.PA
 fs.writeFileSync(agentFile, nativeAgent);
 fs.writeFileSync(hooksFile, nativeHooks);
 const native = supersede.rufloModelContractSupersession.check();
-check('RMC9 marker-free native behavior retires the patch', native.state === 'superseded');
+check('RMC10 marker-free native behavior retires the patch', native.state === 'superseded');
 fs.writeFileSync(hooksFile, nativeHooks.replaceAll("allocationOwner: 'caller'", "allocationOwner: 'ruflo'"));
-check('RMC10 a regression that reclaims allocation cannot retire',
+check('RMC11 a regression that reclaims allocation cannot retire',
   supersede.rufloModelContractSupersession.check().state !== 'superseded');
 
 const unrelatedClaims = nativeHooks
   .replaceAll("allocationOwner: 'caller'", "allocationOwner: 'ruflo'")
   + "\nexport const unrelated = [{ allocationOwner: 'caller', routingTier: 'opus' }, { allocationOwner: 'caller', routingTier: 'sonnet' }];\n";
 fs.writeFileSync(hooksFile, unrelatedClaims);
-check('RMC11 unrelated allocation fields cannot satisfy the hooks_model-route retirement proof',
+check('RMC12 unrelated allocation fields cannot satisfy the hooks_model-route retirement proof',
   supersede.rufloModelContractSupersession.check().state !== 'superseded');
 
 process.exit(fail);
