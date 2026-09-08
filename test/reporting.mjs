@@ -104,28 +104,32 @@ for (const rel of ['cwd/monitor.mjs', 'cwd/stable.mjs', 'plugin-registry.mjs', '
   if (!fs.existsSync(path.join(STABLE_LIB, rel))) fail(`S2 stable copy is missing ${rel}`);
 }
 
-// S3 — a stale module is DETECTED, and fails `monitor check`. This is the bug that was live:
-// nine modules behind, silently. Note `check` must NOT self-heal on its way to looking — a check
-// that repairs the thing it is checking can only ever return clean.
+// S3 — a mutable Git checkout is not an unattended deployment source. The stable copy may differ
+// while code is being edited; a timer must neither deploy those bytes nor call ordinary checkout
+// drift a broken immutable install.
 const victim = path.join(STABLE_LIB, 'cwd', 'monitor.mjs');
 fs.appendFileSync(victim, '\n// upstream moved on without us\n');
 const chk = cli(['monitor', 'check']);
-if (!/STALE-LIB/.test(out(chk))) fail(`S3 a stale stable copy was not reported:\n${out(chk)}`);
-if (chk.status === 0) fail('S3 `monitor check` exited 0 with a stale stable copy — it is a gate, it must fail');
+if (/STALE-LIB/.test(out(chk))) fail(`S3 mutable checkout drift was treated as immutable release drift:\n${out(chk)}`);
+if (chk.status !== 0) fail('S3 `monitor check` failed solely because its recorded source is a mutable checkout');
 
-// S4 — and `monitor status` says so in plain words rather than printing a clean bill of health.
-if (!/STALE LIB/.test(out(cli(['monitor', 'status'])))) fail('S4 `monitor status` did not report the stale copy');
+// S4 — status names the manual review boundary instead of claiming the stable copy is current.
+const manualStatus = out(cli(['monitor', 'status']));
+if (!/stable:\s+manual/.test(manualStatus) || !/mutable Git checkout/.test(manualStatus)) {
+  fail(`S4 \`monitor status\` did not disclose the mutable-checkout boundary:\n${manualStatus}`);
+}
 
 // S5 — a MUTATING command heals it. Read-only commands observe; mutating commands repair.
 cli(['cwd', 'install']);
 if (fs.readFileSync(victim, 'utf8').includes('upstream moved on without us')) fail('S5 install did not refresh the stale stable copy');
 if (cli(['monitor', 'check']).status !== 0) fail('S5 `monitor check` still fails after the copy was healed');
 
-// S6 — the MONITOR heals itself, with no CLI invocation at all. This is the case that actually
-// bites: nobody re-runs install after `npm i -g`, because nothing tells them to.
+// S6 — the monitor never deploys new checkout bytes. An explicit install is the review boundary.
 fs.appendFileSync(victim, '\n// stale again\n');
 spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
-if (fs.readFileSync(victim, 'utf8').includes('stale again')) fail('S6 the monitor tick did not self-heal the stable copy');
+if (!fs.readFileSync(victim, 'utf8').includes('stale again')) fail('S6 the monitor auto-deployed mutable checkout bytes');
+cli(['cwd', 'install']);
+if (fs.readFileSync(victim, 'utf8').includes('stale again')) fail('S6 explicit install did not refresh the stable copy');
 
 // S7 — modules the package does NOT ship are reaped: the legacy FLAT copy (lib/*.mjs, from before
 // the tree was shape-preserving) and anything upstream later deleted. Both used to linger forever,
@@ -176,7 +180,7 @@ if (!fs.existsSync(path.join(STABLE_LIB, 'adr-reindex', 'SKILL.md'))) {
 const stableSkill = fs.readFileSync(path.join(STABLE_LIB, 'adr-reindex', 'SKILL.md'), 'utf8');
 if (!stableSkill.includes('ruflo-source-patch')) fail('S9 the stable copy of SKILL.md is missing its ownership marker');
 
-console.log('✔ stable copy (S1 provenance, S2 complete, S3 drift fails the gate, S4 named in status, S5 install heals, S6 the monitor self-heals, S7 stale modules reaped, S8 shipped modules survive)');
+console.log('✔ stable copy (S1 provenance, S2 complete, S3/S4 mutable checkout is manual, S5/S6 explicit install heals without timer deployment, S7 stale modules reaped, S8 shipped modules survive)');
 
 // ─── E: the error path ───────────────────────────────────────────────────────
 // A patch that THROWS. Previously: logged, counted nowhere, matched by none of the three

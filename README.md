@@ -1013,16 +1013,18 @@ So `npm i -g …@next`, a version that adds an entry for an anchor upstream re-w
 forever, and every reporting surface was *also* the old code, so it was silent. The package upgraded
 and nothing it does upgraded with it. Found live at nine modules behind.
 
-The invariant is **provenance**, not location: the stable copy must match *the source it was synced
-from*, recorded at sync time. (Diffing against the globally-installed package is the obvious answer
-and it's wrong. Develop from a clone and the global is *older*, so the CLI would sync your clone in
-and the monitor would dutifully heal it **backward** to the stale release, the two writers fighting
-each other on a timer. The fuzz suite caught exactly that.) The monitor now self-heals on its own
-tick, any mutating command refreshes it, and `monitor status` / `monitor check` **report** it rather
-than repairing it out from under the question:
+The invariant is **immutable provenance**, not location. For a package/cache source, the stable copy
+must match the exact source it was synced from, recorded at sync time. For a mutable Git checkout,
+an explicit mutating command is the review/deployment boundary: the timer never follows later edits.
+(Diffing against the globally-installed package is the obvious answer and it's wrong. Develop from a
+clone and the global is *older*, so the CLI would sync your clone in and the monitor would dutifully
+heal it **backward** to the stale release, the two writers fighting on a timer. The fuzz suite caught
+exactly that.) Immutable package drift self-heals on a monitor tick; mutating commands refresh either
+source. `monitor status` discloses a checkout as manual, while immutable drift remains a failing gate:
 
 ```
 [monitor] STALE LIB: 9 module(s) behind the installed package — the hook and monitor are running OLD code
+[monitor] stable: manual — source is a mutable Git checkout; timer auto-heal is disabled until an explicit install
 ```
 
 **It is not a daemon.** This project exists partly *because* ruflo daemons multiply; shipping
@@ -1426,7 +1428,7 @@ invariants, and an untested notification path rots without anyone noticing.
 
 | | |
 |---|---|
-| **S1 to S9** | the **stable copy**, the code the hook and the monitor actually *run*. `~/.ruflo-source-patch/lib` is not a cache, it is the **executable**, and only an `install` ever wrote it: upgrading the package changed nothing about what either of them did. Found live at **nine modules behind**. Now: provenance recorded · a stale module **fails `monitor check`** · a mutating command heals it · **the monitor heals itself with no CLI invocation** (nobody re-runs `install` after `npm i -g`) · non-`.mjs` assets reach the copy too |
+| **S1 to S9** | the **stable copy**, the code the hook and monitor actually *run*. `~/.ruflo-source-patch/lib` is an executable, not a cache. Provenance is recorded · immutable package drift **fails `monitor check`** and self-heals · mutable Git checkout edits remain manual and are never timer-deployed · an explicit mutating command refreshes either source · non-`.mjs` assets reach the copy too |
 | **E1 to E3** | the **error path**. A patch that **throws** is counted, summarised, exits nonzero, and reaches the notifier. Before: logged, counted nowhere, matched by none of *three divergent* regexes, and summarised as `nothing to do` |
 | **A1 to A2** | an **ambiguous anchor** is refused, never guessed at. Uniqueness is a property of *upstream's* code (a measurement, not a promise), so it is checked on every apply |
 | **RB1 to RB5** | a **re-baseline hands over instructions**, not just a warning: the real `diff` command, what to look for in the new code, and how to back the patch out. And an *ordinary* problem does **not** print the essay |
