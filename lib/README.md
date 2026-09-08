@@ -23,6 +23,7 @@ how a fix silently stops existing.
 | `cwd/` | **patch targets** (`cwd`, `daemon`, `memory`, `init`, `plugin-hosts`) plus shared machinery | installed `@claude-flow/cli` bytes | SessionStart hook + monitor |
 | `adr-*`, `ruflo-hooks-schema/`, `mcp-prefix/` | **Ruflo plugin patches** | installed `ruflo-*` plugin bytes | SessionStart hook + monitor |
 | `ruflo-instruction-contract/` | **Ruflo instruction contract patch** | installed Claude/Codex root generators, platform-skill generators, and packaged Codex task skills | SessionStart hook + monitor |
+| `ruflo-model-contract/` | **Ruflo model coordination contract patch** (CLI composition target) | installed `agent_spawn` and `hooks_model-route` MCP definitions/handlers | SessionStart hook + monitor |
 | `verify-interface/`, `design-wall/`, `flywheel-daily/`, `codex-hooks/`, `codex-skills/`, `brain-console-lifecycle/`, `brain-console-provider-keys/`, `brain-release-lockstep/`, `brain-memory-doctor-roots/`, `brain-managed-memory-boundary/`, `brain-search-safety/`, `brain-native/` | **Brain/Codex package, plugin, and retirement logic** | installed npm/npx, persistent runtime, plugin, and cache bytes | SessionStart hook + monitor |
 | `metaharness-codex-hooks/` | **MetaHarness Codex host patch** | authenticated installed `metaharness` and `@metaharness/host-codex` runtime bytes | SessionStart hook + monitor |
 | `dual/` | **script targets** (`dual`, `plugin-only`, `ruflo-codex-hooks`, `codex-switch`) | *nothing*. They set up or repair **your projects/host registration**, or move your own Codex session between accounts | nobody; you run them by hand |
@@ -83,6 +84,14 @@ proof with both hosts represented overall. Its separate exact-revision migrator 
 npm, process, or database dependency. Managed Ruflo CLI-only gaps explicitly select the installed
 `ruflo` executable in both Brain bridge calls; exact v1 roots and skills upgrade to that v2 contract,
 including a narrow marker-and-sentence migration for roots with deliberate project-specific additions.
+
+`ruflo-model-contract/` uses the CLI composition engine for the two runtime surfaces that otherwise
+disagree about model identity. This is required because `hooks-tools.js` is also owned by `cwd`; one
+engine must compose both edits from the same pristine image.
+It exposes exact host-native IDs through `agent_spawn`'s already-existing `modelId` fast path, while
+keeping the three-label hooks router as a tier recommendation whose executable allocation belongs to
+the caller. Its all-copy preflight is atomic and its retirement probe imports the public schemas from
+every authenticated CLI copy; neither a marker nor an issue state is sufficient.
 
 ## The rule this whole package exists to enforce
 

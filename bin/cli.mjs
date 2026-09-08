@@ -130,6 +130,7 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('memory')}${TARGET_INFO.memory}
   ${pad('init')}${TARGET_INFO.init}
   ${pad('plugin-hosts')}${TARGET_INFO['plugin-hosts']}
+  ${pad('ruflo-model-contract')}${TARGET_INFO['ruflo-model-contract']}
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)

@@ -33,6 +33,7 @@ npx github:sparkling/ruflo-source-patch daemon install    # legacy #2877 compati
 npx github:sparkling/ruflo-source-patch memory install    # canonical path-keyed bridge identity (#3143) + stronger fail-closed memory.db writer boundary above native #2878 + raw WAL refusal (#2735) + integrity/stale-writer guards; stale MCP clients are reported, never killed (ADR-006/ADR-023; RSP_NO_STALE_WRITER_KILL disables daemon restarts)
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
+npx github:sparkling/ruflo-source-patch ruflo-model-contract install # exact native model IDs; routing tier stays caller/harness allocated (#3215)
 ```
 
 ### Plugin/package patches (`ruflo-adr`, `ruvnet-brain`, MetaHarness)
