@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { STATS_OLD, STATS_NEW, STATS_SQL, STATS_DESCRIPTION_OLD } from '../lib/ruflo-memory-stats/patcher.mjs';
+import { STATS_OLD, STATS_NEW, STATS_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
 
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'memory-stats-test-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
@@ -22,9 +22,8 @@ const bridgeFile = path.join(mem, 'memory-bridge.js');
 const pristine = `function ensureInitialized() { throw new Error('raw WAL probe forbidden'); }
 function getMemoryFunctions() { throw new Error('raw initializer import forbidden'); }
 function describeBackend() { throw new Error('unmeasured backend probe forbidden'); }
-export const tool = { name: 'memory_stats',
-${STATS_DESCRIPTION_OLD}
-${STATS_OLD}
+export const tool = {
+${STATS_PREFIX}${STATS_OLD}
 };`;
 fs.writeFileSync(file, pristine);
 fs.writeFileSync(bridgeFile, `let value = null; let calls = 0;
@@ -107,6 +106,14 @@ try {
   }
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), pristine, 'byte-exact restoration');
+  const legacy = pristine.replace('backend: await describeBackend(),', "backend: 'sql.js + HNSW',");
+  fs.writeFileSync(file, legacy);
+  assert.equal(apply(['ruflo-memory-stats']).incomplete, 0, 'exact legacy source supported');
+  const legacyTool = (await import(pathToFileURL(file).href + '?legacy')).tool;
+  bridge.setRegistry({ getAgentDB: () => ({ database: existingHandle }) });
+  assert.equal((await legacyTool.handler()).totalEntries, 100007);
+  apply([]);
+  assert.equal(fs.readFileSync(file, 'utf8'), legacy, 'legacy source restored exactly');
   const changedUpstream = pristine.replace('limit: 100000', 'limit: 200000');
   fs.writeFileSync(file, changedUpstream);
   const drift = apply(['ruflo-memory-stats']);
