@@ -16,6 +16,23 @@ The **first argument is the target**, the second the action. Every target instal
 uninstalls **on its own**. Take the daemon fix without the SQLite write lock, drop one later,
 keep the rest.
 
+## Learning-statistics repair
+
+`node bin/cli.mjs ruflo-learning-stats install` applies the remaining
+[#2245](https://github.com/ruvnet/ruflo/issues/2245) reporting repair: it reads the
+coordinator's real buffer fields, distinguishes persisted counters from process
+snapshots, reads retained ReasoningBank patterns independently, names `models.json`
+correctly, reports unreadable stores as unavailable, and includes singular `pattern`
+in the memory summary. It never trains, deletes or moves learning records.
+
+The old `sona.patternsLearned` field remains a labelled compatibility alias for
+retained ReasoningBank count. Cross-scope equality fields return `null`, not a
+false health verdict. `reportingContract: store-scoped-learning-stats-v1` identifies
+the repaired result. Existing host-owned stdio MCP sessions must reconnect to load
+changed modules; installation does not kill them. Retirement requires the installed
+native source to pass `test/ruflo-learning-stats.mjs`'s persistence, scope, source
+and error scenarios without the patch; unknown changed anchors fail visibly.
+
 ## Contents
 
 - [Install](#install)
