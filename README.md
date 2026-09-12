@@ -90,6 +90,18 @@ patch does not add multi-process graph sharing; a competing owner must receive
 the explicit failure or the caller's labelled existing fallback, never a claim
 that it opened the same persistent native graph.
 
+**Historical recovery is not yet safe:** graph-node 2.1.0 silently discards edge
+metadata in both `createEdge()` and `batchInsert()`
+([RuVector #984](https://github.com/ruvnet/RuVector/issues/984)). The native Rust
+binding ignores the supplied metadata; this is separate from the constructor
+fix. Do not infer metadata fidelity from passing connectivity/reopen tests, or
+replay Ruflo's dual-write causal-edge tool to fill a missing native graph.
+Run `node test/ruflo-graph-recovery.mjs --native-cli /absolute/CLI/package.json`
+for an isolated single/batch edge metadata round-trip gate. It opens only fresh
+temporary fixtures and exits 1 (`NOT READY`) on 2.1.0. It is an explicit native
+diagnostic, not part of the default patch suite, an importer, or a repair.
+No compiled native binary workaround is shipped by this source-patch target.
+
 ## Context synthesis contract
 
 `ruflo-context-contract` fixes [Ruflo #3314](https://github.com/ruvnet/ruflo/issues/3314).
