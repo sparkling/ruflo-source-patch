@@ -89,6 +89,11 @@ try {
   assert.equal(fs.readFileSync(intelFile, 'utf8'), intelPrefix + UNIFIED_OLD);
   assert.equal(fs.readFileSync(neuralFile, 'utf8'), neuralPrefix + NEURAL_OLD);
   assert.equal(fs.readFileSync(bridgeFile, 'utf8'), bridgeSource);
+  fs.writeFileSync(neuralFile, neuralPrefix + NEURAL_OLD.replace('neural/patterns.json', 'neural/models.json'));
+  const alternate = apply(['ruflo-learning-stats']);
+  assert.equal(alternate.incomplete, 0, 'both observed native source-label variants are supported');
+  assert.ok(fs.readFileSync(neuralFile, 'utf8').includes(NEURAL_NEW));
+  apply([]);
   fs.writeFileSync(intelFile, intelPrefix + UNIFIED_OLD.replace('const intel = getIntelligenceStats();', 'const intel = changedUpstream();'));
   const drift = apply(['ruflo-learning-stats']);
   assert.ok(drift.incomplete > 0 || drift.skipped > 0, 'unknown upstream source is not silently patched');
