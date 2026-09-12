@@ -44,6 +44,23 @@ changed modules; installation does not kill them. Retirement requires the instal
 native source to pass `test/ruflo-learning-stats.mjs`'s persistence, scope, source
 and error scenarios without the patch; unknown changed anchors fail visibly.
 
+## Pending wrapper/runtime mismatch patch
+
+Tracked upstream in [Ruflo #3306](https://github.com/ruvnet/ruflo/issues/3306).
+An inspected installation reports `ruflo@3.41.2` while its wrapper executes
+`@claude-flow/cli@3.33.0`. The published wrapper dependency, `^3.33.0`, permits
+that combination; the wrapper's version output alone does not identify the
+implementation running an MCP server. This is an observed installation, not a
+claim that every fresh install resolves the older runtime.
+
+The requested patch will refuse the upstream wrapper with a nonzero exit and
+explicit instructions to invoke `@claude-flow/cli` directly. It must not silently
+delegate, download a replacement, modify memory stores, or kill running MCPs.
+Implementation, tests, and laptop/HZ deployment are **pending**; no installable
+target or activation is claimed here. Retirement requires verified upstream
+behavior that prevents the misleading wrapper/runtime combination, not merely
+closure of the issue.
+
 ## Contents
 
 - [Install](#install)
