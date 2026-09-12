@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { UNIFIED_OLD, UNIFIED_NEW, NEURAL_OLD, NEURAL_NEW, DESCRIPTION_OLD } from '../lib/ruflo-learning-stats/patcher.mjs';
+import { COUNTER_LOAD_OLD, COUNTER_SAVE_OLD, COUNTER_IMPORT_OLD } from '../lib/ruflo-learning-stats/counter-writer.mjs';
 
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'learning-stats-test-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
@@ -16,8 +17,10 @@ const neural = path.join(root, 'dist', 'src', 'mcp-tools');
 fs.mkdirSync(mem, { recursive: true });
 fs.mkdirSync(neural, { recursive: true });
 fs.writeFileSync(path.join(root, 'package.json'), '{"name":"@claude-flow/cli","version":"fixture","type":"module"}');
-const intelPrefix = `import { existsSync, readFileSync } from 'node:fs';
+const intelPrefix = `${COUNTER_IMPORT_OLD}
 const data = ${JSON.stringify(scratch)};
+let globalStats = { trajectoriesRecorded: 0, patternsLearned: 0, signalsProcessed: 0, lastAdaptation: null };
+function ensureDataDir() {}
 let intelligenceInitialized = false;
 let sonaCoordinator = null;
 let reasoningBank = null;
@@ -25,6 +28,8 @@ export function setState(s, bank) { sonaCoordinator = s; reasoningBank = bank; i
 function getStatsPath() { return data + '/stats.json'; }
 function getPatternsPath() { return data + '/patterns.json'; }
 function getIntelligenceStats() { return { patternsLearned: 1000, trajectoriesRecorded: 999, signalsProcessed: 9000 }; }
+${COUNTER_LOAD_OLD}
+${COUNTER_SAVE_OLD}
 `;
 const neuralPrefix = `import { existsSync, readFileSync } from 'node:fs';
 function getNeuralPath() { return ${JSON.stringify(path.join(scratch, 'models.json'))}; }

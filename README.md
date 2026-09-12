@@ -25,6 +25,17 @@ snapshots, reads retained ReasoningBank patterns independently, names `models.js
 correctly, reports unreadable stores as unavailable, and includes singular `pattern`
 in the memory summary. It never trains, deletes or moves learning records.
 
+Counter persistence now commits each process's pending increments against the
+latest file under a bounded lock and an atomic rename, rather than overwriting
+newer totals with a stale process snapshot. Repeated flushes do not double count.
+Malformed data, path changes and a busy lock refuse the write and retain pending
+increments; `counterWriter.lastError` exposes that process's failure. Locks are
+never stolen and old sessions are never killed. A process that exits before a
+successful flush can still lose pending increments; this is not a durable event
+ledger. Legacy writers must reconnect, and previously overwritten historical
+totals cannot be reconstructed by this repair. The counter-writer test exercises
+six concurrent processes, retries and refusal paths.
+
 The old `sona.patternsLearned` field remains a labelled compatibility alias for
 retained ReasoningBank count. Cross-scope equality fields return `null`, not a
 false health verdict. `reportingContract: store-scoped-learning-stats-v1` identifies
