@@ -138,6 +138,7 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('plugin-hosts')}${TARGET_INFO['plugin-hosts']}
   ${pad('ruflo-model-contract')}${TARGET_INFO['ruflo-model-contract']}
   ${pad('ruflo-learning-stats')}${TARGET_INFO['ruflo-learning-stats']}
+  ${pad('ruflo-memory-stats')}${TARGET_INFO['ruflo-memory-stats']}
   ${pad('ruflo-wrapper-guard')}refuse the branding wrapper; require @claude-flow/cli directly (#3306)
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)

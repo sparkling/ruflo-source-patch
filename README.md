@@ -44,6 +44,27 @@ changed modules; installation does not kill them. Retirement requires the instal
 native source to pass `test/ruflo-learning-stats.mjs`'s persistence, scope, source
 and error scenarios without the patch; unknown changed anchors fail visibly.
 
+## Live-WAL memory statistics
+
+`ruflo-memory-stats` fixes [Ruflo #3311](https://github.com/ruvnet/ruflo/issues/3311):
+retrieval/search can work through AgentDB while `memory_stats` fails at an unrelated
+raw sql.js initialization probe. The patch reuses the CRUD registry's existing
+database handle and aggregates all active/legacy-NULL entries in one statement.
+It does not open another driver, initialize schema, checkpoint, close the borrowed
+handle, or alter the raw-WAL protection. Counts are no longer capped at 100,000;
+arbitrary namespace names are safe. Failures return explicit errors and null counts,
+not a falsely empty/uninitialized database. Embedding presence is not HNSW readiness.
+
+```bash
+npx github:sparkling/ruflo-source-patch ruflo-memory-stats install
+```
+
+`reportingContract: registry-memory-stats-v1` proves the repaired handler is loaded.
+Existing host-owned MCPs need a supported reconnect; installation never kills them.
+Retirement requires equivalent native behavior for the scenarios in
+`test/ruflo-memory-stats.mjs`, not issue closure alone. Unknown source changes fail
+visibly instead of being rewritten speculatively.
+
 ## Wrapper/runtime mismatch guard
 
 Tracked upstream in [Ruflo #3306](https://github.com/ruvnet/ruflo/issues/3306).
@@ -194,6 +215,7 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
+| **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Refuses the public branding wrapper before it loads a potentially older implementation; known lifecycle shims use the direct installed CLI or fail visibly. Uses the package/plugin composition engine; install the direct implementation and migrate host launch settings before reconnecting. | [#3306](https://github.com/ruvnet/ruflo/issues/3306) |
 | **`cwd`** | **Silent data loss.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | **Retired on executable proof in Ruflo 3.38.11+.** Older releases need direct start/stop/status/supervisor paths normalized to one project-root lock/PID identity. Current releases export and use `resolveDaemonProjectRoot()` throughout; retirement executes nested, nested-project, `.git` stop, and no-marker behavior and rejects route/resolver mutations | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
