@@ -33,6 +33,7 @@ fs.mkdirSync(path.join(project, 'docs', 'nested'), { recursive: true });
 fs.writeFileSync(path.join(project, 'CLAUDE.md'), 'test project marker');
 fs.writeFileSync(path.join(root, 'package.json'), '{"name":"@claude-flow/cli","version":"fixture","type":"module"}');
 fs.writeFileSync(file, pristine);
+fs.writeFileSync(path.join(path.dirname(mockFile), 'package.json'), '{"name":"@ruvector/graph-node","version":"2.1.0"}');
 fs.writeFileSync(mockFile, `
 const state = { mode: 'ok', calls: 0, options: [] };
 class GraphDatabase {
@@ -48,6 +49,7 @@ class GraphDatabase {
 module.exports = { GraphDatabase, state };
 `);
 const { state } = createRequire(path.join(root, 'package.json'))(mockFile);
+const mockMeta = createRequire(path.join(root, 'package.json'))(path.join(path.dirname(mockFile), 'package.json'));
 const { apply, inspect } = await import('../lib/cwd/patch-library.mjs');
 let cases = 0;
 let serial = 0;
@@ -83,6 +85,15 @@ try {
   assert.deepEqual(await concurrent.getNeighbors('source', 2), ['source', 'retained-neighbor']);
   check();
 
+  for (const version of ['2.0.4', 'unknown', '2.1.0-alpha.1', null]) {
+    reset();
+    mockMeta.version = version;
+    await assert.rejects((await load()).getGraphDb(), /2.1.0 stable is required/);
+    assert.equal(state.calls, 0, 'known-broken/unverified native version opens no handle');
+    check();
+  }
+  mockMeta.version = '2.1.0';
+
   reset();
   const moving = await load();
   const first = moving.getGraphDb();
@@ -100,8 +111,14 @@ try {
     assert.equal(state.calls, 1, 'must not construct an alternate volatile handle');
     assert.ok(state.options.every(options => typeof options === 'object'));
     state.mode = 'ok';
-    assert.equal((await adapter.getGraphDb()).isPersistent(), true, 'retry can succeed after owner releases');
-    assert.equal(state.calls, 2);
+    if (mode === 'locked') {
+      assert.equal((await adapter.getGraphDb()).isPersistent(), true, 'retry can succeed after owner releases');
+      assert.equal(state.calls, 2);
+    } else {
+      for (let i = 0; i < 10; i++)
+        await assert.rejects(adapter.getGraphDb(), /#3313.*no in-memory fallback/);
+      assert.equal(state.calls, 1, 'unverifiable handles are not repeatedly allocated');
+    }
     check();
   }
 
@@ -110,6 +127,8 @@ try {
   const failures = await Promise.allSettled(Array.from({ length: 20 }, () => locked.getNeighbors('a', 1)));
   assert.ok(failures.every(r => r.status === 'rejected'));
   assert.equal(state.calls, 1, 'concurrent lock failure is one attempt');
+  await assert.rejects(locked.getGraphDb(), /#3313.*no in-memory fallback/);
+  assert.equal(state.calls, 2, 'a later constructor failure may be retried');
   check();
 
   const denied = path.join(scratch, 'blocked-directory');
@@ -170,14 +189,30 @@ try {
     const nativePackage = process.argv[nativeArg + 1];
     assert.ok(path.isAbsolute(nativePackage || ''), '--native-cli needs an absolute CLI package.json');
     const nativeEntry = createRequire(nativePackage).resolve('@ruvector/graph-node');
+    const nativeVersion = createRequire(nativePackage)('@ruvector/graph-node/package.json').version;
     const nativeRoot = path.join(scratch, 'native-fixture');
     const nativeFile = path.join(nativeRoot, 'graph.mjs');
     const alias = path.join(nativeRoot, 'node_modules', '@ruvector', 'graph-node', 'index.js');
     fs.mkdirSync(path.dirname(alias), { recursive: true });
     fs.writeFileSync(alias, 'module.exports = require(' + JSON.stringify(nativeEntry) + ');');
+    fs.writeFileSync(path.join(path.dirname(alias), 'package.json'), JSON.stringify({
+      name: '@ruvector/graph-node', version: nativeVersion,
+    }));
     fs.writeFileSync(nativeFile, pristine.replace(GRAPH_OLD, GRAPH_NEW));
     const childProject = path.join(scratch, 'native-project');
     fs.mkdirSync(childProject);
+    if (nativeVersion === '2.0.4') {
+      const blocked = spawnSync(process.execPath, ['--input-type=module', '-e',
+        `import {getGraphDb} from ${JSON.stringify(pathToFileURL(nativeFile).href)};
+try { await getGraphDb(); } catch(error) { console.error(error.message); process.exitCode=8; }`], {
+        cwd: childProject, encoding: 'utf8', timeout: 15000,
+      });
+      assert.equal(blocked.status, 8);
+      assert.match(blocked.stderr, /2.1.0 stable is required.*2.0.4/);
+      assert.equal(fs.existsSync(path.join(childProject, '.claude-flow')), false);
+      console.log('Native graph 2.0.4: explicit pre-open refusal verified; persistence is NOT available.');
+      check();
+    } else {
     for (const mode of ['writer', 'reader']) {
       const code = `import {getGraphDb} from ${JSON.stringify(pathToFileURL(nativeFile).href)};
 const db = await getGraphDb();
@@ -232,6 +267,7 @@ catch(error) { console.error(error.message); process.exitCode=7; }`], {
       });
     }
     console.log('Native graph integration: two processes, exact patched initializer, retained edge verified.');
+    }
   }
   console.log('Graph persistence: ' + cases + ' regression groups passed (no managed project stores touched).');
 } finally {

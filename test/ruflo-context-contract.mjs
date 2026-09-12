@@ -8,9 +8,14 @@ import { createRequire } from 'node:module';
 import { CONTEXT_OLD, CONTEXT_NEW } from '../lib/ruflo-context-contract/patcher.mjs';
 
 const argv = process.argv.slice(2);
+const usage = 'Usage: node test/ruflo-context-contract.mjs [<absolute scratch directory>] [--native-cli <absolute CLI package.json>]';
+// The suite harness supplies a sandbox argument. Keep our temporary directory
+// private so this test's cleanup never removes a directory owned by its caller.
+if (argv[0] && path.isAbsolute(argv[0])) {
+  assert.ok(fs.statSync(argv.shift()).isDirectory(), usage);
+}
 assert.ok(argv.length === 0 || (argv.length === 2 && argv[0] === '--native-cli'
-  && path.isAbsolute(argv[1]) && path.basename(argv[1]) === 'package.json'),
-'Usage: node test/ruflo-context-contract.mjs [--native-cli <absolute CLI package.json>]');
+  && path.isAbsolute(argv[1]) && path.basename(argv[1]) === 'package.json'), usage);
 const nativeCli = argv[1];
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'context-contract-test-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;

@@ -74,11 +74,21 @@ passes `storagePath`, the existing eight-dimensional embedding size and Cosine,
 then verifies persistence and the exact path before publishing the singleton.
 Concurrent first calls share initialization. Open/lock/permission failures are
 explicit; a later call can retry, but no volatile substitute or lock stealing occurs.
+If a constructed handle fails persistence/path verification, that failure stays
+latched for this process because the native API has no close operation.
 The existing project-root patch composes with it.
+Native graph-node must be a stable version at least 2.1.0. The isolated 2.0.4
+reopen test still loses the edge despite correct constructor options, so that
+known-broken dependency and unknown versions are refused before opening a store.
+This target does not download or upgrade dependencies.
 
 This does not recover historical edges, reconcile different consumers' identifiers,
 or fix relation/depth semantics in [#3202](https://github.com/ruvnet/ruflo/issues/3202).
 No managed database is migrated, replayed or rewritten by installation.
+The actual graph-node 2.1.0 fixture confirms an exclusive file-owner lock. This
+patch does not add multi-process graph sharing; a competing owner must receive
+the explicit failure or the caller's labelled existing fallback, never a claim
+that it opened the same persistent native graph.
 
 ## Context synthesis contract
 
