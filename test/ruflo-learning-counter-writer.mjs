@@ -39,7 +39,15 @@ try {
   const child = path.join(dir, 'child.mjs');
   fs.writeFileSync(child, `import * as c from './counter.mjs';
 c.load(); process.send('ready'); process.on('message', () => {
-  for (let i=0;i<10;i++) { c.bump(); if(!c.save()) throw new Error(c.error()); }
+  for (let i=0;i<10;i++) {
+    c.bump();
+    const deadline=Date.now()+5000;
+    while(!c.save()) {
+      if(!/lock busy/.test(c.error()) || Date.now()>=deadline) throw new Error(c.error());
+      // A bounded refusal is valid under contention; retry the retained delta, not the increment.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);
+    }
+  }
   process.exit(0);
 });`);
   const workers = Array.from({length:6},()=>spawn(process.execPath,[child],{stdio:['ignore','ignore','pipe','ipc']}));
@@ -49,7 +57,10 @@ c.load(); process.send('ready'); process.on('message', () => {
   }));
   await Promise.all(workers.map(w=>new Promise(resolve=>w.once('message',resolve))));
   workers.forEach(w=>w.send('go'));
-  await Promise.all(exits);
+  // Reap every writer before fixture cleanup, including when one has failed.
+  const outcomes=await Promise.allSettled(exits);
+  const failed=outcomes.find(outcome=>outcome.status==='rejected');
+  if(failed) throw failed.reason;
   let result = JSON.parse(fs.readFileSync(file));
   assert.equal(result.trajectoriesRecorded,168);
   assert.equal(result.patternsLearned,268);

@@ -71,6 +71,7 @@ import { brainDualHostReceiptCommand } from '../lib/brain-dual-host-receipt/comm
 import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
+import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -82,6 +83,7 @@ const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle', 'plugin-on
 // Plugin patches — same shape as PATCH_TARGETS, but they patch installed plugin
 // copies rather than @claude-flow/cli, so they dispatch separately.
 const PLUGIN_PATCH_TARGETS = {
+  'ruflo-wrapper-guard': rufloWrapperGuardCommand,
   'adr-template': adrTemplateCommand,
   'adr-index': adrIndexCommand,
   'adr-io-safety': adrIoSafetyCommand,
@@ -136,6 +138,7 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('plugin-hosts')}${TARGET_INFO['plugin-hosts']}
   ${pad('ruflo-model-contract')}${TARGET_INFO['ruflo-model-contract']}
   ${pad('ruflo-learning-stats')}${TARGET_INFO['ruflo-learning-stats']}
+  ${pad('ruflo-wrapper-guard')}refuse the branding wrapper; require @claude-flow/cli directly (#3306)
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
   ${pad('adr-template')}adr-create's own template writes unparseable bullet-list metadata (#2659)

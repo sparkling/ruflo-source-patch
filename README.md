@@ -44,7 +44,7 @@ changed modules; installation does not kill them. Retirement requires the instal
 native source to pass `test/ruflo-learning-stats.mjs`'s persistence, scope, source
 and error scenarios without the patch; unknown changed anchors fail visibly.
 
-## Pending wrapper/runtime mismatch patch
+## Wrapper/runtime mismatch guard
 
 Tracked upstream in [Ruflo #3306](https://github.com/ruvnet/ruflo/issues/3306).
 An inspected installation reports `ruflo@3.41.2` while its wrapper executes
@@ -53,13 +53,35 @@ that combination; the wrapper's version output alone does not identify the
 implementation running an MCP server. This is an observed installation, not a
 claim that every fresh install resolves the older runtime.
 
-The requested patch will refuse the upstream wrapper with a nonzero exit and
-explicit instructions to invoke `@claude-flow/cli` directly. It must not silently
-delegate, download a replacement, modify memory stores, or kill running MCPs.
-Implementation, tests, and laptop/HZ deployment are **pending**; no installable
-target or activation is claimed here. Retirement requires verified upstream
-behavior that prevents the misleading wrapper/runtime combination, not merely
-closure of the issue.
+`ruflo-wrapper-guard` replaces the exact known upstream wrapper with a nonzero
+refusal, including `--version`, and instructions to invoke `@claude-flow/cli`
+directly. It does not delegate, download a replacement, modify memory stores,
+or kill running MCPs. The reversible composition engine retains pristine bytes;
+unknown vendor source is reported incomplete and left untouched.
+
+```bash
+npm install --global @claude-flow/cli@latest
+claude-flow --version
+npx github:sparkling/ruflo-source-patch ruflo-wrapper-guard install
+```
+
+Change host MCP launch configuration from `ruflo`/`npx ruflo@latest` to the
+installed implementation's `claude-flow mcp start` (or its absolute
+`@claude-flow/cli/bin/cli.js` path with Node). The target also patches known
+Ruflo lifecycle shims to use installed `claude-flow` only; if it is absent from
+their PATH they fail visibly without starting the wrapper or an npx fallback.
+CLI-only instructions naming `ruflo` will deliberately receive the refusal and
+must be updated to the verified direct executable; normal runtime work remains MCP-first.
+
+The guard covers authenticated global/npx wrapper packages and known Claude/Codex
+Ruflo plugin hook copies. It is re-applied by SessionStart and the monitor;
+arbitrary project-local packages outside discovered roots are not claimed.
+Already-running MCPs keep their loaded code. Installation is not session
+activation, and exiting a Codex TUI is not proof of an MCP restart. Reconnect
+through the owning host, verify the replacement process/runtime, and never kill a
+shared Codex server to activate this patch. Retirement requires verified upstream
+behavior that prevents misleading wrapper/runtime selection and hook fallback,
+not merely closure of the issue.
 
 ## Contents
 
@@ -172,6 +194,7 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
+| **`ruflo-wrapper-guard`** | Refuses the public branding wrapper before it loads a potentially older implementation; known lifecycle shims use the direct installed CLI or fail visibly. Uses the package/plugin composition engine; install the direct implementation and migrate host launch settings before reconnecting. | [#3306](https://github.com/ruvnet/ruflo/issues/3306) |
 | **`cwd`** | **Silent data loss.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | **Retired on executable proof in Ruflo 3.38.11+.** Older releases need direct start/stop/status/supervisor paths normalized to one project-root lock/PID identity. Current releases export and use `resolveDaemonProjectRoot()` throughout; retirement executes nested, nested-project, `.git` stop, and no-marker behavior and rejects route/resolver mutations | [#2877](https://github.com/ruvnet/ruflo/issues/2877) · [#2633](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`memory`** | Keeps an explicit project/user database path an authority boundary: one long-lived bridge process gets one canonical registry state per database instead of silently reusing whichever store opened first. Above Ruflo 3.38.12's native #2878 shared-lock baseline it also retains stricter token/inode-safe fail-closed lock ownership and outer fallback/bridge serialization, **WAL-sidecar refusal**, an **integrity gate**, and a **stale-writer guard**. The monitor restarts only positively resolved pre-patch daemons. It detects and reports stale MCP clients but never kills them because only their owning host can reconnect the stdio transport; `RSP_NO_STALE_WRITER_KILL` disables daemon restarts | [#3143](https://github.com/ruvnet/ruflo/issues/3143) · [#2878](https://github.com/ruvnet/ruflo/issues/2878) · [#2735](https://github.com/ruvnet/ruflo/issues/2735) · [#2584](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621](https://github.com/ruvnet/ruflo/issues/2621) |
