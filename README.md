@@ -65,6 +65,48 @@ Retirement requires equivalent native behavior for the scenarios in
 `test/ruflo-memory-stats.mjs`, not issue closure alone. Unknown source changes fail
 visibly instead of being rewritten speculatively.
 
+## Native graph persistence
+
+`ruflo-graph-persistence` fixes [Ruflo #3313](https://github.com/ruvnet/ruflo/issues/3313).
+The adapter passes a filename to a native constructor that expects options;
+graph-node 2.1.0 accepts that string but creates a nonpersistent graph. The patch
+passes `storagePath`, the existing eight-dimensional embedding size and Cosine,
+then verifies persistence and the exact path before publishing the singleton.
+Concurrent first calls share initialization. Open/lock/permission failures are
+explicit; a later call can retry, but no volatile substitute or lock stealing occurs.
+The existing project-root patch composes with it.
+
+This does not recover historical edges, reconcile different consumers' identifiers,
+or fix relation/depth semantics in [#3202](https://github.com/ruvnet/ruflo/issues/3202).
+No managed database is migrated, replayed or rewritten by installation.
+
+## Context synthesis contract
+
+`ruflo-context-contract` fixes [Ruflo #3314](https://github.com/ruvnet/ruflo/issues/3314).
+The adapter must pass the real `task`, `success`, `reward` and optional critique to
+AgentDB's existing synthesizer. Previously it discarded these fields and invented
+`reward:1` for every recalled fact. The patch accepts validated outcome-bearing
+records, reports excluded inputs, and refuses to fabricate episodes from prose.
+JSON episode payloads are bounded to 64 KiB; duplicate top-level fields and
+conflicting complete representations are excluded rather than guessed.
+No recalled rows and recalled-but-ineligible rows are distinct results.
+Both hierarchical recall interfaces are awaited; retained records remain untouched.
+
+Neither patch implements the unavailable hierarchical consolidator in
+[#2977](https://github.com/ruvnet/ruflo/issues/2977), nor changes SONA.
+
+```bash
+npx github:sparkling/ruflo-source-patch ruflo-graph-persistence install
+npx github:sparkling/ruflo-source-patch ruflo-context-contract install
+```
+
+Each target has an isolated behavioral regression suite with exact-anchor drift,
+idempotence and restoration checks. Retire only when the installed native adapter
+passes the same contract without the patch; unknown source changes fail visibly.
+Installation changes source files, not modules already held by host-owned MCPs.
+Those owners need a supported reconnect to activate the changed modules; closing
+the Codex TUI alone is not proof of reconnection. No MCP is killed by these targets.
+
 ## Wrapper/runtime mismatch guard
 
 Tracked upstream in [Ruflo #3306](https://github.com/ruvnet/ruflo/issues/3306).
@@ -224,6 +266,8 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
+| **`ruflo-graph-persistence`** | Correct native constructor options, verified persistent path and serialized initialization; explicit open/lock failures instead of an empty volatile graph. No historical edge replay or process kills. | [#3313](https://github.com/ruvnet/ruflo/issues/3313) |
+| **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. | [#3314](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306](https://github.com/ruvnet/ruflo/issues/3306) |
 | **`cwd`** | **Silent data loss.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633](https://github.com/ruvnet/ruflo/issues/2633) |

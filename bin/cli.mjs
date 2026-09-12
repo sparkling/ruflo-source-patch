@@ -139,6 +139,8 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('ruflo-model-contract')}${TARGET_INFO['ruflo-model-contract']}
   ${pad('ruflo-learning-stats')}${TARGET_INFO['ruflo-learning-stats']}
   ${pad('ruflo-memory-stats')}${TARGET_INFO['ruflo-memory-stats']}
+  ${pad('ruflo-graph-persistence')}${TARGET_INFO['ruflo-graph-persistence']}
+  ${pad('ruflo-context-contract')}${TARGET_INFO['ruflo-context-contract']}
   ${pad('ruflo-wrapper-guard')}refuse the branding wrapper; require @claude-flow/cli directly (#3306)
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
