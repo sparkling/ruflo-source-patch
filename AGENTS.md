@@ -35,6 +35,7 @@ npx github:sparkling/ruflo-source-patch init install      # keep init plugin-nat
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 npx github:sparkling/ruflo-source-patch ruflo-model-contract install # exact native model IDs; routing tier stays caller/harness allocated (#3215)
 npx github:sparkling/ruflo-source-patch ruflo-graph-persistence install # native persistent options + serialized initialization; no volatile substitute or graph replay (#3313)
+npx github:sparkling/ruflo-source-patch ruflo-graph-retrieval install # retained SQL k-hop reads; explicit depth/limits and source failures (#3315/#3202)
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install # validated context episodes; preserve real outcomes, never turn plain facts into invented success (#3314)
 ```
 
@@ -92,6 +93,7 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
+- Do not apply the Brain's `release-proof` skill to this repository (user instruction, 2026-09-13). Follow this repository's main-only, immutable-semver-tag release process; retain scoped regression tests, disclose existing failures, and verify installation separately from live MCP activation.
 - Patch only installed npm/npx package or plugin source bytes through a named, issue-backed patch target.
 - Brain executable source, including hooks and MCP handlers in the active installed generation, may be patched by that framework with exact anchors, pristine restoration, monitor re-application, behavioural proof, and an upstream retirement condition.
 - NEVER interfere with RuvNet Brain's native KB and release-update plane: do not disable, delay, pin, redirect, shadow, replace, or bypass its downloads, background updater, `active.json`, version selection/promotion, KB/cache data, update receipts, or self-learning data. Do not rewrite Brain version identity or present locally patched bytes as a different upstream release.

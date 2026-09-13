@@ -65,6 +65,24 @@ Retirement requires equivalent native behavior for the scenarios in
 `test/ruflo-memory-stats.mjs`, not issue closure alone. Unknown source changes fail
 visibly instead of being rewritten speculatively.
 
+## Reliable retained graph retrieval
+
+`ruflo-graph-retrieval` fixes [Ruflo #3315](https://github.com/ruvnet/ruflo/issues/3315).
+K-hop queries read committed SQL relationships using Ruflo's existing managed accessor,
+instead of treating an available but empty or partial native graph as complete history.
+Relation filters, outgoing traversal and seed exclusion are preserved. Responses name
+the `retained-sql-khop-v1` contract and report requested/applied depth, the existing
+three-hop cap and returned-row truncation. An unreadable source returns an explicit failure.
+
+```bash
+npx github:sparkling/ruflo-source-patch#v4.44.0 ruflo-graph-retrieval install
+```
+
+Installation does not replay or migrate edges, alter graph rows, or kill MCP processes.
+Existing host-owned MCP connections must reload before their handlers change. The scope
+is committed SQL only, not failed or pending writes; output limits do not bound traversal
+work, time or memory. Native graph persistence remains separately enabled.
+
 ## Native graph persistence
 
 `ruflo-graph-persistence` fixes [Ruflo #3313](https://github.com/ruvnet/ruflo/issues/3313).
