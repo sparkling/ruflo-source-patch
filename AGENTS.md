@@ -34,8 +34,6 @@ npx github:sparkling/ruflo-source-patch memory install    # canonical path-keyed
 npx github:sparkling/ruflo-source-patch init install      # keep init plugin-native; legacy #2777 guard retires on bounded upstream bytes (#2640/#2685)
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 npx github:sparkling/ruflo-source-patch ruflo-model-contract install # exact native model IDs; routing tier stays caller/harness allocated (#3215)
-npx github:sparkling/ruflo-source-patch ruflo-graph-persistence install # native persistent options + serialized initialization; no volatile substitute or graph replay (#3313)
-npx github:sparkling/ruflo-source-patch ruflo-graph-retrieval install # retained SQL k-hop reads; explicit depth/limits and source failures (#3315/#3202)
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install # validated context episodes; preserve real outcomes, never turn plain facts into invented success (#3314)
 ```
 

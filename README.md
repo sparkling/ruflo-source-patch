@@ -65,60 +65,24 @@ Retirement requires equivalent native behavior for the scenarios in
 `test/ruflo-memory-stats.mjs`, not issue closure alone. Unknown source changes fail
 visibly instead of being rewritten speculatively.
 
-## Reliable retained graph retrieval
+## Native graph work withdrawn
 
-`ruflo-graph-retrieval` fixes [Ruflo #3315](https://github.com/ruvnet/ruflo/issues/3315).
-K-hop queries read committed SQL relationships using Ruflo's existing managed accessor,
-instead of treating an available but empty or partial native graph as complete history.
-Relation filters, outgoing traversal and seed exclusion are preserved. Responses name
-the `retained-sql-khop-v1` contract and report requested/applied depth, the existing
-three-hop cap and returned-row truncation. An unreadable source returns an explicit failure.
+At the user's request, v4.45.0 removes `ruflo-graph-persistence` and
+`ruflo-graph-retrieval` from the release and monitor target set. Their implementations
+and tests are preserved on [archive/native-graph-20260913](https://github.com/sparkling/ruflo-source-patch/tree/archive/native-graph-20260913).
+This is a user-directed rollback, not an upstream-fixed retirement:
+[Ruflo #3313](https://github.com/ruvnet/ruflo/issues/3313),
+[#3315](https://github.com/ruvnet/ruflo/issues/3315),
+[#3202](https://github.com/ruvnet/ruflo/issues/3202), and
+[RuVector #984](https://github.com/ruvnet/RuVector/issues/984) remain relevant.
 
-```bash
-npx github:sparkling/ruflo-source-patch#v4.44.0 ruflo-graph-retrieval install
-```
-
-Installation does not replay or migrate edges, alter graph rows, or kill MCP processes.
-Existing host-owned MCP connections must reload before their handlers change. The scope
-is committed SQL only, not failed or pending writes; output limits do not bound traversal
-work, time or memory. Native graph persistence remains separately enabled.
-
-## Native graph persistence
-
-`ruflo-graph-persistence` fixes [Ruflo #3313](https://github.com/ruvnet/ruflo/issues/3313).
-The adapter passes a filename to a native constructor that expects options;
-graph-node 2.1.0 accepts that string but creates a nonpersistent graph. The patch
-passes `storagePath`, the existing eight-dimensional embedding size and Cosine,
-then verifies persistence and the exact path before publishing the singleton.
-Concurrent first calls share initialization. Open/lock/permission failures are
-explicit; a later call can retry, but no volatile substitute or lock stealing occurs.
-If a constructed handle fails persistence/path verification, that failure stays
-latched for this process because the native API has no close operation.
-The existing project-root patch composes with it.
-Native graph-node must be a stable version at least 2.1.0. The isolated 2.0.4
-reopen test still loses the edge despite correct constructor options, so that
-known-broken dependency and unknown versions are refused before opening a store.
-This target does not download or upgrade dependencies.
-
-This does not recover historical edges, reconcile different consumers' identifiers,
-or fix relation/depth semantics in [#3202](https://github.com/ruvnet/ruflo/issues/3202).
-No managed database is migrated, replayed or rewritten by installation.
-The actual graph-node 2.1.0 fixture confirms an exclusive file-owner lock. This
-patch does not add multi-process graph sharing; a competing owner must receive
-the explicit failure or the caller's labelled existing fallback, never a claim
-that it opened the same persistent native graph.
-
-**Historical recovery is not yet safe:** graph-node 2.1.0 silently discards edge
-metadata in both `createEdge()` and `batchInsert()`
-([RuVector #984](https://github.com/ruvnet/RuVector/issues/984)). The native Rust
-binding ignores the supplied metadata; this is separate from the constructor
-fix. Do not infer metadata fidelity from passing connectivity/reopen tests, or
-replay Ruflo's dual-write causal-edge tool to fill a missing native graph.
-Run `node test/ruflo-graph-recovery.mjs --native-cli /absolute/CLI/package.json`
-for an isolated single/batch edge metadata round-trip gate. It opens only fresh
-temporary fixtures and exits 1 (`NOT READY`) on 2.1.0. It is an explicit native
-diagnostic, not part of the default patch suite, an importer, or a repair.
-No compiled native binary workaround is shipped by this source-patch target.
+Reapplication reconstructs the affected files from their pristine backups while
+preserving unrelated targets, including project-root anchoring and context synthesis.
+Upstream native-first k-hop routing and its original graph constructor return;
+this does not disable Ruflo's own native graph feature or repair its known limitations.
+No graph/SQL store, sidecar, retained relationship or diagnostic record is deleted,
+migrated or replayed. Running MCP modules need an owner-controlled reconnect to
+load the rollback; the installer and monitor do not kill them.
 
 ## Context synthesis contract
 
@@ -132,15 +96,14 @@ conflicting complete representations are excluded rather than guessed.
 No recalled rows and recalled-but-ineligible rows are distinct results.
 Both hierarchical recall interfaces are awaited; retained records remain untouched.
 
-Neither patch implements the unavailable hierarchical consolidator in
+This patch does not implement the unavailable hierarchical consolidator in
 [#2977](https://github.com/ruvnet/ruflo/issues/2977), nor changes SONA.
 
 ```bash
-npx github:sparkling/ruflo-source-patch ruflo-graph-persistence install
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install
 ```
 
-Each target has an isolated behavioral regression suite with exact-anchor drift,
+The target has an isolated behavioral regression suite with exact-anchor drift,
 idempotence and restoration checks. Retire only when the installed native adapter
 passes the same contract without the patch; unknown source changes fail visibly.
 Installation changes source files, not modules already held by host-owned MCPs.
@@ -306,8 +269,6 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`ruflo-graph-retrieval`** | K-hop reads committed `graph_edges` through Ruflo's existing managed SQL accessor, so empty/partial native graphs cannot hide retained relationships. Preserves outgoing traversal, relation filtering and seed exclusion; reports the applied three-hop cap and returned-row truncation. Unreadable SQL fails explicitly instead of substituting an unverified native result. No graph import, replay, row mutation or process kills. | [#3315](https://github.com/ruvnet/ruflo/issues/3315) · related [#3202](https://github.com/ruvnet/ruflo/issues/3202) |
-| **`ruflo-graph-persistence`** | Correct native constructor options, verified persistent path and serialized initialization; explicit open/lock failures instead of an empty volatile graph. No historical edge replay or process kills. | [#3313](https://github.com/ruvnet/ruflo/issues/3313) |
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. | [#3314](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306](https://github.com/ruvnet/ruflo/issues/3306) |
@@ -317,13 +278,6 @@ Actions: `install` · `uninstall` · `status`
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640](https://github.com/ruvnet/ruflo/issues/2640) · [#2685](https://github.com/ruvnet/ruflo/issues/2685) · [#2777](https://github.com/ruvnet/ruflo/issues/2777) |
 | **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, `host-update`, and bounded `host-refresh` commands. Installing or self-updating this patch automatically runs the all-installed update once through those injected commands. Normal version changes use each host's supported update/reinstall path; exact tree comparison also repairs same-version collisions. Claude user and active project/local scopes plus Codex are covered; disabled, managed, and orphaned-project registrations are preserved. Host CLIs are resolved through validated PATH/PATHEXT, effective-account and configured user roots (npm/pnpm/Volta/Bun/mise/asdf/Homebrew), plus revalidated persisted package roots, so a narrow PATH or migrated `HOME` cannot silently skip reconciliation. Stale canonical marketplace paths are repaired only through host CLIs; foreign same-named sources are refused. The bundled Codex initializer uses the same literal-argv boundary. Revision-specific fragment proof prevents an older injected body from reporting current. The patch never copies or directly edits host caches and reports partial completion as nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 | **`ruflo-model-contract`** | Opens `agent_spawn.model` to an exact host-native ID while preserving Ruflo's existing non-alias `modelId` path. It keeps `hooks_model-route` as the legacy Haiku/Sonnet/Opus tier recommender, labels both router paths with `routingTier`, and declares allocation caller-owned. Astra/Fable selection therefore remains with the native executor or customised harness; a Ruflo tracking record cannot masquerade as execution proof. It uses the CLI composition engine so the routing edit and the existing `cwd` edit share one pristine `hooks-tools.js`; marker-free retirement requires schemas to accept both representative IDs and preserve the tier/allocation boundary | [#3215](https://github.com/ruvnet/ruflo/issues/3215) · related [#2357](https://github.com/ruvnet/ruflo/issues/2357) |
-
-`ruflo-graph-retrieval` covers committed SQL relationships, not pending or failed asynchronous writes.
-Its depth and returned-row limits do not bound traversal work, time or memory. The existing managed
-accessor may initialize its schema; the query does not mutate graph rows or rebuild either store.
-Native persistence and other query modes remain unchanged. Retire the patch when an upstream
-release passes the retained-source, relation/depth, unavailable-source and unchanged-row regression
-tests; unknown source shapes are refused, not guessed.
 
 After installing the plugin-hosts target, reconcile an existing dual-host setup with:
 
