@@ -14,6 +14,7 @@
 
 | Suite | Covers |
 |---|---|
+| `ruflo-graph-retrieval.mjs` | Ruflo #3315's retained SQL k-hop selection: original native-first negative control, empty/partial native independence, relation/depth/output contracts, explicit unavailable-source failures, legacy ID mapping, exact-anchor drift refusal and rollback. Optional `--native-cli /absolute/path/to/@claude-flow/cli/package.json` runs the installed CTE and native SQLite against an owned in-memory fixture, including cycles, branching, escaping and unchanged relationship fields. |
 | `sequence-fuzz.mjs` | **Any** sequence of `<target> <action>` leaves the library exactly "pristine + the installed entry set". 60 random sequences × 8 steps, invariants after **every** step. |
 | `plugin-notify.mjs` | The plugin patches, the notifier, and the monitor's own liveness. |
 | `reporting.mjs` | **Every path where a failure could be mistaken for success.** For a package that is almost entirely notification paths, that is the only thing that matters. |

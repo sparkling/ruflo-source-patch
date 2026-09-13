@@ -288,6 +288,7 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
+| **`ruflo-graph-retrieval`** | K-hop reads committed `graph_edges` through Ruflo's existing managed SQL accessor, so empty/partial native graphs cannot hide retained relationships. Preserves outgoing traversal, relation filtering and seed exclusion; reports the applied three-hop cap and returned-row truncation. Unreadable SQL fails explicitly instead of substituting an unverified native result. No graph import, replay, row mutation or process kills. | [#3315](https://github.com/ruvnet/ruflo/issues/3315) · related [#3202](https://github.com/ruvnet/ruflo/issues/3202) |
 | **`ruflo-graph-persistence`** | Correct native constructor options, verified persistent path and serialized initialization; explicit open/lock failures instead of an empty volatile graph. No historical edge replay or process kills. | [#3313](https://github.com/ruvnet/ruflo/issues/3313) |
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. | [#3314](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311](https://github.com/ruvnet/ruflo/issues/3311) |
@@ -299,7 +300,14 @@ Actions: `install` · `uninstall` · `status`
 | **`plugin-hosts`** | Adds Ruflo-owned `plugins host-install`, `host-uninstall`, additive Claude-to-Codex `host-sync`, `host-update`, and bounded `host-refresh` commands. Installing or self-updating this patch automatically runs the all-installed update once through those injected commands. Normal version changes use each host's supported update/reinstall path; exact tree comparison also repairs same-version collisions. Claude user and active project/local scopes plus Codex are covered; disabled, managed, and orphaned-project registrations are preserved. Host CLIs are resolved through validated PATH/PATHEXT, effective-account and configured user roots (npm/pnpm/Volta/Bun/mise/asdf/Homebrew), plus revalidated persisted package roots, so a narrow PATH or migrated `HOME` cannot silently skip reconciliation. Stale canonical marketplace paths are repaired only through host CLIs; foreign same-named sources are refused. The bundled Codex initializer uses the same literal-argv boundary. Revision-specific fragment proof prevents an older injected body from reporting current. The patch never copies or directly edits host caches and reports partial completion as nonzero | [#2854](https://github.com/ruvnet/ruflo/issues/2854) · [#2870](https://github.com/ruvnet/ruflo/issues/2870) |
 | **`ruflo-model-contract`** | Opens `agent_spawn.model` to an exact host-native ID while preserving Ruflo's existing non-alias `modelId` path. It keeps `hooks_model-route` as the legacy Haiku/Sonnet/Opus tier recommender, labels both router paths with `routingTier`, and declares allocation caller-owned. Astra/Fable selection therefore remains with the native executor or customised harness; a Ruflo tracking record cannot masquerade as execution proof. It uses the CLI composition engine so the routing edit and the existing `cwd` edit share one pristine `hooks-tools.js`; marker-free retirement requires schemas to accept both representative IDs and preserve the tier/allocation boundary | [#3215](https://github.com/ruvnet/ruflo/issues/3215) · related [#2357](https://github.com/ruvnet/ruflo/issues/2357) |
 
-After installing the target, reconcile an existing dual-host setup with:
+`ruflo-graph-retrieval` covers committed SQL relationships, not pending or failed asynchronous writes.
+Its depth and returned-row limits do not bound traversal work, time or memory. The existing managed
+accessor may initialize its schema; the query does not mutate graph rows or rebuild either store.
+Native persistence and other query modes remain unchanged. Retire the patch when an upstream
+release passes the retained-source, relation/depth, unavailable-source and unchanged-row regression
+tests; unknown source shapes are refused, not guessed.
+
+After installing the plugin-hosts target, reconcile an existing dual-host setup with:
 
 ```bash
 npx ruflo@latest plugins host-sync --dry-run
