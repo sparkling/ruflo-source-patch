@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-31. Exact published Ruflo 3.38.12 routes ordinary sql.js mutators and native
+**Updated**: 2026-09-15. Ruflo 3.41.2+ keys registry instances by `path.resolve()` natively (#3196)
+but still latches availability and failure reason process-wide and splits symlink aliases; the
+`memory/path-keyed-bridge-maps` entry applies the same canonical state to that shape. 2026-08-31. Exact published Ruflo 3.38.12 routes ordinary sql.js mutators and native
 purge through shared `withMemoryDbLock()`, delivering the basic #2878 lost-update baseline. Ruflo
 3.38.20 still caches one process-global native registry despite accepting an explicit database path
 (#3143). The local target keys that state by canonical database identity and retains its stronger

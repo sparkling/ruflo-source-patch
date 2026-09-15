@@ -133,9 +133,14 @@ fs.unlinkSync(driftFile);
 fs.symlinkSync(direct, driftFile);
 assert.throws(() => p.discover(), /missing or traverses a symlink/);
 assert.equal(fs.readFileSync(direct, 'utf8'), pristineDirect);
-for (const [anchor, replacement, legacy] of [
-  [h.HOOK_ANCHOR, h.HOOK_REPLACEMENT, false],
-  [h.LEGACY_ANCHOR, h.LEGACY_REPLACEMENT, true],
+// Known lifecycle shims call the implementation package through npx: never the
+// `ruflo` wrapper (#3306's stale nested runtime), never a PATH binary (a global
+// install the documented npx path does not create), never a stderr refusal.
+const NPX_ARGS = ['--prefer-offline', '--yes', '@claude-flow/cli@latest'];
+const hookArgs = ['-c', 'echo hello; $(not-a-command)'];
+for (const [anchor, replacement, prior, legacy] of [
+  [h.HOOK_ANCHOR, h.HOOK_REPLACEMENT, h.PRIOR_HOOK_REPLACEMENT, false],
+  [h.LEGACY_ANCHOR, h.LEGACY_REPLACEMENT, h.PRIOR_LEGACY_REPLACEMENT, true],
 ]) {
   const fixture = legacy
     ? `function invokeHook() {}\nfunction main() {\n${anchor}\n}`
@@ -143,32 +148,35 @@ for (const [anchor, replacement, legacy] of [
   const result = p.patchSource(fixture);
   assert.deepEqual(result.missing, []);
   assert(p.isPatched(result.next));
+  assert(result.next.includes(replacement));
   assert.equal(p.reverseSource(result.next), fixture);
   assert.deepEqual(p.patchSource(fixture + anchor).missing, ['unique-hook-wrapper-selection']);
-  for (const available of [true, false]) {
+  // The earlier PATH-only refusal (claude-flow or exit 1) is ours, not current, migrates in place, and reverses.
+  const stale = fixture.replace(anchor, prior);
+  assert(p.hasPatch(stale) && !p.isPatched(stale));
+  const migrated = p.patchSource(stale);
+  assert.deepEqual(migrated.missing, []);
+  assert.equal(migrated.next, result.next);
+  assert.equal(p.reverseSource(stale), fixture);
+  for (const skip of [false, true]) {
     const calls = [];
-    let stderr = '';
     let exit = null;
     const context = {
-      hookSubcommand: 'post-command', hookArgs: ['-c', 'echo hello; $(not-a-command)'], stdinData: 'payload',
-      commandExists: name => { calls.push(['probe', name]); return available; },
-      invokeHook: (...args) => calls.push(['invoke', ...args]),
-      done: () => { throw new Error('exit:0'); },
-      fs: { writeSync: (fd, message) => { assert.equal(fd, 2); stderr += message; } },
-      process: { exit: code => { exit = code; throw new Error(`exit:${code}`); } },
+      hookSubcommand: 'post-command', hookArgs, stdinData: 'payload',
+      commandExists: name => { throw new Error(`PATH probe for ${name}`); },
+      invokeHook: (...args) => calls.push(args),
+      done: () => { exit = 0; throw new Error('exit:0'); },
+      fs: { writeSync: () => { throw new Error('stderr refusal'); } },
+      process: { env: skip ? { RUFLO_HOOK_SKIP_NPX: '1' } : {}, exit: code => { exit = code; throw new Error(`exit:${code}`); } },
     };
     const body = legacy ? replacement : replacement.slice(0, -1);
     try { vm.runInNewContext(`(function(){${body}})()`, context); }
-    catch (error) { assert.match(error.message, /^exit:[01]$/); }
-    assert.deepEqual(calls[0], ['probe', 'claude-flow']);
-    if (available) {
-      assert.equal(calls[1][1], 'claude-flow');
-      assert.equal(stderr, '');
-    } else {
-      assert.equal(calls.length, 1);
-      assert.equal(exit, 1);
-      assert.match(stderr, /No wrapper or npx fallback/);
-    }
+    catch (error) { assert.equal(error.message, 'exit:0'); }
+    // Arrays built inside the vm realm carry that realm's prototype; compare structure.
+    assert.deepEqual(JSON.parse(JSON.stringify(calls)), skip ? [] : [legacy
+      ? ['npx', NPX_ARGS, hookArgs, 'payload']
+      : ['npx', NPX_ARGS, 'post-command', hookArgs, 'payload']]);
+    assert.equal(exit, legacy ? 0 : null);
   }
 }
 console.log('✓ wrapper guard: newest native CLI/version/MCP delegation, literal argv/stdin/exit, exact source drift, idempotence, pristine restore');

@@ -147,8 +147,10 @@ Delegation uses the same Node process and literal arguments: no shell, subproces
 proxy, branding interception, or extra stdout. Native CLI code owns stdin, MCP
 framing, signals and exit status. CLI-only instructions naming `ruflo` work again;
 normal memory/coordination work remains MCP-first. Existing direct CLI/MCP launch
-configurations remain valid and are not rewritten. Known lifecycle shims retain
-their direct-installed-CLI-only behavior, without an npx fallback.
+configurations remain valid and are not rewritten. Known lifecycle shims call the
+implementation package through `npx --prefer-offline --yes @claude-flow/cli@latest`,
+the way ruflo-core's MCP launcher does; they never run the `ruflo` wrapper or a PATH
+binary, and they keep upstream's exit-0 best-effort contract.
 
 The target covers identity-checked global/npx wrapper packages and known
 Claude/Codex Ruflo hook copies through SessionStart and the monitor. It does not
@@ -569,6 +571,11 @@ initialisations are queued because upstream temporarily replaces process-global 
 initialisation, operations remain independent. The regression suite proves A -> B, B -> A, concurrent
 reads, symlink identity, path-scoped availability and diagnostics, scoped shutdown, and all-registry
 shutdown. Retirement requires upstream #3143 to pass those behaviors through the shipped bridge API.
+
+Ruflo 3.41.2 and 3.42.0 (#3196) key the registry instance and promise by `path.resolve(dbPath)`
+natively, but `bridgeAvailable` and `bridgeFailureReason` remain one process-wide latch and a
+symlink alias is still a second registry. A second entry, `memory/path-keyed-bridge-maps`, applies the
+same canonical state to that shape; the pristine fixture proves both residual defects before it runs.
 
 #### The write lock
 
