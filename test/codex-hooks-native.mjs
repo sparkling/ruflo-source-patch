@@ -139,6 +139,16 @@ state.writeState({ patchTargets: [], pluginTargets: ['codex-hooks'], retired: {}
 check('CHN11 unexplained empty hooks cannot prove upstream retirement',
   supersede.retireSuperseded(state.readState()).retired === 0
     && state.readState().pluginTargets.includes('codex-hooks'));
+write(path.join(PLUGIN, 'hooks', 'codex-hooks.json'), `${retiredRegistry}\n`);
+write(path.join(HOME, '.claude', 'settings.json'), '{}\n');
+const retiredInstall = spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs'), 'codex-hooks', 'install'], {
+  env: process.env, encoding: 'utf8',
+});
+check('CHN12 installation does not request trust for hooks Brain intentionally removed',
+  retiredInstall.status === 0
+    && /no hook trust action is required/.test(retiredInstall.stdout)
+    && !/ACTION REQUIRED/.test(retiredInstall.stdout),
+  `${retiredInstall.stdout}\n${retiredInstall.stderr}`);
 
 if (failures) process.exit(1);
 console.log('\n✓ codex-hooks-native: mixed rollout is fail-safe and ownership-preserving');
