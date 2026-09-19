@@ -193,4 +193,57 @@ if (retirement.retired !== 1 || retiredState.pluginTargets.includes('brain-searc
   console.log(JSON.stringify({ retirement, retiredState, after: supersede.brainSearchSafetySupersession.check() }, null, 2));
 }
 
+// New shared-KB layout: the router is exported and both outage paths delegate
+// to one diagnosis-first helper. Prove that helper itself before retirement.
+const nativeSharedRouter = ROUTER_VENDOR
+  .replace('function symbolRoute(query, sym)', 'export function symbolRoute(query, sym)')
+  .replace(patcher.ROUTE_ANCHOR, `  const push = (table, key) => {
+    if (!table || !Object.hasOwn(table, key) || !Array.isArray(table[key])) return;
+    for (const sourcePath of table[key]) if (typeof sourcePath === 'string') out.add(sourcePath);
+  };
+  for (const t of snake) push(sym.bySymbol, t);
+  for (const t of pkgs) { push(sym.byPackage, t); push(sym.bySymbol, t); }
+  for (const t of words) { push(sym.bySymbol, t); push(sym.byStem, t); }`);
+const nativeSharedMcp = MCP_VENDOR
+  .replace('#!/usr/bin/env node\n', "#!/usr/bin/env node\nimport { describeSearchOutcome, describeSearchFailure } from './search-outcome.mjs';\n")
+  .replace(patcher.MCP_GUIDANCE_ANCHOR, `          const body =
+            \`🚨 RUVNET BRAIN IS DOWN — ALL \${repos.length} repos failed to search.\n\`
+            + \`First error: \${firstErr}\n\`
+            + describeSearchFailure({ dir: KB_DIR }) + '\\n';`);
+const nativeSharedCli = CLI_VENDOR
+  .replace('#!/usr/bin/env node\n', "#!/usr/bin/env node\nimport { describeSearchFailure } from './search-outcome.mjs';\n")
+  .replace(patcher.CLI_GUIDANCE_ANCHOR,
+    '  console.error(describeSearchFailure({ dir: path.resolve(dir) }));');
+const sharedHelper = `export function describeSearchFailure({ dir }) {
+  return \`Diagnose first: preserve the error above and inspect the active KB directory: \${dir}\\n\`
+    + 'Reinstall dependencies only after confirming a missing or incompatible dependency; '
+    + 'do not modify the installation based on this outage alone.\\n';
+}\n`;
+fs.writeFileSync(files.router, nativeSharedRouter);
+fs.writeFileSync(files.mcp, nativeSharedMcp);
+fs.writeFileSync(files.cli, nativeSharedCli);
+const sharedFile = path.join(KB, 'search-outcome.mjs');
+fs.writeFileSync(sharedFile, sharedHelper);
+const sharedVerdict = supersede.brainSearchSafetySupersession.check();
+const sharedTransforms = Object.values(files).map((file) => patcher.patchSource(fs.readFileSync(file, 'utf8')));
+check('BSS12 exported native router and shared outage helper satisfy all three source contracts',
+  sharedTransforms.every((result) => result.missing.length === 0)
+    && sharedVerdict.state === 'superseded');
+fs.writeFileSync(sharedFile, sharedHelper.replace('do not modify the installation based on this outage alone',
+  'modify the installation based on this outage alone'));
+check('BSS13 a permissive shared helper cannot retire both outage guards',
+  supersede.brainSearchSafetySupersession.check().state !== 'superseded');
+fs.rmSync(sharedFile);
+check('BSS14 a missing shared helper is not mistaken for an inline native fix',
+  supersede.brainSearchSafetySupersession.check().state !== 'superseded');
+fs.writeFileSync(sharedFile, sharedHelper);
+writeState({ patchTargets: [], pluginTargets: ['brain-search-safety'], retired: {}, all: false });
+const sharedRetirement = retireSuperseded(readState());
+check('BSS15 proven shared native replacement retires without rewriting Brain KB files',
+  sharedRetirement.retired === 1
+    && !readState().pluginTargets.includes('brain-search-safety')
+    && fs.readFileSync(files.router, 'utf8') === nativeSharedRouter
+    && fs.readFileSync(files.mcp, 'utf8') === nativeSharedMcp
+    && fs.readFileSync(files.cli, 'utf8') === nativeSharedCli);
+
 process.exit(fail);
