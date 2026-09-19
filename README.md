@@ -8,6 +8,16 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+The 2026-09-19 audit used the installed Ruflo 3.42.4, ruflo-core 0.2.6,
+MetaHarness 0.10.2, and Brain's natively activated 4.3.10 generation. The
+existing retired targets remain retired on their per-target behavior proofs;
+no additional target passed its native-replacement proof. Ruflo's partial
+`memory_stats` repair, ruflo-core's renamed hook lookup, and Brain's added
+`ruvnet_registry_latest` dispatcher route changed exact source shapes without
+closing their respective residual gaps. The three active patch transforms now
+recognize those shapes. A newer Brain registry version is not treated as an
+activated generation or as evidence that an installed patch may retire.
+
 ```bash
 npx github:sparkling/ruflo-source-patch <target> <action>
 ```
@@ -64,6 +74,11 @@ Existing host-owned MCPs need a supported reconnect; installation never kills th
 Retirement requires equivalent native behavior for the scenarios in
 `test/ruflo-memory-stats.mjs`, not issue closure alone. Unknown source changes fail
 visibly instead of being rewritten speculatively.
+
+Ruflo 3.42.4 includes a partial native #3311 fix: a working listing is no longer
+overruled by the raw initialization probe. It still enumerates the store for
+statistics and supplies unproved fallback feature/version labels, so this target
+remains active. Its exact handler is now supported alongside older source shapes.
 
 ## Native graph work withdrawn
 
@@ -126,6 +141,10 @@ This includes `--version`: it reports the implementation's version, not the
 branding package's version. The old refusal patch upgrades in place; pristine
 upstream bytes remain available for uninstall. Unknown vendor source is reported
 incomplete and left untouched.
+
+Ruflo-core 0.2.6 renamed the hook's lookup to `resolveCommandPath` without
+changing its wrapper-first selection. The guard recognizes that exact source
+and restores its original bytes on uninstall.
 
 ```bash
 npm install --global @claude-flow/cli@latest
@@ -349,7 +368,7 @@ Actions: `install` · `uninstall` · `status`
 | **`brain-console-provider-keys`** | **Retired on executable proof in Brain 4.0.12.** A copied active runtime stages and validates `model-catalog.json`, detects synthetic OpenAI/Google keys, refuses activation with the catalog missing, and renders the explicit `keysVerified: false` “Not checked” state instead of a false credential negative | [stuinfla/ruvnet-brain#86](https://github.com/stuinfla/ruvnet-brain/issues/86) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
 | **`brain-release-lockstep`** | Keeps Brain's read-only doctor and footprint reporting fail-closed on bundle/package/Stable-Spine/Claude/Codex version drift. The protected release rail now publishes 4.0.36 coherently, but pristine 4.0.36 doctor still compares only bundle versus Claude wrapper, calls drift “normal,” and excludes it from `allGreen`; the issue's doctor acceptance criterion remains open in its body. All eight exact 4.0.36 anchors still apply. The patch never invokes or changes Brain's updater, downloads, immutable versions, `active.json`, host caches, hooks, MCP, or learning runtime | [stuinfla/ruvnet-brain#77](https://github.com/stuinfla/ruvnet-brain/issues/77) |
 | **`brain-memory-doctor-roots`** | **Retired on executable proof in Brain 4.0.12.** The active standalone doctor finds common and configured roots without `~/Code`, preserves explicit-root scope, fails an all-invalid configured set, falls back safely from malformed configuration, and shares `candidateRoots()` / `findStores()` with the Console | [stuinfla/ruvnet-brain#81](https://github.com/stuinfla/ruvnet-brain/issues/81) · [PR #93](https://github.com/stuinfla/ruvnet-brain/pull/93) |
-| **`brain-managed-memory-boundary`** | Keeps the direct managed-store boundary complete above published Brain 4.0.36. #102's structural detector and #103's opt-in `managedMemoryBoundary` setting are native and preserved. The default remains advisory, host non-execution is explicitly unproved, and the audited diagnostic plus truthful doctor/Console states are absent. The target adds only default refusal and the bounded diagnostic and never touches Brain's native update plane | [stuinfla/ruvnet-brain#102](https://github.com/stuinfla/ruvnet-brain/issues/102) · [#103](https://github.com/stuinfla/ruvnet-brain/issues/103) · follow-up to [#48](https://github.com/stuinfla/ruvnet-brain/issues/48#issuecomment-5169487947) |
+| **`brain-managed-memory-boundary`** | Keeps the direct managed-store boundary complete above installed Brain 4.3.10. #102's structural detector and #103's opt-in `managedMemoryBoundary` setting are native and preserved. The default remains advisory, host non-execution is explicitly unproved, and the audited diagnostic plus truthful doctor/Console states are absent. The target adds only default refusal and the bounded diagnostic, preserving 4.3.10's native `ruvnet_registry_latest` dispatch and Brain's update plane | [stuinfla/ruvnet-brain#102](https://github.com/stuinfla/ruvnet-brain/issues/102) · [#103](https://github.com/stuinfla/ruvnet-brain/issues/103) · follow-up to [#48](https://github.com/stuinfla/ruvnet-brain/issues/48#issuecomment-5169487947) |
 | **`brain-search-safety`** | Fixes the active shared KB's deterministic `constructor` query crash by accepting only own array-valued symbol entries. It also keeps total retrieval failures loud while removing the unconditional `npm install` and GitHub-npx instructions that made a source defect trigger an unrelated live-runtime “repair.” The target patches only three executable KB files after native activation; it never changes stores, sidecars, models, updater state, version identity, or release selection | [stuinfla/ruvnet-brain#224](https://github.com/stuinfla/ruvnet-brain/issues/224) · [#225](https://github.com/stuinfla/ruvnet-brain/issues/225) |
 | **`brain-dual-host-receipt`** | Preserves Brain's complete subscription-only dual-host deliberation while removing its direct `ruflo memory store` child process. The coordinator emits an exact `memory_store` request for its MCP-aware caller and reports learning persisted only when an injected callback proves the same key was stored and read back. It patches the already-active persistent runtime and deployed helper after native activation; it does not touch Brain releases, updater state, AgentDB files, WAL sidecars, host authentication, or model execution | [stuinfla/ruvnet-brain#272](https://github.com/stuinfla/ruvnet-brain/issues/272) |
 | **`brain-dual-host-stdin`** | Keeps complete cross-host proposals and critiques off argv, where Linux caps a single argument at roughly 128 KiB on common 4 KiB-page systems. It pipes the prompt to both native subscription CLIs over stdin without truncation or plaintext temporary files, while retaining Claude's plan/tool boundary and Codex's ephemeral read-only boundary | [stuinfla/ruvnet-brain#273](https://github.com/stuinfla/ruvnet-brain/issues/273) |

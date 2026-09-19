@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { STATS_OLD, STATS_NEW, STATS_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
+import { STATS_OLD, STATS_342, STATS_NEW, STATS_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
 
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'memory-stats-test-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
@@ -114,6 +114,14 @@ try {
   assert.equal((await legacyTool.handler()).totalEntries, 100007);
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), legacy, 'legacy source restored exactly');
+  const native342 = pristine.replace(STATS_OLD, STATS_342);
+  fs.writeFileSync(file, native342);
+  assert.equal(apply(['ruflo-memory-stats']).incomplete, 0, 'exact Ruflo 3.42.4 source supported');
+  const native342Tool = (await import(pathToFileURL(file).href + '?native342')).tool;
+  bridge.setRegistry({ getAgentDB: () => ({ database: existingHandle }) });
+  assert.equal((await native342Tool.handler()).totalEntries, 100007);
+  apply([]);
+  assert.equal(fs.readFileSync(file, 'utf8'), native342, '3.42.4 source restored exactly');
   const changedUpstream = pristine.replace('limit: 100000', 'limit: 200000');
   fs.writeFileSync(file, changedUpstream);
   const drift = apply(['ruflo-memory-stats']);

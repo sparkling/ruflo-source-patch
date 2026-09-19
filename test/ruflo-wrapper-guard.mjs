@@ -140,6 +140,7 @@ const NPX_ARGS = ['--prefer-offline', '--yes', '@claude-flow/cli@latest'];
 const hookArgs = ['-c', 'echo hello; $(not-a-command)'];
 for (const [anchor, replacement, prior, legacy] of [
   [h.HOOK_ANCHOR, h.HOOK_REPLACEMENT, h.PRIOR_HOOK_REPLACEMENT, false],
+  [h.HOOK_ANCHOR_026, h.HOOK_REPLACEMENT_026, null, false],
   [h.LEGACY_ANCHOR, h.LEGACY_REPLACEMENT, h.PRIOR_LEGACY_REPLACEMENT, true],
 ]) {
   const fixture = legacy
@@ -152,12 +153,14 @@ for (const [anchor, replacement, prior, legacy] of [
   assert.equal(p.reverseSource(result.next), fixture);
   assert.deepEqual(p.patchSource(fixture + anchor).missing, ['unique-hook-wrapper-selection']);
   // The earlier PATH-only refusal (claude-flow or exit 1) is ours, not current, migrates in place, and reverses.
-  const stale = fixture.replace(anchor, prior);
-  assert(p.hasPatch(stale) && !p.isPatched(stale));
-  const migrated = p.patchSource(stale);
-  assert.deepEqual(migrated.missing, []);
-  assert.equal(migrated.next, result.next);
-  assert.equal(p.reverseSource(stale), fixture);
+  if (prior) {
+    const stale = fixture.replace(anchor, prior);
+    assert(p.hasPatch(stale) && !p.isPatched(stale));
+    const migrated = p.patchSource(stale);
+    assert.deepEqual(migrated.missing, []);
+    assert.equal(migrated.next, result.next);
+    assert.equal(p.reverseSource(stale), fixture);
+  }
   for (const skip of [false, true]) {
     const calls = [];
     let exit = null;

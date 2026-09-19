@@ -72,11 +72,11 @@ const runHook = () => spawnSync(process.execPath, [hookScript], { env, encoding:
 
 // SS1 — an unpatched vendor copy appears (npx fetched a new version mid-session). The hook must
 // re-apply to it. This is the whole reason the hook exists.
-fs.writeFileSync(vendor(FILES[3]), pristineBytes(path.join(REAL, FILES[3])));   // clobber, as npx does
-if (isPatched(FILES[3])) fail('SS1 fixture: the file is still patched — the test would be vacuous');
+fs.writeFileSync(vendor(FILES[1]), pristineBytes(path.join(REAL, FILES[1])));   // clobber, as npx does
+if (isPatched(FILES[1])) fail('SS1 fixture: the file is still patched — the test would be vacuous');
 
 const h1 = runHook();
-if (!isPatched(FILES[3])) fail(`SS1 the SessionStart hook did NOT re-apply the patch — every patch dies on the next npx refetch:\n${out(h1)}`);
+if (!isPatched(FILES[1])) fail(`SS1 the SessionStart hook did NOT re-apply the patch — every patch dies on the next npx refetch:\n${out(h1)}`);
 
 // SS2 — it is SILENT when there is nothing to say. A hook that chatters on every session start is a
 // hook people disable.
@@ -86,7 +86,7 @@ if (out(h2).trim()) fail(`SS2 the hook spoke when everything was already healthy
 // SS3 — and it SPEAKS when a patch has stopped applying. Upstream rewrites the file, our anchors no
 // longer match, and the patch is now doing nothing — while `status` still calls the target installed.
 // Silence here is the failure the whole package exists to prevent.
-fs.writeFileSync(vendor(FILES[3]), 'export function somethingElseEntirely() {}\n');
+fs.writeFileSync(vendor(FILES[1]), 'export function somethingElseEntirely() {}\n');
 const h3 = runHook();
 if (!out(h3).trim()) fail('SS3 a broken anchor left the SessionStart hook SILENT — nobody would ever be told');
 

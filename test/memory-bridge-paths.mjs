@@ -158,6 +158,8 @@ const installed = spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.mjs')
   encoding: 'utf8',
 });
 check(installed.status === 0, `MBP1 memory install failed:\n${installed.stdout}${installed.stderr}`);
+check(!/skip:(?:anchor-not-found|ambiguous-anchor) memory\/path-keyed-bridge(?:\s|\()/u.test(`${installed.stdout}${installed.stderr}`),
+  `MBP1 current map layout was misclassified as the older singleton bridge:\n${installed.stdout}${installed.stderr}`);
 
 const patchedBridge = path.join(nodeModules, bridgeRel);
 const patchedInit = path.join(nodeModules, initRel);

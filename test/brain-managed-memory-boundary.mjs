@@ -37,6 +37,12 @@ const transforms = await import('../lib/brain-managed-memory-boundary/transforms
 const patcher = await import('../lib/brain-managed-memory-boundary/patcher.mjs');
 const policy = await import('../lib/brain-managed-memory-boundary/runtime/managed-memory-policy.mjs');
 const fixtures = transforms.fixtureSources();
+const currentDispatch = transforms.patchMcp(fixtures.mcp4310);
+if (currentDispatch.missing.length || currentDispatch.applied.length !== 3
+  || !currentDispatch.next.includes("params?.name === 'ruvnet_registry_latest'")
+  || !currentDispatch.next.includes('callManagedMemoryDiagnostic(params.arguments || {})')) {
+  throw new Error(`Brain 4.3.10 dispatcher contract changed: ${JSON.stringify(currentDispatch)}`);
+}
 
 let failures = 0;
 function check(name, condition, detail = '') {

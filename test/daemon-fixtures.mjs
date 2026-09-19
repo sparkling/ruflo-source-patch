@@ -63,10 +63,13 @@ export function legacyDaemonBytes(rel, bytes, patchLibrary) {
   }
   if (rel === DAEMON_COMMAND_REL && patchLibrary.nativeDaemonCommandSatisfied(source)) {
     source = source
+      .replace('const projectRoot = resolveWorkspaceFlag(ctx.flags.workspace)\n            ?? resolveDaemonProjectRoot(process.cwd());',
+        'const projectRoot = resolveWorkspaceFlag(ctx.flags.workspace) ?? process.cwd();')
       .replace('?? resolveDaemonProjectRoot(process.cwd());', '?? process.cwd();')
       .split('const projectRoot = resolveDaemonProjectRoot(process.cwd());').join('const projectRoot = process.cwd();')
       .split('killBackgroundDaemon(resolveDaemonProjectRoot(process.cwd()))').join('killBackgroundDaemon(process.cwd())')
-      .split('getDaemon(resolveDaemonProjectRoot(process.cwd())').join('getDaemon(process.cwd()');
+      .split('getDaemon(resolveDaemonProjectRoot(process.cwd())').join('getDaemon(process.cwd()')
+      .replace('            const daemon = getDaemon(projectRoot);', '            const daemon = getDaemon(process.cwd());');
   }
   return Buffer.from(source);
 }

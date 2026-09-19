@@ -21,6 +21,8 @@ import os from 'node:os';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
 import { verifyInterfaceFixMode } from '../lib/supersede.mjs';
+import { legacyDaemonBytes, DAEMON_AUTOSTART_REL } from './daemon-fixtures.mjs';
+import * as patchLibrary from '../lib/cwd/patch-library.mjs';
 
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
@@ -662,8 +664,8 @@ freshSandbox();
 
 // UPSTREAM RESTRUCTURES: our anchored line now appears twice (they extracted a helper, duplicated a
 // guard, whatever). The patch is no longer able to say WHERE it belongs.
-const amb = vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js');
-const ambSrc = fs.readFileSync(amb, 'utf8');
+const amb = vendor(DAEMON_AUTOSTART_REL);
+const ambSrc = legacyDaemonBytes(DAEMON_AUTOSTART_REL, fs.readFileSync(amb), patchLibrary).toString('utf8');
 // A REAL anchor from the shipped entry table, not an invented string — a made-up needle would prove
 // nothing about the anchors we actually rely on.
 const anchor = 'export function ensureDaemonRunning(projectRoot, opts = {}) {\n    try {';
@@ -751,14 +753,14 @@ cli(['cwd', 'install']);
 
 // UPSTREAM SHIPS A NEW BUILD: the file is replaced with something that still carries our anchors (so the
 // patch re-applies) but is otherwise different. This is a re-baseline, not a break.
-const rbFile = vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js');
-const rbPristine = pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/services/daemon-autostart.js')).toString('utf8');
+const rbFile = vendor(FILES[1]);
+const rbPristine = pristineBytes(path.join(REAL, FILES[1])).toString('utf8');
 fs.writeFileSync(rbFile, `// upstream v9: a new header they added\n${rbPristine}`);
 
 spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
 
 const rbSaid = notify();
-if (!/re-baselined/.test(rbSaid)) fail(`RB a vendor file was replaced under us and the notifier never said so:\n${said || '(silence)'}`);
+if (!/re-baselined/.test(rbSaid)) fail(`RB a vendor file was replaced under us and the notifier never said so:\n${rbSaid || '(silence)'}`);
 
 // RB1 — it says what CANNOT be verified. Without this, a clean-looking re-apply reads as "all fine".
 if (!/does NOT prove it still DOES anything|no automated guard/i.test(rbSaid)) {
