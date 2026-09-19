@@ -117,5 +117,28 @@ const drift = patcher.status();
 check('CHN7 an active/source adapter mismatch returns to honest drift', drift.patched === 5,
   JSON.stringify(drift));
 
+const retiredRegistry = JSON.stringify({
+  description: 'RuvNet Brain automatic host hooks are intentionally retired. This schema-valid empty registry is shipped so install and update converge old hook-bearing generations to zero implicit lifecycle handlers.',
+  hooks: {},
+}, null, 2);
+write(path.join(PLUGIN, 'hooks', 'codex-hooks.json'), `${retiredRegistry}\n`);
+fs.rmSync(path.join(BRAIN_HOME, 'codex-hook.mjs'));
+state.writeState({ patchTargets: [], pluginTargets: ['codex-hooks'], retired: {}, all: false });
+const nativeRetired = patcher.apply();
+check('CHN8 explicit native empty registry is preserved without resurrecting lifecycle hooks',
+  nativeRetired.patched === 0 && nativeRetired.incomplete === 0
+    && fs.readFileSync(path.join(PLUGIN, 'hooks', 'codex-hooks.json'), 'utf8') === `${retiredRegistry}\n`,
+  JSON.stringify(nativeRetired));
+check('CHN9 deliberate hook retirement reports native satisfaction', patcher.status().patched === 6);
+const emptyRetirement = supersede.retireSuperseded(state.readState());
+check('CHN10 deliberate native retirement removes the obsolete target from monitoring',
+  emptyRetirement.retired === 1 && !state.readState().pluginTargets.includes('codex-hooks'),
+  JSON.stringify(emptyRetirement));
+write(path.join(PLUGIN, 'hooks', 'codex-hooks.json'), '{"hooks":{}}\n');
+state.writeState({ patchTargets: [], pluginTargets: ['codex-hooks'], retired: {}, all: false });
+check('CHN11 unexplained empty hooks cannot prove upstream retirement',
+  supersede.retireSuperseded(state.readState()).retired === 0
+    && state.readState().pluginTargets.includes('codex-hooks'));
+
 if (failures) process.exit(1);
 console.log('\n✓ codex-hooks-native: mixed rollout is fail-safe and ownership-preserving');

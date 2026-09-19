@@ -1,6 +1,6 @@
 {
   "name": "@sparkleideas/ruflo-source-patch",
-  "version": "4.46.1",
+  "version": "4.46.2",
   "publishConfig": {
     "access": "public"
   },
