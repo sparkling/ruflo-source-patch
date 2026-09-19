@@ -154,17 +154,25 @@ changing its wrapper-first selection. The guard recognizes that exact source
 and restores its original bytes on uninstall.
 
 ```bash
-npm install --global @claude-flow/cli@latest
 npx github:sparkling/ruflo-source-patch ruflo-wrapper-guard install
-ruflo --version
+npx -y ruflo@latest --version
 ```
+
+No global Ruflo or CLI installation is required. The native MCP launcher remains
+`npx -y ruflo@latest mcp start`. Explicit `ruflo-wrapper-guard install` (including
+`all install`) and dual initialization repair only the known old #3306 global
+launcher signatures when their target is missing. They restore npx with at least
+the upstream 120-second startup timeout and save a private, mode-0600 config backup.
+Healthy, custom, and disabled registrations and unrelated settings are preserved;
+ambiguous configurations and linked config files are refused. Ordinary monitor and
+SessionStart patch reapplication does not perform this migration or start MCP servers.
 
 **Newest installed is not an automatic npm update.** The wrapper examines its
 own installation, effective-account user prefixes, the Node prefix, absolute
 npm prefixes on PATH, and an explicit npm prefix. It does not consult project
 cwd or project `node_modules/.bin`, scan unrelated npx caches, download packages,
-or opt into prereleases. Install newer stable CLI releases through normal package
-administration; the next wrapper invocation selects them without another patch.
+or opt into prereleases. Normal npx package resolution supplies the implementation;
+the next wrapper invocation selects installed versions without another patch.
 Equal versions use a deterministic top-level-first tie break. Package name/type/bin
 and regular in-package entrypoints are checked. Malformed candidates or a broken
 selected newest installation fail visibly instead of silently choosing an older CLI.
@@ -172,8 +180,9 @@ selected newest installation fail visibly instead of silently choosing an older 
 Delegation uses the same Node process and literal arguments: no shell, subprocess
 proxy, branding interception, or extra stdout. Native CLI code owns stdin, MCP
 framing, signals and exit status. CLI-only instructions naming `ruflo` work again;
-normal memory/coordination work remains MCP-first. Existing direct CLI/MCP launch
-configurations remain valid and are not rewritten. Known lifecycle shims call the
+normal memory/coordination work remains MCP-first. Healthy direct CLI/MCP launch
+configurations are preserved; only the missing legacy launchers described above are
+repaired. Known lifecycle shims call the
 implementation package through `npx --prefer-offline --yes @claude-flow/cli@latest`,
 the way ruflo-core's MCP launcher does; they never run the `ruflo` wrapper or a PATH
 binary, and they keep upstream's exit-0 best-effort contract.

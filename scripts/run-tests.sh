@@ -39,6 +39,7 @@ SUITES+=(ruflo-memory-stats)
 SUITES+=(ruflo-context-contract)
 SUITES+=(graph-withdrawal)
 SUITES+=(ruflo-wrapper-runtime)
+SUITES+=(ruflo-mcp-registration)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

@@ -22,7 +22,9 @@
 #     `.gitignore` edits are stripped before our narrow, marker-owned rules.
 #
 # NOTE (global side effect): after the adapter finishes, this script uses Codex's
-# user-global MCP registry to add `ruflo` only when that exact entry is absent. The
+# user-global MCP registry to add `ruflo` only when that exact entry is absent.
+# Missing global launchers from the old #3306 workaround are restored to npx,
+# with a private backup and all other configuration preserved. The
 # adapter never sees the real `codex` executable, so it cannot overwrite or
 # remove a user-managed registration, including under --force.
 #
@@ -370,6 +372,7 @@ _codex_mcp_get() {
 if [[ -z "$_real_codex" ]]; then
   echo "warning: Codex CLI not installed; ruflo MCP registration skipped" >&2
 else
+  node "$SCRIPT_DIR/ruflo-mcp-registration.mjs" || die "could not repair the legacy Ruflo MCP launcher"
   if _codex_mcp_get ruflo; then
     say "    ruflo MCP already registered for Codex, preserving it"
   else

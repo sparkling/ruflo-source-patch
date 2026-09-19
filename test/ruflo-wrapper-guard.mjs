@@ -57,6 +57,13 @@ assert.equal(p.patchSource(p.REFUSAL_SOURCE).next, p.RUNTIME_SOURCE);
 assert.equal(p.reverseSource(p.RUNTIME_SOURCE), p.WRAPPER_SOURCE);
 assert.equal(p.patchSource(p.RUNTIME_SOURCE).next, p.RUNTIME_SOURCE);
 assert(!p.isPatched(p.REFUSAL_SOURCE), 'old refusal is not the new working contract');
+assert(!p.RUNTIME_SOURCE.includes('npm install --global'));
+for (const format of [text => text, text => text.replaceAll('\n', '\r\n')]) {
+  const old = format(p.PRIOR_RUNTIME_SOURCE);
+  assert(!p.isPatched(old));
+  assert.equal(p.patchSource(old).next, format(p.RUNTIME_SOURCE));
+  assert.equal(p.reverseSource(old), format(p.WRAPPER_SOURCE));
+}
 for (const original of [p.WRAPPER_SOURCE.replaceAll('\n', '\r\n'),
   p.WRAPPER_SOURCE.replaceAll('\n', '\r\n').replace('\r\n', '\n')]) {
   const result = p.patchSource(original);

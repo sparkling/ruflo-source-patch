@@ -51,8 +51,16 @@ and removes adapter-created protected files; supported `.agents/skills` produced
 failure may remain. On success, only then are the two instruction templates written. The real Codex
 executable, resolved before the shim, checks Codex's user-global MCP registry and adds the exact entry
 only when absent. `-C <project>` selects the CLI invocation working directory; it does not make the
-registration project-scoped or persist a server `cwd`. Existing registry entries are never used as an
-update target.
+registration project-scoped or persist a server `cwd`. Existing registry entries are preserved except
+for the narrow missing-launcher recovery below.
+
+The 2026-09-19 #3306 recovery shares one helper between explicit wrapper-guard installation and dual
+initialization. It repairs only our historical account-local global Ruflo wrapper or direct global CLI
+registration when that exact target is missing, restoring `npx -y ruflo@latest mcp start` and at least
+the native 120-second startup timeout. A mode-0600 backup precedes the atomic update. Custom, healthy,
+and disabled registrations, other MCP servers, environment blocks, and user policy remain untouched.
+Ambiguous keys and linked config files are refused. Ordinary monitor/SessionStart reapplication never
+migrates registrations. No global Ruflo installation is required or performed.
 
 The wrapper removes the adapter's `.gitignore` rewrite, then preserves every existing byte and appends
 only its marker-owned `.env`, runtime, and `*.bak` rules. It no longer installs inferred
