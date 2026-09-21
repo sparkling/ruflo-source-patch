@@ -585,6 +585,20 @@ defect tracked by [#3143](https://github.com/ruvnet/ruflo/issues/3143).
 
 #### The database path is an authority boundary
 
+The `memory/mcp-configured-store` entry also carries `CLAUDE_FLOW_DB_PATH` through
+the MCP memory handlers (#2105/#3153). Previously, initialization honored it while
+list/search/retrieve could silently use project memory. A separately configured
+Ruflo MCP connection can now target the existing user store using its normal
+structured memory tools; the default connection retains project scope. Native
+bridge and WAL safety checks remain in force. Initialization checks use that same
+store, and explicit-store connections do not migrate project legacy data. Verified
+through MCP on `hz` (221 shared `user-patterns` entries) and the laptop (301), with
+exact-key retrieval and semantic search. A laptop key found in the shared store
+was absent from project memory. Register a separate `ruflo_user` connection using
+`npx -y ruflo@latest mcp start` and `CLAUDE_FLOW_DB_PATH` set to the user's absolute
+database path; expose `memory_list`, `memory_retrieve`, `memory_search`, and
+`memory_store`. Existing sessions need MCP reload/restart to discover it.
+
 `memory-bridge.js` accepts an explicit `dbPath`, but Ruflo 3.38.20 stores `registryPromise`,
 `registryInstance`, availability, and failure reason in four module-global variables. After the first
 successful open, every later call returns that same registry without comparing the requested path.

@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-09-15. Ruflo 3.41.2+ keys registry instances by `path.resolve()` natively (#3196)
+**Updated**: 2026-09-21. MCP memory operations now carry the configured `CLAUDE_FLOW_DB_PATH`
+through to the existing memory API (#2105/#3153); initialization alone previously honored it.
+2026-09-15. Ruflo 3.41.2+ keys registry instances by `path.resolve()` natively (#3196)
 but still latches availability and failure reason process-wide and splits symlink aliases; the
 `memory/path-keyed-bridge-maps` entry applies the same canonical state to that shape. 2026-08-31. Exact published Ruflo 3.38.12 routes ordinary sql.js mutators and native
 purge through shared `withMemoryDbLock()`, delivering the basic #2878 lost-update baseline. Ruflo
@@ -41,6 +43,20 @@ user rows, including a user-only key. That is an authority-boundary failure, not
 quality failure.
 
 ## Decision
+
+### Preserve the configured MCP store
+
+The `memory/mcp-configured-store` entry binds the existing MCP memory API functions to
+`resolveDbPath(CLAUDE_FLOW_DB_PATH)` when that environment setting is nonempty. Without it,
+project behavior is unchanged. The same path reaches initialization, list, retrieval, search,
+store and delete; callers cannot override a configured connection's store. No new database
+driver is introduced. Initialization status uses the same explicit path. Explicit-store
+connections disable legacy migration so project entries cannot leak into shared memory.
+Existing bridge, locking and WAL refusal remain authoritative.
+
+Retire this entry only when the native MCP handlers pass the configured identity through all
+six operations and a two-store test proves that project and user results stay separate.
+`test/memory-mcp-path.mjs` checks that handoff and the pristine missing-path failure.
 
 ### Key native bridge state by canonical database identity
 
