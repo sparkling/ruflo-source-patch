@@ -69,6 +69,7 @@ import { brainManagedMemoryBoundaryCommand } from '../lib/brain-managed-memory-b
 import { brainSearchSafetyCommand } from '../lib/brain-search-safety/commands.mjs';
 import { brainDualHostReceiptCommand } from '../lib/brain-dual-host-receipt/commands.mjs';
 import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands.mjs';
+import { brainGroundingEvidenceCommand } from '../lib/brain-grounding-evidence/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
@@ -115,6 +116,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-search-safety': brainSearchSafetyCommand,
   'brain-dual-host-receipt': brainDualHostReceiptCommand,
   'brain-dual-host-stdin': brainDualHostStdinCommand,
+  'brain-grounding-evidence': brainGroundingEvidenceCommand,
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
   'ruflo-instruction-contract': rufloInstructionContractCommand,
@@ -170,6 +172,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-search-safety')}ignore inherited symbol keys and refuse unproved automatic repair (#224/#225)
   ${pad('brain-dual-host-receipt')}emit an MCP memory_store request instead of spawning a second Ruflo driver (#272)
   ${pad('brain-dual-host-stdin')}stream large host prompts over stdin so cross-critique cannot fail E2BIG (#273)
+  ${pad('brain-grounding-evidence')}record successful searches for the Stop gate without broadening write authorization (#316)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve

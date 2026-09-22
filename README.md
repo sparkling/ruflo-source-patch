@@ -389,6 +389,20 @@ Actions: `install` · `uninstall` · `status`
 | **`brain-dual-host-receipt`** | Preserves Brain's complete subscription-only dual-host deliberation while removing its direct `ruflo memory store` child process. The coordinator emits an exact `memory_store` request for its MCP-aware caller and reports learning persisted only when an injected callback proves the same key was stored and read back. It patches the already-active persistent runtime and deployed helper after native activation; it does not touch Brain releases, updater state, AgentDB files, WAL sidecars, host authentication, or model execution | [stuinfla/ruvnet-brain#272](https://github.com/stuinfla/ruvnet-brain/issues/272) |
 | **`brain-dual-host-stdin`** | Keeps complete cross-host proposals and critiques off argv, where Linux caps a single argument at roughly 128 KiB on common 4 KiB-page systems. It pipes the prompt to both native subscription CLIs over stdin without truncation or plaintext temporary files, while retaining Claude's plan/tool boundary and Codex's ephemeral read-only boundary | [stuinfla/ruvnet-brain#273](https://github.com/stuinfla/ruvnet-brain/issues/273) |
 
+`brain-grounding-evidence install` fixes [Brain #316](https://github.com/stuinfla/ruvnet-brain/issues/316)
+in active Brain 4.3.28: the Stop gate recognizes more product names than the successful-search stamper.
+A successful Brain-only query therefore previously produced no evidence and was falsely blocked.
+The exact-anchor patch records a non-product `search_ruvnet` stamp after the existing failure/query
+checks, accepting both the ordinary search banner and the cited FAST LANE card response. Cards
+satisfy only the turn-level check; named product stamps and write authorization are unchanged.
+It patches the native active
+generation and matching host copies, with pristine restoration and monitor reapplication. No updater,
+release selection, KB data, or hook registrations are changed. The regression executes the native
+mark → stamp → Stop chain, proves the pristine failure, rejects failed/empty searches and stale
+evidence, and verifies that generic evidence cannot authorize unrelated product writes. Retire only
+when marker-free upstream code passes those same checks; anchor drift fails visibly, never counts as
+a fix. Install with `npx github:sparkling/ruflo-source-patch brain-grounding-evidence install`.
+
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.

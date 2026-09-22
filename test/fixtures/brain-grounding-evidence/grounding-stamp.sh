@@ -1,0 +1,113 @@
+#!/bin/bash
+# grounding-stamp.sh — PostToolUse hook on the brain's search_ruvnet tool.
+#
+# The other half of ground-before-write.sh. When the model ACTUALLY consults the RuvNet Brain and
+# the brain ACTUALLY answers, this records WHICH ecosystem products that answer grounded — one stamp
+# file per product term, read later by the write-path gate. No stamp, no write.
+#
+# ── WHICH TERMS: the QUERY. WHETHER TO STAMP AT ALL: the RESULT. ────────────────────────────────
+#
+# Those are two different questions and the original version answered both with the query, which is
+# how the gate quietly stopped meaning anything. Found by the 2026-07-26 F5×GPT-5.6 duel and fixed
+# as part of ADR-054 §3 ("stamps mint ONLY on a successful grounded result"):
+#
+#   • WHICH TERMS still comes from the query, and must. The tool RESULT lists every repo in the
+#     corpus in its "Searched 37 repos" banner — stamping the terms found in the result would mark
+#     EVERYTHING grounded on every call and the gate would never fire again. (A check that cannot
+#     fail protects nothing.) That original reasoning was right and is unchanged.
+#
+#   • WHETHER TO STAMP could never have come from the query, and did. A refusal, an outage, a thrown
+#     module error, an empty result — and, since ADR-054, a "the brain is switched off" soft answer —
+#     each minted a full 24-hour stamp for every product named in the question that was ASKED. So
+#     the way to open the write gate was to ask the brain something while it was broken or disabled.
+#     Measured on the pre-fix tree, in tests/unit/brain-off.test.mjs's recorded red run: five
+#     distinct non-answers, five valid stamps.
+#
+# The success signal is the one line kb/forge-mcp-all.mjs prints on every genuinely-executed search
+# and on nothing else — `Searched <n> RuvNet repos (...)` — with the four known non-answers refused
+# explicitly first. Cheapest reliable signal in the payload: no parsing, no field extraction, plain
+# substring matching over the raw stdin, all of it bash builtins. The refusal markers are quote-free
+# on purpose: a PostToolUse payload JSON-encodes the tool response, so anything containing a double
+# quote would arrive as \" and never match.
+#
+# CONTRACT: PostToolUse is non-blocking — always exit 0, swallow every failure.
+
+set -uo pipefail
+
+INPUT=""
+# BOUNDED READ (2026-07-27, ADR-055 F20): an unqualified `read` never returns on a stdin that is
+# opened and never closed — measured across the mesh, 18 of 37 registered commands sat until the
+# harness killed them. Real Claude Code writes and closes, so this costs no normal turn; that is
+# exactly why a hook that CAN hang forever survives unnoticed. -t bounds the wait, and the string
+# is truncated AFTER the loop because a hook payload is one line with no newline, so `read` hands
+# the whole thing back at once and a per-iteration cap never fires.
+while IFS= read -r -t 2 _l; do
+  INPUT+="$_l"
+  [ ${#INPUT} -ge 65536 ] && break
+done
+[ -n "$_l" ] && INPUT+="$_l"
+INPUT="${INPUT:0:65536}"
+[ -n "$INPUT" ] || exit 0
+
+shopt -s nocasematch 2>/dev/null || true
+
+# ── 1. REFUSE the known non-answers, before anything else. Each of these minted a real 24h stamp. ──
+case "$INPUT" in
+  # ADR-054: the brain is switched off. The exact phrase is pinned to the producer by test.
+  *"RuvNet Brain is disabled"*) exit 0 ;;
+  # The GONG: every repo failed. An outage is not grounding.
+  *"RUVNET BRAIN IS DOWN"*)     exit 0 ;;
+  # A thrown error inside the tool.
+  *"search_ruvnet error:"*)     exit 0 ;;
+  # The search ran and matched nothing. A real answer to the wrong question — but the brain showed
+  # the model no source, so there is nothing for a stamp to attest to.
+  *"(no results"*)              exit 0 ;;
+esac
+
+# ── 2. REQUIRE the success banner. No banner ⇒ no successful search happened in this payload ⇒ no
+# stamp. This is what makes a missing or empty tool_response mint nothing, which is the query-only
+# behaviour finally gone.
+case "$INPUT" in
+  *"Searched "*"RuvNet repos"*) ;;
+  *) exit 0 ;;
+esac
+
+# ── 3. WHICH terms — from the QUERY only, as it always was. The first raw "query" key in the JSON is
+# tool_input's; inside tool_response text the quotes are escaped (\"query\") so they cannot match.
+QUERY=""
+re='"query"[[:space:]]*:[[:space:]]*"([^"]*)"'
+[[ $INPUT =~ $re ]] && QUERY="${BASH_REMATCH[1]}"
+[ -n "$QUERY" ] || exit 0
+
+DIR="$HOME/.cache/ruvnet-brain/grounded"
+mkdir -p "$DIR" 2>/dev/null || exit 0
+
+# Same product-term list as ground-before-write.sh — ONE list per concept, mirrored in both
+# files on purpose (a shared sourced file would add a dependency a blocking hook must not have).
+for t in agentdb metaharness ruvector aidefence agentic-flow agentic-qe ruv-swarm rvf ruflo; do
+  [[ $QUERY == *"$t"* ]] && { : > "$DIR/$t" 2>/dev/null || true; }
+done
+
+# ── 4. THE SUBSTANCE PROBE (ADR-055 §3.7.10, issue #46). ────────────────────────────────────────
+#
+# ADR-055 refuses, by name, the claim of "rUv over your shoulder" while the fourth wall is inert,
+# and requires the product to report one of SUBSTANCE-BOUND | SEARCH-ONLY | OFF. This writes that
+# state as a DERIVED fact rather than an asserted one — the house rule is that status must come
+# from a verifiable artifact, and the artifact here is the evidence ledger's own mtime.
+#
+# The substance writer (kb/forge-evidence.mjs) appends a line DURING the tool call this hook is the
+# PostToolUse of, so on a substance-bound machine the ledger was touched seconds ago. An installed
+# bundle that predates the writer answers normally and never touches the ledger — the machine is
+# then SEARCH-ONLY, and the only dishonest thing it could do is not say so.
+#
+# Everything here is best-effort and swallowed; PostToolUse must always exit 0.
+EVID="${RUVNET_EVIDENCE_FILE:-$HOME/.cache/ruvnet-brain/evidence.jsonl}"
+MODE="search-only"
+if [ -f "$EVID" ]; then
+  NOW=$(date +%s 2>/dev/null) || NOW=""
+  THEN=$(date -r "$EVID" +%s 2>/dev/null) || THEN=$(stat -f %m "$EVID" 2>/dev/null) || THEN=""
+  if [ -n "$NOW" ] && [ -n "$THEN" ] && [ $((NOW - THEN)) -lt 120 ]; then MODE="substance-bound"; fi
+fi
+printf '%s\n' "$MODE" > "$DIR/../grounding-mode" 2>/dev/null || true
+
+exit 0

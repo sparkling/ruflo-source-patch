@@ -2,7 +2,15 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-09-01. Ruflo #3153's `ruflo-instruction-contract` joins composition as one atomic
+**Updated**: 2026-09-22. Brain #316's `brain-grounding-evidence` composes two atomic exact edits in
+the native active generation's `grounding-stamp.sh` and matching host copies. Successful search
+evidence is independent of the narrower product-write allowlist; existing failure rejection remains
+unchanged. Cited FAST LANE cards produce turn-level evidence only, not product write stamps.
+It uses the shared native discovery and pristine restoration, never the update plane.
+Retire only after marker-free upstream behavior passes successful Brain-only searches, rejected
+non-answers, and unchanged product-write authorization. Anchor drift is incomplete, not retirement.
+
+Ruflo #3153's `ruflo-instruction-contract` joins composition as one atomic
 discovered generator set. It patches every present Claude surface and each authenticated Codex adapter,
 validates every rendered template plus current core schemas, exposes an exact inverse, and retires only
 after marker-free executable native behavior proves both hosts overall (ADR-033).

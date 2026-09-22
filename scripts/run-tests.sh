@@ -41,6 +41,7 @@ SUITES+=(graph-withdrawal)
 SUITES+=(ruflo-wrapper-runtime)
 SUITES+=(ruflo-mcp-registration)
 SUITES+=(memory-mcp-path)
+SUITES+=(brain-grounding-evidence)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do
