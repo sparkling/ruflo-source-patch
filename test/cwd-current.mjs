@@ -15,6 +15,7 @@ const HOME = path.join(SB, 'home');
 const NPX = path.join(SB, 'npx');
 const NM = path.join(NPX, 'current', 'node_modules');
 const CLI = path.join(NM, '@claude-flow', 'cli');
+const AGENTDB = path.join(NM, 'agentdb');
 const SOURCE = findVendorRootWith('dist/src/permission/permission-audit.js', [
   "swarmDir ?? path.join(process.cwd(), '.swarm')",
 ]);
@@ -25,6 +26,10 @@ const REL = {
   swarm: 'dist/src/commands/swarm.js',
   neural: 'dist/src/commands/neural.js',
   hooks: 'dist/src/mcp-tools/hooks-tools.js',
+};
+const AGENT_REL = {
+  core: 'dist/src/core/AgentDB.js',
+  ruvector: 'dist/src/backends/ruvector/RuVectorBackend.js',
 };
 const CURRENT_HOOKS_SOURCE = [
   "import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';",
@@ -46,6 +51,12 @@ const CURRENT_HOOKS_SOURCE = [
   '    const observed = pathMod.resolve(process.cwd(), \'.swarm\', \'observed.json\');',
   '    const activity = loadSessionActivity(session, endedAt);',
   '    void memoryPath; void observed; void summary; void currentActivity;',
+  '    const router = { VectorDb: class VectorDb {} };',
+  '                const db = new router.VectorDb({',
+  '                    dimensions: 384,',
+  '                    distanceMetric: "cosine",',
+  '                });',
+  '    void db;',
   '        return {',
   '            sessionId,',
   '            duration,',
@@ -80,6 +91,7 @@ const cli = (args) => spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.m
 const out = (run) => `${run.stdout || ''}${run.stderr || ''}`;
 const fail = (message) => { console.error(`\n✘ ${message}`); process.exit(1); };
 const read = (key) => fs.readFileSync(path.join(CLI, REL[key]), 'utf8');
+const readAgent = (key) => fs.readFileSync(path.join(AGENTDB, AGENT_REL[key]), 'utf8');
 
 function reset() {
   fs.rmSync(SB, { recursive: true, force: true });
@@ -88,6 +100,10 @@ function reset() {
   fs.mkdirSync(path.join(CLI, 'dist', 'src'), { recursive: true });
   fs.writeFileSync(path.join(CLI, 'package.json'), JSON.stringify({
     name: '@claude-flow/cli', type: 'module', version: 'fixture',
+  }));
+  fs.mkdirSync(AGENTDB, { recursive: true });
+  fs.writeFileSync(path.join(AGENTDB, 'package.json'), JSON.stringify({
+    name: 'agentdb', type: 'module', version: 'fixture',
   }));
   for (const rel of Object.values(REL)) {
     const destination = path.join(CLI, rel);
@@ -98,6 +114,11 @@ function reset() {
       const source = path.join(SOURCE, '@claude-flow', 'cli', rel);
       fs.writeFileSync(destination, pristineBytes(source));
     }
+  }
+  for (const rel of Object.values(AGENT_REL)) {
+    const destination = path.join(AGENTDB, rel);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, pristineBytes(path.join(SOURCE, 'agentdb', rel)));
   }
 }
 
@@ -113,6 +134,28 @@ for (const key of ['permission', 'helpers', 'swarm', 'neural']) {
   const checked = spawnSync(process.execPath, ['--check', path.join(CLI, REL[key])], { encoding: 'utf8' });
   if (checked.status !== 0) fail(`${key} output does not parse:\n${out(checked)}`);
 }
+for (const key of Object.keys(AGENT_REL)) {
+  const checked = spawnSync(process.execPath, ['--check', path.join(AGENTDB, AGENT_REL[key])], { encoding: 'utf8' });
+  if (checked.status !== 0) fail(`AgentDB ${key} output does not parse:\n${out(checked)}`);
+}
+
+const agentCore = readAgent('core');
+for (const required of [
+  "const vectorStoragePath = dbPath === ':memory:'",
+  "? path.join(os.tmpdir(), `agentdb-ruvector-${process.pid}-${randomUUID()}.db`)",
+  ': `${path.resolve(dbPath)}.ruvector.db`;',
+  'storagePath: vectorStoragePath',
+]) {
+  if (!agentCore.includes(required)) fail(`AgentDB core still omits the derived RuVector path: ${required}`);
+}
+const agentBackend = readAgent('ruvector');
+for (const required of [
+  'Never let RuVector select its cwd-relative ./ruvector.db default.',
+  'const storagePath = this.config.storagePath ?? path.join(',
+  'storagePath: storagePath,',
+]) {
+  if (!agentBackend.includes(required)) fail(`AgentDB RuVector backend still permits implicit cwd storage: ${required}`);
+}
 
 const hooks = read('hooks');
 for (const stale of [
@@ -124,10 +167,15 @@ for (const stale of [
 }
 for (const required of [
   "const stateDir = join(__rufloResolveRoot(getProjectCwd()), '.claude', 'sessions');",
+  "const routerStateDir = join(__rufloResolveRoot(getProjectCwd()), '.swarm');",
+  "storagePath: join(routerStateDir, 'ruvector-router.db'),",
   'const sessionSummary = {',
   'return { ...snapshot, statePath };',
 ]) {
   if (!hooks.includes(required)) fail(`current hooks build missed the 3.38.16 repair: ${required}`);
+}
+if (hooks.includes('const db = new router.VectorDb({\n                    dimensions: 384')) {
+  fail('semantic router still relies on RuVector\'s cwd-relative default storage path');
 }
 const hooksChecked = spawnSync(process.execPath, ['--check', path.join(CLI, REL.hooks)], { encoding: 'utf8' });
 if (hooksChecked.status !== 0) fail(`current hooks output does not parse:\n${out(hooksChecked)}`);
@@ -144,6 +192,74 @@ fs.mkdirSync(path.join(project, '.git'), { recursive: true });
 fs.mkdirSync(path.join(project, '.claude-flow'), { recursive: true });
 fs.mkdirSync(deep, { recursive: true });
 const projectReal = fs.realpathSync(project);
+
+// Execute both patched AgentDB layers with test doubles. This reproduces the
+// constructor boundary that created ./ruvector.db without creating a real native
+// database during the suite.
+const agentStubs = {
+  'dist/src/controllers/ReflexionMemory.js': 'export class ReflexionMemory { constructor() {} }\n',
+  'dist/src/controllers/SkillLibrary.js': 'export class SkillLibrary { constructor() {} }\n',
+  'dist/src/controllers/CausalMemoryGraph.js': 'export class CausalMemoryGraph { constructor() {} }\n',
+  'dist/src/controllers/EmbeddingService.js': 'export class EmbeddingService { async initialize() {} }\n',
+  'dist/src/backends/factory.js': [
+    'export async function createBackend(type, config) {',
+    '  globalThis.__agentdbBackendConfigs ??= [];',
+    '  globalThis.__agentdbBackendConfigs.push({ type, config });',
+    "  return { name: 'stub' };",
+    '}',
+    '',
+  ].join('\n'),
+};
+for (const [rel, source] of Object.entries(agentStubs)) {
+  const file = path.join(AGENTDB, rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, source);
+}
+const fakeRuvector = path.join(AGENTDB, 'node_modules', 'ruvector');
+fs.mkdirSync(fakeRuvector, { recursive: true });
+fs.writeFileSync(path.join(fakeRuvector, 'package.json'), JSON.stringify({
+  name: 'ruvector', type: 'module', exports: './index.js',
+}));
+fs.writeFileSync(path.join(fakeRuvector, 'index.js'), [
+  'export class VectorDB {',
+  '  constructor(options) { this.options = options; }',
+  '  setEfSearch() {}',
+  '}',
+  '',
+].join('\n'));
+
+const behaviorRunner = path.join(NM, 'ruvector-storage-behavior.mjs');
+fs.writeFileSync(behaviorRunner, [
+  "import assert from 'node:assert/strict';",
+  "import os from 'node:os';",
+  "import path from 'node:path';",
+  "import { AgentDB } from './agentdb/dist/src/core/AgentDB.js';",
+  "import { RuVectorBackend } from './agentdb/dist/src/backends/ruvector/RuVectorBackend.js';",
+  'class TestAgentDB extends AgentDB {',
+  '  async initializeDatabase() { return {}; }',
+  '  async loadSchemas() {}',
+  '}',
+  `const configuredDb = ${JSON.stringify(path.join(project, '.swarm', 'agentdb-memory.db'))};`,
+  "await new TestAgentDB({ dbPath: configuredDb, vectorBackend: 'ruvector' }).initialize();",
+  "await new TestAgentDB({ dbPath: ':memory:', vectorBackend: 'ruvector' }).initialize();",
+  'assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, `${path.resolve(configuredDb)}.ruvector.db`);',
+  'const memoryPath = globalThis.__agentdbBackendConfigs[1].config.storagePath;',
+  'assert.equal(path.isAbsolute(memoryPath), true);',
+  'assert.equal(memoryPath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
+  'const explicitPath = path.join(os.tmpdir(), `explicit-${process.pid}.db`);',
+  "const explicit = new RuVectorBackend({ dimensions: 384, metric: 'cosine', storagePath: explicitPath });",
+  'await explicit.initialize();',
+  'assert.equal(explicit.db.options.storagePath, explicitPath);',
+  "const fallback = new RuVectorBackend({ dimensions: 384, metric: 'cosine' });",
+  'await fallback.initialize();',
+  'assert.equal(path.isAbsolute(fallback.db.options.storagePath), true);',
+  'assert.equal(fallback.db.options.storagePath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
+  "assert.notEqual(fallback.db.options.storagePath, path.join(process.cwd(), 'ruvector.db'));",
+  '',
+].join('\n'));
+const behavior = spawnSync(process.execPath, [behaviorRunner], { cwd: deep, encoding: 'utf8' });
+if (behavior.status !== 0) fail(`AgentDB RuVector storage behavior failed:\n${out(behavior)}`);
+if (fs.existsSync(path.join(deep, 'ruvector.db'))) fail('AgentDB backend created ruvector.db in the invocation directory');
 
 // Permission defaults are live API behavior, not merely strings in a build.
 const priorCwd = process.cwd();
@@ -226,4 +342,4 @@ if (cli(['init', 'status']).status === 0 || cli(['all', 'status']).status === 0)
   fail('zero-file tracked target passed init status or all status');
 }
 
-console.log('✔ current cwd coverage (permission + generated helpers execute at root; swarm/neural defaults rooted; mutation and zero-file installs fail honest)');
+console.log('✔ current cwd coverage (permission/helpers execute at root; swarm/neural and RuVector storage are rooted; mutation and zero-file installs fail honest)');

@@ -24,6 +24,9 @@ const FILES = [
   '@claude-flow/cli/dist/src/memory/memory-initializer.js',
   '@claude-flow/cli/dist/src/commands/daemon.js',
   '@claude-flow/cli/dist/src/services/daemon-autostart.js',
+  '@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js',
+  'agentdb/dist/src/core/AgentDB.js',
+  'agentdb/dist/src/backends/ruvector/RuVectorBackend.js',
   '@claude-flow/cli-core/dist/src/mcp-tools/types.js',
   '@claude-flow/cli/dist/src/autopilot-state.js',
 ];
@@ -70,6 +73,9 @@ const ENTRY_PROBE = {
   'cwd/daemon-autostart': { rel: '@claude-flow/cli/dist/src/services/daemon-autostart.js', needle: 'projectRoot = __rufloResolveRoot(projectRoot);' },
   'cwd/memory-root': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: "_memoryRootCache = path.resolve(__rufloResolveRoot(process.cwd()), '.swarm');" },
   'cwd/cli-core-getProjectCwd': { rel: '@claude-flow/cli-core/dist/src/mcp-tools/types.js', needle: 'return __rufloResolveRoot(process.cwd());' },
+  'cwd/hooks-router-storage': { rel: '@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js', needle: "storagePath: join(routerStateDir, 'ruvector-router.db')," },
+  'cwd/agentdb-vector-storage-path': { rel: 'agentdb/dist/src/core/AgentDB.js', needle: 'storagePath: vectorStoragePath' },
+  'cwd/agentdb-ruvector-storage': { rel: 'agentdb/dist/src/backends/ruvector/RuVectorBackend.js', needle: 'Never let RuVector select its cwd-relative ./ruvector.db default.' },
   'daemon/command-root': { rel: '@claude-flow/cli/dist/src/commands/daemon.js', needle: 'const daemon = getDaemon(__rufloResolveRoot(process.cwd()));' },
   'memory/wal-sidecar-refusal': { rel: '@claude-flow/cli/dist/src/fs-secure.js', needle: '__rufloRefuseWalSidecars(path);' },
   'memory/write-lock': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: "e.code = 'RSP_MEMORY_LOCK_UNAVAILABLE';" },
@@ -78,6 +84,7 @@ const ENTRY_PROBE = {
   'state/autopilot': { rel: '@claude-flow/cli/dist/src/autopilot-state.js', needle: "export const STATE_DIR = __rufloResolveRoot(process.cwd()) + '/.claude-flow/data';" },
 };
 const OWNER = { 'cwd/daemon-autostart': 'cwd', 'cwd/memory-root': 'cwd', 'cwd/cli-core-getProjectCwd': 'cwd',
+  'cwd/hooks-router-storage': 'cwd', 'cwd/agentdb-vector-storage-path': 'cwd', 'cwd/agentdb-ruvector-storage': 'cwd',
   'daemon/command-root': 'daemon', 'memory/wal-sidecar-refusal': 'memory', 'memory/write-lock': 'memory',
   'state/autopilot': 'cwd' };
 
