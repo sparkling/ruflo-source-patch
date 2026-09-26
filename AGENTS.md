@@ -92,6 +92,9 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
+- Use the model transport selected by the caller or harness. OpenRouter is
+  permitted when configured; never silently switch transports or persist
+  provider credentials in this repository.
 - Do not apply the Brain's `release-proof` skill to this repository (user instruction, 2026-09-13). Follow this repository's main-only, immutable-semver-tag release process; retain scoped regression tests, disclose existing failures, and verify installation separately from live MCP activation.
 - Patch only installed npm/npx package or plugin source bytes through a named, issue-backed patch target.
 - Brain executable source, including hooks and MCP handlers in the active installed generation, may be patched by that framework with exact anchors, pristine restoration, monitor re-application, behavioural proof, and an upstream retirement condition.
