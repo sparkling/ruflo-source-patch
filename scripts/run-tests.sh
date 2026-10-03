@@ -44,6 +44,7 @@ SUITES+=(memory-mcp-path)
 SUITES+=(brain-grounding-evidence)
 SUITES+=(brain-grounding-code)
 SUITES+=(brain-doctor-native brain-gate-retirement)
+SUITES+=(brain-router-imports)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

@@ -62,6 +62,7 @@ npx github:sparkling/ruflo-source-patch brain-search-safety install # ignore inh
 npx github:sparkling/ruflo-source-patch brain-dual-host-receipt install # emit MCP persistence request; never start a second Ruflo memory driver (#272)
 npx github:sparkling/ruflo-source-patch brain-dual-host-stdin install # stream large host prompts over stdin; prevent cross-critique E2BIG (#273)
 npx github:sparkling/ruflo-source-patch brain-grounding-evidence install # record successful searches for Stop without granting unrelated product writes (#316)
+npx github:sparkling/ruflo-source-patch brain-router-imports install # reuse existing native Console helpers omitted from flat router tools (#341)
 npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)
 ```
 

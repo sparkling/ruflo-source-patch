@@ -389,7 +389,19 @@ Actions: `install` · `uninstall` · `status`
 | **`brain-dual-host-receipt`** | Preserves Brain's complete subscription-only dual-host deliberation while removing its direct `ruflo memory store` child process. The coordinator emits an exact `memory_store` request for its MCP-aware caller and reports learning persisted only when an injected callback proves the same key was stored and read back. It patches the already-active persistent runtime and deployed helper after native activation; it does not touch Brain releases, updater state, AgentDB files, WAL sidecars, host authentication, or model execution | [stuinfla/ruvnet-brain#272](https://github.com/stuinfla/ruvnet-brain/issues/272) |
 | **`brain-dual-host-stdin`** | Keeps complete cross-host proposals and critiques off argv, where Linux caps a single argument at roughly 128 KiB on common 4 KiB-page systems. It pipes the prompt to both native subscription CLIs over stdin without truncation or plaintext temporary files, while retaining Claude's plan/tool boundary and Codex's ephemeral read-only boundary | [stuinfla/ruvnet-brain#273](https://github.com/stuinfla/ruvnet-brain/issues/273) |
 
-`brain-grounding-evidence install` fixes [Brain #316](https://github.com/stuinfla/ruvnet-brain/issues/316)
+On native Brain 4.5.2, `brain-grounding-evidence` retires after all installed stamp/Stop pairs
+pass executable ordinary/card, failed/empty/forged, stale-evidence and unrelated-write checks.
+`brain-dual-host-stdin` similarly requires every installed coordinator to load and deliver byte-exact
+300 KiB prompts to both fake host CLIs. A missing dependency blocks retirement.
+
+`brain-router-imports install` fixes [Brain #341](https://github.com/stuinfla/ruvnet-brain/issues/341)
+in flat deployed router executables. It preserves correctly packaged local imports; when the native
+installer omitted a helper, the exact import site reads the existing native Console helper instead.
+Native model and runtime policy values stay owned by Brain. No helper is copied or substituted,
+and no updater, cache data, installer, release identity or version selection is changed. Missing or
+unsafe native owners fail visibly. The target retires only after the original imports load locally.
+
+On older installations, `brain-grounding-evidence install` fixes [Brain #316](https://github.com/stuinfla/ruvnet-brain/issues/316)
 in active Brain 4.3.28: the Stop gate recognizes more product names than the successful-search stamper.
 A successful Brain-only query therefore previously produced no evidence and was falsely blocked.
 The exact-anchor patch records a non-product `search_ruvnet` stamp after the existing failure/query

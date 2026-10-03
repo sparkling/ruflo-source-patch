@@ -20,6 +20,18 @@ assert.equal(probeDualHostStdinReplacement({ files: [file] }).state, 'unknown', 
 write(file, original);
 fs.unlinkSync(path.join(dual, 'review-model-defaults.mjs'));
 assert.match(probeDualHostStdinReplacement({ files: [file] }).evidence, /review-model-defaults/);
+const { patchSource: importRepair } = await import('../lib/brain-router-imports/patcher.mjs');
+const fixedImport = importRepair(original);
+assert.deepEqual(fixedImport.missing, []);
+write(`${file}.rsp-backup`, original); write(file, fixedImport.next);
+const brainHome = path.join(root, 'native-owner');
+write(path.join(brainHome, 'kb/.console-runtime/package.json'), '{"name":"ruvnet-brain","version":"4.5.2"}');
+write(path.join(brainHome, 'kb/.console-runtime/scripts/review-model-defaults.mjs'),
+  fs.readFileSync(new URL('./fixtures/brain-dual-host-native/review-model-defaults.mjs', import.meta.url), 'utf8'));
+assert.equal(probeDualHostStdinReplacement({ files: [file], brainHome }).state, 'superseded',
+  'native stdin behavior can retire independently of a verified, separately owned import repair');
+fs.unlinkSync(path.join(brainHome, 'kb/.console-runtime/scripts/review-model-defaults.mjs'));
+assert.equal(probeDualHostStdinReplacement({ files: [file], brainHome }).state, 'unknown', 'unavailable native owner still fails closed');
 assert.equal(probeDualHostStdinReplacement({ files: [] }).state, 'unknown');
 
 const ground = path.join(root, 'ground'); fs.mkdirSync(ground);
@@ -50,4 +62,28 @@ write(answerFile, answer.replace("return answerTextAnswered(answerOf(response));
 assert.equal(probeGroundingEvidenceReplacement({ files: [stamp] }).state, 'unknown', 'forged and failed results cannot retire');
 write(answerFile, answer);
 assert.equal(probeGroundingEvidenceReplacement({ files: [] }).state, 'unknown');
+
+// Both obsolete overlays must be excluded from the same composed rebuild. Keeping
+// either unsupported native anchor in the remaining set used to deadlock retirement.
+const stdinDescriptor = (await import('../lib/brain-dual-host-stdin/patcher.mjs')).descriptor;
+const groundDescriptor = (await import('../lib/brain-grounding-evidence/patcher.mjs')).descriptor;
+const importsDescriptor = (await import('../lib/brain-router-imports/patcher.mjs')).descriptor;
+stdinDescriptor.discover = () => [file];
+groundDescriptor.discover = () => [stamp];
+importsDescriptor.discover = () => [file];
+write(file, original); write(`${file}.rsp-backup`, original);
+write(stamp, nativeStamp);
+const { addPluginTargets, readState } = await import('../lib/cwd/state.mjs');
+addPluginTargets(['brain-dual-host-stdin', 'brain-grounding-evidence', 'brain-router-imports']);
+const { SUPERSEDED_BY, retireSuperseded } = await import('../lib/supersede.mjs');
+// Native capability predicates are exercised above; isolate the retirement transaction here.
+for (const name of ['brain-dual-host-stdin', 'brain-grounding-evidence']) {
+  SUPERSEDED_BY[name].check = () => ({ state: 'superseded', evidence: 'isolated native capability proof' });
+}
+SUPERSEDED_BY['brain-router-imports'].check = () => ({ state: 'live', evidence: 'flat helper absent' });
+const retired = retireSuperseded(readState());
+assert.equal(retired.retired, 2, retired.log.join('\n'));
+assert.deepEqual(readState().pluginTargets, ['brain-router-imports']);
+assert.equal(fs.readFileSync(stamp, 'utf8'), nativeStamp);
+assert.equal(fs.readFileSync(file, 'utf8'), fixedImport.next, 'independent import fix survives retirement');
 console.log('✓ brain gate retirement: native 300 KiB stdin, parsed-result turn evidence, scoped stamps, broken dependencies and deliberate regressions');

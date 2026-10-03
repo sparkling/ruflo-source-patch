@@ -71,6 +71,7 @@ import { brainDualHostReceiptCommand } from '../lib/brain-dual-host-receipt/comm
 import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands.mjs';
 import { brainGroundingEvidenceCommand } from '../lib/brain-grounding-evidence/commands.mjs';
 import { brainGroundingCodeCommand } from '../lib/brain-grounding-code/commands.mjs';
+import { brainRouterImportsCommand } from '../lib/brain-router-imports/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
@@ -119,6 +120,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-dual-host-stdin': brainDualHostStdinCommand,
   'brain-grounding-evidence': brainGroundingEvidenceCommand,
   'brain-grounding-code': brainGroundingCodeCommand,
+  'brain-router-imports': brainRouterImportsCommand,
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
   'ruflo-instruction-contract': rufloInstructionContractCommand,
@@ -176,6 +178,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-dual-host-stdin')}stream large host prompts over stdin so cross-critique cannot fail E2BIG (#273)
   ${pad('brain-grounding-evidence')}record successful searches for the Stop gate without broadening write authorization (#316)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
+  ${pad('brain-router-imports')}reuse native Console helpers omitted from flat router tools (#341)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)
   ${pad('mcp-prefix')}bundled skills/agents name tools \`mcp__claude-flow__*\`, which never resolve
