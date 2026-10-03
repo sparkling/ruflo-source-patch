@@ -195,10 +195,9 @@ cli(['cwd', 'uninstall']);
 // Make the write fail. writeIfChanged() writes a temp file into the target's DIRECTORY and
 // renames, so a read-only directory is what produces the EACCES.
 //
-// It must be a directory the `cwd` target actually WRITES — services/daemon-autostart.js. (Locking
-// fs-secure.js instead proves nothing: that file belongs to the `memory` target, so a `cwd install`
-// never touches it and never throws.)
-const lockedDir = path.dirname(vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js'));
+// Lock the memory-initializer directory: cwd/memory-root still writes this file.
+// The daemon-autostart route is native now, so locking its directory proves no write failure.
+const lockedDir = path.dirname(vendor('@claude-flow/cli/dist/src/memory/memory-initializer.js'));
 fs.chmodSync(lockedDir, 0o555);
 let r;
 try {
@@ -216,7 +215,7 @@ if (!/ERRORS/.test(out(r))) fail(`E1 a throwing patch was not reported in the su
 if (!/ERRORS 1\b/.test(out(r))) fail(`E1 the error was not COUNTED — expected 'ERRORS 1' in the summary:\n${out(r)}`);
 
 // E2 — and it FAILS. `make install` must not print "done" over this.
-if (r.status === 0) fail('E2 `cwd install` exited 0 despite every file failing to patch');
+if (r.status === 0) fail('E2 `cwd install` exited 0 despite a vendor write failure');
 
 // E3 — the line reaches the notifier. isProblem() is the single shared predicate now; it used to
 // be three regex copies, none of which matched an `error ` line.
@@ -665,7 +664,8 @@ freshSandbox();
 // UPSTREAM RESTRUCTURES: our anchored line now appears twice (they extracted a helper, duplicated a
 // guard, whatever). The patch is no longer able to say WHERE it belongs.
 const amb = vendor(DAEMON_AUTOSTART_REL);
-const ambSrc = legacyDaemonBytes(DAEMON_AUTOSTART_REL, fs.readFileSync(amb), patchLibrary).toString('utf8');
+const ambSrc = legacyDaemonBytes(DAEMON_AUTOSTART_REL, fs.readFileSync(amb), patchLibrary).toString('utf8')
+  .replace(/^[ \t]+const projectRoot = resolveDaemonProjectRoot\(startDir\);\n/m, '');
 // A REAL anchor from the shipped entry table, not an invented string — a made-up needle would prove
 // nothing about the anchors we actually rely on.
 const anchor = 'export function ensureDaemonRunning(projectRoot, opts = {}) {\n    try {';
@@ -788,7 +788,7 @@ if (!/uninstall/.test(rbSaid)) fail('RB4 the guidance never says how to back the
 freshSandbox();
 cli(['cwd', 'install']);
 cli(['cwd', 'uninstall']);
-const lockedDir2 = path.dirname(vendor('@claude-flow/cli/dist/src/services/daemon-autostart.js'));
+const lockedDir2 = path.dirname(vendor('@claude-flow/cli/dist/src/memory/memory-initializer.js'));
 fs.chmodSync(lockedDir2, 0o555);
 try {
   spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });

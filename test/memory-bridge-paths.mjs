@@ -106,6 +106,55 @@ if (native) {
 }
 
 
+if (native) {
+  // A native no-op must work when the published module directory is read-only;
+  // creating a .rsp-backup before recognizing upstream proof was a mutation.
+  const readOnlyRoot = path.join(SB, 'read-only');
+  fs.mkdirSync(path.join(readOnlyRoot, 'home', '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(readOnlyRoot, 'home', '.claude', 'settings.json'), '{}');
+  const readOnlyModules = path.join(readOnlyRoot, 'npx', 'fixture', 'node_modules');
+  const readOnlyFile = path.join(readOnlyModules, bridgeRel);
+  fs.mkdirSync(path.dirname(readOnlyFile), { recursive: true });
+  const nativeSource = pristineBytes(path.join(vendor, bridgeRel));
+  fs.writeFileSync(readOnlyFile, nativeSource);
+  fs.chmodSync(readOnlyFile, 0o444);
+  fs.chmodSync(path.dirname(readOnlyFile), 0o555);
+  const readOnlyEnv = { ...process.env,
+    RUFLO_SOURCE_PATCH_HOME: path.join(readOnlyRoot, 'home'),
+    RUFLO_NPX_ROOT: path.join(readOnlyRoot, 'npx'),
+    RUFLO_GLOBAL_ROOT: path.join(readOnlyRoot, 'global'),
+  };
+  try {
+    const call = action => spawnSync(process.execPath,
+      [path.join(REPO, 'bin', 'cli.mjs'), 'memory', action], { env: readOnlyEnv, encoding: 'utf8' });
+    const before = fs.statSync(readOnlyFile);
+    const installedNative = call('install');
+    check(installedNative.status === 0, `native read-only proof unexpectedly requires a write:\n${installedNative.stdout}${installedNative.stderr}`);
+    check(fs.readFileSync(readOnlyFile).equals(nativeSource)
+      && fs.statSync(readOnlyFile).mtimeMs === before.mtimeMs
+      && !fs.existsSync(readOnlyFile + '.rsp-backup'),
+      'native read-only no-op changed source or created a backup');
+    check(call('status').status === 0, 'read-only native satisfaction not reflected in status');
+    // An unknown native regression cannot inherit the healthy proof or silently
+    // pass status. The read-only directory ensures it stays byte-exact on refusal.
+    fs.chmodSync(path.dirname(readOnlyFile), 0o755);
+    fs.chmodSync(readOnlyFile, 0o644);
+    const unknown = nativeSource.toString().replace(
+      'const resolvedPath = canonicalDbPath(dbPath);', 'const resolvedPath = path.resolve(dbPath);');
+    fs.writeFileSync(readOnlyFile, unknown);
+    fs.chmodSync(readOnlyFile, 0o444);
+    fs.chmodSync(path.dirname(readOnlyFile), 0o555);
+    const refused = call('install');
+    check(refused.status !== 0 && /INCOMPLETE|error|anchor-not-found/i.test(refused.stdout + refused.stderr),
+      'unknown read-only native regression was not reported loudly');
+    check(fs.readFileSync(readOnlyFile, 'utf8') === unknown,
+      'unknown read-only native regression was overwritten');
+  } finally {
+    fs.chmodSync(path.dirname(readOnlyFile), 0o755);
+    fs.chmodSync(readOnlyFile, 0o644);
+  }
+}
+
 const dbA = path.join(SB, 'project-memory.db');
 const dbB = path.join(SB, 'user-memory.db');
 const dbAlias = path.join(SB, 'project-memory-alias.db');

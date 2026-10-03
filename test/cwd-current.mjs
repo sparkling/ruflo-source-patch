@@ -192,6 +192,41 @@ fs.mkdirSync(path.join(project, '.git'), { recursive: true });
 fs.mkdirSync(path.join(project, '.claude-flow'), { recursive: true });
 fs.mkdirSync(deep, { recursive: true });
 const projectReal = fs.realpathSync(project);
+// Run both exact hooks constructor shapes. HZ's retained3.32.9 uses twelve
+// spaces, while current releases use sixteen; indentation is literal data for
+// the patcher, and both must anchor persistent router state at the project root.
+const { FRAGMENTS } = await import('../lib/cwd/patch-library.mjs');
+for (const width of [12, 16]) {
+  const indent = ' '.repeat(width);
+  const variant = CURRENT_HOOKS_SOURCE.replace(
+    '                const db = new router.VectorDb({\n                    dimensions: 384,',
+    `${indent}const db = new router.VectorDb({\n${indent}    dimensions: 384,`);
+  fs.writeFileSync(hooksFile, variant);
+  const installedVariant = cli(['cwd', 'install']);
+  if (installedVariant.status !== 0) fail(`hooks indentation ${width} did not install:\n${out(installedVariant)}`);
+  const patchedVariant = read('hooks');
+  if (!patchedVariant.includes(`${indent}    storagePath: join(routerStateDir, 'ruvector-router.db'),`))
+    fail(`hooks indentation ${width} omitted persistent project-root storage`);
+  const start = patchedVariant.indexOf('const routerStateDir =');
+  const dbStart = patchedVariant.indexOf('const db = new router.VectorDb({', start);
+  const end = patchedVariant.indexOf('});', dbStart) + 3;
+  const constructor = patchedVariant.slice(start, end);
+  const routerRunner = path.join(SB, `router-${width}.mjs`);
+  fs.writeFileSync(routerRunner, `import assert from 'node:assert/strict';
+import { join } from 'node:path';
+import { mkdirSync } from 'node:fs';
+${FRAGMENTS.req.src}
+${FRAGMENTS.resolveRoot.src}
+const getProjectCwd = () => process.cwd();
+const router = { VectorDb: class { constructor(options) { this.options = options; } } };
+${constructor}
+assert.equal(db.options.storagePath, ${JSON.stringify(path.join(projectReal, '.swarm', 'ruvector-router.db'))});
+assert.equal(db.options.dimensions, 384);
+`);
+  const run = spawnSync(process.execPath, [routerRunner], { cwd: deep, encoding: 'utf8' });
+  if (run.status !== 0) fail(`hooks indentation ${width} constructor behavior failed:\n${out(run)}`);
+}
+
 
 // Execute both patched AgentDB layers with test doubles. This reproduces the
 // constructor boundary that created ./ruvector.db without creating a real native

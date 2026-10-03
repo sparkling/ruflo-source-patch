@@ -13,7 +13,7 @@ process.env.CODEX_HOME = CODEX_HOME;
 process.env.RUFLO_NPX_ROOT = path.join(SB, 'npx');
 process.env.RUFLO_GLOBAL_ROOT = path.join(SB, 'global');
 
-const { findPluginRoot, pristineBytes } = await import('./fixtures.mjs');
+const { findPluginRoot } = await import('./fixtures.mjs');
 const { applyComposed } = await import('../lib/plugin-compose.mjs');
 const { evaluate, retireSuperseded } = await import('../lib/supersede.mjs');
 const state = await import('../lib/cwd/state.mjs');
@@ -41,7 +41,8 @@ const copied = [
   path.join('skills', 'adr-reindex', 'SKILL.md'),
   path.join('scripts', 'reindex.mjs'),
 ];
-const importer = pristineBytes(path.join(sourceRoot, importerRel), 'adrIndex');
+// Pin compatibility bytes while retaining current native records/skills/reindex probes.
+const importer = fs.readFileSync(new URL('./fixtures/adr-index-pre3097-import.mjs', import.meta.url));
 const records = fs.readFileSync(path.join(sourceRoot, recordsRel));
 function seedPlugin(root) {
   for (const relative of copied) {

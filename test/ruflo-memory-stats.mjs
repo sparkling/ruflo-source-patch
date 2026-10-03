@@ -169,6 +169,23 @@ ${STATS_351}
   assert.deepEqual(paths, [explicit], 'invalid path never opens a registry');
   assert.equal((await native351HandlerFn()).success, true);
   assert.deepEqual(paths, [explicit, undefined], 'omitted path retains native default authority');
+  const initializerFile = path.join(mem, 'path-proof-initializer.js');
+  fs.writeFileSync(initializerFile, `import { resolve } from 'node:path'; export function resolveDbPath(value) { return resolve(value); }`);
+  const configuredHandler = handlerSource.replace("'../memory/memory-initializer.js'", JSON.stringify(pathToFileURL(initializerFile).href));
+  const configuredHandlerFn = (await import('data:text/javascript;base64,' + Buffer.from(
+    `import { resolve } from 'node:path'; import { statSync } from 'node:fs'; export default ${configuredHandler};`).toString('base64'))).default;
+  const configuredUser = path.join(scratch, 'configured-user-memory.db');
+  const previousPath = process.env.CLAUDE_FLOW_DB_PATH;
+  process.env.CLAUDE_FLOW_DB_PATH = configuredUser;
+  try {
+    assert.equal((await configuredHandlerFn()).success, true);
+    assert.equal(paths.at(-1), configuredUser, 'stats shares explicit user CRUD authority');
+    assert.equal((await configuredHandlerFn({ dbPath: explicit })).success, true);
+    assert.equal(paths.at(-1), explicit, 'explicit statistics inspection remains selected');
+  } finally {
+    if (previousPath === undefined) delete process.env.CLAUDE_FLOW_DB_PATH;
+    else process.env.CLAUDE_FLOW_DB_PATH = previousPath;
+  }
   delete globalThis.__rspStatsOwner;
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), native351Source, '3.51 exact reversal');

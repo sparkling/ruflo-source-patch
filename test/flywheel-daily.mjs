@@ -302,4 +302,37 @@ check('FD18 retirement preserves and re-proves the upstream behavior',
   copies.every((file) => fs.readFileSync(file, 'utf8') === UPSTREAM)
     && evaluate('flywheel-daily').state === 'superseded');
 
+// Brain 4.5 moved the atomic claim to the final assembler so a deferred block
+// cannot consume its day. Keep the native condition and delivery claim exact.
+const ASSEMBLED = UPSTREAM.replace(UPSTREAM_CONDITION,
+  'BLK=$(mktemp -d)\nout_to() { cat > "$BLK/$1"; }\n'
+    + 'if [ "$RUFLO_STATE" = "yes" ] && [ "$FLYWHEEL" != "on" ] && { [ -n "$BLK" ] || claim_flywheel_day; }; then')
+  .replace("  printf '%s\\n' '[RuvNet Brain — the self-learning flywheel is available here and switched OFF]'",
+    "  printf '%s\\n' '[RuvNet Brain — the self-learning flywheel is available here and is NOT running]' | out_to 2-3-flywheel")
+  + '\nfor _f in "$BLK"/*; do\n'
+    + '  [ -f "$_f" ] || continue\n  _rest=${_f#*/}; _id=${_rest##*-}\n'
+    + '  if [ "$_id" = "flywheel" ]; then claim_flywheel_day || continue; fi\n'
+    + '  cat "$_f"\ndone\nrm -rf "$BLK"\n';
+const assembledProof = probeFlywheelBehavior(ASSEMBLED);
+check('FD19 native assembler delivery and updated banner retain daily atomic cadence', assembledProof.state === 'proven');
+if (assembledProof.state !== 'proven') console.log(JSON.stringify(assembledProof));
+for (const file of copies) fs.writeFileSync(file, ASSEMBLED);
+check('FD20 every active assembled native hook qualifies for retirement without local mutation',
+  evaluate('flywheel-daily').state === 'superseded'
+    && applyComposed(['flywheel-daily']).patched === 0);
+const missingAssemblerClaim = ASSEMBLED.replace(
+  '  if [ "$_id" = "flywheel" ]; then claim_flywheel_day || continue; fi',
+  '  # if [ "$_id" = "flywheel" ]; then claim_flywheel_day || continue; fi');
+fs.writeFileSync(copies[0], missingAssemblerClaim);
+check('FD21 keeping assembled source markers in comments cannot hide repeated delivery',
+  evaluate('flywheel-daily').state !== 'superseded');
+
+// Older cached versions are not current execution surfaces. An actual native
+// selection or registered active copy must still pass; none is upgraded here.
+fs.writeFileSync(copies[0], ASSEMBLED);
+const inactive = path.join(BRAIN_HOME, 'versions', 'old-inactive', 'scripts', 'ground-ruvnet.sh');
+fs.mkdirSync(path.dirname(inactive), { recursive: true }); fs.writeFileSync(inactive, VENDOR);
+check('FD22 an unrelated old immutable generation cannot block proven active native cadence',
+  evaluate('flywheel-daily').state === 'superseded');
+
 process.exit(fail);

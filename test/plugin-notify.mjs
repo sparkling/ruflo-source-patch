@@ -45,6 +45,8 @@ const PRISTINE = {};
 // itself.
 const KIND = { 'scripts,import.mjs': 'adrIndex', 'skills,adr-create,SKILL.md': 'adrTemplate' };
 function vendorBytes(rel) {
+  // Historical engine/notifier cases must not depend on a newly native importer.
+  if (rel === IMPORT_REL) return fs.readFileSync(new URL('./fixtures/adr-index-pre3097-import.mjs', import.meta.url));
   return pristineBytes(path.join(REAL_PLUGIN, ...rel), KIND[rel.join(',')]);
 }
 
