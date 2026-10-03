@@ -1,4 +1,6 @@
 // Verbatim native Brain 4.5.2 event parser and its host normalization dependencies.
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 export const GROK_TOOL_ALIASES = Object.freeze({
   write: 'Write', search_replace: 'Edit', edit: 'Edit', multi_edit: 'MultiEdit',
   run_terminal_command: 'Bash', run_terminal_cmd: 'Bash', read_file: 'Read', grep: 'Grep',
@@ -68,3 +70,13 @@ export function parseHookEvent(raw) {
   }
 }
 
+// Native CLI guard: an import must not present this module as argv[1].
+function isMain() {
+  try {
+    if (!process.argv[1]) return false;
+    return fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+if (isMain()) process.exit(0);

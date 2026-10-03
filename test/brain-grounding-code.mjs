@@ -75,6 +75,10 @@ check(patched.next, '', 2, 'backup.py', { tool_name: 'MultiEdit', tool_input: {
 fs.renameSync(path.join(scripts, 'hook-input.mjs'), path.join(scripts, 'hook-input.saved'));
 check(patched.next, incident, 2);
 fs.renameSync(path.join(scripts, 'hook-input.saved'), path.join(scripts, 'hook-input.mjs'));
+fs.renameSync(path.join(scripts, 'hook-input.mjs'), path.join(scripts, 'hook-input.saved'));
+fs.writeFileSync(path.join(scripts, 'hook-input.mjs'), 'process.exit(0);');
+check(patched.next, 'import agentdb', 2); // Early successful exit is not parsed evidence.
+fs.renameSync(path.join(scripts, 'hook-input.saved'), path.join(scripts, 'hook-input.mjs'));
 const stamps = path.join(root, '.cache/ruvnet-brain/grounded');
 fs.mkdirSync(stamps, { recursive: true });
 fs.writeFileSync(path.join(stamps, 'agentdb'), '');
