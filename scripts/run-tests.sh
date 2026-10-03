@@ -42,6 +42,7 @@ SUITES+=(ruflo-wrapper-runtime)
 SUITES+=(ruflo-mcp-registration)
 SUITES+=(memory-mcp-path)
 SUITES+=(brain-grounding-evidence)
+SUITES+=(brain-grounding-code)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

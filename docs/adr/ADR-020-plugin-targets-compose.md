@@ -2,7 +2,16 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-09-22. Brain #316's `brain-grounding-evidence` composes two atomic exact edits in
+**Updated**: 2026-10-03. `brain-grounding-code` narrows the #46 recency scan to added JS/Python
+code, excluding comments and standalone Python docstrings in complete Write/Codex Add payloads.
+Partial Edit/Update fragments retain their conservative requirement. Herdr exposed an unrelated application
+backup refused solely for its warning against touching AgentDB. The exact vendor anchor composes
+from pristine; real executable strings, imports, paths, uncertain syntax and unsupported languages
+retain grounding requirements. Parser failure retains the original scan. The substance detector,
+managed-memory guard, stamps and update plane remain unchanged. Retire after marker-free upstream
+passes the same prose/import/expiry/dependency-failure replay; anchor drift is incomplete, not proof.
+
+Brain #316's `brain-grounding-evidence` composes two atomic exact edits in
 the native active generation's `grounding-stamp.sh` and matching host copies. Successful search
 evidence is independent of the narrower product-write allowlist; existing failure rejection remains
 unchanged. Cited FAST LANE cards produce turn-level evidence only, not product write stamps.

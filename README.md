@@ -403,6 +403,15 @@ evidence, and verifies that generic evidence cannot authorize unrelated product 
 when marker-free upstream code passes those same checks; anchor drift fails visibly, never counts as
 a fix. Install with `npx github:sparkling/ruflo-source-patch brain-grounding-evidence install`.
 
+`brain-grounding-code install` narrows [Brain #46](https://github.com/stuinfla/ruvnet-brain/issues/46)'s
+recency scan to added JS/Python code. Comments and standalone Python docstrings warning against
+AgentDB access do not require a product stamp. Complete Write/Codex Add payloads support docstrings;
+partial Edit/Update payloads keep their conservative requirement. Executable strings/imports, product-bearing paths,
+uncertain syntax and unsupported languages retain the requirement; parser failure retains the
+vendor scan. The substance detector and managed-memory guard are unchanged. It patches the native
+active generation and matching hosts through exact anchors, pristine restoration and monitor
+reapplication. Retire only after marker-free upstream passes the same behavioral replay.
+
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
