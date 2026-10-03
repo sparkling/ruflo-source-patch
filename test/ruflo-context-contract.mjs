@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { CONTEXT_OLD, CONTEXT_NEW } from '../lib/ruflo-context-contract/patcher.mjs';
+import { CONTEXT_OLD, CONTEXT_351, CONTEXT_NEW } from '../lib/ruflo-context-contract/patcher.mjs';
 
 const argv = process.argv.slice(2);
 const usage = 'Usage: node test/ruflo-context-contract.mjs [<absolute scratch directory>] [--native-cli <absolute CLI package.json>]';
@@ -131,6 +131,13 @@ try {
   assert.equal(result.status, 'complete');
   assertCounts(result, 2, 2, 0);
 
+  reset();
+  mod.setRegistry(registryFor([{ metadata: examples[0] }, { value: examples[1] }]));
+  result = await mod.bridgeContextSynthesize({ query: 'metadata' });
+  assert.deepEqual(captured, examples, 'native metadata episodes retain explicit fields');
+  mod.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
+  assert.equal((await mod.bridgeContextSynthesize({ query: 'conflict' })).success, false,
+    'conflicting native metadata is not silently preferred');
   const zero = episode({ success: false, reward: 0, input: '', output: '', similarity: 0 });
   const negativeZero = episode({ reward: -0 });
   const large = episode({ reward: 2.5 });
@@ -302,6 +309,39 @@ try {
   assert.ok(!bytes.includes('__rufloResolveRoot(process.cwd())'));
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), pristine, 'byte-exact restoration');
+  const nativePrefix = prelude + `const operationContext = { getStore: () => ({ active: true }) };
+function withBridgeOperation() { throw new Error('test holds its native lease'); }
+`;
+  // Verbatim 3.51.1 eligibility helpers demonstrate the remaining native
+  // duplicate/conflict problem independently of the historical mapper bug.
+  const nativeEligibility = "function contextEpisodeFrom(value) {\n    if (typeof value === 'string') {\n        try {\n            value = JSON.parse(value);\n        }\n        catch {\n            return null;\n        }\n    }\n    if (!value || typeof value !== 'object' || Array.isArray(value))\n        return null;\n    const record = value;\n    const owns = (key) => Object.prototype.hasOwnProperty.call(record, key);\n    if (!owns('task') || !owns('reward') || !owns('success')\n        || typeof record.task !== 'string' || !record.task.trim()\n        || typeof record.reward !== 'number' || !Number.isFinite(record.reward)\n        || typeof record.success !== 'boolean')\n        return null;\n    const episode = {\n        task: record.task.trim(),\n        reward: record.reward,\n        success: record.success,\n    };\n    for (const field of ['critique', 'input', 'output']) {\n        if (owns(field)) {\n            if (typeof record[field] !== 'string')\n                return null;\n            episode[field] = record[field];\n        }\n    }\n    return episode;\n}\nfunction contextEpisodeFromRecall(row) {\n    if (!row || typeof row !== 'object' || Array.isArray(row))\n        return null;\n    const record = row;\n    for (const field of [null, 'metadata', 'value', 'content']) {\n        const candidate = field === null ? record\n            : Object.prototype.hasOwnProperty.call(record, field) ? record[field] : undefined;\n        const episode = contextEpisodeFrom(candidate);\n        if (episode)\n            return episode;\n    }\n    return null;\n}\n";
+  const currentNative = await import('data:text/javascript;base64,' + Buffer.from(
+    nativePrefix + nativeEligibility + CONTEXT_351).toString('base64'));
+  currentNative.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
+  assert.equal((await currentNative.bridgeContextSynthesize({ query: 'conflict' })).success, true,
+    '3.51 native source still silently prefers one conflicting episode');
+  const duplicateJson = '{"task":"adapter","reward":0,"reward":1,"success":false}';
+  currentNative.setRegistry(registryFor([{ value: duplicateJson }]));
+  assert.equal((await currentNative.bridgeContextSynthesize({ query: 'duplicates' })).success, true,
+    '3.51 native source silently overwrites duplicate outcome evidence');
+  const nativePristine = nativePrefix + CONTEXT_351;
+  fs.writeFileSync(file, nativePristine);
+  assert.equal(apply(['ruflo-context-contract']).incomplete, 0, '3.51 native source supported');
+  const native351 = await import(pathToFileURL(file).href + '?native351');
+  await mappingProof(native351);
+  native351.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
+  assert.equal((await native351.bridgeContextSynthesize({ query: 'conflict' })).success, false);
+  native351.setRegistry(registryFor([{ value: duplicateJson }]));
+  assert.equal((await native351.bridgeContextSynthesize({ query: 'duplicates' })).success, false);
+
+  native351.setRegistry(registryFor([{ metadata: examples[0] }], { real: true }));
+  assert.equal((await native351.bridgeContextSynthesize({ query: 'metadata' })).success, true);
+  assert.ok(fs.readFileSync(file, 'utf8').includes('withBridgeOperation(() => bridgeContextSynthesize(params))'),
+    'native lifecycle lease retained');
+  apply([]);
+  assert.equal(fs.readFileSync(file, 'utf8'), nativePristine, '3.51 exact reversal');
+  fs.writeFileSync(file, pristine);
+
 
   for (const changed of [pristine.replace('reward: 1,', 'reward: 0.5,'), pristine + CONTEXT_OLD]) {
     fs.writeFileSync(file, changed);

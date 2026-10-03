@@ -18,6 +18,7 @@ process.env.RSP_NO_HOST_AUTO_UPDATE = '1';
 
 const { REPO, findVendorRootWith, pristineBytes } = await import('./fixtures.mjs');
 const patchLib = await import('../lib/cwd/patch-library.mjs');
+const { nativeMemoryBridgeSatisfied } = await import('../lib/cwd/native-memory-bridge.mjs');
 
 const fail = (message) => {
   console.error(`✘ ${message}`);
@@ -60,17 +61,19 @@ const initRel = path.join('@claude-flow', 'cli', 'dist', 'src', 'memory', 'memor
 const fsRel = path.join('@claude-flow', 'cli', 'dist', 'src', 'fs-secure.js');
 const vendor = findVendorRootWith(path.join('dist', 'src', 'memory', 'memory-bridge.js'), [
   'const registryInstances = new Map();',
-  'let bridgeAvailable = null;',
   'async function getRegistry(dbPath) {',
   'export function __setMemoryBridgeRegistryForTests(registry) {',
-  'export async function shutdownBridge() {',
+  'function shutdownBridge() {',
 ]);
 const nodeModules = path.join(process.env.RUFLO_NPX_ROOT, 'fixture', 'node_modules');
 const packageDir = path.join(nodeModules, '@claude-flow', 'cli');
 
 fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
 fs.writeFileSync(path.join(HOME, '.claude', 'settings.json'), '{}');
-for (const rel of [bridgeRel, initRel, fsRel]) {
+const helperRels = ['live-memory-row.js', 'feedback-patterns.js']
+  .map(file => path.join('@claude-flow', 'cli', 'dist', 'src', 'memory', file))
+  .filter(rel => fs.existsSync(path.join(vendor, rel)));
+for (const rel of [bridgeRel, initRel, fsRel, ...helperRels]) {
   const source = path.join(vendor, rel);
   const target = path.join(nodeModules, rel);
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -87,6 +90,21 @@ const baselineDir = path.join(nodeModules, '.rsp-baseline');
 fs.mkdirSync(baselineDir, { recursive: true });
 fs.writeFileSync(path.join(baselineDir, 'package.json'), '{"type":"module"}\n');
 fs.writeFileSync(path.join(baselineDir, 'memory-bridge.js'), pristineBytes(path.join(vendor, bridgeRel)));
+for (const rel of helperRels) fs.copyFileSync(path.join(nodeModules, rel), path.join(baselineDir, path.basename(rel)));
+const native = nativeMemoryBridgeSatisfied(pristineBytes(path.join(vendor, bridgeRel)).toString());
+if (native) {
+  const nativeSource = pristineBytes(path.join(vendor, bridgeRel)).toString();
+  for (const [find, replace] of [
+    ['const resolvedPath = canonicalDbPath(dbPath);', 'const resolvedPath = path.resolve(dbPath);'],
+    ['    if (testRegistryOverride)', '    if (bridgeFailureReasons.size) return null;\n    if (testRegistryOverride)'],
+    ['if (activeOperations > 0)', 'if (false)'],
+  ]) {
+    check(nativeSource.includes(find), 'native retirement mutant anchor missing');
+    check(!nativeMemoryBridgeSatisfied(nativeSource.replace(find, replace)),
+      'native identity retirement accepted a behavioral regression');
+  }
+}
+
 
 const dbA = path.join(SB, 'project-memory.db');
 const dbB = path.join(SB, 'user-memory.db');
@@ -132,15 +150,16 @@ export class ControllerRegistry {
 }
 `);
 
-// TEETH: the pristine module must exhibit the defects this patch claims to fix.
+// TEETH: legacy pristine bytes must exhibit the defects; native bytes must pass
+// the same identity boundary plus the stronger global-lifecycle drain proof.
 const pristine = await import(`${pathToFileURL(path.join(baselineDir, 'memory-bridge.js')).href}?baseline=1`);
 const pristineA = await pristine.getControllerRegistry(dbA);
 const pristineAlias = await pristine.getControllerRegistry(dbAlias);
-check(pristineA && pristineAlias && pristineA !== pristineAlias,
+check(pristineA && pristineAlias && (native ? pristineA === pristineAlias : pristineA !== pristineAlias),
   'MBP0 pristine fixture no longer splits a symlink alias into a second registry; review retirement instead of patching');
 check(await pristine.getControllerRegistry(dbFailure) === null
-  && await pristine.getControllerRegistry(dbB) === null
-  && await pristine.isBridgeAvailable(dbB) === false,
+  && (native ? await pristine.getControllerRegistry(dbB) !== null : await pristine.getControllerRegistry(dbB) === null)
+  && await pristine.isBridgeAvailable(dbB) === native,
   'MBP0 pristine fixture no longer latches one failed database over every other; review retirement instead of patching');
 await pristine.shutdownBridge();
 check(pristineA.shutdowns === 1 && pristineAlias.shutdowns === 1, 'MBP0 pristine shutdown did not close the fixture registries');
@@ -169,15 +188,17 @@ for (const file of [patchedBridge, patchedInit]) {
 }
 const bridgeSource = fs.readFileSync(patchedBridge, 'utf8');
 const initSource = fs.readFileSync(patchedInit, 'utf8');
-check(bridgeSource.includes('const __RSP_MEMORY_BRIDGE_PATHS_REVISION = "2026-08-31.2";'),
+check(native ? nativeMemoryBridgeSatisfied(bridgeSource) : bridgeSource.includes('const __RSP_MEMORY_BRIDGE_PATHS_REVISION = "2026-08-31.2";'),
   'MBP3 path-keyed bridge revision proof is absent');
-check(!bridgeSource.includes('registryInstances.get(') && !/\bbridgeAvailable\s*=[^=]/.test(bridgeSource)
+check((native || !bridgeSource.includes('registryInstances.get(')) && !/\bbridgeAvailable\s*=[^=]/.test(bridgeSource)
   && !/\bbridgeFailureReason\s*=[^=]/.test(bridgeSource),
   'MBP3 a process-global registry cache or availability latch remains live');
-check(initSource.includes("getBridgeFailureReason?.(dbPath)"),
+check(initSource.includes("getBridgeFailureReason?.(dbPath)") || initSource.includes("getBridgeFailureReason?.(bridgeDbPath)"),
   'MBP3 WAL diagnostics are not scoped to the failed database');
 check(!initSource.includes("walRefusalError('write'),")
-  && !initSource.includes("walRefusalError('read/write'),"),
+  && !initSource.includes("walRefusalError('read/write'),")
+  && !initSource.includes("walRefusalError('write') }")
+  && !initSource.includes("walRefusalError('read/write') }"),
   'MBP3 an unscoped WAL diagnostic call remains');
 
 const bridge = await import(`${pathToFileURL(patchedBridge).href}?patched=1`);
@@ -231,11 +252,13 @@ check(await bridge.getControllerRegistry(dbFailure) === null
   && await bridge.isBridgeAvailable(dbB) === true,
   'MBP8 one database initialization failure poisoned another database');
 
-await bridge.shutdownBridge(dbCAlias);
+if (!native) {
+  await bridge.shutdownBridge(dbCAlias);
 check(concurrentA.shutdowns === 1 && bFirstRegistry.shutdowns === 0,
   'MBP8 path-scoped shutdown closed the wrong registry');
 check((await bridge.getControllerRegistry(dbB)) === bFirstRegistry,
   'MBP8 path-scoped shutdown disturbed an unrelated database');
+}
 await bridge.shutdownBridge();
 check(bFirstRegistry.shutdowns === 1 && aSecondRegistry.shutdowns === 1
   && concurrentA.shutdowns === 1,
@@ -252,4 +275,6 @@ check(patchLib.ENTRIES.some((entry) => entry.id === 'memory/path-keyed-bridge-ma
   && patchLib.ENTRIES.some((entry) => entry.id === 'memory/path-keyed-bridge'),
   'MBP11 path-keyed bridge entries are absent from the shipped patch table');
 
-console.log('✔ memory bridge paths (pristine defect, A/B isolation, aliases, diagnostics, scoped shutdown)');
+console.log(native
+  ? '✔ native memory bridge identity (A/B isolation, aliases, scoped failures, drain/global shutdown); no local path API imposed'
+  : '✔ legacy patched memory bridge identity (pristine defect, A/B isolation, aliases, scoped failures/shutdown)');

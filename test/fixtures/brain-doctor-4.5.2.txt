@@ -1,0 +1,77 @@
+// Extracted verbatim native Brain 4.5.2 doctor anchors; not an executable installer.
+
+export function installConsoleRuntime() {}
+
+/**
+ * The brain ships as TWO independently-versioned artifacts: the KB content bundle (self-updates
+ * nightly via forge-update.mjs + GitHub Releases) and the Claude Code PLUGIN WRAPPER (hooks,
+ * skills, slash commands), which updates ONLY when Claude Code itself pulls the marketplace git
+ * clone at ~/.claude/plugins/marketplaces/ruvnet-brain — NOT AT ALL if a user's
+ * ~/.claude/settings.json has "autoUpdate": false for that marketplace. They drift silently, and —
+ * this is the damaging part — the version a user is SHOWN always comes from the frozen wrapper,
+ * never the brain. Verified live on this machine 2026-07-20: KB SOURCE.json built today, wrapper
+ * plugin.json still 3.4.18-dev, nine commits behind origin/main, because autoUpdate was false. A
+ * user (Dr. Mark Allen) hit exactly this: KB current, wrapper still the June v0.5.0-dev build, and
+ * nothing anywhere told him the two had diverged.
+ *
+ * NEVER invent or guess a version — this project's hardest rule. Either side unresolved → null, and
+ * null is NEVER treated as drift: a locally-built or pre-stamping KB legitimately has no releaseTag
+ * (see installedBrainVersion's own comment above), and a plugin that simply isn't installed yet is
+ * a DIFFERENT, already-reported situation (wirePlugin / verifyInstall), not a version mismatch.
+ * Drift is reported ONLY when BOTH sides resolved to a real value AND those values differ.
+ *
+ * @returns {{wrapper: string|null, kb: string|null, drift: boolean}}
+ */
+function checkVersionDrift(cacheDir) {
+  const wrapper = wrapperVersion();
+  const kbRaw = installedBrainVersion(cacheDir); // already honest — 'unknown' rather than a guess
+  const kb = kbRaw === 'unknown' ? null : kbRaw;
+  // COMPARE NUMBERS, NOT NAMESPACES. The two sides are written by different writers in different
+  // formats: build-bundle stamps SOURCE.json.releaseTag as a git TAG (v-prefixed) while
+  // sync-version writes plugin.json.version as a bare SEMVER (no prefix). A raw !== is therefore
+  // ALWAYS true, so the first version of this check told every perfectly healthy user their install
+  // had drifted, and handed them a fix command that could never clear it. Caught by adversarial
+  // review, not by the tests — the test fixture used a v-prefixed plugin version that sync-version
+  // never produces, so an impossible input was green-lighting a false claim.
+  // Duplicated deliberately from scripts/version.mjs's stripTag(): this installer ships standalone
+  // on npm (package.json `files` excludes scripts/version.mjs) and imports node builtins ONLY, so
+  // it cannot import the canonical one. Same one-line rule, kept identical on purpose.
+  const stripV = (v) => String(v).replace(/^v/, '');
+  const drift = Boolean(wrapper && kb && stripV(wrapper) !== stripV(kb));
+  return { wrapper, kb, drift };
+}
+
+/**
+ * Shared narration for --doctor and --what-changed (via printFootprint). Silent whenever there is
+ * nothing actionable to say — matched versions, or either side not comparable — so this never adds
+ * noise to a healthy machine or a not-yet-fully-installed one. Speaks up only when the two
+ * artifacts have genuinely diverged, in plain, warm, non-alarming language (neither artifact is
+ * broken — they just update on different schedules), and always hands over the exact command to
+ * fix it — verified live against `claude plugin marketplace --help` (2026-07-20) before ever being
+ * printed here.
+ */
+function reportVersionDrift(cacheDir) {
+  const state = checkVersionDrift(cacheDir);
+  if (!state.drift) return state;
+  warn(`the brain (${c.bold(state.kb)}) and the Claude Code plugin (${c.bold(state.wrapper)}) have drifted apart —`);
+  info(`they update on separate schedules; this comparison does not prove either is healthy. To bring the`);
+  info(`plugin up to date:  ${c.bold('claude plugin marketplace update ruvnet-brain')}  ${c.dim('(body updates go live without a restart; boot-surface changes are called out)')}`);
+  return state;
+}
+
+
+  // Two independent version streams (KB bundle vs plugin wrapper) — see checkVersionDrift()'s
+  // header comment for the full story. Silent unless they've genuinely diverged.
+  reportVersionDrift(cacheDir);
+
+// ── `--doctor`: a standalone health check the user can run any time ───────────────────────────────
+
+  // Extraction no longer needs an external binary at all — kb/zip-extract.mjs does it with node:zlib
+
+  const allGreen = v.repos > 0 && v.reader && v.mcp;
+
+    check('identity', 'Identity', !installedIdentity.healthy, installedIdentity.healthy ? 'search engine, validator and archive manifest agree'
+
+    check('host-convergence', 'Hosts sync', !hostConvergence.healthy, hostConvergence.state, 'npx ruvnet-brain --update'),
+
+  const verdict = doctorVerdict(confirmation, checks);

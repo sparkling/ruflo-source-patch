@@ -95,6 +95,51 @@ const falseProof = await mod.persistDeliberationReceipt(receipt, {
 });
 assert.equal(falseProof.persisted, false);
 
+// Recorded native Console runtime delivered with Brain 4.5.2. No real host or
+// memory driver is called: the two subscriptions and every stage are injected.
+const nativeDir = path.join(input, 'native-runtime');
+fs.mkdirSync(nativeDir);
+const nativeFixtures = new URL('./fixtures/brain-dual-host-native/', import.meta.url);
+for (const name of ['subscription-hosts.mjs', 'review-model-defaults.mjs']) {
+  fs.copyFileSync(new URL(name, nativeFixtures), path.join(nativeDir, name));
+}
+const nativeSource = fs.readFileSync(new URL('dual-host-deliberation.mjs', nativeFixtures), 'utf8');
+const nativeFile = path.join(nativeDir, 'dual-host-deliberation.mjs');
+fs.writeFileSync(nativeFile, nativeSource);
+const native = await import(`${pathToFileURL(nativeFile).href}?red=1`);
+const options = { now: () => 42, probes: { claude: { eligible: true }, codex: { eligible: true } },
+  runHost: async (_host, stage) => ({ ok: true, value: stage === 'verify' ? { verdict: 'accept' } : { draft: true } }) };
+const unsafe = await native.deliberate('architecture receipt proof', { ...options, persist: async () => true });
+assert.equal(unsafe.learningPersisted, true, 'native red: boolean shortcut falsely proves persistence');
+const fixed = patcher.patchSource(nativeSource);
+assert.deepEqual(fixed.applied, ['native-exact-key-proof']);
+assert.deepEqual(fixed.missing, []);
+assert.equal(patcher.isPatched(fixed.next), true);
+assert.equal(patcher.reverseSource(fixed.next), nativeSource);
+assert.deepEqual(patcher.patchSource(fixed.next), { next: fixed.next, applied: [], missing: [] });
+fs.writeFileSync(nativeFile, fixed.next);
+const repaired = await import(`${pathToFileURL(nativeFile).href}?green=1`);
+for (const proof of [true, false, { stored: true, verified: true, key: 'wrong-key' },
+  { stored: true, verified: false, key: unsafe.learningPersistenceRequest.arguments.key }]) {
+  const result = await repaired.deliberate('architecture receipt proof', { ...options, persist: async () => proof });
+  assert.equal(result.learningPersisted, false);
+  assert.equal(result.status, 'accepted');
+  assert.equal(result.learningPersistenceRequest.tool, 'memory_store');
+}
+const pendingNative = await repaired.deliberate('architecture receipt proof', options);
+assert.equal(pendingNative.learningPersisted, false);
+const exactNative = await repaired.deliberate('architecture receipt proof', { ...options,
+  persist: async (request) => ({ stored: true, verified: true, key: request.arguments.key }) });
+assert.equal(exactNative.learningPersisted, true);
+const thrownNative = await repaired.deliberate('architecture receipt proof', { ...options,
+  persist: async () => { throw new Error('no connection'); } });
+assert.equal(thrownNative.learningPersisted, false);
+for (const drift of [nativeSource.replace('proof === true ||', 'proof === false ||'), nativeSource + nativeSource]) {
+  const rejected = patcher.patchSource(drift);
+  assert.equal(rejected.next, drift);
+  assert.equal(rejected.missing.length, 1);
+}
+
 const result = await mod.fixtureDeliberate();
 assert.equal(result.status, 'accepted');
 assert.equal(result.learningPersisted, false);

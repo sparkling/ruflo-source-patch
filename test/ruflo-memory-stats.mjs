@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { STATS_OLD, STATS_342, STATS_NEW, STATS_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
+import { STATS_OLD, STATS_342, STATS_351, STATS_NEW, STATS_SQL, STATS_351_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
 
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'memory-stats-test-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
@@ -52,7 +52,7 @@ try {
     exec() { assert.fail('DDL/checkpoint performed'); },
   };
   bridge.setRegistry({ getAgentDB: () => ({ database: existingHandle }) });
-  db.exec('CREATE TABLE memory_entries (namespace TEXT, status TEXT, embedding TEXT)');
+  db.exec('CREATE TABLE memory_entries (namespace TEXT, status TEXT, embedding TEXT, created_at)');
   let result = await tool.handler();
   assert.equal(result.success, true);
   assert.equal(result.initialized, true);
@@ -60,7 +60,7 @@ try {
   assert.equal(result.embeddingCoverage, '0%');
   assert.equal(prepares, 1, 'one aggregate statement');
   assert.equal(bridge.getCalls(), 1, 'same registry, no alternate driver');
-  const insert = db.prepare('INSERT INTO memory_entries VALUES (?, ?, ?)');
+  const insert = db.prepare('INSERT INTO memory_entries (namespace, status, embedding) VALUES (?, ?, ?)');
   insert.run('constructor', 'active', '[0.1,0.2,0.3]');
   insert.run('__proto__', null, '[0.1,0.2,0.3]');
   insert.run('legacy', null, null);
@@ -69,7 +69,7 @@ try {
   insert.run('deleted', 'deleted', '[0.1,0.2,0.3]');
   insert.run('archived', 'archived', null);
   db.exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<100001)
-    INSERT INTO memory_entries SELECT 'large', 'active', '[0.1,0.2,0.3]' FROM n`);
+    INSERT INTO memory_entries (namespace, status, embedding) SELECT 'large', 'active', '[0.1,0.2,0.3]' FROM n`);
   result = await tool.handler();
   assert.equal(result.totalEntries, 100006);
   assert.equal(result.entriesWithEmbeddings, 100003);
@@ -122,6 +122,56 @@ try {
   assert.equal((await native342Tool.handler()).totalEntries, 100007);
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), native342, '3.42.4 source restored exactly');
+  const native351Source = `import { resolve } from 'node:path';
+import { statSync } from 'node:fs';
+function ensureInitialized() { throw new Error('default initialization forbidden'); }
+export const tool = {
+${STATS_351}
+};`;
+  fs.writeFileSync(file, native351Source);
+  assert.equal(apply(['ruflo-memory-stats']).incomplete, 0, '3.51 native source supported');
+  assert.equal(spawnSync(process.execPath, ['--check', file]).status, 0);
+  // A separate fixture bridge verifies the selected explicit path reaches the
+  // same existing owner; invalid paths must fail before acquiring any owner.
+  fs.writeFileSync(bridgeFile, `export async function getControllerRegistry(dbPath) {
+    return globalThis.__rspStatsOwner(dbPath);
+  }`);
+  // Existing imported bridge has its old exports cached, so use its test seam
+  // for the default first, then execute the handler independently for path proof.
+  const native351Handler = fs.readFileSync(file, 'utf8').slice(fs.readFileSync(file, 'utf8').indexOf('        handler:'));
+  const executableHandler = native351Handler.slice(native351Handler.indexOf('async ('), native351Handler.lastIndexOf('},') + 1);
+  const proofBridge = path.join(mem, 'path-proof-bridge.js');
+  fs.writeFileSync(proofBridge, `export async function getControllerRegistry(dbPath) { return globalThis.__rspStatsOwner(dbPath); }`);
+  const handlerSource = executableHandler.replace("'../memory/memory-bridge.js'", JSON.stringify(pathToFileURL(proofBridge).href));
+  const native351HandlerFn = (await import('data:text/javascript;base64,' + Buffer.from(
+    `import { resolve } from 'node:path'; import { statSync } from 'node:fs'; export default ${handlerSource};`).toString('base64'))).default;
+  let paths = [];
+  const datedHandle = { prepare(sql) { assert.equal(sql, STATS_351_SQL); return db.prepare(sql); } };
+  globalThis.__rspStatsOwner = value => { paths.push(value); return { getAgentDB: () => ({ database: datedHandle }) }; };
+  const explicit = path.join(scratch, 'chosen.db');
+  fs.writeFileSync(explicit, 'test-owned metadata');
+  const created = db.prepare('UPDATE memory_entries SET created_at = ? WHERE namespace = ?');
+  created.run(1000, 'constructor');
+  created.run('3000', 'legacy');
+  created.run('1970-01-01T00:00:02.125Z', 'after-first-read');
+  created.run('invalid-date', '__proto__');
+  created.run(8640000000000001, 'deleted');
+  db.prepare("INSERT INTO memory_entries (namespace,status,created_at) VALUES ('constructor','active',8640000000000001)").run();
+  result = await native351HandlerFn({ dbPath: explicit });
+  assert.equal(result.success, true);
+  assert.deepEqual(paths, [explicit]);
+  assert.equal(result.location, explicit);
+  assert.equal(result.totalSize, fs.statSync(explicit).size);
+  assert.equal(result.oldestEntry, '1970-01-01T00:00:01.000Z');
+  assert.equal(result.newestEntry, '1970-01-01T00:00:03.000Z');
+  assert.equal(result.totalEntries, 100008);
+  for (const value of ['', '  ', 5, null]) assert.equal((await native351HandlerFn({ dbPath: value })).success, false);
+  assert.deepEqual(paths, [explicit], 'invalid path never opens a registry');
+  assert.equal((await native351HandlerFn()).success, true);
+  assert.deepEqual(paths, [explicit, undefined], 'omitted path retains native default authority');
+  delete globalThis.__rspStatsOwner;
+  apply([]);
+  assert.equal(fs.readFileSync(file, 'utf8'), native351Source, '3.51 exact reversal');
   const changedUpstream = pristine.replace('limit: 100000', 'limit: 200000');
   fs.writeFileSync(file, changedUpstream);
   const drift = apply(['ruflo-memory-stats']);
