@@ -73,6 +73,7 @@ import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands
 import { brainGroundingEvidenceCommand } from '../lib/brain-grounding-evidence/commands.mjs';
 import { brainGroundingCodeCommand } from '../lib/brain-grounding-code/commands.mjs';
 import { brainTransitionNoticeCommand } from '../lib/brain-transition-notice/commands.mjs';
+import { brainTransitionValidationCommand } from '../lib/brain-transition-validation/commands.mjs';
 import { brainManagedCliCaptureCommand } from '../lib/brain-managed-cli-capture/commands.mjs';
 import { brainManagedCliGenerationCommand } from '../lib/brain-managed-cli-generation/commands.mjs';
 import { brainProgressionCollisionCommand } from '../lib/brain-progression-collision/commands.mjs';
@@ -127,6 +128,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-grounding-evidence': brainGroundingEvidenceCommand,
   'brain-grounding-code': brainGroundingCodeCommand,
   'brain-transition-notice': brainTransitionNoticeCommand,
+  'brain-transition-validation': brainTransitionValidationCommand,
   'brain-managed-cli-capture': brainManagedCliCaptureCommand,
   'brain-managed-cli-generation': brainManagedCliGenerationCommand,
   'brain-progression-collision': brainProgressionCollisionCommand,
@@ -190,6 +192,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-grounding-evidence')}record successful searches for the Stop gate without broadening write authorization (#316)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
+  ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
   ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)
   ${pad('brain-managed-cli-generation')}dispatch managed CLI through the validated native active generation (#384)
   ${pad('brain-progression-collision')}preserve conflicting captures under verified content-bound identities (#383)

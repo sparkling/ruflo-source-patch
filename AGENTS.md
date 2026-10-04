@@ -64,6 +64,7 @@ npx github:sparkling/ruflo-source-patch brain-dual-host-receipt install # emit M
 npx github:sparkling/ruflo-source-patch brain-dual-host-stdin install # stream large host prompts over stdin; prevent cross-critique E2BIG (#273)
 npx github:sparkling/ruflo-source-patch brain-grounding-evidence install # record successful searches for Stop without granting unrelated product writes (#316)
 npx github:sparkling/ruflo-source-patch brain-transition-notice install # show pending once per session through the native ledger; preserve capture and failures (#380)
+npx github:sparkling/ruflo-source-patch brain-transition-validation install # reuse one verified native restore per transition; preserve every validation and exact readback (#385)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-capture install # reuse redacted native action before no-op comparison; require exact capture (#382)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-generation install # native active-generation CLI dispatch; fresh successful help after promotion (#384)
 npx github:sparkling/ruflo-source-patch brain-progression-collision install # preserve conflicting frozen captures under verified immutable identities (#383)

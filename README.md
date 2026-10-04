@@ -451,6 +451,11 @@ by dispatching managed CLI calls through the validated generation selected by Br
 `active.json`. The generation owns its real manifest and adapter. Successful help is required
 for that generation before execution; promotion requires fresh help. The updater and KB stay native.
 
+`brain-transition-validation install` fixes [Brain #385](https://github.com/stuinfla/ruvnet-brain/issues/385)
+by reusing one verified native restore result within each normalized transition. The public builder
+still validates its callers independently. Complete history, ancestry, redaction, deduplication and
+exact readback remain required; no snapshots are dropped and no persistent validation cache is added.
+
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
