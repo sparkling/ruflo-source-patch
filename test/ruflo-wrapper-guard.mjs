@@ -140,15 +140,14 @@ fs.unlinkSync(driftFile);
 fs.symlinkSync(direct, driftFile);
 assert.throws(() => p.discover(), /missing or traverses a symlink/);
 assert.equal(fs.readFileSync(direct, 'utf8'), pristineDirect);
-// Known lifecycle shims call the implementation package through npx: never the
-// `ruflo` wrapper (#3306's stale nested runtime), never a PATH binary (a global
-// install the documented npx path does not create), never a stderr refusal.
+// Lifecycle shims share the wrapper's verified native package selector. Only
+// genuine absence permits npx, with upstream's skip flag and telemetry exits.
 const NPX_ARGS = ['--prefer-offline', '--yes', '@claude-flow/cli@latest'];
 const hookArgs = ['-c', 'echo hello; $(not-a-command)'];
-for (const [anchor, replacement, prior, legacy] of [
-  [h.HOOK_ANCHOR, h.HOOK_REPLACEMENT, h.PRIOR_HOOK_REPLACEMENT, false],
-  [h.HOOK_ANCHOR_026, h.HOOK_REPLACEMENT_026, null, false],
-  [h.LEGACY_ANCHOR, h.LEGACY_REPLACEMENT, h.PRIOR_LEGACY_REPLACEMENT, true],
+for (const [anchor, replacement, priors, legacy] of [
+  [h.HOOK_ANCHOR, h.HOOK_REPLACEMENT, [h.PRIOR_HOOK_REPLACEMENT, h.NPX_HOOK_REPLACEMENT], false],
+  [h.HOOK_ANCHOR_026, h.HOOK_REPLACEMENT_026, [h.NPX_HOOK_REPLACEMENT_026], false],
+  [h.LEGACY_ANCHOR, h.LEGACY_REPLACEMENT, [h.PRIOR_LEGACY_REPLACEMENT, h.NPX_LEGACY_REPLACEMENT], true],
 ]) {
   const fixture = legacy
     ? `function invokeHook() {}\nfunction main() {\n${anchor}\n}`
@@ -158,9 +157,15 @@ for (const [anchor, replacement, prior, legacy] of [
   assert(p.isPatched(result.next));
   assert(result.next.includes(replacement));
   assert.equal(p.reverseSource(result.next), fixture);
+  assert(!p.isPatched(result.next + replacement), 'duplicate selector is never reported healthy');
+  assert.deepEqual(p.patchSource(result.next + replacement).missing, ['unique-hook-wrapper-selection']);
+  const falseSelection = result.next.replace('.sort(compare)[0]', '.sort(compare).at(-1)');
+  assert(!p.isPatched(falseSelection), 'mutated version selection must not pass the owned-source status');
+  assert.equal(p.patchSource(falseSelection).next, falseSelection);
+  assert(p.patchSource(falseSelection).missing.length);
   assert.deepEqual(p.patchSource(fixture + anchor).missing, ['unique-hook-wrapper-selection']);
   // The earlier PATH-only refusal (claude-flow or exit 1) is ours, not current, migrates in place, and reverses.
-  if (prior) {
+  for (const prior of priors) {
     const stale = fixture.replace(anchor, prior);
     assert(p.hasPatch(stale) && !p.isPatched(stale));
     const migrated = p.patchSource(stale);
@@ -168,7 +173,9 @@ for (const [anchor, replacement, prior, legacy] of [
     assert.equal(migrated.next, result.next);
     assert.equal(p.reverseSource(stale), fixture);
   }
-  for (const skip of [false, true]) {
+  const hookFile = path.join(root, 'plugin', 'scripts', legacy ? 'legacy-hook.cjs' : 'ruflo-hook.cjs');
+  write(hookFile, fixture);
+  for (const available of [false, true]) for (const skip of [false, true]) {
     const calls = [];
     let exit = null;
     const context = {
@@ -176,17 +183,84 @@ for (const [anchor, replacement, prior, legacy] of [
       commandExists: name => { throw new Error(`PATH probe for ${name}`); },
       invokeHook: (...args) => calls.push(args),
       done: () => { exit = 0; throw new Error('exit:0'); },
-      fs: { writeSync: () => { throw new Error('stderr refusal'); } },
-      process: { env: skip ? { RUFLO_HOOK_SKIP_NPX: '1' } : {}, exit: code => { exit = code; throw new Error(`exit:${code}`); } },
+      __filename: hookFile,
+      require: name => ({ 'node:fs': fs, 'node:path': path,
+        'node:os': { userInfo: () => ({ homedir: path.join(root, 'empty-home') }) } })[name],
+      process: { execPath: path.join(root, 'empty-node/bin/node'), platform: process.platform,
+        env: { NPM_CONFIG_PREFIX: available ? path.dirname(process.env.RUFLO_GLOBAL_ROOT) : path.join(root, 'empty-prefix'),
+          ...(skip ? { RUFLO_HOOK_SKIP_NPX: '1' } : {}) },
+        exit: code => { exit = code; throw new Error(`exit:${code}`); } },
     };
     const body = legacy ? replacement : replacement.slice(0, -1);
     try { vm.runInNewContext(`(function(){${body}})()`, context); }
     catch (error) { assert.equal(error.message, 'exit:0'); }
     // Arrays built inside the vm realm carry that realm's prototype; compare structure.
-    assert.deepEqual(JSON.parse(JSON.stringify(calls)), skip ? [] : [legacy
-      ? ['npx', NPX_ARGS, hookArgs, 'payload']
-      : ['npx', NPX_ARGS, 'post-command', hookArgs, 'payload']]);
+    const executable = available ? context.process.execPath : 'npx';
+    const executableArgs = available ? [direct] : NPX_ARGS;
+    assert.deepEqual(JSON.parse(JSON.stringify(calls)), !available && skip ? [] : [legacy
+      ? [executable, executableArgs, hookArgs, 'payload']
+      : [executable, executableArgs, 'post-command', hookArgs, 'payload']]);
     assert.equal(exit, legacy ? 0 : null);
   }
 }
+// Real Node bootstrap, absolute native entry and literal argv/stdin, with a
+// trap npx/PATH launcher: any network-installer or branded fallback is a failure.
+const coreRoot = path.join(root, '.codex/plugins/cache/ruflo/ruflo-core/0.2.6');
+const coreHook = path.join(coreRoot, 'scripts/ruflo-hook.cjs');
+write(path.join(coreRoot, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'ruflo-core', version: '0.2.6' }));
+const receipt = path.join(root, 'native-hook-receipt.json');
+const npxTrap = path.join(root, 'trap-bin/npx');
+const trapReceipt = path.join(root, 'unexpected-path-launcher');
+for (const name of ['npx', 'ruflo', 'claude-flow']) {
+  const file = path.join(path.dirname(npxTrap), name);
+  write(file, `#!/bin/sh\nprintf unexpected > '${trapReceipt}'\nexit 91\n`); fs.chmodSync(file, 0o755);
+}
+const fullShim = `const fs = require('node:fs');
+const {spawnSync} = require('node:child_process');
+function invokeHook(bin, before, subcommand, args, stdin) {
+  const result = spawnSync(bin, [...before, 'hooks', subcommand, ...args], {input:stdin,encoding:'utf8',env:process.env});
+  fs.writeFileSync(process.env.TEST_HOOK_RECEIPT, JSON.stringify({status:result.status,stdout:result.stdout,stderr:result.stderr}));
+  return result.status === 0;
+}
+function invokeCli(hookSubcommand, hookArgs, stdinData) {
+${h.HOOK_ANCHOR_026}
+invokeCli('session-end', process.argv.slice(2), fs.readFileSync(0,'utf8'));
+`;
+write(coreHook, fullShim.replace(h.HOOK_ANCHOR_026, h.NPX_HOOK_REPLACEMENT_026));
+write(coreHook + '.rsp-backup', fullShim);
+// Restore the intentional unsafe-wrapper test before shared discovery runs.
+fs.unlinkSync(driftFile); write(driftFile, p.WRAPPER_SOURCE);
+const hookApply = c.applyComposed(['ruflo-wrapper-guard']);
+assert.equal(hookApply.errors, 0, hookApply.log.join('\n'));
+assert.equal(hookApply.incomplete, 0, hookApply.log.join('\n'));
+assert.equal(fs.readFileSync(coreHook + '.rsp-backup', 'utf8'), fullShim);
+const bootstrap = "process.argv=[process.argv[0],'x',...JSON.parse(process.env.TEST_LITERAL_ARGS)];require(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','ruflo-hook.cjs'))";
+for (const args of [[], ['--fail'], ['--value', '$(touch NEVER); `touch NEVER`']]) {
+  const input = JSON.stringify({ hook_event_name: 'Stop', session_id: 'isolated-hook-fixture', cwd: root });
+  const result = spawnSync(process.execPath, ['-e', bootstrap], { input, encoding: 'utf8', timeout: 2000,
+    env: { ...process.env, HOME: path.join(root, 'empty-home'), CLAUDE_PLUGIN_ROOT: coreRoot,
+      NPM_CONFIG_PREFIX: path.dirname(process.env.RUFLO_GLOBAL_ROOT), PATH: path.dirname(npxTrap),
+      TEST_HOOK_RECEIPT: receipt, TEST_LITERAL_ARGS: JSON.stringify(args), RUFLO_HOOK_SKIP_NPX: '1' } });
+  assert.equal(result.status, 0, result.stderr, 'hook telemetry remains fail-open even when native CLI fails');
+  assert.equal(result.stdout, ''); assert.equal(result.stderr, '');
+  const recorded = JSON.parse(fs.readFileSync(receipt, 'utf8'));
+  assert.equal(recorded.status, args.includes('--fail') ? 23 : 0);
+  assert.deepEqual(JSON.parse(recorded.stdout), { args: ['hooks', 'session-end', ...args], entry: direct, stdin: input });
+  assert.equal(recorded.stderr, 'native stderr');
+  assert(!fs.existsSync(trapReceipt)); assert(!fs.existsSync(path.join(root, 'NEVER')));
+}
+// A malformed/broken newest native install is refusal, never a download or
+// fallback to an older package. Only an actual absence was tested above.
+const directManifest = path.join(path.dirname(path.dirname(direct)), 'package.json');
+const manifestBytes = fs.readFileSync(directManifest, 'utf8');
+write(directManifest, JSON.stringify({ name: 'impostor', version: '100.41.2', type: 'module', bin: { 'claude-flow': 'bin/cli.js' } }));
+fs.unlinkSync(receipt);
+const refusal = spawnSync(process.execPath, ['-e', bootstrap], { input: '{}', encoding: 'utf8', timeout: 2000,
+  env: { ...process.env, CLAUDE_PLUGIN_ROOT: coreRoot, NPM_CONFIG_PREFIX: path.dirname(process.env.RUFLO_GLOBAL_ROOT),
+    PATH: path.dirname(npxTrap), TEST_HOOK_RECEIPT: receipt, TEST_LITERAL_ARGS: '[]' } });
+assert.equal(refusal.status, 0); assert.match(refusal.stderr, /Native hook implementation refused.*unrecognized/);
+assert(!fs.existsSync(receipt)); assert(!fs.existsSync(trapReceipt));
+write(directManifest, manifestBytes);
+const hookRestore = c.reconcile([], ['ruflo-wrapper-guard']); assert.equal(hookRestore.errors, 0);
+assert.equal(fs.readFileSync(coreHook, 'utf8'), fullShim);
 console.log('✓ wrapper guard: newest native CLI/version/MCP delegation, literal argv/stdin/exit, exact source drift, idempotence, pristine restore');

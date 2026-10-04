@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14 (corrected 2026-07-25)
-**Updated**: 2026-09-01. The implemented single-source model remains correct. ADR-033 now makes its
+**Updated**: 2026-10-04. Lifecycle hooks now reuse the wrapper's exact native implementation selector
+before their npx fallback. The former npx-only local rendition caused bounded Stop hooks to attempt
+cold dependency installs despite a healthy installed CLI. Unknown or broken native installations
+still refuse visibly; telemetry exit semantics and native transport remain unchanged.
+The implemented single-source model remains correct. ADR-033 now makes its
 shared Ruflo runtime guidance MCP-first, removes the stale Claude STOP-after-spawn contradiction, and
 uses exact-block migration so project-specific additions survive. Ruflo 3.32.36/3.32.37 fixed #2634,
 #2635, #2636, and
