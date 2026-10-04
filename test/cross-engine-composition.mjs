@@ -121,5 +121,24 @@ try {
   assert(refused.errors || refused.incomplete, 'ambiguous multi-engine poisoned pristine fails closed');
   expectFiles(combined(legacy));
   for (const file of files) assert.equal(fs.readFileSync(backup(file), 'utf8'), combined(legacy), 'unproved pristine is preserved, never guessed');
+  // Two exact CLI transforms can overlap: the later edit removes the earlier
+  // replacement needle, so historical per-entry detection alone is incomplete.
+  reset();
+  const overlap = { id: 'fixture/overlapping-cli-edit', target: 'init', suffix: entry.suffix,
+    edits: [{ find: "if (ctx.flags['no-skills-sh'] === true)", replace: "if (ctx.flags['fixture-skip'] === true)" }] };
+  cli.ENTRIES.push(overlap);
+  try {
+    state.addTargets(['init']);
+    const cliBytes = cli.composeCliContribution(legacy, [entry, overlap]).next;
+    for (const file of files) { write(file, cliBytes); write(backup(file), legacy); }
+    expectFiles(cliBytes);
+    assert.notEqual(cli.historicalCliContribution(legacy, cliBytes, [entry, overlap]).next, cliBytes,
+      'fixture must reproduce incomplete historical detection');
+    state.addPluginTargets([plugin]); healthy(compose.applyComposed([plugin]));
+    expectFiles(instruction.patchSource(cliBytes).next);
+    for (const file of files) assert.equal(fs.readFileSync(backup(file), 'utf8'), legacy);
+    for (const file of files) write(file, instruction.patchSource(cliBytes).next + '// unproved foreign edit');
+    assert(compose.applyComposed([plugin]).incomplete, 'complete byte proof still rejects foreign changes');
+  } finally { cli.ENTRIES.pop(); }
   console.log('✓ shared CLI/plugin pristine: both install orders, protected steady state, selective uninstall, native retirement, real upstream replacement and poisoned-backup proof/refusal');
 } finally { fs.rmSync(sandbox, { recursive: true, force: true }); }
