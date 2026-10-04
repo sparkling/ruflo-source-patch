@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-04. Brain #389 adds bounded observations and grouped conflict metadata
+**Updated**: 2026-10-04. Brain #390 adds operator-authorized, reversible suspension of
+automatic full-snapshot progression capture/replay/restore. Existing records and queues remain;
+search, grounding, native updates, independent material events and explicit checkpoints are not
+replaced. Managed CLI retains authorization and truthful command results, with explicit suspension
+notice and no invented persistence receipt. Retirement requires a behaviorally proven native
+scoped opt-out or mature-history correction; a version change alone cannot re-enable the defect.
+Brain #389 adds bounded observations and grouped conflict metadata
 with exact goal/action, immutable heads and omission digests; full canonical records remain intact. New policy serialization and terminal-diagnostic targets retain native
 authorization, ledger verification, redaction and receipt ownership. The progression-outbox reader
 is extended incrementally so retained journals can exceed Node's whole-string limit without history

@@ -70,6 +70,7 @@ npx github:sparkling/ruflo-source-patch brain-transition-notice install # show p
 npx github:sparkling/ruflo-source-patch brain-transition-validation install # reuse one verified native restore per transition; preserve every validation and exact readback (#385)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-capture install # reuse redacted native action before no-op comparison; require exact capture (#382)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-diagnostics install # preserve terminal errors/signals beside command output (#386)
+npx github:sparkling/ruflo-source-patch brain-progression-suspension install # operator-authorized automatic progression suspension; records/search/grounding/updater retained (#390)
 npx github:sparkling/ruflo-source-patch brain-continuity-summary install # bounded optional observations/conflicts; exact goal/action and complete canonical memory (#389)
 npx github:sparkling/ruflo-source-patch brain-outbox-streaming install # incremental full-journal and final-record reads beyond Node's string limit (#387)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-generation install # native active-generation CLI dispatch; fresh successful help after promotion (#384)
