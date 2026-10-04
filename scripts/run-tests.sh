@@ -63,6 +63,7 @@ SUITES+=(brain-managed-cli-capture)
 SUITES+=(brain-managed-cli-generation)
 SUITES+=(cross-engine-composition)
 SUITES+=(brain-progression-collision)
+SUITES+=(hook-failure-log)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

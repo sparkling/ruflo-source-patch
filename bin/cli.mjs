@@ -88,6 +88,7 @@ import { brainProgressionSuspensionCommand } from '../lib/brain-progression-susp
 import { brainHostRecoveryCommand } from '../lib/brain-host-recovery/commands.mjs';
 import { brainContinuitySummaryCommand } from '../lib/brain-continuity-summary/commands.mjs';
 import { brainOutboxStreamingCommand } from '../lib/brain-outbox-streaming/commands.mjs';
+import { hookFailureLogCommand } from '../lib/hook-failure-log/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -99,6 +100,7 @@ const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle', 'plugin-on
 // Plugin patches — same shape as PATCH_TARGETS, but they patch installed plugin
 // copies rather than @claude-flow/cli, so they dispatch separately.
 const PLUGIN_PATCH_TARGETS = {
+  'hook-failure-log': hookFailureLogCommand,
   'ruflo-wrapper-guard': rufloWrapperGuardCommand,
   'adr-template': adrTemplateCommand,
   'adr-index': adrIndexCommand,

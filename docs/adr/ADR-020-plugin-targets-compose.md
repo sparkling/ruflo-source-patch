@@ -2,7 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-04. Brain #390 adds operator-authorized, reversible suspension of
+**Updated**: 2026-10-04. Source-patch #5 adds a composed Node preload to installed
+Ruflo/Brain hook manifests. The existing stable runtime owns private bounded failure receipts;
+native commands, stdin/stdout, exit codes and update ownership remain unchanged. Payloads,
+environment values and arbitrary output are excluded. Native hook retirement checks unwrap only
+this exact owned preload before proving the underlying command. Retirement requires equivalent
+native attributed diagnostics. Brain #390 adds operator-authorized, reversible suspension of
 automatic full-snapshot progression capture/replay/restore. Existing records and queues remain;
 search, grounding, native updates, independent material events and explicit checkpoints are not
 replaced. Managed CLI retains authorization and truthful command results, with explicit suspension

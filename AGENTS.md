@@ -78,6 +78,7 @@ npx github:sparkling/ruflo-source-patch brain-managed-cli-generation install # n
 npx github:sparkling/ruflo-source-patch brain-progression-collision install # preserve conflicting frozen captures under verified immutable identities (#383)
 npx github:sparkling/ruflo-source-patch brain-router-imports install # reuse existing native Console helpers omitted from flat router tools (#341)
 npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)
+npx github:sparkling/ruflo-source-patch hook-failure-log install # private bounded hook failure receipts in ~/.ruflo-source-patch/hook-failures (source-patch#5)
 ```
 
 ### Keep it live (actions add `run | check`)
