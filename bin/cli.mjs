@@ -82,6 +82,9 @@ import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/com
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
+import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
+import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
+import { brainOutboxStreamingCommand } from '../lib/brain-outbox-streaming/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -131,6 +134,9 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
+  'ruflo-policy-serialization': rufloPolicySerializationCommand,
+  'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
+  'brain-outbox-streaming': brainOutboxStreamingCommand,
   'brain-managed-cli-capture': brainManagedCliCaptureCommand,
   'brain-managed-cli-generation': brainManagedCliGenerationCommand,
   'brain-progression-collision': brainProgressionCollisionCommand,
@@ -197,6 +203,9 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
+  ${pad('ruflo-policy-serialization')}serialize verified policy state once, preserving all receipts and authorization (#3164)
+  ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
+  ${pad('brain-outbox-streaming')}read complete journals incrementally beyond the whole-string limit (#387)
   ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)
   ${pad('brain-managed-cli-generation')}dispatch managed CLI through the validated native active generation (#384)
   ${pad('brain-progression-collision')}preserve conflicting captures under verified content-bound identities (#383)

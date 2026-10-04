@@ -37,6 +37,7 @@ npx github:sparkling/ruflo-source-patch ruflo-model-contract install # exact nat
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install # validated context episodes; preserve real outcomes, never turn plain facts into invented success (#3314)
 npx github:sparkling/ruflo-source-patch ruflo-sqlite-owner install # graph, registry and repair use the same native SQLite library (#3693)
 npx github:sparkling/ruflo-source-patch ruflo-pattern-receipt install # reject failed pattern fallback writes; exact namespace/key/value readback (#3691)
+npx github:sparkling/ruflo-source-patch ruflo-policy-serialization install # serialize verified policy state once, preserving every receipt and authorization (#3164)
 ```
 
 ### Plugin/package patches (`ruflo-adr`, `ruvnet-brain`, MetaHarness)
@@ -68,6 +69,8 @@ npx github:sparkling/ruflo-source-patch brain-grounding-evidence install # recor
 npx github:sparkling/ruflo-source-patch brain-transition-notice install # show pending once per session through the native ledger; preserve capture and failures (#380)
 npx github:sparkling/ruflo-source-patch brain-transition-validation install # reuse one verified native restore per transition; preserve every validation and exact readback (#385)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-capture install # reuse redacted native action before no-op comparison; require exact capture (#382)
+npx github:sparkling/ruflo-source-patch brain-managed-cli-diagnostics install # preserve terminal errors/signals beside command output (#386)
+npx github:sparkling/ruflo-source-patch brain-outbox-streaming install # incremental full-journal and final-record reads beyond Node's string limit (#387)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-generation install # native active-generation CLI dispatch; fresh successful help after promotion (#384)
 npx github:sparkling/ruflo-source-patch brain-progression-collision install # preserve conflicting frozen captures under verified immutable identities (#383)
 npx github:sparkling/ruflo-source-patch brain-router-imports install # reuse existing native Console helpers omitted from flat router tools (#341)

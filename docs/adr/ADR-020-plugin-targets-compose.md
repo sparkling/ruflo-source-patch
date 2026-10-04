@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-04. Retirement reconciles only files claimed by the removed targets and their
+**Updated**: 2026-10-04. New policy serialization and terminal-diagnostic targets retain native
+authorization, ledger verification, redaction and receipt ownership. The progression-outbox reader
+is extended incrementally so retained journals can exceed Node's whole-string limit without history
+truncation. All three fixes use exact composition, behavioral retirement and existing native writers.
+Retirement reconciles only files claimed by the removed targets and their
 remaining shared-file owners. Unrelated preflight failures remain visible to full apply/status/check,
 but cannot block exact restoration of independent native targets. Every composed retirement callback
 uses the complete batch removal set. Regression tests prove shared-owner preservation, orphan
