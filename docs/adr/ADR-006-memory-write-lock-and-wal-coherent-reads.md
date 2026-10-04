@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-09-21. MCP memory operations now carry the configured `CLAUDE_FLOW_DB_PATH`
+**Updated**: 2026-10-04. Native auxiliary handles resolve the actual AgentDB SQLite dependency
+(#3693); fallback pattern receipts require successful storage and exact readback (#3691).
+2026-09-21. MCP memory operations now carry the configured `CLAUDE_FLOW_DB_PATH`
 through to the existing memory API (#2105/#3153); initialization alone previously honored it.
 2026-09-15. Ruflo 3.41.2+ keys registry instances by `path.resolve()` natively (#3196)
 but still latches availability and failure reason process-wide and splits symlink aliases; the
@@ -87,7 +89,8 @@ Inject one outer `<db>.rsp-lock` protocol around `initializeMemoryDatabase`, `st
   so a late cleanup cannot unlink another writer's successor claim.
 - The patch deliberately does not steal a lock by age. Age is not proof that a large write died,
   and filesystem unlink is not compare-and-delete. A hard crash may leave a lock that requires
-  explicit operator inspection/removal; this is a loud availability failure, not silent data loss.
+  guarded recovery under ADR-023: positive proof that the recorded owner exited, unchanged
+  identity and contents, and preservation of the abandoned claim as evidence. Ambiguity refuses recovery.
 
 The EOF wrapper serializes both native bridge and fallback paths so they cannot race each other,
 but the image-safety checks below run only when Ruflo actually crosses its raw `fs-secure` boundary.
@@ -95,6 +98,32 @@ A successful transactional AgentDB bridge call is not falsely rejected as a whol
 Ruflo's native `<db>.lock` remains nested and byte-for-byte upstream-owned. It coordinates patched
 and unpatched current writers; the outer lock adds the stronger ownership and failure semantics that
 native 3.38.12 does not yet provide.
+
+### Use one native SQLite library identity
+
+`ruflo-sqlite-owner` resolves `better-sqlite3` through the actual
+`@claude-flow/memory` → `agentdb` dependency owner. The graph writer, bridge attestation,
+and native repair/recovery constructor sites use that same library. Auxiliary handles remain
+separately owned and close only themselves; no registry handle is borrowed and closed.
+Missing authoritative dependencies fail through the existing error paths.
+
+Ruflo 3.51.1 can load CLI SQLite 12.11.1 and nested AgentDB SQLite 11.10.0 in one process.
+The executable regression reproduces detached WAL/SHM after the original graph writer closes
+against an independently held AgentDB handle. With shared library identity, repeated graph
+release preserves the holder's sidecar identity, existing records and integrity. This test uses
+an isolated synthetic database; the patch performs no database or sidecar repair.
+
+### Acknowledge fallback patterns only after exact readback
+
+`ruflo-pattern-receipt` preserves unsuccessful native bridge writes before their wrapper can
+rewrite them as success, and checks the registry-null
+fallback's `storeEntry` result. Only an explicit successful store followed by successful exact
+`getEntry` readback of the same key, singular `pattern` namespace and serialized content may
+return a verified receipt. A failed or ambiguous store cannot be rescued by an older matching
+record. Healthy native ReasoningBank behavior remains unchanged.
+
+Both targets retire only after executable tests prove the installed upstream behavior; versions
+and issue closure alone are insufficient.
 
 ### Refuse raw access while WAL sidecars exist
 
@@ -130,8 +159,8 @@ per-function gates remain useful, but the boundary also covers `ensureSchemaColu
 ### Negative
 
 - A lock adds latency to every exported memory operation.
-- A process killed without running its exit cleanup can leave `<db>.rsp-lock`. The operator must
-  verify that no writer owns it before removing it; the patch intentionally refuses to guess.
+- A process killed without running its exit cleanup can leave `<db>.rsp-lock`. Guarded recovery must
+  prove the recorded owner exited and preserve the unchanged claim; it refuses ambiguous owners.
 - Fallback access is unavailable while a native connection keeps WAL sidecars present. The native
   bridge must succeed, or the holder must close before retrying.
 - One process can now hold several native registries. Their resources remain live until a scoped or

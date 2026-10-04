@@ -81,6 +81,7 @@ import { brainRouterImportsCommand } from '../lib/brain-router-imports/commands.
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
+import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -129,6 +130,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-grounding-code': brainGroundingCodeCommand,
   'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-transition-validation': brainTransitionValidationCommand,
+  'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'brain-managed-cli-capture': brainManagedCliCaptureCommand,
   'brain-managed-cli-generation': brainManagedCliGenerationCommand,
   'brain-progression-collision': brainProgressionCollisionCommand,
@@ -158,6 +160,7 @@ Patch targets                  (actions: install | uninstall | status)
   ${pad('ruflo-learning-stats')}${TARGET_INFO['ruflo-learning-stats']}
   ${pad('ruflo-memory-stats')}${TARGET_INFO['ruflo-memory-stats']}
   ${pad('ruflo-context-contract')}${TARGET_INFO['ruflo-context-contract']}
+  ${pad('ruflo-sqlite-owner')}${TARGET_INFO['ruflo-sqlite-owner']}
   ${pad('ruflo-wrapper-guard')}refuse the branding wrapper; require @claude-flow/cli directly (#3306)
 
 Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
@@ -193,6 +196,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
+  ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
   ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)
   ${pad('brain-managed-cli-generation')}dispatch managed CLI through the validated native active generation (#384)
   ${pad('brain-progression-collision')}preserve conflicting captures under verified content-bound identities (#383)

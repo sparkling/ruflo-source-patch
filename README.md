@@ -451,6 +451,14 @@ by dispatching managed CLI calls through the validated generation selected by Br
 `active.json`. The generation owns its real manifest and adapter. Successful help is required
 for that generation before execution; promotion requires fresh help. The updater and KB stay native.
 
+`ruflo-sqlite-owner install` fixes [Ruflo #3693](https://github.com/ruvnet/ruflo/issues/3693)
+by resolving native SQLite through the actual ControllerRegistry dependency owner. Graph, repair
+and registry-related handles share that library identity; no registry handle is borrowed and closed.
+
+`ruflo-pattern-receipt install` fixes [Ruflo #3691](https://github.com/ruvnet/ruflo/issues/3691)
+by checking the delegated store result and exact namespace/key/value readback before acknowledging
+a fallback pattern write. Failed controller results also retain their failure without a persisted note.
+
 `brain-transition-validation install` fixes [Brain #385](https://github.com/stuinfla/ruvnet-brain/issues/385)
 by reusing one verified native restore result within each normalized transition. The public builder
 still validates its callers independently. Complete history, ancestry, redaction, deduplication and

@@ -35,6 +35,8 @@ npx github:sparkling/ruflo-source-patch init install      # keep init plugin-nat
 npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install/uninstall/sync + automatic host-native updates (#2854/#2870)
 npx github:sparkling/ruflo-source-patch ruflo-model-contract install # exact native model IDs; routing tier stays caller/harness allocated (#3215)
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install # validated context episodes; preserve real outcomes, never turn plain facts into invented success (#3314)
+npx github:sparkling/ruflo-source-patch ruflo-sqlite-owner install # graph, registry and repair use the same native SQLite library (#3693)
+npx github:sparkling/ruflo-source-patch ruflo-pattern-receipt install # reject failed pattern fallback writes; exact namespace/key/value readback (#3691)
 ```
 
 ### Plugin/package patches (`ruflo-adr`, `ruvnet-brain`, MetaHarness)
