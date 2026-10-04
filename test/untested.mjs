@@ -288,7 +288,28 @@ const s5b = mkProj('stop5b', { mcpServers: { 'claude-flow': { command: 'npx', ar
 const b5before = fs.readFileSync(path.join(s5b, '.mcp.json'), 'utf8');
 const r5b = spawnSync('bash', [dedupe, s5b, '--no-backup', '--dry-run'], { encoding: 'utf8', env: stopEnv });
 if (fs.readFileSync(path.join(s5b, '.mcp.json'), 'utf8') !== b5before) fail('SH5b --dry-run MODIFIED .mcp.json');
-if (!/server:/i.test(out(r5b))) fail(`SH5b --dry-run produced no server report:\n${out(r5b)}`);
+if (r5b.status !== 0 || !/server:/i.test(out(r5b))) fail(`SH5b --dry-run status=${r5b.status}, signal=${r5b.signal}, error=${r5b.error?.message || 'none'}; server report required:\n${out(r5b)}`);
+
+// SH5b-race — process inventory is observational. A vanished candidate or a
+// failed cwd lookup (even one returning partial in-project output) must not
+// abort the report or pass containment. A valid outside cwd also stays spared.
+// Private PATH stubs mean this never enumerates or signals real processes.
+const raceBin = path.join(SB, 'stop5b-inventory-bin'); fs.mkdirSync(raceBin);
+const probeLog = path.join(SB, 'stop5b-inventory-probes');
+const stubs = {
+  pgrep: '#!/bin/sh\nprintf "%s\\n" 2147483647 2147483646 2147483645\n',
+  lsof: '#!/bin/sh\ncase "$*" in\n*2147483647*) exit 1;;\n*2147483646*) printf "n%s\\n" "$RSP_TEST_CWD"; exit 1;;\n*2147483645*) printf "n%s\\n" "$RSP_TEST_OUTSIDE";;\n*) exit 1;;\nesac\n',
+  ps: '#!/bin/sh\nprintf "unexpected environment probe\\n" >> "$RSP_TEST_PROBES"\nexit 1\n',
+};
+for (const [name, source] of Object.entries(stubs)) fs.writeFileSync(path.join(raceBin, name), source, { mode: 0o700 });
+const raced = spawnSync('bash', [dedupe, s5b, '--no-backup', '--dry-run'], {
+  encoding: 'utf8', env: { ...stopEnv, PATH: `${raceBin}${path.delimiter}${process.env.PATH}`,
+    RSP_TEST_CWD: s5b, RSP_TEST_OUTSIDE: SB, RSP_TEST_PROBES: probeLog },
+});
+if (raced.status !== 0 || !/server:\s+0 orphaned/i.test(out(raced)))
+  fail(`SH5b-race failed cwd inventory must skip unknown candidates and report zero stopped; status=${raced.status}:\n${out(raced)}`);
+if (fs.existsSync(probeLog) || /would SIGTERM/.test(out(raced))) fail('SH5b-race unproven or outside cwd reached the environment/signal path');
+if (fs.readFileSync(path.join(s5b, '.mcp.json'), 'utf8') !== b5before) fail('SH5b-race --dry-run MODIFIED .mcp.json');
 
 // SH5d — --keep-server opts out: the registration is still removed, but no server line is emitted and the
 // keep-server note is. Hermetic, all platforms.

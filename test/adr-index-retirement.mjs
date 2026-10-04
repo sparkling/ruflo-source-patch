@@ -168,6 +168,11 @@ for (const file of siblingFiles) {
 const siblingReady = evaluate('adr-index');
 check('AI11 all-mode sibling-only Codex copies prove native index retirement',
   siblingReady.state === 'superseded' && /all 5 active/.test(siblingReady.evidence), JSON.stringify(siblingReady));
+seedClaudeComposition(['adr-io-safety']);
+const reconciledBeforeStateCommit = evaluate('adr-index');
+check('AI11 post-reconcile proof accepts exact remaining siblings before state commits retirement',
+  reconciledBeforeStateCommit.state === 'superseded' && /all 5 active/.test(reconciledBeforeStateCommit.evidence),
+  JSON.stringify(reconciledBeforeStateCommit));
 
 const siblingFile = siblingFiles[0];
 for (const [name, backup, current, installed, expected] of [

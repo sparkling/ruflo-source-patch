@@ -10,6 +10,13 @@ restoration and continued reporting of an unrelated failure.
 Installed-file proof now scopes composition to descriptors that claim the same physical file,
 including logical/physical HOME aliases. All-mode selection alone cannot apply a Claude-only
 importer transform to Codex bytes during native retirement verification.
+ADR-index post-reconciliation proof also accounts for the interval before its retirement state is
+committed: absent own markers exclude only that target, while every remaining sibling must still
+match the exact physical-file composition.
+Files shared by the CLI and plugin engines now delegate to this same composition owner. CLI
+contributions reuse their existing anchor, applicability and native replacement rules; selective
+removal preserves every remaining claimant. Repeated installation leaves protected system files
+and their true vendor backups unchanged. Unproved marked edits retain both files and fail visibly.
 Brain #380 adds an atomic three-script transition-notice bundle using the native bounded notice
 ledger. Pending capture is still recorded at every boundary; only duplicate notices are suppressed.
 Ruflo #3688 projects verified Claude-only Swarm module metadata into a strict Codex manifest,
@@ -34,6 +41,17 @@ consumption; unavailable or invalid reads, diagnostic-field conflicts, and faile
 Retirement requires marker-free native behavior proving immutable preservation, deterministic
 retries, rejected recovery, later queue advancement, and distinct future event identities.
 Neither the patch nor its fixture probes touch Brain's updater or managed database bytes directly.
+Brain #384's `brain-managed-cli-generation` makes the stable MCP shell dispatch managed help,
+execution and registry calls to the actual module under native `active.codeRoot`. It validates
+physical containment, regular module/manifest files and exact Brain name/version, rather than
+fabricating a missing persistent-shell manifest. Successful help authorizes only that selected
+module in process memory; promotion requires current help and failed or old in-flight help grants
+no authority. Native literal arguments, stamp behavior, capture and execution remain native-owned.
+The shared composition includes the independent #102/#103 managed-memory diagnostic contribution;
+its pristine backup remains true vendor source. Removing either target preserves its remaining
+sibling. Retirement requires marker-free
+protocol behavior proving manifest/path refusal, promotion, successful-help binding and exact
+argument preservation. No update identity, updater asset, KB or managed database is changed.
 `brain-grounding-code` narrows the #46 recency scan to added JS/Python
 code, excluding comments and standalone Python docstrings in complete Write/Codex Add payloads.
 Partial Edit/Update fragments retain their conservative requirement. Herdr exposed an unrelated application

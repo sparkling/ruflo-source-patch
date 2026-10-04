@@ -65,6 +65,7 @@ npx github:sparkling/ruflo-source-patch brain-dual-host-stdin install # stream l
 npx github:sparkling/ruflo-source-patch brain-grounding-evidence install # record successful searches for Stop without granting unrelated product writes (#316)
 npx github:sparkling/ruflo-source-patch brain-transition-notice install # show pending once per session through the native ledger; preserve capture and failures (#380)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-capture install # reuse redacted native action before no-op comparison; require exact capture (#382)
+npx github:sparkling/ruflo-source-patch brain-managed-cli-generation install # native active-generation CLI dispatch; fresh successful help after promotion (#384)
 npx github:sparkling/ruflo-source-patch brain-progression-collision install # preserve conflicting frozen captures under verified immutable identities (#383)
 npx github:sparkling/ruflo-source-patch brain-router-imports install # reuse existing native Console helpers omitted from flat router tools (#341)
 npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)

@@ -446,6 +446,11 @@ independent read of the existing row before recording the conflicting snapshot u
 sibling identity. Existing rows and conflicting outbox evidence remain intact; a failed new readback
 retains the queued job. It does not rewrite the historical event-key contract.
 
+`brain-managed-cli-generation install` fixes [Brain #384](https://github.com/stuinfla/ruvnet-brain/issues/384)
+by dispatching managed CLI calls through the validated generation selected by Brain's native
+`active.json`. The generation owns its real manifest and adapter. Successful help is required
+for that generation before execution; promotion requires fresh help. The updater and KB stay native.
+
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.

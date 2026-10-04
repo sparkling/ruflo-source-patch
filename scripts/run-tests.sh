@@ -51,6 +51,8 @@ SUITES+=(memory-lock-recovery)
 SUITES+=(ruflo-swarm-codex-hooks)
 SUITES+=(brain-transition-notice)
 SUITES+=(brain-managed-cli-capture)
+SUITES+=(brain-managed-cli-generation)
+SUITES+=(cross-engine-composition)
 SUITES+=(brain-progression-collision)
 tmp=$(mktemp -d); pids=(); fail=0
 

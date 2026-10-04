@@ -316,7 +316,10 @@ if [[ $STOP_SERVER -eq 1 ]] && (( ${mcp_note:-0} + ${gmcp_note:-0} > 0 )); then
     case "$ROOT_REAL" in "$HOME"|"/"|"") die "refusing --stop-server against '$ROOT_REAL' (too broad)";; esac
     stopped=0
     for pid in $(pgrep -f 'ruflo mcp start|@claude-flow/cli.*mcp|cli\.js mcp' 2>/dev/null || true); do
-      pcwd="$(lsof -a -d cwd -p "$pid" -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)"
+      # Candidates can exit between pgrep and lsof, or deny cwd inspection. Keep
+      # those failures conservative: discard even partial output, then use only
+      # the existing native /proc fallback. Unknown cwd never passes containment.
+      pcwd="$(lsof -a -d cwd -p "$pid" -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)" || pcwd=""
       [[ -z "$pcwd" && -r "/proc/$pid/cwd" ]] && pcwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
       [[ -n "$pcwd" ]] || continue
       pcwd_real="$(cd "$pcwd" 2>/dev/null && pwd -P || true)"; [[ -n "$pcwd_real" ]] || continue
