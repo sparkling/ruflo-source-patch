@@ -54,6 +54,10 @@ write(path.join(runtime, 'mcp/managed-cli-interface.mjs'), '// native persistent
 write(path.join(home, 'active.json'), JSON.stringify({ version: '4.5.4', codeRoot: active }));
 const files = patch.discover();
 assert.equal(files.length, 9, 'active, matching host and native persistent MCP copies');
+write(path.join(old, 'scripts/project-progression-hook.mjs'), patched.hook);
+assert.equal(patch.discover().length, 12, 'retained owned generation remains a composition claimant after native activation');
+write(path.join(old, 'scripts/project-progression-hook.mjs'), sources.hook);
+assert.equal(patch.discover().length, 9, 'unowned old generations stay outside scope');
 assert.equal(patch.preflight().ok, true);
 assert.equal(probeProgressionCollisionReplacement({ files }).state, 'live', 'native collision behavior remains defective');
 const compose = await import('../lib/plugin-compose.mjs');

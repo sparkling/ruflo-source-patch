@@ -57,6 +57,7 @@ npx github:sparkling/ruflo-source-patch design-wall install        # legacy #17 
 npx github:sparkling/ruflo-source-patch flywheel-daily install     # legacy #53 cadence fix; auto-retires on Brain's behavioral replacement
 npx github:sparkling/ruflo-source-patch codex-hooks install        # retired; Brain 4.0.2 publishes the native six-event Codex lifecycle (#52)
 npx github:sparkling/ruflo-source-patch brain-codex-skills install # retired on Brain 4.0.12+'s executable immutable installed workflow (#76)
+npx github:sparkling/ruflo-source-patch brain-host-recovery install # read-only fresh-host recovery proof and causal refresh failure attribution (#391)
 npx github:sparkling/ruflo-source-patch brain-console-lifecycle install # native launcher is accepted; repair the still-incomplete live doctor comparison (#79)
 npx github:sparkling/ruflo-source-patch brain-console-provider-keys install # retired on staged catalog + explicit degraded-state behavior in Brain 4.0.12+ (#86)
 npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail doctor on bundle/package/Spine/host version drift without touching Brain's updater (#77)

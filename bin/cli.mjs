@@ -85,6 +85,7 @@ import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/command
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
 import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
+import { brainHostRecoveryCommand } from '../lib/brain-host-recovery/commands.mjs';
 import { brainContinuitySummaryCommand } from '../lib/brain-continuity-summary/commands.mjs';
 import { brainOutboxStreamingCommand } from '../lib/brain-outbox-streaming/commands.mjs';
 
@@ -139,6 +140,7 @@ const PLUGIN_PATCH_TARGETS = {
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
   'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
   'brain-progression-suspension': brainProgressionSuspensionCommand,
+  'brain-host-recovery': brainHostRecoveryCommand,
   'brain-continuity-summary': brainContinuitySummaryCommand,
   'brain-outbox-streaming': brainOutboxStreamingCommand,
   'brain-managed-cli-capture': brainManagedCliCaptureCommand,
@@ -210,6 +212,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-policy-serialization')}serialize verified policy state once, preserving all receipts and authorization (#3164)
   ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
+  ${pad('brain-host-recovery')}prove fresh host readiness without rewriting failed update history (#391)
   ${pad('brain-continuity-summary')}bound optional observations and conflict metadata without dropping memory (#389)
   ${pad('brain-outbox-streaming')}read complete journals incrementally beyond the whole-string limit (#387)
   ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)

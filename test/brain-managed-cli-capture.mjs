@@ -59,6 +59,15 @@ try {
   }
   const active = path.join(brain, 'active.json');
   const activeBytes = '{"version":"4.5.4","codeRoot":"versions/4.5.4"}'; write(active, activeBytes);
+  const retained = path.join(brain, 'versions/4.5.3');
+  fs.cpSync(activeRoot, retained, { recursive: true });
+  write(path.join(retained, '.claude-plugin/plugin.json'), '{"name":"ruvnet-brain","version":"4.5.3"}');
+  const retainedHook = path.join(retained, 'scripts/project-progression-hook.mjs');
+  const retainedNative = fs.readFileSync(retainedHook, 'utf8');
+  assert(!patcher.discover().includes(retainedHook), 'unowned old generation excluded');
+  write(retainedHook, transform(retainedNative));
+  assert(patcher.discover().includes(retainedHook), 'retained owned generation remains a composition claimant');
+  write(retainedHook, retainedNative);
   assert.equal(patcher.preflight().ok, true);
   const compose = await import('../lib/plugin-compose.mjs');
   assert(compose.COMPOSE_TARGETS.includes(patcher.NAME), 'new bundle must use the shared composition owner');

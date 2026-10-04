@@ -220,5 +220,24 @@ for exact restoration because no sibling target claims it.
 
 ## Links
 
+### Brain host recovery (#391), 2026-10-04
+
+`brain-host-recovery` composes a read-only doctor check with the existing Console and
+release-lockstep installer patches. A saved Codex restart requirement is replaced in the
+current diagnostic projection only after a fresh native host lists the exact installed
+version's complete hook declarations, enabled and trusted. Concurrent version/source
+changes, missing declarations and unknown trust refuse recovery. Existing windows remain
+explicitly outside this fresh-host proof. No update receipt, scheduler, trust configuration,
+active generation or memory is changed. The failed nightly run remains a failure.
+
+The same target corrects the refresh reader to report the first required failed phase and
+its error, rather than a later optional skipped cleanup. Retirement requires native behavior
+proof of both recovery and refusal cases, not an issue closure or version number.
+
+Retained generations bearing #382/#383 ownership must remain discoverable as composition
+claimants after native activation changes the current generation. Otherwise #386 discovers
+a shared old file alone and cannot prove its complete existing composition. Unowned older
+generations remain excluded; the native updater continues to own their lifecycle.
+
 - [ADR-001](ADR-001-source-patch-by-literal-anchors.md), [ADR-016](ADR-016-tests-are-behavioural-and-mutation-tested.md), [ADR-018](ADR-018-mcp-prefix-plugin-namespaced-tools.md), [ADR-025](ADR-025-brain-console-owned-runtime.md), [ADR-026](ADR-026-brain-memory-doctor-shared-roots.md), [ADR-027](ADR-027-brain-console-provider-catalog-fallback.md), [ADR-028](ADR-028-managed-agentdb-interface-boundary.md), [ADR-029](ADR-029-metaharness-codex-project-hooks.md), [ADR-031](ADR-031-brain-search-failure-is-not-repair-authority.md)
 - `lib/plugin-compose.mjs`, `lib/plugin-command.mjs`, `lib/pristine.mjs` (`isOurs`), `lib/plugin-registry.mjs`
