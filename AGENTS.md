@@ -45,6 +45,7 @@ npx github:sparkling/ruflo-source-patch adr-index install         # retired afte
 npx github:sparkling/ruflo-source-patch adr-io-safety install     # exact installed-Ruflo driver + fail-closed ADR reads/proven writes; refuse purge-first reindex (#3147/#3097)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share one proven lock with every writer (#2666/#2878)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)
+npx github:sparkling/ruflo-source-patch ruflo-swarm-codex-hooks install # project Claude-only Swarm module metadata into a strict Codex manifest; preserve module source (#3688)
 npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # retired on Ruflo's native read-only status skill (#2821)
 npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install # generated roots + packaged skills follow live structured interfaces (#3153)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)
@@ -62,6 +63,7 @@ npx github:sparkling/ruflo-source-patch brain-search-safety install # ignore inh
 npx github:sparkling/ruflo-source-patch brain-dual-host-receipt install # emit MCP persistence request; never start a second Ruflo memory driver (#272)
 npx github:sparkling/ruflo-source-patch brain-dual-host-stdin install # stream large host prompts over stdin; prevent cross-critique E2BIG (#273)
 npx github:sparkling/ruflo-source-patch brain-grounding-evidence install # record successful searches for Stop without granting unrelated product writes (#316)
+npx github:sparkling/ruflo-source-patch brain-transition-notice install # show pending once per session through the native ledger; preserve capture and failures (#380)
 npx github:sparkling/ruflo-source-patch brain-router-imports install # reuse existing native Console helpers omitted from flat router tools (#341)
 npx github:sparkling/ruflo-source-patch metaharness-codex-hooks install # render declared MetaHarness hooks as native project Codex hooks (#168)
 ```

@@ -62,13 +62,13 @@ write(path.join(BRAIN_HOME, 'active.json'), `${JSON.stringify({
 }, null, 2)}\n`);
 write(FAKE_CODEX, `#!/usr/bin/env node
 const args = process.argv.slice(2);
-const root = ${JSON.stringify(MARKET)};
+const root = process.env.RSP_TEST_BRAIN_MARKET || ${JSON.stringify(MARKET)};
 if (args[0] !== 'plugin') process.exit(2);
 if (args[1] === 'marketplace' && args[2] === 'list') {
   process.stdout.write(JSON.stringify({ marketplaces: [{ name: 'ruvnet-brain', root }] }));
 } else if (args[1] === 'list') {
   process.stdout.write(JSON.stringify({ installed: [{
-    pluginId: 'ruvnet-brain@ruvnet-brain', installed: true, enabled: true,
+    pluginId: 'ruvnet-brain@ruvnet-brain', installed: true, enabled: !process.env.RSP_TEST_BRAIN_DISABLED,
     source: { path: root + '/plugin' },
   }], available: [] }));
 } else process.exit(2);
@@ -207,6 +207,38 @@ check('CHN12 installation does not request trust for hooks Brain intentionally r
     && /no hook trust action is required/.test(retiredInstall.stdout)
     && !/ACTION REQUIRED/.test(retiredInstall.stdout),
   `${retiredInstall.stdout}\n${retiredInstall.stderr}`);
+
+// The official installer now owns a separate Codex marketplace. Prove that
+// native registration selects it, including migrated-home aliases, without
+// writing its registry or confusing a foreign marketplace with that owner.
+const nativeMarket = path.join(BRAIN_HOME, 'codex-marketplace');
+fs.cpSync(PLUGIN, path.join(nativeMarket, 'plugin'), { recursive: true });
+write(path.join(nativeMarket, 'plugin', 'hooks', 'codex-hooks.json'), JSON.stringify(discoveryRegistry));
+write(path.join(BRAIN_HOME, 'codex-hook.mjs'), "const active = 'active.json';\nconst adapter = 'codex-hook-adapter.mjs';\n");
+delete process.env.RSP_RUVNET_BRAIN_MARKETPLACE;
+process.env.RSP_TEST_BRAIN_MARKET = nativeMarket;
+const nativeFiles = ['.codex-plugin/plugin.json', 'hooks/codex-hooks.json', 'scripts/codex-hook-adapter.mjs'];
+const nativeBytes = nativeFiles.map((file) => fs.readFileSync(path.join(nativeMarket, 'plugin', file), 'utf8'));
+check('CHN25 the registered official native Codex marketplace is selected and proved',
+  patcher.discover() === nativeMarket && patcher.status().patched === 6
+    && patcher.codexHooksSupersession.check().state === 'superseded');
+patcher.apply(); patcher.restore();
+check('CHN26 native discovery preserves installer-owned executable and registration bytes',
+  nativeFiles.every((file, index) => fs.readFileSync(path.join(nativeMarket, 'plugin', file), 'utf8') === nativeBytes[index]));
+const aliasHome = path.join(SB, 'home-alias');
+fs.symlinkSync(HOME, aliasHome, 'dir');
+process.env.RSP_TEST_BRAIN_MARKET = path.join(aliasHome, '.cache', 'ruvnet-brain', 'codex-marketplace');
+check('CHN27 native registry aliases refer to the same physical owner', patcher.status().patched === 6);
+process.env.RSP_TEST_BRAIN_DISABLED = '1';
+check('CHN28 disabled native plugins cannot retire the compatibility target',
+  patcher.codexHooksSupersession.check().state === 'live' && patcher.apply().incomplete > 0);
+delete process.env.RSP_TEST_BRAIN_DISABLED;
+const foreignMarket = path.join(SB, 'foreign-market');
+fs.cpSync(nativeMarket, foreignMarket, { recursive: true });
+process.env.RSP_TEST_BRAIN_MARKET = foreignMarket;
+setRegistry(discoveryRegistry);
+check('CHN29 a foreign same-named native-looking market is never adopted',
+  patcher.discover() === MARKET && patcher.codexHooksSupersession.check().state !== 'superseded');
 
 if (failures) process.exit(1);
 console.log('\n✓ codex-hooks-native: mixed rollout is fail-safe and ownership-preserving');

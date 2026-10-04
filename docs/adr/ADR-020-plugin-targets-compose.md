@@ -7,6 +7,11 @@ remaining shared-file owners. Unrelated preflight failures remain visible to ful
 but cannot block exact restoration of independent native targets. Every composed retirement callback
 uses the complete batch removal set. Regression tests prove shared-owner preservation, orphan
 restoration and continued reporting of an unrelated failure.
+Brain #380 adds an atomic three-script transition-notice bundle using the native bounded notice
+ledger. Pending capture is still recorded at every boundary; only duplicate notices are suppressed.
+Ruflo #3688 projects verified Claude-only Swarm module metadata into a strict Codex manifest,
+preserving module source and Claude copies. Neither target changes Brain's update plane or creates
+a replacement hook engine; exact pristine proof and visible anchor failures remain mandatory.
 `brain-grounding-code` narrows the #46 recency scan to added JS/Python
 code, excluding comments and standalone Python docstrings in complete Write/Codex Add payloads.
 Partial Edit/Update fragments retain their conservative requirement. Herdr exposed an unrelated application

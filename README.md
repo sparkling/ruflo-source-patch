@@ -358,6 +358,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`ruflo-hooks-schema`** | **Retired on proof in Ruflo 3.32.39 / `ruflo-core` 0.2.6.** The compatibility edit removed unsupported manifest fields and Cursor-only PreToolUse output only from Codex copies. PR #2857 version-bumped the plugins and fixed both branches; retirement executes both real handlers before standing down | [#2801](https://github.com/ruvnet/ruflo/issues/2801) · [#2816](https://github.com/ruvnet/ruflo/issues/2816) · [PR #2857](https://github.com/ruvnet/ruflo/pull/2857) |
 | **`ruflo-codex-skills`** | **Retired on proof in Ruflo 3.32.39.** Older copies needed one read-only `ruflo-core:ruflo-status` skill. The native replacement's default doctor/status path is now read-only and `doctor --fix` requires explicit repair intent | [#2821](https://github.com/ruvnet/ruflo/issues/2821) |
+| **`ruflo-swarm-codex-hooks`** | Projects the verified Claude-only `modules` manifest into a valid Codex command-hook manifest. Preserves module source and all Claude copies. Codex does not gain Claude's function-hook engine or its Swarm pane; unfamiliar declarations fail visibly | [#3688](https://github.com/ruvnet/ruflo/issues/3688) |
 
 #### Ruflo instruction generators
 
@@ -423,6 +424,12 @@ uncertain syntax and unsupported languages retain the requirement; parser failur
 vendor scan. The substance detector and managed-memory guard are unchanged. It patches the native
 active generation and matching hosts through exact anchors, pristine restoration and monitor
 reapplication. Retire only after marker-free upstream passes the same behavioral replay.
+
+`brain-transition-notice install` fixes [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380)
+by sharing the native bounded session notice ledger across both transition entrypoints. The first
+pending warning remains truthful; repeats for that session are deduplicated. Capture, durable replay,
+exact receipt verification, degraded warnings and separate continuity conditions remain intact.
+This controls notices; an abandoned writer claim still requires ownership diagnosis and repair.
 
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,

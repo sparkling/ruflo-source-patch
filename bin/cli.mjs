@@ -58,6 +58,7 @@ import { designWallCommand } from '../lib/design-wall/commands.mjs';
 import { flywheelDailyCommand } from '../lib/flywheel-daily/commands.mjs';
 import { codexHooksCommand } from '../lib/codex-hooks/commands.mjs';
 import { rufloHooksSchemaCommand } from '../lib/ruflo-hooks-schema/commands.mjs';
+import { rufloSwarmCodexHooksCommand } from '../lib/ruflo-swarm-codex-hooks/commands.mjs';
 import {
   brainCodexSkillsCommand, rufloCodexSkillsCommand,
 } from '../lib/codex-skills/commands.mjs';
@@ -71,6 +72,7 @@ import { brainDualHostReceiptCommand } from '../lib/brain-dual-host-receipt/comm
 import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands.mjs';
 import { brainGroundingEvidenceCommand } from '../lib/brain-grounding-evidence/commands.mjs';
 import { brainGroundingCodeCommand } from '../lib/brain-grounding-code/commands.mjs';
+import { brainTransitionNoticeCommand } from '../lib/brain-transition-notice/commands.mjs';
 import { brainRouterImportsCommand } from '../lib/brain-router-imports/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
@@ -97,6 +99,7 @@ const PLUGIN_PATCH_TARGETS = {
   'verify-interface': verifyInterfaceCommand,
   // Codex rejects Ruflo's manifest metadata and its Cursor-only PreToolUse response (#2816).
   'ruflo-hooks-schema': rufloHooksSchemaCommand,
+  'ruflo-swarm-codex-hooks': rufloSwarmCodexHooksCommand,
   // Codex discovers plugin workflows as namespaced skills, not Claude's command files.
   'ruflo-codex-skills': rufloCodexSkillsCommand,
   // Spans ALL ruflo plugins: rewrites bundled mcp__claude-flow__* refs to the plugin-namespaced
@@ -120,6 +123,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-dual-host-stdin': brainDualHostStdinCommand,
   'brain-grounding-evidence': brainGroundingEvidenceCommand,
   'brain-grounding-code': brainGroundingCodeCommand,
+  'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-router-imports': brainRouterImportsCommand,
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
@@ -157,6 +161,7 @@ Plugin patches (ruflo-adr)     (actions: install | uninstall | status)
 
 Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-hooks-schema')}make Ruflo's manifest + PreToolUse output valid in Codex (PR #2800 / #2816)
+  ${pad('ruflo-swarm-codex-hooks')}project Claude-only Swarm module metadata into a valid Codex manifest (#3688)
   ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
   ${pad('ruflo-instruction-contract')}make generated roots + packaged skills MCP-first and schema-valid (#3153)
 
@@ -178,6 +183,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-dual-host-stdin')}stream large host prompts over stdin so cross-critique cannot fail E2BIG (#273)
   ${pad('brain-grounding-evidence')}record successful searches for the Stop gate without broadening write authorization (#316)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
+  ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-router-imports')}reuse native Console helpers omitted from flat router tools (#341)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)

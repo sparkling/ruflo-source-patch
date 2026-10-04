@@ -4,6 +4,9 @@
 **Date**: 2026-07-14
 **Updated**: 2026-10-04. Native lifecycle proof accepts Brain's exact discovery wrapper only after
 executing its runner-selection, argument, output, refusal and timeout boundaries in an isolated fixture.
+It follows the installer's bounded, registered native Codex marketplace and compares physical owners,
+preserving disabled and foreign registrations. ADR importer proof unwraps an exact installed sibling
+composition before testing vendor behavior; unexplained mutations and poisoned backups still refuse.
 Existing physical-path containment accepts account-home aliases while rejecting missing paths and
 symlink escapes; this restores native ADR and MCP-prefix proofs on migrated Linux homes.
 Exact Ruflo 3.38.12 supplies two executable replacements. #2877 now

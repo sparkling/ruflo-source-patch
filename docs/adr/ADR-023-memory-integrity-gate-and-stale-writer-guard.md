@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-17
-**Updated**: 2026-09-08. Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
+**Updated**: 2026-10-04. Bounded CLI SIGTERM and SIGINT release only the terminating process's
+exact token/inode claims and preserve default signal termination. Existing or later native signal
+handlers retain control, with normal finally/exit cleanup; delegation is never an early unlock.
+There is no automatic stale-claim stealing, and SIGKILL remains outside JavaScript cleanup.
+Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
 sql.js writers. This target remains for the integrity gate, raw WAL refusal, stronger outer lock, and
 stale-process recovery. Writer discovery now shares current runnable-root coverage: npx, authenticated
 global launchers on PATH, custom prefixes without npm, the public `.bin/ruflo` wrapper, and its nested
