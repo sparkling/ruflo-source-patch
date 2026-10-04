@@ -73,6 +73,8 @@ import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands
 import { brainGroundingEvidenceCommand } from '../lib/brain-grounding-evidence/commands.mjs';
 import { brainGroundingCodeCommand } from '../lib/brain-grounding-code/commands.mjs';
 import { brainTransitionNoticeCommand } from '../lib/brain-transition-notice/commands.mjs';
+import { brainManagedCliCaptureCommand } from '../lib/brain-managed-cli-capture/commands.mjs';
+import { brainProgressionCollisionCommand } from '../lib/brain-progression-collision/commands.mjs';
 import { brainRouterImportsCommand } from '../lib/brain-router-imports/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
@@ -124,6 +126,8 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-grounding-evidence': brainGroundingEvidenceCommand,
   'brain-grounding-code': brainGroundingCodeCommand,
   'brain-transition-notice': brainTransitionNoticeCommand,
+  'brain-managed-cli-capture': brainManagedCliCaptureCommand,
+  'brain-progression-collision': brainProgressionCollisionCommand,
   'brain-router-imports': brainRouterImportsCommand,
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
@@ -184,6 +188,8 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-grounding-evidence')}record successful searches for the Stop gate without broadening write authorization (#316)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
+  ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)
+  ${pad('brain-progression-collision')}preserve conflicting captures under verified content-bound identities (#383)
   ${pad('brain-router-imports')}reuse native Console helpers omitted from flat router tools (#341)
 
 Plugin patches (all ruflo plugins)  (actions: install | uninstall | status)

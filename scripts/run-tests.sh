@@ -47,8 +47,11 @@ SUITES+=(brain-doctor-native brain-gate-retirement)
 SUITES+=(brain-router-imports)
 SUITES+=(path-containment)
 SUITES+=(memory-lock-termination)
+SUITES+=(memory-lock-recovery)
 SUITES+=(ruflo-swarm-codex-hooks)
 SUITES+=(brain-transition-notice)
+SUITES+=(brain-managed-cli-capture)
+SUITES+=(brain-progression-collision)
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do

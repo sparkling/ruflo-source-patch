@@ -7,11 +7,33 @@ remaining shared-file owners. Unrelated preflight failures remain visible to ful
 but cannot block exact restoration of independent native targets. Every composed retirement callback
 uses the complete batch removal set. Regression tests prove shared-owner preservation, orphan
 restoration and continued reporting of an unrelated failure.
+Installed-file proof now scopes composition to descriptors that claim the same physical file,
+including logical/physical HOME aliases. All-mode selection alone cannot apply a Claude-only
+importer transform to Codex bytes during native retirement verification.
 Brain #380 adds an atomic three-script transition-notice bundle using the native bounded notice
 ledger. Pending capture is still recorded at every boundary; only duplicate notices are suppressed.
 Ruflo #3688 projects verified Claude-only Swarm module metadata into a strict Codex manifest,
 preserving module source and Claude copies. Neither target changes Brain's update plane or creates
 a replacement hook engine; exact pristine proof and visible anchor failures remain mandatory.
+Brain #382's `brain-managed-cli-capture` is a two-script atomic bundle. The producer uses the
+writer's existing action projection, redacted before meaning comparison, so a new managed CLI
+request/result cannot be mistaken for an unchanged lifecycle boundary. The returned producer state
+stays unenriched: the native writer adds the observation exactly once and remains responsible for
+the canonical store and exact readback receipt. No-op lifecycle retention, real failure/unknown
+outcomes, provenance, and paused programme state remain intact. No capture flag or receipt is invented.
+Retire only after marker-free native producer/writer behavior passes the same action/no-op and
+redaction replay; missing or partial members block the whole bundle. Brain's updater is untouched.
+Brain #383's `brain-progression-collision` atomically composes the producer, immutable store,
+and capture boundary across the active generation, matching hosts, and native persistent MCP shell.
+Future frozen identities bind redacted source/state/time and stable native event inputs; the old
+event-key contract remains valid. A typed collision requires a validated independent exact read of
+the existing canonical value. Recovery preserves that row and all conflicting outbox records,
+then captures the frozen source, state, parents, sequence, and occurrence time as a deterministic
+sibling with explicit non-authoritative diagnostics. Only exact new-key readback permits queue
+consumption; unavailable or invalid reads, diagnostic-field conflicts, and failed writes retain debt.
+Retirement requires marker-free native behavior proving immutable preservation, deterministic
+retries, rejected recovery, later queue advancement, and distinct future event identities.
+Neither the patch nor its fixture probes touch Brain's updater or managed database bytes directly.
 `brain-grounding-code` narrows the #46 recency scan to added JS/Python
 code, excluding comments and standalone Python docstrings in complete Write/Codex Add payloads.
 Partial Edit/Update fragments retain their conservative requirement. Herdr exposed an unrelated application

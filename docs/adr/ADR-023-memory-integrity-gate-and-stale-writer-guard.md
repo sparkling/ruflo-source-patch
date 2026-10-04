@@ -5,7 +5,11 @@
 **Updated**: 2026-10-04. Bounded CLI SIGTERM and SIGINT release only the terminating process's
 exact token/inode claims and preserve default signal termination. Existing or later native signal
 handlers retain control, with normal finally/exit cleanup; delegation is never an early unlock.
-There is no automatic stale-claim stealing, and SIGKILL remains outside JavaScript cleanup.
+SIGKILL remains outside JavaScript cleanup. Recovery now serializes contenders with an exclusive
+claim-recovery directory, proves ESRCH twice and unchanged descriptor/path inode and contents,
+then preserves the dead claim under a unique evidence name. Live, malformed, symbolic-link and
+ambiguous ownership remain refused. A crash during the synchronous recovery section leaves its
+recovery directory fail-closed for operator review; no database or SQLite sidecar is manipulated.
 Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
 sql.js writers. This target remains for the integrity gate, raw WAL refusal, stronger outer lock, and
 stale-process recovery. Writer discovery now shares current runnable-root coverage: npx, authenticated

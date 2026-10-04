@@ -431,6 +431,21 @@ pending warning remains truthful; repeats for that session are deduplicated. Cap
 exact receipt verification, degraded warnings and separate continuity conditions remain intact.
 This controls notices; an abandoned writer claim still requires ownership diagnosis and repair.
 
+The `memory` target recovers a positively proved dead writer claim under an exclusive recovery
+fence, preserving its exact metadata as evidence. It refuses live, malformed or ambiguous claims.
+SIGKILL cannot run process cleanup; an interrupted recovery fence remains visibly fail-closed.
+Database files and SQLite sidecars are not changed by claim recovery.
+
+`brain-managed-cli-capture install` fixes [Brain #382](https://github.com/stuinfla/ruvnet-brain/issues/382)
+by reusing the native redacted action projection before no-op comparison. The existing writer still
+records the action once and supplies its exact readback receipt; unchanged lifecycle events stay no-op.
+
+`brain-progression-collision install` fixes [Brain #383](https://github.com/stuinfla/ruvnet-brain/issues/383)
+by binding deferred identities to their frozen content. A historical collision requires a validated
+independent read of the existing row before recording the conflicting snapshot under a deterministic
+sibling identity. Existing rows and conflicting outbox evidence remain intact; a failed new readback
+retains the queued job. It does not rewrite the historical event-key contract.
+
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
