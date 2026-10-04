@@ -48,7 +48,7 @@ npx github:sparkling/ruflo-source-patch adr-index install         # retired afte
 npx github:sparkling/ruflo-source-patch adr-io-safety install     # exact installed-Ruflo driver + fail-closed ADR reads/proven writes; refuse purge-first reindex (#3147/#3097)
 npx github:sparkling/ruflo-source-patch adr-reindex install       # legacy /adr-reindex; retires only when native skill + purge share one proven lock with every writer (#2666/#2878)
 npx github:sparkling/ruflo-source-patch ruflo-hooks-schema install # retired on proven Ruflo 3.32.39 strict manifest + Codex-valid handlers (#2816/PR #2857)
-npx github:sparkling/ruflo-source-patch ruflo-swarm-codex-hooks install # project Claude-only Swarm module metadata into a strict Codex manifest; preserve module source (#3688)
+npx github:sparkling/ruflo-source-patch ruflo-swarm-codex-hooks install # project verified Claude-only plugin module metadata into a strict Codex manifest; preserve module source (#3688)
 npx github:sparkling/ruflo-source-patch ruflo-codex-skills install # retired on Ruflo's native read-only status skill (#2821)
 npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install # generated roots + packaged skills follow live structured interfaces (#3153)
 npx github:sparkling/ruflo-source-patch verify-interface install  # reopen ruvnet-brain's unopenable PreToolUse gate (#12). RETIRED as of ruvnet-brain 3.2.9 (auto-retires; see ADR-010)

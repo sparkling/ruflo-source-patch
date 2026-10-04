@@ -86,5 +86,29 @@ try {
   assert.equal(compose.applyComposed([mod.NAME]).errors, 0);
   assert.deepEqual(compose.statusComposed([mod.NAME])[mod.NAME], { files: 2, patched: 2 });
   for (const file of files) assert.equal(fs.readFileSync(file, 'utf8'), native);
+  const { MANIFESTS } = await import('../lib/ruflo-swarm-codex-hooks/manifests.mjs');
+  const extraFiles = [];
+  for (const [name, source] of Object.entries(MANIFESTS)) {
+    const projected = mod.patchSource(source);
+    assert.deepEqual(projected.missing, []);
+    assert.equal(mod.isPatched(projected.next), true);
+    assert.equal(mod.reverseSource(projected.next), source);
+    assert.deepEqual(JSON.parse(projected.next).hooks, {});
+    assert.equal(mod.patchSource(source.replace('./register.ts', './unknown.ts')).missing.length, 1);
+    const root = path.join(home, '.codex/plugins/cache/ruflo', name, '0.3.1');
+    populate(root, source, name);
+    write(path.join(root, 'hooks/register.ts'), "import type { Hook, Register } from 'claude-code'\n");
+    extraFiles.push(path.join(root, 'hooks/hooks.json'));
+  }
+  assert.equal(mod.preflight().ok, true);
+  assert.equal(mod.probeNativeSwarmHooksReplacement().state, 'live', 'new affected plugins prevent premature retirement');
+  const expanded = compose.applyComposed([mod.NAME]);
+  assert.equal(expanded.errors, 0); assert.equal(expanded.incomplete, 0);
+  for (const file of extraFiles) {
+    assert.equal(mod.isPatched(fs.readFileSync(file, 'utf8')), true);
+    assert.equal(fs.readFileSync(`${file}.rsp-backup`, 'utf8'), MANIFESTS[path.basename(path.dirname(path.dirname(path.dirname(file))))]);
+  }
+  assert.equal(compose.reconcile([], [mod.NAME]).errors, 0);
+  for (const file of extraFiles) assert.equal(mod.hasPatch(fs.readFileSync(file, 'utf8')), false);
   console.log('✓ Swarm #3688: Codex-only strict no-op, retained Claude modules, exact restoration, unsafe/mixed-module refusal and bounded native retirement');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }

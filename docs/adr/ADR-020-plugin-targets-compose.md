@@ -30,7 +30,8 @@ removal preserves every remaining claimant. Repeated installation leaves protect
 and their true vendor backups unchanged. Unproved marked edits retain both files and fail visibly.
 Brain #380 adds an atomic three-script transition-notice bundle using the native bounded notice
 ledger. Pending capture is still recorded at every boundary; only duplicate notices are suppressed.
-Ruflo #3688 projects verified Claude-only Swarm module metadata into a strict Codex manifest,
+Ruflo #3688 projects verified Claude-only module metadata from Swarm and 26 newly affected
+plugins into strict Codex manifests using an exact shipped-manifest catalogue,
 preserving module source and Claude copies. Neither target changes Brain's update plane or creates
 a replacement hook engine; exact pristine proof and visible anchor failures remain mandatory.
 Brain #382's `brain-managed-cli-capture` is a two-script atomic bundle. The producer uses the
