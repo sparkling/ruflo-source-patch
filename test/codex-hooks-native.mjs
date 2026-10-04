@@ -45,10 +45,12 @@ write(path.join(PLUGIN, '.codex-plugin', 'plugin.json'), `${JSON.stringify({
 }, null, 2)}\n`);
 const command = 'node "$HOME/.cache/ruvnet-brain/codex-hook.mjs" ';
 const events = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'SessionEnd', 'Stop'];
+const legacyArguments = ['session-start', 'ground-ruvnet', 'decision-gate write',
+  'grounding-stamp', 'session-snapshot SessionEnd', 'continuation-gate'];
 write(path.join(PLUGIN, 'hooks', 'codex-hooks.json'), `${JSON.stringify({
-  hooks: Object.fromEntries(events.map((event) => [
+  hooks: Object.fromEntries(events.map((event, index) => [
     event,
-    [{ hooks: [{ type: 'command', command: `${command}${event}` }] }],
+    [{ hooks: [{ type: 'command', command: `${command}${legacyArguments[index]}` }] }],
   ])),
 }, null, 2)}\n`);
 const adapter = "const env = { RUVNET_HOOK_HOST: 'codex' };\nconst shim = 'hook-shim.mjs';\n";
@@ -116,6 +118,62 @@ write(path.join(ACTIVE, 'scripts', 'codex-hook-adapter.mjs'), `${adapter}// drif
 const drift = patcher.status();
 check('CHN7 an active/source adapter mismatch returns to honest drift', drift.patched === 5,
   JSON.stringify(drift));
+
+// Exact official 4.5.4 discovery-wrapper fixture. No real native installation,
+// model host, updater, or KB is invoked by the executable identity proof.
+write(path.join(ACTIVE, 'scripts', 'codex-hook-adapter.mjs'), adapter);
+const discovery = "const f=require('node:fs'),o=require('node:os'),p=require('node:path'),c=require('node:child_process'),d=process.env.CODEX_HOME||p.join(o.homedir(),'.codex'),b=process.env.RUVNET_BRAIN_HOME||p.join(p.dirname(d),'.cache','ruvnet-brain'),w=p.join(b,'codex-hook.mjs');let s;try{s=f.statSync(w)}catch{}if(!s?.isFile())process.exit(0);const r=c.spawnSync(process.execPath,[w,...process.argv.slice(2)],{stdio:['inherit','pipe','pipe'],encoding:'utf8',env:process.env,timeout:Number(process.argv[1]),killSignal:'SIGKILL'});if(r.status===0||r.status===2){if(r.stdout)process.stdout.write(r.stdout);if(r.stderr)process.stderr.write(r.stderr)}process.exit(r.status===2?2:0)";
+const discoveryRegistry = {
+  hooks: Object.fromEntries([...events, 'SubagentStop'].map((event, index) => [event,
+    [{ hooks: [{ type: 'command', timeout: 10,
+      command: `node -e "${discovery}" 9000 ${legacyArguments[index] || 'session-snapshot SubagentStop'}` }] }],
+  ])),
+};
+const setRegistry = (value) => write(path.join(PLUGIN, 'hooks', 'codex-hooks.json'), `${JSON.stringify(value)}\n`);
+setRegistry(discoveryRegistry);
+check('CHN13 official discovery wrappers prove runner identity, environment, argv and refusal status',
+  patcher.status().patched === 6);
+state.writeState({ patchTargets: [], pluginTargets: ['codex-hooks'], retired: {}, all: true });
+const discoveryRetirement = supersede.retireSuperseded(state.readState());
+check('CHN14 fresh all-mode adoption retires obsolete hooks on the executable native replacement',
+  discoveryRetirement.retired === 1 && state.readState().all === true
+    && !state.readState().pluginTargets.includes('codex-hooks'), JSON.stringify(discoveryRetirement));
+
+const rejectCommand = (label, mutate) => {
+  const candidate = structuredClone(discoveryRegistry);
+  const hook = candidate.hooks.SessionStart[0].hooks[0];
+  hook.command = mutate(hook.command);
+  setRegistry(candidate);
+  check(label, patcher.status().patched === 5);
+};
+rejectCommand('CHN15 a different runner cannot borrow native lifecycle identity',
+  (value) => value.replace("'codex-hook.mjs'", "'other-hook.mjs'"));
+rejectCommand('CHN16 wrong event arguments are refused',
+  (value) => value.replace('9000 session-start', '9000 grounding-stamp'));
+rejectCommand('CHN17 altered argv forwarding is refused',
+  (value) => value.replace('process.argv.slice(2)', 'process.argv.slice(3)'));
+rejectCommand('CHN18 injected wrapper code is refused before execution',
+  (value) => value.replace('const f=', 'process.stdout.write("injected");const f='));
+rejectCommand('CHN19 appended shell commands are refused', (value) => `${value}; echo injected`);
+rejectCommand('CHN20 an unbounded native child timeout is refused',
+  (value) => value.replace('9000 session-start', '999999 session-start'));
+const badTimeout = structuredClone(discoveryRegistry);
+badTimeout.hooks.SessionStart[0].hooks[0].timeout = 9;
+setRegistry(badTimeout);
+check('CHN21 the child must finish inside the declared host timeout', patcher.status().patched === 5);
+const extraHook = structuredClone(discoveryRegistry);
+extraHook.hooks.UnknownEvent = extraHook.hooks.SessionStart;
+setRegistry(extraHook);
+check('CHN22 additional unrecognized hooks are not ignored by lifecycle proof', patcher.status().patched === 5);
+const emptyEvent = structuredClone(discoveryRegistry);
+emptyEvent.hooks.SessionStart = [{ hooks: [] }];
+setRegistry(emptyEvent);
+check('CHN23 every required lifecycle event has a runnable command', patcher.status().patched === 5);
+const legacyWrongArgs = structuredClone(discoveryRegistry);
+legacyWrongArgs.hooks.SessionStart[0].hooks[0].command = `${command}session-start; echo injected`;
+setRegistry(legacyWrongArgs);
+check('CHN24 legacy command compatibility cannot accept injected shell arguments', patcher.status().patched === 5);
+setRegistry(discoveryRegistry);
 
 const retiredRegistry = JSON.stringify({
   description: 'RuvNet Brain automatic host hooks are intentionally retired. This schema-valid empty registry is shipped so install and update converge old hook-bearing generations to zero implicit lifecycle handlers.',

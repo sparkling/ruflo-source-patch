@@ -15,6 +15,8 @@ process.env.RUFLO_NPX_ROOT = NPX;
 process.env.RUFLO_GLOBAL_ROOT = GLOBAL;
 process.env.RSP_NO_LAUNCHCTL = '1';
 process.env.RSP_NO_SELF_UPDATE = '1';
+process.env.RSP_NO_STALE_WRITER_KILL = '1';
+process.env.RSP_NO_HOST_AUTO_UPDATE = '1';
 
 const hostFixture = `// metaharness dist fixture
 /**
@@ -217,5 +219,90 @@ check('MCH28 public CLI reports every copy patched and tracked',
 const removed = runCli('metaharness-codex-hooks', 'uninstall');
 check('MCH29 public CLI restores the target cleanly',
   removed.status === 0 && removed.stdout.includes(`restored ${discovered.length} file(s)`));
+
+// Full-profile tracking must not force installation of an optional runtime.
+fs.rmSync(path.join(GLOBAL, 'metaharness'), { recursive: true });
+fs.rmSync(path.join(GLOBAL, '@metaharness'), { recursive: true });
+fs.rmSync(path.join(NPX, 'one'), { recursive: true });
+fs.writeFileSync(path.join(NPX, '.metadata_never_index'), '');
+check('MCH43 regular npx metadata files are excluded from package-cache discovery',
+  patcher.applicability().state === 'not-applicable' && patcher.preflight().ok);
+const state = await import('../lib/cwd/state.mjs');
+const registry = await import('../lib/plugin-registry.mjs');
+const monitor = await import('../lib/cwd/monitor.mjs');
+state.writeState({ patchTargets: [], pluginTargets: ['metaharness-codex-hooks'], retired: {}, all: true });
+const absent = runCli('metaharness-codex-hooks', 'install');
+const absentStatus = registry.inspectPlugins(['metaharness-codex-hooks'])['metaharness-codex-hooks'];
+check('MCH30 absent optional packages are explicitly not applicable and remain tracked in all mode',
+  absent.status === 0 && registry.pluginNotApplicable(absentStatus)
+    && absentStatus.files === 0 && state.readState().all === true
+    && state.readState().pluginTargets.includes('metaharness-codex-hooks'));
+const absentCheck = runCli('monitor', 'check');
+check('MCH31 absent optional packages do not fail monitor check or masquerade as patched files',
+  absentCheck.status === 0 && absentCheck.stdout.includes('not applicable: metaharness-codex-hooks')
+    && absentCheck.stdout.includes('watched for future installs')
+    && !absentCheck.stdout.includes('metaharness-codex-hooks live'));
+check('MCH32 individual and shared status disclose not-applicable semantics',
+  runCli('metaharness-codex-hooks', 'status').stdout.includes('not applicable')
+    && runCli('cwd', 'status').stdout.includes('MetaHarness packages are not installed'));
+state.writeState({ ...state.readState(), pluginTargets: ['metaharness-codex-hooks', 'adr-io-safety'] });
+check('MCH33 mandatory targets with no files still fail monitor check',
+  monitor.checkDrift().drifting.some((line) => line === 'adr-io-safety: no installed plugin files discovered'));
+state.writeState({ ...state.readState(), pluginTargets: ['metaharness-codex-hooks'] });
+
+const newlyInstalled = writePackage(path.join(GLOBAL, 'metaharness'), 'metaharness', 'dist/host-config.js', hostFixture);
+check('MCH34 a later package install becomes applicable and exposes unpatched drift',
+  patcher.applicability().state === 'applicable'
+    && monitor.checkDrift().drifting.some((line) => line.includes('metaharness-codex-hooks: 1/1')));
+const adopted = runCli('monitor', 'run');
+check('MCH35 the existing monitor adopts a later install without starting a programme',
+  adopted.status === 0 && patcher.isPatched(fs.readFileSync(newlyInstalled, 'utf8'))
+    && monitor.checkDrift().drifting.length === 0 && state.readState().all === true);
+fs.rmSync(newlyInstalled);
+check('MCH36 a missing renderer is an installation error rather than optional absence',
+  patcher.applicability().state === 'error' && !patcher.preflight().ok
+    && runCli('monitor', 'check').status === 1 && runCli('metaharness-codex-hooks', 'install').status === 1);
+const manifestFile = path.join(GLOBAL, 'metaharness', 'package.json');
+fs.writeFileSync(manifestFile, '{ malformed');
+check('MCH37 malformed installed package identity fails visibly',
+  patcher.applicability().state === 'error' && monitor.checkDrift().drifting.length === 1);
+fs.writeFileSync(manifestFile, '{"name":"wrong-package"}');
+check('MCH38 a package identity impostor at the expected path is refused',
+  patcher.applicability().state === 'error'
+    && monitor.checkDrift().drifting[0].includes('package identity mismatch'));
+writePackage(path.join(GLOBAL, 'metaharness'), 'metaharness', 'dist/host-config.js', '');
+check('MCH39 an empty installed renderer cannot be hidden as absent',
+  patcher.applicability().state === 'error'
+    && runCli('monitor', 'check').status === 1
+    && runCli('metaharness-codex-hooks', 'status').status === 1);
+writePackage(path.join(GLOBAL, 'metaharness'), 'metaharness', 'dist/host-config.js', hostFixture);
+const originalAccess = fs.accessSync;
+try {
+  fs.accessSync = (file, ...args) => {
+    if (file === newlyInstalled) throw new Error('fixture renderer unreadable');
+    return originalAccess(file, ...args);
+  };
+  check('MCH40 unreadable installed renderers fail applicability and the all-file preflight',
+    patcher.applicability().state === 'error' && !patcher.preflight().ok
+      && monitor.checkDrift().drifting[0].includes('fixture renderer unreadable'));
+} finally { fs.accessSync = originalAccess; }
+const externalRenderer = path.join(SANDBOX, 'external-renderer');
+fs.mkdirSync(externalRenderer);
+fs.writeFileSync(path.join(externalRenderer, 'host-config.js'), hostFixture);
+fs.rmSync(path.join(GLOBAL, 'metaharness', 'dist'), { recursive: true });
+fs.symlinkSync(externalRenderer, path.join(GLOBAL, 'metaharness', 'dist'), 'dir');
+check('MCH41 a renderer ancestor symlink escaping package ownership is refused',
+  patcher.applicability().state === 'error' && !patcher.preflight().ok
+    && monitor.checkDrift().drifting[0].includes('renderer escaped its package owner'));
+fs.rmSync(path.join(GLOBAL, 'metaharness'), { recursive: true });
+fs.writeFileSync(path.join(GLOBAL, 'metaharness'), 'invalid package directory');
+check('MCH44 an expected package path with the wrong type remains an error',
+  patcher.applicability().state === 'error'
+    && monitor.checkDrift().drifting[0].includes('package root must be a regular directory'));
+fs.rmSync(path.join(GLOBAL, 'metaharness'));
+fs.rmSync(NPX, { recursive: true });
+fs.writeFileSync(NPX, 'not a directory');
+check('MCH42 failed discovery cannot certify package absence',
+  patcher.applicability().state === 'error' && runCli('monitor', 'check').status === 1);
 
 console.log('✔ MetaHarness Codex hooks (#168 strict renderer, matcher bridge, bounded discovery, mutation proof, exact restore)');

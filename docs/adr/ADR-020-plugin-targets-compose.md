@@ -2,7 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-03. `brain-grounding-code` narrows the #46 recency scan to added JS/Python
+**Updated**: 2026-10-04. Retirement reconciles only files claimed by the removed targets and their
+remaining shared-file owners. Unrelated preflight failures remain visible to full apply/status/check,
+but cannot block exact restoration of independent native targets. Every composed retirement callback
+uses the complete batch removal set. Regression tests prove shared-owner preservation, orphan
+restoration and continued reporting of an unrelated failure.
+`brain-grounding-code` narrows the #46 recency scan to added JS/Python
 code, excluding comments and standalone Python docstrings in complete Write/Codex Add payloads.
 Partial Edit/Update fragments retain their conservative requirement. Herdr exposed an unrelated application
 backup refused solely for its warning against touching AgentDB. The exact vendor anchor composes

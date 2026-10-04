@@ -117,6 +117,25 @@ check('BPK14 final removal restores exact vendor bytes and removes backups',
       && fs.readFileSync(installer, 'utf8') === lifecycleFixture.installer
       && !fs.existsSync(`${console}.rsp-backup`) && !fs.existsSync(`${installer}.rsp-backup`)));
 
+// An unrelated broken bundle must remain visible to full checks without blocking
+// removal of a proved-native target from the independently owned Console files.
+applyComposed(['brain-console-lifecycle', 'brain-console-provider-keys']);
+check('BPK scoped fixture has an independently failing ADR bundle',
+  applyComposed(['adr-io-safety']).incomplete > 0);
+const scoped = reconcile(['brain-console-lifecycle', 'adr-io-safety'], ['brain-console-provider-keys']);
+check('BPK unrelated preflight failure cannot block scoped retirement',
+  !scoped.errors && !scoped.incomplete && surfaces.every(({ console, installer }) =>
+    lifecycle.isPatched(fs.readFileSync(console, 'utf8'))
+      && lifecycle.isPatched(fs.readFileSync(installer, 'utf8'))
+      && !providerKeys.isPatched(fs.readFileSync(console, 'utf8'))));
+check('BPK full application still reports the unrelated bundle failure',
+  applyComposed(['brain-console-lifecycle', 'adr-io-safety']).incomplete > 0);
+const scopedOrphans = reconcile(['adr-io-safety'], ['brain-console-lifecycle']);
+check('BPK scoped orphan removal restores exact vendor bytes',
+  !scopedOrphans.errors && !scopedOrphans.incomplete && surfaces.every(({ console, installer }) =>
+    fs.readFileSync(console, 'utf8') === combinedConsole
+      && fs.readFileSync(installer, 'utf8') === lifecycleFixture.installer));
+
 const runtime = path.join(SANDBOX, 'provider-runtime.mjs');
 fs.writeFileSync(runtime, pure.next);
 const api = await import(`${pathToFileURL(runtime).href}?behavior`);

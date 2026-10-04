@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-31. Exact Ruflo 3.38.12 supplies two executable replacements. #2877 now
+**Updated**: 2026-10-04. Native lifecycle proof accepts Brain's exact discovery wrapper only after
+executing its runner-selection, argument, output, refusal and timeout boundaries in an isolated fixture.
+Existing physical-path containment accepts account-home aliases while rejecting missing paths and
+symlink escapes; this restores native ADR and MCP-prefix proofs on migrated Linux homes.
+Exact Ruflo 3.38.12 supplies two executable replacements. #2877 now
 routes every daemon identity through one native project-root resolver, so `daemon` retires only after
 all installed copies pass structural and executable resolver mutations. #2878 now makes ordinary
 sql.js writers share native `withMemoryDbLock()` with purge, so `adr-reindex` accepts that complete

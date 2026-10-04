@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-08-04
-**Updated**: 2026-08-15. The exact published packages `metaharness@0.4.7` and
+**Updated**: 2026-10-04. All-mode retains this target when no supported MetaHarness package is
+installed and reports that bounded absence as not applicable. Newly installed packages become
+applicable automatically; malformed, unreadable or incomplete installations remain failures.
+The exact published packages `metaharness@0.4.7` and
 `@metaharness/host-codex@0.1.2` still require both renderer edits. MetaHarness #168 remains open. The
 downstream target stays deliberately limited to supplied declarations; upstream still owns CLI/Studio
 models, templates, packaged helpers, witnesses, tests, and the ADR/documentation correction.
