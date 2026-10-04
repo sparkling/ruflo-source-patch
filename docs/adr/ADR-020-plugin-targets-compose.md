@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-04. New policy serialization and terminal-diagnostic targets retain native
+**Updated**: 2026-10-04. Brain #389 adds bounded observations and grouped conflict metadata
+with exact goal/action, immutable heads and omission digests; full canonical records remain intact. New policy serialization and terminal-diagnostic targets retain native
 authorization, ledger verification, redaction and receipt ownership. The progression-outbox reader
 is extended incrementally so retained journals can exceed Node's whole-string limit without history
 truncation. All three fixes use exact composition, behavioral retirement and existing native writers.
