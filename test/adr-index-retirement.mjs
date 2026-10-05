@@ -13,7 +13,7 @@ process.env.CODEX_HOME = CODEX_HOME;
 process.env.RUFLO_NPX_ROOT = path.join(SB, 'npx');
 process.env.RUFLO_GLOBAL_ROOT = path.join(SB, 'global');
 
-const { findPluginRoot } = await import('./fixtures.mjs');
+const { findPluginRoot, pristineBytes } = await import('./fixtures.mjs');
 const { applyComposed, composeSource } = await import('../lib/plugin-compose.mjs');
 const { PATCH_MARKER } = await import('../lib/adr-io-safety/patcher.mjs');
 const { evaluate, retireSuperseded } = await import('../lib/supersede.mjs');
@@ -44,11 +44,14 @@ const copied = [
 ];
 // Pin compatibility bytes while retaining current native records/skills/reindex probes.
 const importer = fs.readFileSync(new URL('./fixtures/adr-index-pre3097-import.mjs', import.meta.url));
-const records = fs.readFileSync(path.join(sourceRoot, recordsRel));
+// This suite proves native convergence. A locally instrumented installed
+// helper must not become its purported upstream fixture after a repair release.
+const records = pristineBytes(path.join(sourceRoot, recordsRel));
+if (records.toString().includes('ruflo-source-patch')) throw Error('native records fixture is locally patched');
 function seedPlugin(root) {
   for (const relative of copied) {
     const source = path.join(sourceRoot, relative);
-    write(path.join(root, relative), relative === importerRel ? importer : fs.readFileSync(source));
+    write(path.join(root, relative), relative === importerRel ? importer : relative === recordsRel ? records : fs.readFileSync(source));
   }
 }
 

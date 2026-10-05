@@ -7,7 +7,7 @@ process.env.RUFLO_SOURCE_PATCH_HOME = sandbox;
 process.env.RSP_RUVNET_BRAIN_HOME = path.join(sandbox, '.cache/ruvnet-brain');
 process.env.RSP_CODEX_HOME = path.join(sandbox, '.codex');
 const patch = await import('../lib/brain-progression-collision/patcher.mjs');
-const { exerciseSources, probeProgressionCollisionReplacement } = await import('../lib/brain-progression-collision/probe.mjs');
+const { exerciseSources, storeFixture, probeProgressionCollisionReplacement } = await import('../lib/brain-progression-collision/probe.mjs');
 const { VENDOR_SPECS } = await import('../lib/brain-managed-memory-boundary/transforms.mjs');
 const fixture = new URL('./fixtures/brain-progression-collision/', import.meta.url);
 const sharedFixture = new URL('./fixtures/brain-managed-cli-capture/scripts/', import.meta.url);
@@ -92,5 +92,34 @@ write(path.join(cache, 'scripts/project-progression-producer.mjs'), sources.prod
 assert.equal(probeProgressionCollisionReplacement({ files }).state, 'live', 'native recovery alone cannot retire missing future content identity');
 assert.equal(fs.readFileSync(path.join(old, patch.SPECS[0].relative), 'utf8'), sources.store, 'inactive generation unchanged');
 assert.equal(JSON.parse(fs.readFileSync(path.join(home, 'active.json'), 'utf8')).version, '4.5.4', 'updater authority unchanged');
+const nativeFixture = new URL('./fixtures/brain-managed-cli-native-457/scripts/', import.meta.url);
+const native457 = Object.fromEntries(['hook', 'producer', 'contract'].map(name => [name,
+  fs.readFileSync(new URL(`project-progression-${name}.mjs`, nativeFixture), 'utf8')]));
+native457.store = fs.readFileSync(new URL('native-4.5.7-store.mjs', fixture), 'utf8');
+native457.queue = fs.readFileSync(new URL('native-4.5.7-queue.mjs', fixture), 'utf8');
+native457.redactor = fs.readFileSync(new URL('continuity-events.mjs', nativeFixture), 'utf8');
+native457.outbox = fs.readFileSync(new URL('./fixtures/brain-outbox-streaming/native-4.5.7.mjs', import.meta.url), 'utf8');
+for (const name of ['store', 'hook', 'producer']) {
+  assert(patch.nativeSatisfied(native457[name]), name);
+  assert.deepEqual(patch.patchSource(native457[name]), { next: native457[name], applied: [], missing: [] });
+}
+await exerciseSources({ ...native457, store: storeFixture(native457.store) }, path.join(sandbox, 'native457'));
+for (const [label, changed] of [
+  ['fence', { ...native457, store: native457.store.replaceAll('fenced();', '') }],
+  ['disposition', { ...native457, store: native457.store.replace('this.outbox.markRecovered(snapshot, receipt);', '') }],
+  ['receipt', { ...native457, store: native457.store.replace('readbackDigest: readback.payloadDigest,', 'readbackDigest: "fake",') }],
+]) {
+  assert.equal(patch.nativeSatisfied(changed.store), false);
+  await assert.rejects(exerciseSources({ ...changed, store: storeFixture(changed.store) }, path.join(sandbox, 'native457-' + label)), undefined, label);
+}
+for (const root of [active, cache, runtime]) {
+  for (const name of ['store', 'hook', 'producer', 'contract', 'outbox']) write(path.join(root, `scripts/project-progression-${name}.mjs`), native457[name]);
+  write(path.join(root, 'scripts/project-capture-queue.mjs'), native457.queue);
+  write(path.join(root, 'scripts/continuity-events.mjs'), native457.redactor);
+}
+const nativePreflight = patch.preflight(); assert.equal(nativePreflight.ok, true, nativePreflight.errors.join('\n'));
+const nativeProof = probeProgressionCollisionReplacement({ files }); assert.equal(nativeProof.state, 'superseded', nativeProof.evidence);
+const nativeApply = compose.applyComposed([patch.NAME]);
+assert.equal(nativeApply.incomplete, 0, JSON.stringify(nativeApply)); assert.equal(nativeApply.patched, 0);
 console.log('✓ progression collision: validated native read, immutable history, deterministic recovery, exact receipts, queue advancement, future identity, pristine retirement');
 fs.rmSync(sandbox, { recursive: true, force: true });

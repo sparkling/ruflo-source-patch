@@ -3,12 +3,25 @@
 **Status**: Implemented
 **Date**: 2026-07-15
 **Updated**: 2026-10-05. ADR I/O safety includes the shared memory-safe edge helper in its four-file bundle.
+Brain 4.5.6/4.5.7 native replacements are recognized by reviewed executable boundaries and
+behavioral regression proofs. Unchanged native implementations are satisfied without local
+ownership markers; unknown drift remains a visible refusal. Probes cover the shared native
+redactor, grouped omission evidence, physical JSONL line diagnostics, modular generation
+dispatch and the relocated private transition builder. Native suspension migration preserves
+operator containment through the official persisted control before retiring overlays;
+it does not claim bounded-history recovery.
+Mutating application may prepare this handoff before preflight; status and pure
+composition never write policy. Failed preparation protects all claimed bundle files.
 The 2026-10-04 source-patch #5 change adds a composed Node preload to installed
 Ruflo/Brain hook manifests. The existing stable runtime owns private bounded failure receipts;
 native commands, stdin/stdout, exit codes and update ownership remain unchanged. Payloads,
 environment values and arbitrary output are excluded. Native hook retirement checks unwrap only
 this exact owned preload before proving the underlying command. Retirement requires equivalent
-native attributed diagnostics. Brain #390 adds operator-authorized, reversible suspension of
+native attributed diagnostics.
+Native Codex trust migration uses compare-and-swap only for the exact previously trusted
+command preimage and the owned wrapper, symmetrically on removal; unrelated settings and
+unapproved hooks cannot inherit trust. Metadata-only verification is not execution acceptance.
+Brain #390 adds operator-authorized, reversible suspension of
 automatic full-snapshot progression capture/replay/restore. Existing records and queues remain;
 search, grounding, native updates, independent material events and explicit checkpoints are not
 replaced. Managed CLI retains authorization and truthful command results, with explicit suspension

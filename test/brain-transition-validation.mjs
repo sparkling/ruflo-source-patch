@@ -59,5 +59,20 @@ try {
   assert.equal(patch.preflight().ok, false);
   assert(compose.applyComposed([patch.NAME]).incomplete > 0);
   assert.equal(fs.readFileSync(active, 'utf8'), identity, 'native active selection remains untouched');
+  // Exact tagged v4.5.7 source: native satisfaction is independent of version identity.
+  const native457 = fs.readFileSync(new URL('./fixtures/brain-transition-validation/native-4.5.7.mjs', import.meta.url), 'utf8');
+  assert(patch.nativeSatisfied(native457));
+  assert.deepEqual(patch.patchSource(native457), { next: native457, applied: [], missing: [] });
+  exerciseTransitionSource(native457, contract);
+  write(file, native457);
+  assert.equal(patch.preflight().ok, true);
+  assert.equal(probeTransitionValidationReplacement({ files: [file] }).state, 'superseded');
+  const nativeApply = compose.applyComposed([patch.NAME]);
+  assert.equal(nativeApply.incomplete, 0, JSON.stringify(nativeApply));
+  assert.equal(nativeApply.patched, 0, 'native source is not rewritten');
+  const broken457 = native457.replaceAll('if (snapshots.length && !restored.ok)', 'if (false)');
+  assert.equal(patch.nativeSatisfied(broken457), false);
+  assert.throws(() => exerciseTransitionSource(broken457, contract));
+  assert.equal(patch.nativeSatisfied(native457 + native457), false);
   console.log('brain-transition-validation: native equivalence, one restore, public validation, ancestry/digest/foreign/collision/dedup/receipt guards, exact composition and retirement passed');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }

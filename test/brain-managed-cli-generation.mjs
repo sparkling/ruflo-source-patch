@@ -136,5 +136,31 @@ try {
   for (const file of patcher.discover()) write(file, nativeEquivalent);
   const native = probeManagedCliGenerationReplacement({ installed: [] }); assert.equal(native.state, 'superseded', native.evidence);
   assert.equal(fs.readFileSync(selector, 'utf8'), selected, 'native update selector is untouched');
+  const nativeRoot = new URL('./fixtures/brain-managed-cli-generation/native-4.5.7/', import.meta.url);
+  const native457 = Object.fromEntries([['server', 'server'], ['dispatcher', 'managed-cli-generation'], ['managed', 'managed-cli-interface']]
+    .map(([key, name]) => [key, fs.readFileSync(new URL(name + '.mjs', nativeRoot), 'utf8')]));
+  const { exerciseNativeGeneration } = await import('../lib/brain-managed-cli-generation/native-probe.mjs');
+  assert(patcher.nativeSatisfied(native457.server));
+  assert.deepEqual(patcher.patchSource(native457.server), { next: native457.server, applied: [], missing: [] });
+  await exerciseNativeGeneration(native457, path.join(temporary, 'native457'));
+  for (const [label, changed] of [
+    ['stamp-binding', { ...native457, managed: native457.managed.replace('receipt.generation !== binding', 'false') }],
+    ['identity', { ...native457, dispatcher: native457.dispatcher.replace("manifest.name !== 'ruvnet-brain'", 'false') }],
+    ['immutable', { ...native457, dispatcher: native457.dispatcher.replace('pinned && pinned !== selected.sourceDigest', 'false') }],
+  ]) await assert.rejects(exerciseNativeGeneration(changed, path.join(temporary, 'native457-' + label)), undefined, label);
+  for (const file of patcher.discover()) {
+    write(file, native457.server);
+    write(path.join(path.dirname(file), 'managed-cli-generation.mjs'), native457.dispatcher);
+    write(path.join(path.dirname(file), 'managed-cli-interface.mjs'), native457.managed);
+  }
+  assert.equal(patcher.preflight().ok, true);
+  const nativeProof = probeManagedCliGenerationReplacement({ installed: [] });
+  assert.equal(nativeProof.state, 'superseded', nativeProof.evidence);
+  const nativeApply = compose.applyComposed([patcher.NAME]);
+  assert.equal(nativeApply.incomplete, 0, JSON.stringify(nativeApply)); assert.equal(nativeApply.patched, 0);
+  const dispatcher = path.join(path.dirname(patcher.discover()[0]), 'managed-cli-generation.mjs');
+  write(dispatcher, native457.dispatcher.replace("manifest.name !== 'ruvnet-brain'", 'false'));
+  assert.equal(patcher.preflight().ok, false, 'a native-looking shell does not prove its helper is safe');
+  write(dispatcher, native457.dispatcher);
   console.log('✓ Brain #384: missing persistent manifest reproduced; selected owner, literal arguments, successful help, concurrent promotion, path/manifest refusal, exact restoration, composition and executable retirement');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }

@@ -6,6 +6,10 @@ import { patchSource, reverseSource, isPatched } from '../lib/brain-host-recover
 import { modernInstallerEdits } from '../lib/brain-console-lifecycle/modern.mjs';
 const read = name => fs.readFileSync(new URL('./fixtures/brain-host-recovery/' + name, import.meta.url), 'utf8');
 const installer = read('installer.mjs'), scheduler = read('scheduler.mjs');
+const nativeScheduler = read('scheduler-native-4.5.7.mjs').trimEnd() + '\n\nfunction sameExecutable() {}';
+assert.deepEqual(patchSource(nativeScheduler), { next: nativeScheduler, applied: [], missing: [] });
+assert(!nativeScheduler.includes('ruflo-source-patch'));
+assert(patchSource(nativeScheduler.replace("entry?.required !== false", 'true')).missing.length);
 for (const source of [installer, scheduler]) {
   const result = patchSource(source);
   assert.deepEqual(result.missing, []);
@@ -79,6 +83,7 @@ const describe = (source, value) => vm.runInNewContext(source.replace('export fu
   + '\ndescribeFailedRefreshRun(receipt)', { receipt: value }, { timeout: 1000 });
 assert.match(describe(scheduler, refresh), /failed at cleanup/);
 assert.equal(describe(patchSource(scheduler).next, refresh), 'failed at host-convergence: pending trust');
+assert.equal(describe(nativeScheduler, refresh), 'failed at host-convergence: pending trust');
 assert.equal(describe(patchSource(scheduler).next, { ...refresh, status: 'PASS' }), null);
 assert.equal(describe(patchSource(scheduler).next, { ...refresh, requiredPhaseOrder: ['different'] }), null);
 // Sibling doctor insertion remains composable and removal preserves unrelated bytes.

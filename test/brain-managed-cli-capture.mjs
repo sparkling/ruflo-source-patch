@@ -11,6 +11,15 @@ const fixture = fileURLToPath(new URL('./fixtures/brain-managed-cli-capture/', i
 const write = (file, source) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, source); };
 const transform = (source) => { const result = patcher.patchSource(source); return result.missing.length ? source : result.next; };
 try {
+  const native457 = fileURLToPath(new URL('./fixtures/brain-managed-cli-native-457/', import.meta.url));
+  assert.equal(probeCaptureBehavior(native457).state, 'proven', 'tagged native 4.5.7 passes exact action/no-op/redaction/receipt behavior');
+  for (const spec of patcher.SPECS) {
+    const native = fs.readFileSync(path.join(native457, spec.relative), 'utf8');
+    assert(patcher.nativeSatisfied(native));
+    assert.deepEqual(patcher.patchSource(native), { next: native, applied: [], missing: [] });
+    assert(!patcher.hasPatch(native), 'native satisfaction is not local ownership');
+    assert(!patcher.nativeSatisfied(native.replace('function toolAction(', 'function alteredAction(').replace('export function buildProjectProgression(', 'export function alteredProducer(')));
+  }
   assert.equal(probeCaptureBehavior(fixture).state, 'live', 'actual native 4.5.4 code reproduces refusal before a new managed action');
   assert.equal(probeCaptureBehavior(fixture, { transform }).state, 'proven', 'native producer/writer replay proves actions, retention, redaction and receipt refusal');
   const patchedRoot = path.join(temporary, 'staged-native');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { patchSource, reverseSource, isPatched, ANCHOR, INSERT } from '../lib/brain-continuity-summary/patcher.mjs';
+import { patchSource, reverseSource, isPatched, nativeSatisfied, ANCHOR, INSERT } from '../lib/brain-continuity-summary/patcher.mjs';
 import { exerciseSummary } from '../lib/brain-continuity-summary/probe.mjs';
 import { patchSource as collision, reverseSource as reverseCollision } from '../lib/brain-progression-collision/patcher.mjs';
 const source = fs.readFileSync(new URL('./fixtures/brain-continuity-summary/native-summary.mjs', import.meta.url), 'utf8');
@@ -27,3 +27,14 @@ for (const mutation of [
   INSERT.replace('summariesDigest: digestCanonical(rows)', "summariesDigest: 'invented'"),
 ]) assert.throws(() => exerciseSummary(patched.next.replace(INSERT, mutation)), 'mutation must fail');
 console.log('Brain continuity summary: native failure, bounded projection, immutable evidence, exact digests, mandatory refusal, reverse/drift/mutation proof', proof);
+
+// Exact v4.5.7 function slice from stuinfla/ruvnet-brain tag; no installed files read.
+const native457 = fs.readFileSync(new URL('./fixtures/brain-continuity-summary/native-4.5.7.mjs', import.meta.url), 'utf8');
+assert(nativeSatisfied(native457));
+assert.deepEqual(patchSource(native457), { next: native457, applied: [], missing: [] });
+exerciseSummary(native457);
+const broken457 = native457.replace('conflictsDigest: digestCanonical(conflicts)', "conflictsDigest: 'invented'");
+assert.equal(nativeSatisfied(broken457), false);
+assert(patchSource(broken457).missing.length, 'unknown native grouping must refuse instead of layering the legacy edit');
+assert.throws(() => exerciseSummary(broken457), undefined, 'native conflict evidence cannot be invented');
+assert.equal(nativeSatisfied(native457 + native457), false);

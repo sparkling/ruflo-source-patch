@@ -303,5 +303,69 @@ check('BMB33 CLI uninstall removes tracked state only after exact restoration',
     && !JSON.parse(fs.readFileSync(path.join(HOME, '.ruflo-source-patch', 'state.json'), 'utf8')).pluginTargets
       .includes('brain-managed-memory-boundary'), cliRemove.stdout + cliRemove.stderr);
 
+console.log('\nNative modular dispatcher compatibility (Brain 4.5.7)');
+const modularSource = fs.readFileSync(new URL('./fixtures/brain-managed-cli-generation/native-4.5.7/server.mjs', import.meta.url), 'utf8');
+const modular = transforms.patchMcp(modularSource);
+check('BMB34 modular server gets exactly the three diagnostic edits', modular.missing.length === 0 && modular.applied.length === 3);
+check('BMB35 modular reverse restores exact upstream source', transforms.reverseMcp(modular.next) === modularSource);
+check('BMB36 native generation dispatcher import/call remain intact',
+  modular.next.includes("import { dispatchManagedCli } from './managed-cli-generation.mjs';")
+  && modular.next.includes('await dispatchManagedCli(params.name, params.arguments || {})'));
+for (const [name, source] of [
+  ['duplicate', modularSource + modularSource],
+  ['missing import', modularSource.replace("import { dispatchManagedCli } from './managed-cli-generation.mjs';", '// missing native owner')],
+  ['changed route', modularSource.replace('await dispatchManagedCli(', 'await unknownDispatcher(')],
+]) check('BMB37 fail closed on ' + name, transforms.patchMcp(source).missing.length > 0);
+const dispatchStart = modular.next.indexOf("      if (params?.name === MANAGED_MEMORY_DIAGNOSTIC_TOOL.name)");
+const dispatchEnd = modular.next.indexOf('      refreshLease();', dispatchStart);
+const nativeCalls = [], diagnosticCalls = [];
+const modularHandler = new Function('dispatchManagedCli', 'callManagedMemoryDiagnostic', 'MANAGED_MEMORY_DIAGNOSTIC_TOOL',
+  'clientOk', 'clientErr', 'return async (params,id)=>{'+modular.next.slice(dispatchStart, dispatchEnd)+'}')(
+  async (name, args) => { nativeCalls.push({ name, args }); return { native: name, args }; },
+  async args => { diagnosticCalls.push(args); return { diagnostic: true, args }; },
+  { name: 'agentdb_diagnostic_read' }, (id, result) => ({ id, result }), (id, code, message) => ({ id, code, message }));
+const literalArgs = { executable: 'ruflo', argv: ['status', 'space value', '$(literal)'] };
+for (const name of ['ruvnet_cli_help', 'ruvnet_cli_run', 'ruvnet_registry_latest']) {
+  const reply = await modularHandler({ name, arguments: literalArgs }, 42);
+  check('BMB38 native route preserved: ' + name, reply.id === 42 && reply.result.native === name && reply.result.args === literalArgs);
+}
+const diagnosticReply = await modularHandler({ name: 'agentdb_diagnostic_read', arguments: { reason: 'synthetic boundary proof' } }, 43);
+check('BMB39 diagnostic dispatch stays separate from native generation dispatch',
+  diagnosticReply.result.diagnostic === true && nativeCalls.length === 3 && diagnosticCalls.length === 1);
+const listed = new Function('SEARCH_TOOL', 'MANAGED_CLI_TOOLS', 'MANAGED_MEMORY_DIAGNOSTIC_TOOL',
+  modular.next.match(/^const FALLBACK_TOOLS = .*;$/m)[0] + ';return FALLBACK_TOOLS;')(
+  { name: 'search_ruvnet' }, [{ name: 'ruvnet_cli_help' }], { name: 'agentdb_diagnostic_read' });
+check('BMB40 diagnostic appears exactly once beside native declarations', listed.filter(tool => tool.name === 'agentdb_diagnostic_read').length === 1 && listed.length === 3);
+// Reuse the existing isolated generation transition: the real atomic installer owns every additive.
+write(path.join(nextRoot, 'mcp/server.mjs'), modularSource);
+write(path.join(RUNTIME, 'mcp/server.mjs'), modularSource);
+const modularApply = patcher.apply();
+check('BMB41 complete modular native transaction installs together', modularApply.errors === 0 && modularApply.incomplete === 0, JSON.stringify(modularApply));
+check('BMB42 full transaction enables safe shared-server composition', patcher.composerPreflight().ok);
+const { probeNativeGeneration } = await import('../lib/brain-managed-cli-generation/native-probe.mjs');
+const generationFixture = new URL('./fixtures/brain-managed-cli-generation/native-4.5.7/', import.meta.url);
+for (const root of [nextRoot, RUNTIME]) for (const name of ['managed-cli-generation', 'managed-cli-interface']) {
+  write(path.join(root, 'mcp', name + '.mjs'), fs.readFileSync(new URL(name + '.mjs', generationFixture), 'utf8'));
+}
+const composedProof = probeNativeGeneration(path.join(nextRoot, 'mcp/server.mjs'));
+check('BMB42a generation proof uses exact saved native composition', composedProof.ok, composedProof.evidence);
+const generationPatcher = await import('../lib/brain-managed-cli-generation/patcher.mjs');
+const generationPreflight = generationPatcher.preflight();
+check('BMB42d generation preflight accepts the complete installed boundary', generationPreflight.ok, generationPreflight.errors.join('\n'));
+
+const composedServer = path.join(nextRoot, 'mcp/server.mjs'), exactComposition = fs.readFileSync(composedServer, 'utf8');
+write(composedServer, exactComposition + '\n// unexplained retained-marker drift\n');
+check('BMB42b generation proof refuses unexplained composition drift', !probeNativeGeneration(composedServer).ok);
+write(composedServer, exactComposition);
+const pristineFile = composedServer + '.rsp-backup', pristineBody = fs.readFileSync(pristineFile, 'utf8');
+write(pristineFile, pristineBody + '\n// foreign pristine\n');
+check('BMB42c generation proof refuses an unproved backup', !probeNativeGeneration(composedServer).ok);
+write(pristineFile, pristineBody);
+check('BMB43 second install is byte-stable', patcher.apply().patched === 0);
+const modularRestore = patcher.restore();
+check('BMB44 exact modular uninstall preserves native generation dispatch', modularRestore.errors === 0 && modularRestore.incomplete === 0
+  && fs.readFileSync(path.join(nextRoot, 'mcp/server.mjs'), 'utf8') === modularSource
+  && fs.readFileSync(path.join(RUNTIME, 'mcp/server.mjs'), 'utf8') === modularSource);
+
 if (failures) process.exit(1);
 console.log('\n✓ brain-managed-memory-boundary: detector, denial, diagnostic, updater coexistence, and removal proven');

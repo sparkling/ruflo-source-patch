@@ -72,5 +72,18 @@ try {
   write(member, patched.next.split('\n').filter(line => !line.includes(patcher.PATCH_MARKER)).join('\n'));
   assert.equal(brainOutboxStreamingSupersession().check().state, 'superseded', 'marker-free executable native replacement required');
   assert.equal(fs.readFileSync(active, 'utf8'), activeBytes, 'native updater selection unchanged');
+  const native457 = fs.readFileSync(new URL('./fixtures/brain-outbox-streaming/native-4.5.7.mjs', import.meta.url), 'utf8');
+  assert(patcher.nativeSatisfied(native457));
+  assert.deepEqual(patcher.patchSource(native457), { next: native457, applied: [], missing: [] });
+  await exerciseOutbox(native457, path.join(temporary, 'native457'));
+  write(member, native457);
+  assert.equal(patcher.preflight().ok, true);
+  assert.equal(brainOutboxStreamingSupersession().check().state, 'superseded');
+  const nativeApply = compose.applyComposed([patcher.NAME]);
+  assert.equal(nativeApply.incomplete, 0, JSON.stringify(nativeApply));
+  assert.equal(nativeApply.patched, 0, 'native outbox is not rewritten');
+  const broken457 = native457.replace('line += 1;', 'line += 2;');
+  assert.equal(patcher.nativeSatisfied(broken457), false);
+  await assert.rejects(exerciseOutbox(broken457, path.join(temporary, 'native457-broken')));
   console.log('✓ Brain #387: native JSONL semantics, UTF-8 seams, exact append/fsync/torn suffixes/quarantine, >V8-string journal, shared pristine restoration and executable retirement');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }

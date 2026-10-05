@@ -8,13 +8,24 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+**Catalog reviewed 2026-10-05:** the [target tables](#targets) cover all registered patch
+targets, including the recent memory, managed-CLI, progression and hook-diagnostic repairs.
+Their presence in the catalog does not mean they are active in every installed copy.
+Use `all status` and `monitor check` for installed source state; verify live MCP calls and
+the owning host's hook trust separately after activation. A version bump or successful
+installation alone does not prove a native replacement or a healthy running session.
+
+## Historical audit from 2026-09-19
+
+The following records that audit's artifacts and findings, not today's fleet state.
+
 The 2026-09-19 audit used the installed Ruflo 3.42.4, ruflo-core 0.2.6,
 MetaHarness 0.10.2, and Brain's natively activated 4.3.10 generation. The
 existing retired targets remain retired on their per-target behavior proofs;
 no additional target passed its native-replacement proof. Ruflo's partial
 `memory_stats` repair, ruflo-core's renamed hook lookup, and Brain's added
 `ruvnet_registry_latest` dispatcher route changed exact source shapes without
-closing their respective residual gaps. The three active patch transforms now
+closing their respective residual gaps. The three active patch transforms were extended to
 recognize those shapes. A newer Brain registry version is not treated as an
 activated generation or as evidence that an installed patch may retire.
 Brain 4.3.10 also deliberately ships an empty Codex lifecycle-hook registry;
@@ -22,7 +33,7 @@ the legacy `codex-hooks` target retires on that exact declaration and does not
 recreate implicit hooks that Brain has withdrawn.
 On the Mac host, a later native Brain KB refresh also fixed the `symbolRoute`
 inherited-key crash and moved MCP/CLI outage guidance to a shared diagnosis-first
-helper. `brain-search-safety` now retires only after executing the route probe and
+helper. `brain-search-safety`'s retirement contract requires executing the route probe and
 proving both callers use that safe helper; a missing or permissive helper fails closed.
 
 ```bash
@@ -82,10 +93,11 @@ Retirement requires equivalent native behavior for the scenarios in
 `test/ruflo-memory-stats.mjs`, not issue closure alone. Unknown source changes fail
 visibly instead of being rewritten speculatively.
 
-Ruflo 3.42.4 includes a partial native #3311 fix: a working listing is no longer
-overruled by the raw initialization probe. It still enumerates the store for
-statistics and supplies unproved fallback feature/version labels, so this target
-remains active. Its exact handler is now supported alongside older source shapes.
+In the 2026-09-19 audit, Ruflo 3.42.4 included a partial native #3311 fix: a working listing
+was no longer overruled by the raw initialization probe. It still enumerated the store for
+statistics and supplied unproved fallback feature/version labels, so this target
+remained active on that artifact. Its exact handler is supported alongside older source shapes;
+current installed behavior must pass the retirement probe independently.
 
 ## Native graph work withdrawn
 
@@ -135,8 +147,8 @@ the Codex TUI alone is not proof of reconnection. No MCP is killed by these targ
 ## Wrapper/runtime mismatch guard
 
 Tracked upstream in [Ruflo #3306](https://github.com/ruvnet/ruflo/issues/3306).
-An inspected installation reports `ruflo@3.41.2` while its wrapper executes
-`@claude-flow/cli@3.33.0`. The published wrapper dependency, `^3.33.0`, permits
+The historical reproduction documented on 2026-09-12 reported `ruflo@3.41.2` while its wrapper
+executed `@claude-flow/cli@3.33.0`. The published wrapper dependency, `^3.33.0`, permits
 that combination; the wrapper's version output alone does not identify the
 implementation running an MCP server. This is an observed installation, not a
 claim that every fresh install resolves the older runtime.
@@ -197,12 +209,16 @@ selection and hook fallback, not merely closure of the issue. Regression coverag
 
 ## Contents
 
+- [Historical audit from 2026-09-19](#historical-audit-from-2026-09-19)
 - [Install](#install)
 - [Targets](#targets)
   - [Patch targets](#patch-targets)
   - [Plugin patches](#plugin-patches)
+    - [Hook failure diagnostics](#hook-failure-diagnostics)
+    - [Ruflo persistence and policy](#ruflo-persistence-and-policy)
     - [ruflo-adr](#ruflo-adr)
     - [Ruflo plugins under Codex](#ruflo-plugins-under-codex)
+    - [Ruflo instruction generators](#ruflo-instruction-generators)
     - [ruvnet-brain](#ruvnet-brain)
     - [MetaHarness under Codex](#metaharness-under-codex)
     - [all ruflo plugins](#all-ruflo-plugins)
@@ -240,6 +256,8 @@ selection and hook fallback, not merely closure of the issue. Regression coverag
   - [One install, every repo](#one-install-every-repo)
 - [Tested](#tested)
 - [Upstream issues](#upstream-issues)
+  - [Recent repair coverage reviewed 2026-10-05](#recent-repair-coverage-reviewed-2026-10-05)
+  - [Historical upstream audits](#historical-upstream-audits)
 - [Limits](#limits)
 - [License](#license)
 
@@ -306,6 +324,8 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
+| **`ruflo-learning-stats`** | Reports store-scoped learning counters honestly, reads retained patterns independently, and commits concurrent counter increments under the existing bounded lock without stale-snapshot overwrite. Pending increments remain process-local until a successful flush. | [#2245](https://github.com/ruvnet/ruflo/issues/2245) |
+| **`ruflo-sqlite-owner`** | Resolves native SQLite through ControllerRegistry's actual dependency owner for graph and repair/initializer handles, preventing competing native SQLite libraries from managing the same file. It neither borrows and closes the registry handle nor replaces the database. | [#3693](https://github.com/ruvnet/ruflo/issues/3693) |
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. | [#3314](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306](https://github.com/ruvnet/ruflo/issues/3306) |
@@ -330,10 +350,45 @@ npx ruflo@latest plugins host-refresh --name ruflo-metaharness
 npx ruflo@latest plugins host-refresh --name ruflo-graph-intelligence
 ```
 
+The `memory` target also refreshes durable tier views through their existing native
+connection so long-lived readers see another writer's replacements and deletions;
+failed refreshes preserve the last complete view and report failure. This repairs
+residual cache visibility above the fallback introduced for [#2887](https://github.com/ruvnet/ruflo/issues/2887)
+and [PR #2966](https://github.com/ruvnet/ruflo/pull/2966), without claiming the original
+lost-write bug remains open or opening a second database owner.
+
 ### Plugin patches
 
 Installed plugin copies get patched, not just `@claude-flow/cli`. Same shape as the patch targets
 above, same actions, and the same fail-closed ownership/pristine discipline.
+
+#### Hook failure diagnostics
+
+| Target | What it fixes | Issue |
+|--------|---------------|-------|
+| **`hook-failure-log`** | Attributes installed Node hook failures to their script and process while preserving native output, exceptions and exit behavior. Private receipts exclude stdin/payloads and raw stderr; retention prunes old completed records without deleting live invocation evidence. | [sparkling/ruflo-source-patch #5](https://github.com/sparkling/ruflo-source-patch/issues/5) |
+
+Receipts live under `~/.ruflo-source-patch/hook-failures` with private directory/file modes.
+They contain execution metadata, stderr byte counts/digests and known failure classifications,
+not the user prompt or tool payload. Successful completed receipts are removed. This target
+changes command declarations, so host-owned hook trust and live activation must be checked;
+install/uninstall transfers trust only from the exact previously approved command hash to
+its owned logger wrapper or back. Native compare-and-swap writes preserve unrelated settings;
+new, untrusted, disabled or unexplained modified hooks still require native review. An existing
+control server receives a reload request; the metadata-only fallback verifies disk state and
+does not claim an existing standalone session refreshed or a hook ran. It does not repair the
+underlying failure. No native retirement predicate is
+registered yet; equivalent attributed native diagnostics remain the upstream acceptance goal.
+
+#### Ruflo persistence and policy
+
+These targets use the plugin composition framework but patch installed CLI runtime modules.
+They preserve the native store and policy owners. Actions: `install` · `uninstall` · `status`.
+
+| Target | What it fixes | Upstream |
+|--------|---------------|----------|
+| **`ruflo-pattern-receipt`** | Requires a successful delegated pattern store and exact namespace/key/content readback before acknowledging fallback persistence. Covers the MCP handler and memory bridge; a failed native controller cannot acquire a misleading persisted note. | [#3691](https://github.com/ruvnet/ruflo/issues/3691) |
+| **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164](https://github.com/ruvnet/ruflo/issues/3164) |
 
 #### ruflo-adr
 
@@ -375,9 +430,26 @@ A different package/plugin surface, the same machinery, and the same reason to b
 re-fetch, Brain bundle refresh, or `/plugin update` reverts a hand-edit silently.
 Actions: `install` · `uninstall` · `status`
 
+Version-specific findings in the legacy rows record the artifact on which the original gap or
+replacement was proved. The current host's `status` and native replacement probe determine its
+installed disposition; those historical version numbers are not a fresh fleet audit.
+
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
+| **`brain-grounding-evidence`** | Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316](https://github.com/stuinfla/ruvnet-brain/issues/316) |
+| **`brain-grounding-code`** | Excludes recognized JS/Python comments and standalone Python docstrings from code-grounding demands; executable content, product paths and uncertain edits retain the native requirement. | [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) |
+| **`brain-router-imports`** | Resolves omitted flat router imports through their existing native Console helpers; does not substitute a new router implementation. | [#341](https://github.com/stuinfla/ruvnet-brain/issues/341) |
+| **`brain-transition-notice`** | Deduplicates repeated pending-transition warnings through the native session ledger, preserving the first warning, distinct failures, durable capture and exact readback requirements. | [#380](https://github.com/stuinfla/ruvnet-brain/issues/380) |
+| **`brain-managed-cli-capture`** | Reuses the native redacted action projection before progression no-op comparison so a real managed command is captured while unchanged lifecycle events remain no-op. | [#382](https://github.com/stuinfla/ruvnet-brain/issues/382) |
+| **`brain-progression-collision`** | Binds frozen deferred events to content and preserves historical collisions as independently verified sibling snapshots. Existing rows/conflict evidence survive; failed readback retains pending work. | [#383](https://github.com/stuinfla/ruvnet-brain/issues/383) |
+| **`brain-managed-cli-generation`** | Uses the validated native-selected generation's actual manifest and managed-CLI adapter. Successful help authorizes only that generation; a promotion requires fresh help before execution. | [#384](https://github.com/stuinfla/ruvnet-brain/issues/384) |
+| **`brain-transition-validation`** | Reuses one verified native restore within a normalized transition. The public builder still restores independently; complete history, ancestry and persistence validation are retained. | [#385](https://github.com/stuinfla/ruvnet-brain/issues/385) |
+| **`brain-managed-cli-diagnostics`** | Keeps terminal errors/signals beside nonempty command output and in redacted native observations, instead of masking a timeout or exit failure with stdout. | [#386](https://github.com/stuinfla/ruvnet-brain/issues/386) |
+| **`brain-outbox-streaming`** | Reads the complete append-only journal incrementally beyond Node's whole-string limit, preserving record order, conflict evidence and native final-tail semantics. This alone does not bound all historical object memory or restore work. | [#387](https://github.com/stuinfla/ruvnet-brain/issues/387) |
+| **`brain-continuity-summary`** | Bounds optional displayed observations and repeated conflict summaries with omission/digest evidence. Exact goals/actions and canonical snapshots remain intact; mandatory oversized state still fails honestly. | [#389](https://github.com/stuinfla/ruvnet-brain/issues/389) |
+| **`brain-progression-suspension`** | Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390](https://github.com/stuinfla/ruvnet-brain/issues/390) |
+| **`brain-host-recovery`** | Uses fresh Codex host declarations in doctor and identifies the causal failed refresh phase while preserving historical failure records, host trust and the native update lifecycle. | [#391](https://github.com/stuinfla/ruvnet-brain/issues/391) |
 | **`flywheel-daily`** | **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53](https://github.com/stuinfla/ruvnet-brain/issues/53) |
 | **`codex-hooks`** | **Retired.** Brain 4.0.2 replaced the legacy bridge with a native six-event lifecycle. Brain 4.3.10 subsequently withdrew automatic host hooks and ships an explicit schema-valid empty Codex registry. The target accepts either proven native state and never recreates hooks Brain deliberately removed; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52](https://github.com/stuinfla/ruvnet-brain/issues/52) |
 | **`brain-codex-skills`** | **Retired on executable proof in Brain 4.0.12.** The active immutable plugin payload contains the skill, manifest, curated notes, and `scripts/whats-new.mjs`; the installed executable returns its exact version and fails nonzero when the notes are removed. The retirement restores only locally owned legacy bytes and preserves the native workflow | [stuinfla/ruvnet-brain#76](https://github.com/stuinfla/ruvnet-brain/issues/76) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
@@ -386,9 +458,21 @@ Actions: `install` · `uninstall` · `status`
 | **`brain-release-lockstep`** | Keeps Brain's read-only doctor and footprint reporting fail-closed on bundle/package/Stable-Spine/Claude/Codex version drift. The protected release rail now publishes 4.0.36 coherently, but pristine 4.0.36 doctor still compares only bundle versus Claude wrapper, calls drift “normal,” and excludes it from `allGreen`; the issue's doctor acceptance criterion remains open in its body. All eight exact 4.0.36 anchors still apply. The patch never invokes or changes Brain's updater, downloads, immutable versions, `active.json`, host caches, hooks, MCP, or learning runtime | [stuinfla/ruvnet-brain#77](https://github.com/stuinfla/ruvnet-brain/issues/77) |
 | **`brain-memory-doctor-roots`** | **Retired on executable proof in Brain 4.0.12.** The active standalone doctor finds common and configured roots without `~/Code`, preserves explicit-root scope, fails an all-invalid configured set, falls back safely from malformed configuration, and shares `candidateRoots()` / `findStores()` with the Console | [stuinfla/ruvnet-brain#81](https://github.com/stuinfla/ruvnet-brain/issues/81) · [PR #93](https://github.com/stuinfla/ruvnet-brain/pull/93) |
 | **`brain-managed-memory-boundary`** | Keeps the direct managed-store boundary complete above installed Brain 4.3.10. #102's structural detector and #103's opt-in `managedMemoryBoundary` setting are native and preserved. The default remains advisory, host non-execution is explicitly unproved, and the audited diagnostic plus truthful doctor/Console states are absent. The target adds only default refusal and the bounded diagnostic, preserving 4.3.10's native `ruvnet_registry_latest` dispatch and Brain's update plane | [stuinfla/ruvnet-brain#102](https://github.com/stuinfla/ruvnet-brain/issues/102) · [#103](https://github.com/stuinfla/ruvnet-brain/issues/103) · follow-up to [#48](https://github.com/stuinfla/ruvnet-brain/issues/48#issuecomment-5169487947) |
-| **`brain-search-safety`** | **Retires on native active-KB proof.** Older KB copies need an own-array `symbolRoute` guard and non-mutating outage guidance. The current Mac KB exports a safe route and shares diagnosis-first guidance across MCP/CLI; retirement executes the route and checks both callers plus the helper. A missing or permissive helper cannot retire the patch. The target never changes stores, sidecars, models, updater state, version identity, or release selection | [stuinfla/ruvnet-brain#224](https://github.com/stuinfla/ruvnet-brain/issues/224) · [#225](https://github.com/stuinfla/ruvnet-brain/issues/225) |
+| **`brain-search-safety`** | **Retires on native active-KB proof.** Older KB copies need an own-array `symbolRoute` guard and non-mutating outage guidance. The historical Mac audit found a safe route and shared diagnosis-first guidance; retirement executes the installed route and checks both callers plus the helper. A missing or permissive helper cannot retire the patch. The target never changes stores, sidecars, models, updater state, version identity, or release selection | [stuinfla/ruvnet-brain#224](https://github.com/stuinfla/ruvnet-brain/issues/224) · [#225](https://github.com/stuinfla/ruvnet-brain/issues/225) |
 | **`brain-dual-host-receipt`** | Preserves Brain's complete subscription-only dual-host deliberation while removing its direct `ruflo memory store` child process. The coordinator emits an exact `memory_store` request for its MCP-aware caller and reports learning persisted only when an injected callback proves the same key was stored and read back. It patches the already-active persistent runtime and deployed helper after native activation; it does not touch Brain releases, updater state, AgentDB files, WAL sidecars, host authentication, or model execution | [stuinfla/ruvnet-brain#272](https://github.com/stuinfla/ruvnet-brain/issues/272) |
 | **`brain-dual-host-stdin`** | Keeps complete cross-host proposals and critiques off argv, where Linux caps a single argument at roughly 128 KiB on common 4 KiB-page systems. It pipes the prompt to both native subscription CLIs over stdin without truncation or plaintext temporary files, while retaining Claude's plan/tool boundary and Codex's ephemeral read-only boundary | [stuinfla/ruvnet-brain#273](https://github.com/stuinfla/ruvnet-brain/issues/273) |
+
+**Upstream status reviewed 2026-10-05:** Brain 4.5.7 includes native outbox containment and
+operator suspension for [#390](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062).
+The [frontier proposal](https://github.com/stuinfla/ruvnet-brain/blob/v4.5.7/docs/proposals/0390-progression-frontier-proposal.md)
+remains proposed; mature-history capture and restore within host deadlines are not established.
+Native suspension passes our tagged-source behavioral checks and can replace the overlay
+after the installed copies pass and the official persisted setting is written and read back.
+Status never changes that setting; failed preparation protects the complete bundle. This is
+not proof of restored continuity. Other native replacements remain subject to installed,
+marker-free behavioral retirement checks. Publication of 4.5.7 alone does not
+retire a target or establish that a host has activated it. None of these targets drives Brain's
+updater, selects/promotes a release, rewrites version identity or alters its KB/cache data.
 
 On native Brain 4.5.2, `brain-grounding-evidence` retires after all installed stamp/Stop pairs
 pass executable ordinary/card, failed/empty/forged, stale-evidence and unrelated-write checks.
@@ -467,17 +551,19 @@ exact readback remain required; no snapshots are dropped and no persistent valid
 Codex does not turn third-party plugin commands into root slash commands like Claude Code does. Browse
 these through `/skills`, or invoke them explicitly as `$ruflo-core:ruflo-status`,
 `$ruvnet-brain:brain-console`, `$ruvnet-brain:rvbc`, and `$ruvnet-brain:whats-new`.
-A new Codex session is required after install because the session loads its skill inventory at
-startup. Brain 4.3.3 still exposes the Codex half of the live-update edge now tracked in
+A new Codex session may be required for changed boot-loaded skill declarations; source installation
+does not prove that an existing session has refreshed its catalog or MCP modules.
+The 2026-08-31 audit of Brain 4.3.3 reproduced the Codex half of the live-update edge tracked in
 [#223](https://github.com/stuinfla/ruvnet-brain/issues/223): fresh sessions must discover only the
 registry generation, while an already-open session must retain a readable catalog path until its
 lease/grace period ends. [#128](https://github.com/stuinfla/ruvnet-brain/issues/128) fixed stale
 fresh-session discovery, and [#153](https://github.com/stuinfla/ruvnet-brain/issues/153) added
 PID-incarnation leases for Claude's cache. The shipped pruning path and `.in_use` leases remain
-Claude-only; Codex's host-native refresh can therefore delete the absolute versioned skill path held
-by a live boot catalogue. There is deliberately no downstream cache/updater shim: save work and
-restart the affected Codex session once to rebuild its catalogue, then wait for the upstream
-dual-host lease/GC fix.
+Claude-only in that artifact; Codex's host-native refresh could therefore delete the absolute
+versioned skill path held by a live boot catalogue. This is a historical finding, not a declaration
+that every later release retains it. There is deliberately no downstream cache/updater shim.
+If a current session holds a missing path, save work and use its supported same-conversation
+restart to rebuild the catalog; assess current host recovery separately from this older audit.
 
 #### MetaHarness under Codex
 
@@ -916,7 +1002,7 @@ truth; nothing else should have to be.
 
 Keeps an unreadable or partially written ADR graph from looking healthy.
 
-Current `ruflo-adr` 0.4.1 has three coupled I/O defects:
+The 2026-08-31 audit of `ruflo-adr` 0.4.1 found three coupled I/O defects:
 
 - `verify.mjs` maps spawn failures, nonzero exits, and malformed JSON to `[]`, omits `--limit`, and
   can certify an unreadable or truncated graph as a healthy `0/0` graph.
@@ -1664,6 +1750,14 @@ neighbours.
 
 ## Tested
 
+The runner also includes focused suites for the recent targets: native SQLite dependency ownership,
+exact fallback pattern receipts, immutable verified policy serialization, hook failure attribution,
+transition notice/validation, managed CLI capture/generation/terminal diagnostics, progression
+collisions, streaming outbox reads, bounded continuity summaries, explicit operator suspension and
+fresh host recovery. These exercise isolated fixtures, anchor drift, exact composition/removal and
+the relevant native behavioral boundaries. They do not establish that an existing host process has
+reloaded or that automatic continuity works on a mature live history. Verify those separately.
+
 `npm test` runs a property fuzzer: 60 random sequences × 8 steps over
 `{cwd, daemon, memory} × {install, uninstall, status}`, with a monitor tick after **every** step,
 asserting after every step:
@@ -1735,7 +1829,45 @@ A test that cannot fail is worth nothing, and you only find out by making it fai
 
 ## Upstream issues
 
-Issue state is evidence to inspect, never the retirement signal. The full audit was refreshed on
+Issue state is evidence to inspect, never the retirement signal. A source fix or closed issue becomes
+a retirement only after the installed native artifact passes the relevant behavior proof.
+
+### Recent repair coverage reviewed 2026-10-05
+
+This table links the recent registered repairs to their acceptance boundary. It is not an assertion
+that every host has activated the patch, or that the issue remains open today. The target catalog
+above includes the older repairs and their issue mappings too.
+
+| Issue | Registered target | Acceptance and current limitation |
+|-------|-------------------|-----------------------------------|
+| [Ruflo #3693](https://github.com/ruvnet/ruflo/issues/3693) | `ruflo-sqlite-owner` | One native dependency owner across graph/repair and registry paths; no competing library or closed borrowed handle. |
+| [Ruflo #3691](https://github.com/ruvnet/ruflo/issues/3691) | `ruflo-pattern-receipt` | Successful native store plus exact namespace/key/content readback; failed persistence must remain a failure in both MCP and bridge handlers. |
+| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization` | Immutable full-state serialization reduces duplicate work while retaining every receipt, full validation and authorization. Remaining history growth is not solved by serialization alone. |
+| [Ruflo #3688](https://github.com/ruvnet/ruflo/issues/3688) | `ruflo-swarm-codex-hooks` | Declared command hooks must reach a strict Codex manifest without changing Claude modules or granting hook trust. |
+| [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380) | `brain-transition-notice` | Same-session pending notices may deduplicate; distinct failures and exact persistence requirements must remain visible. Native release changes require behavior proof. |
+| [Brain #382](https://github.com/stuinfla/ruvnet-brain/issues/382) | `brain-managed-cli-capture` | Real actions must enter native capture before no-op comparison, with redaction and accurate receipts. |
+| [Brain #383](https://github.com/stuinfla/ruvnet-brain/issues/383) | `brain-progression-collision` | Frozen collisions must preserve both immutable histories and conflict evidence; a new sibling requires independent exact readback before consuming work. |
+| [Brain #384](https://github.com/stuinfla/ruvnet-brain/issues/384) | `brain-managed-cli-generation` | Dispatch and successful-help authorization must bind to the validated native-selected generation, including promotion races and missing/unsafe manifests. |
+| [Brain #385](https://github.com/stuinfla/ruvnet-brain/issues/385) | `brain-transition-validation` | One verified restore per capture, with independent public-builder validation and unchanged invalid-history/dedup/ancestry behavior. This does not bound cumulative history. |
+| [Brain #386](https://github.com/stuinfla/ruvnet-brain/issues/386) | `brain-managed-cli-diagnostics` | Nonempty stdout must not hide timeout/signal/error evidence; durable observations must preserve the real terminal outcome. |
+| [Brain #387](https://github.com/stuinfla/ruvnet-brain/issues/387) | `brain-outbox-streaming` | Complete ordered journal reads beyond the whole-string limit; unknown drift and malformed records fail closed. Native 4.5.7 containment requires its own installed proof. |
+| [Brain #389](https://github.com/stuinfla/ruvnet-brain/issues/389) | `brain-continuity-summary` | Display bounds preserve exact goals/actions and canonical evidence. A fitting summary is not proof of successful persistence or bounded restoration. |
+| [Brain #390](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062) | `brain-progression-suspension` | **Partially addressed upstream in 4.5.7:** native outbox containment and operator suspension are replacement candidates. Bounded mature-history capture/restore remains unproved; retain explicit suspension and pending evidence until behavior and migration preservation are verified. |
+| [Brain #391](https://github.com/stuinfla/ruvnet-brain/issues/391) | `brain-host-recovery` | Native causal failure attribution is accepted after reviewed-source proof. Fresh host identity/trust proof remains patched and must preserve historical failures; a previous failed receipt alone must not misclassify a healthy fresh host. |
+| [Local #5](https://github.com/sparkling/ruflo-source-patch/issues/5) | `hook-failure-log` | Attributed private hook failure receipts without payload logging or execution changes. No automatic native retirement predicate is registered. |
+
+The [4.5.7 #390 assessment](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062)
+separates tested outbox containment and native suspension from the still-proposed verified frontier.
+It does not relabel earlier 4.5.4/4.5.5 timings as 4.5.7 results. Publication is distinct from native
+host activation, and equivalent native behavior is distinct from successful downstream installation.
+
+### Historical upstream audits
+
+The remainder records the 2026-08-15 and 2026-08-31 audits, with subsequent explicitly versioned
+findings. Its open/closed labels and references to “current” code describe those audit artifacts,
+not a 2026-10-05 recheck of every issue. Preserve this evidence when assessing a newer replacement.
+
+The full audit was refreshed on
 2026-08-15 against exact published Ruflo 3.38.12, `ruflo-core` 0.2.6, active Claude/Codex caches,
 published Brain 4.0.36, current upstream issue threads, and exact installed behavior. A focused
 2026-08-31 revalidation reproduced Ruflo #3143 on 3.38.20 and the Codex cache-lifecycle gap in active
@@ -1750,7 +1882,7 @@ track native update-plane defects that this downstream package must not replace.
 remains reproducible in `metaharness@0.4.7` and `@metaharness/host-codex@0.1.2`.
 
 **"Fixed upstream" is a claim about a runnable artifact, not a branch, version string, or
-closed label.** The table records the full acceptance result.
+closed label.** The historical table records acceptance results within the stated audit scope.
 
 | Issue | Verified verdict | Local result |
 |-------|------------------|--------------|

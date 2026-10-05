@@ -64,6 +64,7 @@ SUITES+=(brain-managed-cli-generation)
 SUITES+=(cross-engine-composition)
 SUITES+=(brain-progression-collision)
 SUITES+=(hook-failure-log)
+SUITES+=(brain-progression-suspension-native)
 SUITES+=(adr-edge-contract)
 SUITES+=(tiered-memory-coherence)
 tmp=$(mktemp -d); pids=(); fail=0

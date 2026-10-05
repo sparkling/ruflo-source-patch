@@ -135,3 +135,22 @@ for (const root of [active, cache]) for (const [i, spec] of patch.SPECS.entries(
   assert.equal(fs.readFileSync(path.join(root, spec.relative), 'utf8'), Object.values(sources)[i], 'exact composed uninstall restores pristine');
 }
 console.log('brain-transition-notice: exact transforms, truthful deduplication, capture receipts, degraded/continuity preservation, discovery and executable retirement checks passed');
+
+// Native 4.5.7 boundaries are copied from the upstream tag, without local patch markers.
+const native457 = Object.fromEntries(['notice', 'compat', 'direct'].map(name => [name,
+  fs.readFileSync(new URL(`./fixtures/brain-transition-notice/${name}-4.5.7.mjs`, import.meta.url), 'utf8')]));
+for (const source of Object.values(native457)) {
+  assert(patch.nativeSatisfied(source));
+  assert.deepEqual(patch.patchSource(source), { next: source, applied: [], missing: [] });
+  assert.equal(patch.nativeSatisfied(source + source), false);
+}
+await exerciseSources(native457, path.join(sandbox, 'native457'));
+for (const root of [active, cache]) for (const [i, spec] of patch.SPECS.entries()) write(path.join(root, spec.relative), Object.values(native457)[i]);
+assert.equal(patch.preflight().ok, true);
+assert.equal(probeTransitionNoticeReplacement({ files }).state, 'superseded');
+const nativeApply = compose.applyComposed(['brain-transition-notice']);
+assert.equal(nativeApply.incomplete, 0, JSON.stringify(nativeApply));
+assert.equal(nativeApply.patched, 0, 'native source stays byte identical');
+const nativeBroken = { ...native457, compat: native457.compat.replace('if (message)', 'if (false)') };
+assert.equal(patch.nativeSatisfied(nativeBroken.compat), false);
+await assert.rejects(exerciseSources(nativeBroken, path.join(sandbox, 'native457-broken')));

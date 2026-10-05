@@ -12,7 +12,7 @@ const { STABLE_LIB } = await import('../lib/cwd/paths.mjs');
 fs.mkdirSync(path.join(STABLE_LIB, 'hook-failure-log'), { recursive: true });
 fs.copyFileSync(runtime, path.join(STABLE_LIB, 'hook-failure-log/runtime.cjs'));
 const dir = path.join(home, '.ruflo-source-patch/hook-failures');
-const records = () => fs.existsSync(dir) ? fs.readdirSync(dir).flatMap(f => fs.readFileSync(path.join(dir, f), 'utf8').trim().split('\n').map(JSON.parse)) : [];
+const records = () => fs.existsSync(dir) ? fs.readdirSync(dir).flatMap(f => fs.readFileSync(path.join(dir, f), 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse)) : [];
 const run = code => spawnSync(process.execPath, ['--require', runtime, '-e', code], {
   env: { ...process.env, CLAUDE_PLUGIN_ROOT: '/fixture/plugin' }, encoding: 'utf8', input: 'PRIVATE_PROMPT_SENTINEL',
 });
@@ -72,3 +72,6 @@ fs.symlinkSync(other, path.join(unsafeHome, '.ruflo-source-patch/hook-failures')
 r = spawnSync(process.execPath, ['--require', runtime, '-e', 'process.exit(7)'], { env: { ...process.env, RUFLO_SOURCE_PATCH_HOME: unsafeHome } });
 assert.equal(r.status, 7); assert.deepEqual(fs.readdirSync(other), []);
 console.log('hook failure logging: reversible preload, native outcomes, missing module, child failures/timeouts, privacy, concurrency, retention, symlink refusal passed');
+await import('./hook-failure-log-trust.mjs');
+await import('./hook-failure-log-socket.mjs');
+await import('./hook-failure-log-stdio.mjs');

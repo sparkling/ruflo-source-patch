@@ -21,6 +21,18 @@ const sourceFor = relative => fs.readFileSync(relative === 'scripts/project-prog
   || relative === 'scripts/project-progression-contract.mjs' ? path.join(native, path.basename(relative)) : path.join(fixture, relative), 'utf8');
 const transform = source => { const result = patcher.patchSource(source); return result.missing.length ? source : result.next; };
 try {
+  const native457 = fileURLToPath(new URL('./fixtures/brain-managed-cli-native-457/', import.meta.url));
+  assert.equal(probeDiagnosticsBehavior(native457).state, 'proven', 'tagged native 4.5.7 preserves complete terminal and durable evidence');
+  for (const spec of patcher.SPECS) {
+    const source = fs.readFileSync(path.join(native457, spec.relative), 'utf8');
+    assert(patcher.nativeSatisfied(source));
+    assert.deepEqual(patcher.patchSource(source), { next: source, applied: [], missing: [] });
+    assert(!patcher.hasPatch(source));
+    const mutated = source.replace('function resultOf(', 'function alteredResult(')
+      .replace('function toolAction(', 'function alteredAction(')
+      .replace('export function recordManagedCliObservation(', 'export function alteredObservation(');
+    assert(!patcher.nativeSatisfied(mutated), 'unknown native boundary cannot masquerade as satisfaction');
+  }
   const staged = path.join(temporary, 'native');
   for (const relative of [...patcher.SPECS.map(spec => spec.relative), 'scripts/project-progression-contract.mjs']) write(path.join(staged, relative), sourceFor(relative));
   assert.equal(probeDiagnosticsBehavior(staged).state, 'live', 'native output masks actual timeout despite nonempty output');
