@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-04. Source-patch #5 adds a composed Node preload to installed
+**Updated**: 2026-10-05. ADR I/O safety includes the shared memory-safe edge helper in its four-file bundle.
+The 2026-10-04 source-patch #5 change adds a composed Node preload to installed
 Ruflo/Brain hook manifests. The existing stable runtime owns private bounded failure receipts;
 native commands, stdin/stdout, exit codes and update ownership remain unchanged. Payloads,
 environment values and arbitrary output are excluded. Native hook retirement checks unwrap only
@@ -130,8 +131,8 @@ shared KB. Its `hasPatch` is deliberately narrower than `isPatched`: native-equi
 status, while only the local marker proves ownership during reconciliation. The composition engine now
 prefers that explicit ownership predicate, preventing a marker-free upstream fix from being mistaken for
 an orphaned local patch that requires a backup (ADR-031).
-Ruflo #3147/#3097's `adr-io-safety` adds a descriptor-level preflight for its three-file plugin bundle.
-All active `verify.mjs`, `import.mjs`, and `reindex.mjs` members and exact anchors must pass before any
+Ruflo #3147/#3097's `adr-io-safety` adds a descriptor-level preflight for its four-file plugin bundle.
+All active `verify.mjs`, `import.mjs`, `reindex.mjs`, and `lib/index-records.mjs` members and exact anchors must pass before any
 member is written; one missing or drifted file protects every claimed file and remains visible in the
 status denominator (ADR-032).
 **Deciders**: Henrik Pettersen

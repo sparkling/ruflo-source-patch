@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-08-31
+**Updated**: 2026-10-05. Share a memory-safe edge identity, preserve legacy keys, and verify full edge values.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo-adr, agentdb, verification, import, reindex, atomicity
 
@@ -38,9 +39,9 @@ Add the issue-backed `adr-io-safety` target for
 [#3147](https://github.com/ruvnet/ruflo/issues/3147) and
 [#3097](https://github.com/ruvnet/ruflo/issues/3097).
 
-The target owns `verify.mjs`, `import.mjs`, and `reindex.mjs` as one composed bundle across every active
+The target owns `verify.mjs`, `import.mjs`, `reindex.mjs`, and `lib/index-records.mjs` as one composed bundle across every active
 Claude Code and Codex `ruflo-adr` marketplace/cache root. Before any write, a descriptor-level preflight
-requires all three regular, non-symlink files and all exact anchors. A missing or drifted member blocks
+requires all four regular, non-symlink files and all exact anchors. A missing or drifted member blocks
 the entire bundle. Status counts expected members before reading them.
 
 All runtime operations separate scan scope from store identity. A canonical project root must be proven
@@ -55,6 +56,15 @@ buffer, and explicit cap-plus-one. The whole stdout must parse as one JSON array
 nonempty string key and the expected namespace. Spawn error, signal, timeout, nonzero exit, malformed or
 non-array JSON, cap overflow, or malformed edge key prevents graph-health computation and exits nonzero.
 A successfully read empty graph remains valid.
+
+The shared record helper emits the deterministic memory-safe `relation:FROM:TO` key. Ruflo's
+shared MCP/CLI key validation (#3570) rejects the former arrow separator; this patch does not weaken
+that guard. Reads accept existing arrow/timestamp keys and unambiguous historical
+`relation-ADR-NNN-to-ADR-NNN` keys without rewriting the database. The verifier retrieves every
+full edge value through the managed CLI and requires its relation and endpoints to match the key.
+Missing, malformed or conflicting values fail verification. Native retirement must prove these
+identity contracts as well as the existing I/O guarantees. This is graph verification, not a
+claim that the installed verifier implements the skill's separately advertised status check.
 
 Importer compatibility remains serial until a native proven batch writer exists. Before the first store,
 both namespaces must be readable through the exact path. Each store must return a positive managed receipt
@@ -84,7 +94,7 @@ retire the patch; marker or issue state alone is likewise insufficient.
 - A successful import means a fresh managed process read back every exact submitted value and the final
   deterministic key sets match.
 - The destructive purge-first path is unavailable instead of relying on recovery after partial failure.
-- One drifted bundle member leaves all three vendor files untouched and reports the complete denominator.
+- One drifted bundle member leaves all four vendor files untouched and reports the complete denominator.
 
 ### Negative
 

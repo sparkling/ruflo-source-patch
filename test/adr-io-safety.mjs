@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { EDGE_HELPER_ANCHOR, EDGE_PARSE_ANCHOR } from '../lib/adr-io-safety/edge-contract.mjs';
 import {
   VERIFY_CLI_ANCHOR,
   VERIFY_IO_ANCHOR,
@@ -190,16 +191,17 @@ export const parseAdr = (file) => file.includes('002')
   ? { id: 'ADR-002', file, title: 'Two', status: 'accepted', links: [] }
   : { id: 'ADR-001', file, title: 'One', status: 'accepted', links: [{ relation: 'depends-on', from: 'ADR-001', to: 'ADR-002' }] };
 `);
-fs.writeFileSync(path.join(SCRIPTS, 'lib', 'index-records.mjs'), `
+const RECORDS_VENDOR = `
 export const CLI_PKG = '@claude-flow/cli@latest';
 export const adrRecordKey = (a) => a.id + '::' + a.file.split('/').pop();
 export const adrRecordValue = (a) => JSON.stringify({ id: a.id, title: a.title });
-export const edgeKey = (e) => e.relation + ':' + e.from + '->' + e.to;
+${EDGE_HELPER_ANCHOR}
 export const edgeValue = (e) => JSON.stringify(e);
 export const uniqueEdges = (edges) => [...new Map(edges.map((e) => [edgeKey(e), e])).values()];
 export const memoryStoreArgs = (ns, key, value) => [CLI_PKG, 'memory', 'store', '--namespace=' + ns, '--key=' + key, '--upsert', '--value=' + (typeof value === 'string' ? value : JSON.stringify(value))];
-export const parseEdgeKey = (key) => { const m = /^([^:]+):(.+)->(.+)$/.exec(key); return m ? { relation: m[1], from: m[2], to: m[3] } : null; };
-`);
+${EDGE_PARSE_ANCHOR}
+`;
+fs.writeFileSync(path.join(SCRIPTS, 'lib', 'index-records.mjs'), RECORDS_VENDOR);
 
 const FAKE_NPX = `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -263,14 +265,14 @@ const { probeNativeRoot } = await import('../lib/adr-io-safety/probes.mjs');
 const { applyComposed, composeSource, reconcile, statusComposed } = await import('../lib/plugin-compose.mjs');
 
 const applied = applyComposed(['adr-io-safety']);
-check('AIS1 all three active scripts patch only after bundle preflight',
-  applied.patched === 3 && statusComposed()['adr-io-safety'].patched === 3);
+check('AIS1 all four active scripts patch only after bundle preflight',
+  applied.patched === 4 && statusComposed()['adr-io-safety'].patched === 4);
 check('AIS2 each backup is exact vendor pristine',
   fs.readFileSync(path.join(SCRIPTS, 'verify.mjs.rsp-backup'), 'utf8') === VERIFY_VENDOR
   && fs.readFileSync(path.join(SCRIPTS, 'import.mjs.rsp-backup'), 'utf8') === IMPORT_VENDOR
   && fs.readFileSync(path.join(SCRIPTS, 'reindex.mjs.rsp-backup'), 'utf8') === REINDEX_VENDOR);
 const again = applyComposed(['adr-io-safety']);
-check('AIS3 re-apply is byte-idempotent', again.patched === 0 && again.unchanged === 3);
+check('AIS3 re-apply is byte-idempotent', again.patched === 0 && again.unchanged === 4);
 
 const run = (name, extra = {}) => {
   fs.writeFileSync(LOG, '');
@@ -342,8 +344,8 @@ check('AIS6 a cap-plus-one response refuses to claim completeness',
 
 const patterns = {}, edges = {};
 for (let i = 1; i <= 30; i++) patterns[`ADR-${String(i).padStart(3, '0')}::x.md`] = '{}';
-edges['supersedes:ADR-029->ADR-030'] = '{}';
-edges['supersedes:ADR-030->ADR-029'] = '{}';
+edges['supersedes:ADR-029->ADR-030'] = JSON.stringify({relation:'supersedes',from:'ADR-029',to:'ADR-030'});
+edges['supersedes:ADR-030->ADR-029'] = JSON.stringify({relation:'supersedes',from:'ADR-030',to:'ADR-029'});
 reset({ 'adr-patterns': patterns, 'adr-edges': edges, listCalls: 0 });
 result = run('verify.mjs', { VERIFY_FORMAT: 'json' });
 check('AIS7 verifier sees corruption beyond the old 20-row default', result.status === 1 && JSON.parse(result.stdout).cycles.length > 0);
@@ -385,18 +387,19 @@ check('AIS11 reindex dry-run remains non-mutating and explains the atomicity gap
   result.status === 0 && result.stdout.includes('atomic managed reconcile') && calls().length === 0);
 
 const restored = reconcile([], ['adr-io-safety']);
-check('AIS12 uninstall restores all three vendor files byte-for-byte', restored.errors === 0
+check('AIS12 uninstall restores all four vendor files byte-for-byte', restored.errors === 0
   && fs.readFileSync(path.join(SCRIPTS, 'verify.mjs'), 'utf8') === VERIFY_VENDOR
   && fs.readFileSync(path.join(SCRIPTS, 'import.mjs'), 'utf8') === IMPORT_VENDOR
-  && fs.readFileSync(path.join(SCRIPTS, 'reindex.mjs'), 'utf8') === REINDEX_VENDOR);
+  && fs.readFileSync(path.join(SCRIPTS, 'reindex.mjs'), 'utf8') === REINDEX_VENDOR
+  && fs.readFileSync(path.join(SCRIPTS, 'lib', 'index-records.mjs'), 'utf8') === RECORDS_VENDOR);
 
 fs.renameSync(path.join(SCRIPTS, 'reindex.mjs'), path.join(SCRIPTS, 'reindex.missing'));
 const before = fs.readFileSync(path.join(SCRIPTS, 'verify.mjs'), 'utf8');
 const blocked = applyComposed(['adr-io-safety']);
-check('AIS13 a missing bundle member reports 0/3 and blocks every write',
+check('AIS13 a missing bundle member reports 0/4 and blocks every write',
   blocked.incomplete > 0 && blocked.patched === 0
   && fs.readFileSync(path.join(SCRIPTS, 'verify.mjs'), 'utf8') === before
-  && statusComposed()['adr-io-safety'].files === 3
+  && statusComposed()['adr-io-safety'].files === 4
   && statusComposed()['adr-io-safety'].patched === 0);
 fs.renameSync(path.join(SCRIPTS, 'reindex.missing'), path.join(SCRIPTS, 'reindex.mjs'));
 
@@ -418,8 +421,8 @@ const cliEnv = {
 const install = spawnSync(process.execPath, [cli, 'adr-io-safety', 'install'], { env: cliEnv, encoding: 'utf8' });
 const status = spawnSync(process.execPath, [cli, 'adr-io-safety', 'status'], { env: cliEnv, encoding: 'utf8' });
 const uninstall = spawnSync(process.execPath, [cli, 'adr-io-safety', 'uninstall'], { env: cliEnv, encoding: 'utf8' });
-check('AIS15 public install/status/uninstall tracks 3/3 and restores exactly',
-  install.status === 0 && status.status === 0 && status.stdout.includes('3/3 file(s) patched')
+check('AIS15 public install/status/uninstall tracks 4/4 and restores exactly',
+  install.status === 0 && status.status === 0 && status.stdout.includes('4/4 file(s) patched')
   && uninstall.status === 0
   && fs.readFileSync(path.join(SCRIPTS, 'verify.mjs'), 'utf8') === VERIFY_VENDOR
   && fs.readFileSync(path.join(SCRIPTS, 'import.mjs'), 'utf8') === IMPORT_VENDOR
