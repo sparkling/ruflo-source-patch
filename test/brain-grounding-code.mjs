@@ -3,7 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { patchSource, reverseSource, isPatched, ANCHOR } from '../lib/brain-grounding-code/patcher.mjs';
+import { patchSource, reverseSource, isPatched, ANCHOR, preflight, applicability } from '../lib/brain-grounding-code/patcher.mjs';
+import { nativeSatisfied } from '../lib/brain-grounding-code/native.mjs';
+import { probeGroundingCodeReplacement } from '../lib/brain-grounding-code/probe.mjs';
+import { pluginStatusHealthy } from '../lib/plugin-registry.mjs';
+import { brainNativeSupersessions } from '../lib/brain-native/supersede.mjs';
 
 const root = fs.realpathSync(path.resolve(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-code-'))));
 const fixtures = new URL('./fixtures/brain-grounding-evidence/', import.meta.url);
@@ -88,3 +92,50 @@ fs.utimesSync(path.join(stamps, 'agentdb'), new Date(0), new Date(0));
 check(patched.next, 'import agentdb', 2);
 check(patched.next, incident, 0); // Prose never needed that expired stamp.
 console.log(`PASS brain-grounding-code: ${assertions} native gate replays, restoration and anchor drift`);
+
+// Public v4.5.9 fixes the reported incident through a stricter, conservative native projection.
+const nativeGuard = fs.readFileSync(new URL('./fixtures/brain-grounding-code/native-4.5.9.sh', import.meta.url), 'utf8');
+const nativeHelper = fs.readFileSync(new URL('./fixtures/brain-grounding-code/projection-native-4.5.9.mjs', import.meta.url), 'utf8');
+assert(nativeSatisfied(nativeGuard));
+assert.equal(isPatched(nativeGuard), true);
+assert.deepEqual(patchSource(nativeGuard), { next: nativeGuard, applied: [], missing: [] });
+assert.equal(reverseSource(nativeGuard), nativeGuard);
+for (const drift of [nativeGuard + nativeGuard,
+  nativeGuard.replace('PROJECTED_MISSING=""', 'PROJECTED_MISSING="agentdb"')]) {
+  assert.equal(nativeSatisfied(drift), false);
+  assert(patchSource(drift).missing.length);
+  assert.equal(patchSource(drift).next, drift);
+}
+const nativeRoot = path.join(root, 'native');
+const nativeScripts = path.join(nativeRoot, 'scripts');
+fs.mkdirSync(nativeScripts, { recursive: true });
+const nativeFile = path.join(nativeScripts, 'ground-before-write.sh');
+const helperFile = path.join(nativeScripts, 'grounding-code-projection.mjs');
+fs.writeFileSync(nativeFile, nativeGuard);
+assert.equal(preflight([nativeFile]).ok, false);
+assert.equal(applicability([nativeFile]).state, 'error');
+assert.equal(pluginStatusHealthy({ files: 1, patched: 1, applicability: applicability([nativeFile]) }), false);
+assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live');
+fs.writeFileSync(helperFile, nativeHelper);
+assert.equal(preflight([nativeFile]).ok, true);
+const proof = probeGroundingCodeReplacement({ files: [nativeFile] });
+assert.equal(proof.state, 'superseded', proof.evidence);
+assert.match(proof.evidence, /missing-helper refusal/);
+assert.equal(typeof brainNativeSupersessions['brain-grounding-code'].check, 'function');
+assert.match(brainNativeSupersessions['brain-grounding-code'].issue, /issues\/46$/);
+fs.writeFileSync(helperFile, nativeHelper.replace('throw new Error', 'return ""; //'));
+assert.equal(preflight([nativeFile]).ok, false);
+assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live');
+fs.unlinkSync(helperFile);
+const external = path.join(root, 'external-helper.mjs');
+fs.writeFileSync(external, nativeHelper);
+fs.symlinkSync(external, helperFile);
+assert.equal(preflight([nativeFile]).ok, false);
+assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live');
+fs.unlinkSync(helperFile);
+fs.writeFileSync(helperFile, nativeHelper);
+fs.writeFileSync(nativeFile, patched.next);
+assert.equal(preflight([nativeFile]).ok, true);
+assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live', 'older overlays cannot retire by version or nearby helper presence');
+assert.equal(probeGroundingCodeReplacement({ files: [] }).state, 'unknown');
+console.log('PASS brain-grounding-code: exact native guard/helper acceptance, behavioral retirement, missing/drifted/escaping helper refusal and legacy preservation');

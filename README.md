@@ -438,7 +438,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316](https://github.com/stuinfla/ruvnet-brain/issues/316) |
-| **`brain-grounding-code`** | Excludes recognized JS/Python comments and standalone Python docstrings from code-grounding demands; executable content, product paths and uncertain edits retain the native requirement. | [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) |
+| **`brain-grounding-code`** | **Retires on executable proof of Brain 4.5.9's native conservative projection.** Older copies receive the comment/docstring compatibility fix; current copies retain native executable, product-path, managed-memory and uncertain-context refusals. Missing, altered or escaping projection helpers fail visibly. | [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) · [#373](https://github.com/stuinfla/ruvnet-brain/issues/373) |
 | **`brain-router-imports`** | Resolves omitted flat router imports through their existing native Console helpers; does not substitute a new router implementation. | [#341](https://github.com/stuinfla/ruvnet-brain/issues/341) |
 | **`brain-transition-notice`** | Deduplicates repeated pending-transition warnings through the native session ledger, preserving the first warning, distinct failures, durable capture and exact readback requirements. | [#380](https://github.com/stuinfla/ruvnet-brain/issues/380) |
 | **`brain-managed-cli-capture`** | Reuses the native redacted action projection before progression no-op comparison so a real managed command is captured while unchanged lifecycle events remain no-op. | [#382](https://github.com/stuinfla/ruvnet-brain/issues/382) |
@@ -519,7 +519,12 @@ partial Edit/Update payloads keep their conservative requirement. Executable str
 uncertain syntax and unsupported languages retain the requirement; parser failure retains the
 vendor scan. The substance detector and managed-memory guard are unchanged. It patches the native
 active generation and matching hosts through exact anchors, pristine restoration and monitor
-reapplication. Retire only after marker-free upstream passes the same behavioral replay.
+reapplication. Brain 4.5.9 replaces that overlay with its conservative native projection (#373).
+Retirement requires reviewed guard/helper bytes in every discovered copy and 43 isolated native
+replays, including the original warning-docstring incident, executable/path/managed-memory refusals,
+missing-helper fallback and product-specific stamp expiry. Function docstrings and uncertain edits
+retain the stricter native policy. A version number or a nearby helper alone cannot retire the patch;
+missing, altered or symlinked helpers fail without changing installed source.
 
 `brain-transition-notice install` fixes [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380)
 by sharing the native bounded session notice ledger across both transition entrypoints. The first
