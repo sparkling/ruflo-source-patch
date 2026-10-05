@@ -10,6 +10,19 @@ rewritten and no promotion gate is relaxed. Exact pristine composition owns inst
 reapplication and uninstall; retirement requires marker-free native execution proving
 nested fractional evidence, deterministic identity, valid signatures and tamper refusal.
 
+`ruflo-champion-authority` protects ADR-322A's authoritative local promotion state from
+Ruflo 3.52.0's framework `applyChampion` startup path. Ruflo #2579 documents that
+framework auto-apply mechanism; it is source context, not a defect-specific report.
+The synchronous guard holds the existing `flywheel-v1/transaction-state.lock` across
+the ownership check and native write, using the native lock format and no stale-lock
+removal. Busy, malformed, committed or pending authority defers framework application.
+Absent state or the native empty-owner state retains ordinary framework adoption and
+updates. `applyChampionParams`, receipts, promotion gates and state files stay unchanged.
+The guard composes after project-root normalization. Behavioral proofs cover nested
+working directories, either installation/removal order, concurrent lock refusal and
+preservation of foreign or replaced locks. Retirement requires equivalent marker-free
+native behavior; the installed overlay cannot serve as its own retirement proof.
+
 ADR I/O safety includes the shared memory-safe edge helper in its four-file bundle.
 Brain 4.5.6/4.5.7 native replacements are recognized by reviewed executable boundaries and
 behavioral regression proofs. Unchanged native implementations are satisfied without local

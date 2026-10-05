@@ -83,6 +83,7 @@ import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contra
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
 import { rufloFlywheelEvidenceCommand } from '../lib/ruflo-flywheel-evidence/commands.mjs';
+import { rufloChampionAuthorityCommand } from '../lib/ruflo-champion-authority/commands.mjs';
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
 import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
@@ -142,6 +143,7 @@ const PLUGIN_PATCH_TARGETS = {
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
   'ruflo-flywheel-evidence': rufloFlywheelEvidenceCommand,
+  'ruflo-champion-authority': rufloChampionAuthorityCommand,
   'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
   'brain-progression-suspension': brainProgressionSuspensionCommand,
   'brain-host-recovery': brainHostRecoveryCommand,
@@ -214,6 +216,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
   ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)
+  ${pad('ruflo-champion-authority')}preserve local promotion authority during startup (ADR-322A; #2579 context)
   ${pad('ruflo-policy-serialization')}serialize verified policy state once, preserving all receipts and authorization (#3164)
   ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
