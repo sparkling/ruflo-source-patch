@@ -82,6 +82,7 @@ import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/com
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
+import { rufloFlywheelEvidenceCommand } from '../lib/ruflo-flywheel-evidence/commands.mjs';
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
 import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
@@ -140,6 +141,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
+  'ruflo-flywheel-evidence': rufloFlywheelEvidenceCommand,
   'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
   'brain-progression-suspension': brainProgressionSuspensionCommand,
   'brain-host-recovery': brainHostRecoveryCommand,
@@ -211,6 +213,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
+  ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)
   ${pad('ruflo-policy-serialization')}serialize verified policy state once, preserving all receipts and authorization (#3164)
   ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)

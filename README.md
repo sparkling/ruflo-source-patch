@@ -389,6 +389,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 |--------|---------------|----------|
 | **`ruflo-pattern-receipt`** | Requires a successful delegated pattern store and exact namespace/key/content readback before acknowledging fallback persistence. Covers the MCP handler and memory bridge; a failed native controller cannot acquire a misleading persisted note. | [#3691](https://github.com/ruvnet/ruflo/issues/3691) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164](https://github.com/ruvnet/ruflo/issues/3164) |
+| **`ruflo-flywheel-evidence`** | Reuses the native scale-12 encoder for nested verification/canary evidence before receipt identity and signing. Keeps strict verification and historical receipts unchanged. | [#3229 residual](https://github.com/ruvnet/ruflo/issues/3229) |
 
 #### ruflo-adr
 
@@ -1883,6 +1884,7 @@ above includes the older repairs and their issue mappings too.
 | [Ruflo #3693](https://github.com/ruvnet/ruflo/issues/3693) | `ruflo-sqlite-owner` | One native dependency owner across graph/repair and registry paths; no competing library or closed borrowed handle. |
 | [Ruflo #3691](https://github.com/ruvnet/ruflo/issues/3691) | `ruflo-pattern-receipt` | Successful native store plus exact namespace/key/content readback; failed persistence must remain a failure in both MCP and bridge handlers. |
 | [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization` | Immutable full-state serialization reduces duplicate work while retaining every receipt, full validation and authorization. Remaining history growth is not solved by serialization alone. |
+| [Ruflo #3229](https://github.com/ruvnet/ruflo/issues/3229) | `ruflo-flywheel-evidence` | Residual 3.52.0 evidence encoding; retirement requires native nested-fraction signing and strict tamper refusal. No historical migration or gate weakening. |
 | [Ruflo #3688](https://github.com/ruvnet/ruflo/issues/3688) | `ruflo-swarm-codex-hooks` | Declared command hooks must reach a strict Codex manifest without changing Claude modules or granting hook trust. |
 | [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380) | `brain-transition-notice` | Same-session pending notices may deduplicate; distinct failures and exact persistence requirements must remain visible. Native release changes require behavior proof. |
 | [Brain #382](https://github.com/stuinfla/ruvnet-brain/issues/382) | `brain-managed-cli-capture` | Real actions must enter native capture before no-op comparison, with redaction and accurate receipts. |

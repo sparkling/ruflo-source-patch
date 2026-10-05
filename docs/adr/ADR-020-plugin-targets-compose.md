@@ -2,7 +2,15 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-05. ADR I/O safety includes the shared memory-safe edge helper in its four-file bundle.
+**Updated**: 2026-10-05. `ruflo-flywheel-evidence` resolves the remaining #3229
+number-domain defect in native receipt evidence: the existing recursive scale-12
+encoder runs before receipt identity and signing. Strict signature, number-domain,
+unknown-field and statistical verification stay unchanged. No historical receipt is
+rewritten and no promotion gate is relaxed. Exact pristine composition owns install,
+reapplication and uninstall; retirement requires marker-free native execution proving
+nested fractional evidence, deterministic identity, valid signatures and tamper refusal.
+
+ADR I/O safety includes the shared memory-safe edge helper in its four-file bundle.
 Brain 4.5.6/4.5.7 native replacements are recognized by reviewed executable boundaries and
 behavioral regression proofs. Unchanged native implementations are satisfied without local
 ownership markers; unknown drift remains a visible refusal. Probes cover the shared native
