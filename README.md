@@ -438,7 +438,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316](https://github.com/stuinfla/ruvnet-brain/issues/316) |
-| **`brain-grounding-code`** | **Retires on executable proof of Brain 4.5.9's native conservative projection.** Older copies receive the comment/docstring compatibility fix; current copies retain native executable, product-path, managed-memory and uncertain-context refusals. Missing, altered or escaping projection helpers fail visibly. | [#373](https://github.com/stuinfla/ruvnet-brain/issues/373) · related substance gate [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) |
+| **`brain-grounding-code`** | **Retires on executable proof of Brain 4.5.9/4.5.10's native conservative projection.** The 4.5.10 proof additionally executes the repaired helper alias. Older copies receive the comment/docstring compatibility fix; current copies retain native executable, product-path, managed-memory and uncertain-context refusals. Missing, altered or escaping projection helpers fail visibly. | [#373](https://github.com/stuinfla/ruvnet-brain/issues/373) · related substance gate [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) |
 | **`brain-router-imports`** | Resolves omitted flat router imports through their existing native Console helpers; does not substitute a new router implementation. | [#341](https://github.com/stuinfla/ruvnet-brain/issues/341) |
 | **`brain-transition-notice`** | Deduplicates repeated pending-transition warnings through the native session ledger, preserving the first warning, distinct failures, durable capture and exact readback requirements. | [#380](https://github.com/stuinfla/ruvnet-brain/issues/380) |
 | **`brain-managed-cli-capture`** | Reuses the native redacted action projection before progression no-op comparison so a real managed command is captured while unchanged lifecycle events remain no-op. | [#382](https://github.com/stuinfla/ruvnet-brain/issues/382) |
@@ -480,6 +480,19 @@ not proof of restored continuity. Other native replacements remain subject to in
 marker-free behavioral retirement checks. Publication of 4.5.7 alone does not
 retire a target or establish that a host has activated it. None of these targets drives Brain's
 updater, selects/promotes a release, rewrites version identity or alters its KB/cache data.
+
+The [4.5.10 source](https://github.com/stuinfla/ruvnet-brain/tree/v4.5.10) adds capture privacy
+checks and repairs the grounding helper's alias entrypoint. Framework 4.46.32 accepts the exact
+reviewed replacements for grounding, action capture, diagnostics, transition validation,
+collision recovery and suspension. Shared isolated proofs execute the native privacy helper,
+preserve outcomes and source identity, propagate policy refusal, and retain frozen evidence
+when current exclusions would change it. Policy lookup and durable storage are inert test
+boundaries; these checks do not establish universal explicit consent or retroactive filtering.
+Older compatible versions remain covered. Source acceptance does not activate a Brain release.
+The bounded-history frontier is still unproved. The installer-help discrepancy
+[#400](https://github.com/stuinfla/ruvnet-brain/issues/400) and stale corpus reporting
+[#401](https://github.com/stuinfla/ruvnet-brain/issues/401) also remain in 4.5.10;
+their new automated acknowledgments are not fixes.
 
 The outbox target also accepts exact public 4.5.6 bytes after the ordered streaming proof;
 that version does not include 4.5.7's lazy replay containment. Console promotion can copy
@@ -527,6 +540,8 @@ replays, including the original warning-docstring incident, executable/path/mana
 missing-helper fallback and product-specific stamp expiry. Function docstrings and uncertain edits
 retain the stricter native policy. A version number or a nearby helper alone cannot retire the patch;
 missing, altered or symlinked helpers fail without changing installed source.
+Brain 4.5.10 adds a 44th replay proving that a CLI alias executes the same native projection.
+Mixed installed versions each receive their own behavior replay.
 
 `brain-transition-notice install` fixes [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380)
 by sharing the native bounded session notice ledger across both transition entrypoints. The first
