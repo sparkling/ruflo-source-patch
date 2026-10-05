@@ -464,6 +464,11 @@ installed disposition; those historical version numbers are not a fresh fleet au
 
 **Upstream status reviewed 2026-10-05:** Brain 4.5.7 includes native outbox containment and
 operator suspension for [#390](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062).
+The later [4.5.8 release](https://github.com/stuinfla/ruvnet-brain/compare/v4.5.7...v4.5.8)
+retains those sources and reduces validation allocation; it does not implement a bounded frontier.
+Its native host-declaration reconciliation is accepted only with exact installer boundaries and
+verified installed dependencies. Hook metadata cannot clear executable/MCP restart uncertainty;
+the older overlay now applies the same restriction and migrates only exact prior patch bytes.
 The [frontier proposal](https://github.com/stuinfla/ruvnet-brain/blob/v4.5.7/docs/proposals/0390-progression-frontier-proposal.md)
 remains proposed; mature-history capture and restore within host deadlines are not established.
 Native suspension passes our tagged-source behavioral checks and can replace the overlay
@@ -1860,7 +1865,7 @@ above includes the older repairs and their issue mappings too.
 | [Brain #387](https://github.com/stuinfla/ruvnet-brain/issues/387) | `brain-outbox-streaming` | Exact native 4.5.6 and 4.5.7 pass complete ordered journal reads beyond the whole-string limit; unknown drift and malformed records fail closed. Only 4.5.7 supplies the separately tested lazy replay containment. |
 | [Brain #389](https://github.com/stuinfla/ruvnet-brain/issues/389) | `brain-continuity-summary` | Display bounds preserve exact goals/actions and canonical evidence. A fitting summary is not proof of successful persistence or bounded restoration. |
 | [Brain #390](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062) | `brain-progression-suspension` | **Partially addressed upstream in 4.5.7:** native outbox containment and operator suspension are replacement candidates. Bounded mature-history capture/restore remains unproved; retain explicit suspension and pending evidence until behavior and migration preservation are verified. |
-| [Brain #391](https://github.com/stuinfla/ruvnet-brain/issues/391) | `brain-host-recovery` | Native causal failure attribution is accepted after reviewed-source proof. Fresh host identity/trust proof remains patched and must preserve historical failures; a previous failed receipt alone must not misclassify a healthy fresh host. |
+| [Brain #391](https://github.com/stuinfla/ruvnet-brain/issues/391) | `brain-host-recovery` | Native causal attribution and exact 4.5.8 declaration reconciliation are accepted with dependency proof. Older overlays stay restricted to known hook-manifest changes; executable/MCP readiness and historical failures remain unproven. |
 | [Local #5](https://github.com/sparkling/ruflo-source-patch/issues/5) | `hook-failure-log` | Attributed private hook failure receipts without payload logging or execution changes. No automatic native retirement predicate is registered. |
 
 The [4.5.7 #390 assessment](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062)
