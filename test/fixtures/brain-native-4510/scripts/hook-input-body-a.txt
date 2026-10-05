@@ -1,0 +1,300 @@
+export function normalizePayloadText(raw) {
+  const ev = (() => { try { const j = JSON.parse(raw); return j && typeof j === 'object' ? j : null; } catch { return null; } })();
+  return ev && isGrokEvent(ev) ? JSON.stringify(normalizeHostEvent(ev)) : raw;
+}
+
+/** Parse the raw stdin payload into the hook event object (Claude-shaped), or null if it isn't valid JSON. */
+export function parseHookEvent(raw) {
+  try {
+    const j = JSON.parse(raw);
+    return j && typeof j === 'object' ? normalizeHostEvent(j) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read one hook envelope without requiring EOF.
+ *
+ * Claude Code normally closes stdin after writing one JSON object. A defensive hook must also
+ * survive a host/adapter that leaves the pipe open, especially on Windows where readFileSync(0)
+ * waits for EOF even after all envelope bytes are available.
+ */
+export function readStdinBounded({ maxBytes = 65536, idleMs = 50, emptyMs = 250 } = {}) {
+  if (process.stdin.isTTY) return Promise.resolve(Buffer.alloc(0));
+  return new Promise((resolve) => {
+    const chunks = [];
+    let bytes = 0;
+    let settled = false;
+    let idleTimer;
+    let emptyTimer;
+
+    const cleanup = () => {
+      clearTimeout(idleTimer);
+      clearTimeout(emptyTimer);
+      process.stdin.off('data', onData);
+      process.stdin.off('end', onEnd);
+      process.stdin.off('error', onError);
+      process.stdin.pause();
+    };
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(Buffer.concat(chunks, bytes));
+    };
+    const armIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(finish, idleMs);
+    };
+    const onData = (chunk) => {
+      clearTimeout(emptyTimer);
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const remaining = maxBytes - bytes;
+      if (remaining > 0) {
+        const kept = buf.subarray(0, remaining);
+        chunks.push(kept);
+        bytes += kept.length;
+      }
+      if (bytes >= maxBytes) finish();
+      else armIdle();
+    };
+    const onEnd = () => finish();
+    const onError = () => finish();
+
+    process.stdin.on('data', onData);
+    process.stdin.once('end', onEnd);
+    process.stdin.once('error', onError);
+    emptyTimer = setTimeout(finish, emptyMs);
+    process.stdin.resume();
+  });
+}
+
+/**
+ * The Stop-hook payload with its provenance, shared by every Stop gate (was a verbatim copy in
+ * continuation-gate and grounding-turn-gate). Three sources, treated differently by callers:
+ * 'tty' (run bare, never force), 'unreadable' (read/parse failed — fs.readFileSync(0) throws EAGAIN
+ * intermittently on macOS; laundering that into {} would read as a fresh stop), 'stdin' (parsed — the
+ * only source allowed to force). ADR-043.
+ */
+export async function readStopHookInput() {
+  if (process.stdin.isTTY) return { __source: 'tty' };
+  try {
+    const raw = (await readStdinBounded()).toString('utf8');
+    return { ...normalizeHostEvent(JSON.parse(raw || '{}')), __source: 'stdin' };
+  } catch { return { __source: 'unreadable' }; }
+}
+
+/** The tool being invoked ("Bash", "Write", …), or "" if absent. */
+export function toolName(ev) {
+  return ev && typeof ev.tool_name === 'string' ? canonicalToolName(ev.tool_name) : '';
+}
+
+/**
+ * The Bash command, read from tool_input.command (Claude Code's real shape) with a top-level
+ * `.command` fallback. Correctly returns the WHOLE string including embedded quotes — the bug the
+ * old bash regex could not: `git commit -m "fix \"x\""` came back truncated at the first quote.
+ */
+export function commandOf(ev) {
+  if (!ev) return '';
+  const c = (ev.tool_input && ev.tool_input.command) ?? ev.command;
+  return typeof c === 'string' ? c : '';
+}
+
+/**
+ * The raw tool_response value from a PostToolUse event, untouched — a plain string for most MCP
+ * tools, an object for Bash. Verified live 2026-07-28 (ADR-058 §D3 VERIFY-FIRST clause) that the
+ * real Bash shape is `{ stdout, stderr, interrupted, isImage, noOutputExpected }` — see
+ * tests/fixtures/signal-watch/bash-posttooluse-envelopes.json for the captured envelopes and their
+ * provenance. Returns null when the field is absent, so a caller can tell "no response" from "empty
+ * string". This is the ONE place PostToolUse consumers read the field from, per the anti-corruption
+ * boundary in docs/ddd/0013-verdict-and-signal-context.md ("envelope field access ... never appear
+ * outside it") — callers convert this into their own small typed shape; this function invents none.
+ */
+export function rawToolResponse(ev) {
+  if (!ev || typeof ev !== 'object' || !('tool_response' in ev)) return null;
+  return ev.tool_response;
+}
+
+// ── HARNESS-GENERATED PROMPT DETECTION (H2) ─────────────────────────────────────────────────────
+//
+// WHY THIS LIVES HERE, and not only in scripts/correction-detect.mjs where it started. Background
+// task notifications, slash-command scaffolding, and other harness-authored bookkeeping arrive on
+// UserPromptSubmit exactly like real user text — wrapped in tags such as <task-notification>,
+// <local-command-caveat>, <command-name>, <local-command-stdout>, and <system-reminder>. None of
+// that is something a human typed, but before this fix every UserPromptSubmit consumer that reads
+// `prompt`/`user_prompt`/`input` reacted to it as if it were a real prompt: grounding-turn-mark.mjs
+// could arm the Stop-time grounding gate off a harness message that happens to mention a rUv term,
+// unprompted-runtime.mjs's producers could fire advisories at a background notification, and
+// capacity-aware-parallel-work.mjs could recommend a parallel-work fan-out for text nobody wrote.
+// scripts/correction-detect.mjs already carried the exact regex list needed to recognise these
+// (HARNESS_TEMPLATES, built from live corpus evidence — see that file's header for the measured
+// 29%-of-holdout-pool finding that justified it) but as a private, unexported-to-this-purpose copy
+// nothing else could reuse. This is now the ONE owner; correction-detect.mjs re-exports its old name
+// from here instead of keeping its own literal array (tests/unit/hook-input-harness.test.mjs proves
+// the two never drift).
+export const HARNESS_GENERATED_PATTERNS = [
+  /\[Your previous response/i,
+  /\[Request interrupted/i,
+  /<\/?system-reminder>/i,
+  /<\/?(?:command-name|command-message|command-args|local-command-stdout|local-command-stderr|local-command-caveat|task-notification|function_results|function_calls|budget)\b/i,
+  /^\s*Caveat:/i,
+  /Base directory for this skill:/i,
+  /This session is being continued from a previous conversation/i,
+  /^\s*#\s*claudeMd\b/im,
+  /\[INTELLIGENCE\]/i,
+];
+
+/** True when `promptText` is harness-authored bookkeeping rather than something a user typed. */
+export function isHarnessGenerated(promptText) {
+  const text = typeof promptText === 'string' ? promptText : String(promptText ?? '');
+  if (!text) return false;
+  return HARNESS_GENERATED_PATTERNS.some((re) => re.test(text));
+}
+
+/**
+ * The bash-portable EQUIVALENT of isHarnessGenerated(), for ground-ruvnet.sh — a hot, every-prompt
+ * hook (see its own header on the 38s-regression bounded-read fix) that must not pay a `node` spawn
+ * per prompt just for this check. This constant is exactly what ground-ruvnet.sh embeds as its own
+ * `grep -qiE` literal (SOURCE OF TRUTH here — tests/unit/hook-input-harness.test.mjs parses
+ * ground-ruvnet.sh's copy and asserts byte-identity, same idiom as ruvnet-gate1-pattern.mjs's own
+ * copy-with-a-drift-test for Gate 1). Its relationship to HARNESS_GENERATED_PATTERNS above is
+ * BEHAVIORAL parity only, not byte-identity: that is an array of independently-flagged regexes (one
+ * uses the 'm' flag) with no single source ERE it could be copied from verbatim, so the same test
+ * instead proves real `grep -qiE` against this string agrees with isHarnessGenerated() on
+ * representative inputs — the same idiom ruvnet-gate1-pattern.test.mjs uses for ITS third,
+ * non-identity assertion. POSIX `[[:space:]]` is used instead of `\s` and plain `(...)` instead of
+ * `(?:...)` — GNU/PCRE extensions with no POSIX ERE guarantee — because this string must run under
+ * whatever `grep` a user's shell resolves to, not only the one on the machine that wrote it.
+ */
+export const HARNESS_GENERATED_SHELL_PATTERN =
+  '\\[Your previous response|\\[Request interrupted|</?system-reminder>|</?(command-name|command-message|command-args|local-command-stdout|local-command-stderr|local-command-caveat|task-notification|function_results|function_calls|budget)\\b|^[[:space:]]*Caveat:|Base directory for this skill:|This session is being continued from a previous conversation|^[[:space:]]*#[[:space:]]*claudeMd\\b|\\[INTELLIGENCE\\]';
+
+/** Arbitrary dotted-path lookup (e.g. "tool_input.file_path"); "" if any segment is missing. */
+export function field(ev, dottedPath) {
+  if (!ev || !dottedPath) return '';
+  let cur = ev;
+  for (const k of String(dottedPath).split('.')) {
+    if (cur == null || typeof cur !== 'object') return '';
+    cur = cur[k];
+  }
+  if (cur == null) return '';
+  return typeof cur === 'string' ? cur : String(cur);
+}
+// ── Shell command classification ─────────────────────────────────────────────────────────────────
+//
+// WHY THIS IS A PARSER AND NOT A REGEX (2026-07-27, after issues #12, #13, #17, #41, #44 — four
+// filed defects and one live capture, all in 13 days, all the SAME defect in two different files).
+//
+//   #12 (07-13)  matched a tool name in PROSE and in a different binary (`ruflo-source-patch`).
+//   #13 (07-14)  a bash regex over the JSON payload truncated the command at the first quote.
+//   #41 (07-24)  a `|` inside a quoted grep pattern read as a real shell separator.
+//   #44 (07-26)  invocations nested in `bash -lc '…'`, backticks, and `"$( … )"` bypassed the gate.
+//   #17 (07-17)  design-wall.sh, a DIFFERENT gate: `[[ $CMD == *"git commit"* ]]` fires on prose.
+//                (The reporter said so verbatim in #17 and it was never acted on.)
+//   live (07-27) design-wall.sh blocked a maintainer because the words "agentic-qe integration plan"
+//                appeared inside a HEREDOC. Prose. Again.
+//
+// Every one of those fixes upgraded a pattern match over a FLAT STRING, and the next one arrived
+// within days. The class does not live in any of those patterns; it lives in the decision to ask a
+// string question about a structural fact. `ruflo memory search` is an invocation when `ruflo` is in
+// EXECUTABLE POSITION and text when it is not, and no amount of masking, anchoring, or escaping
+// makes a flat string able to tell those apart — the fifth patch would have failed the same way.
+//
+// THE INVARIANT, from here on: an enforcement gate classifies EXECUTABLE STRUCTURE, never a flat
+// string. This module is the one classifier. There is deliberately no regex fallback path in any
+// gate — a second path is exactly how this class survived four fixes.
+//
+// ── ARCHITECTURAL NOTE: THIS IS STILL THE WRONG BOUNDARY ─────────────────────────────────────────
+// Read this before adding a sixth patch to it.
+//
+// A parser beats the four regexes that preceded it, and it is still GOVERNING AT AN UNSTRUCTURED
+// BOUNDARY. The input is a shell command — a string a human or a model wrote, in a language with
+// quoting, substitution, heredocs, aliases, functions and `eval` — and this file's job is to
+// reconstruct the structure that the string only implies. Reconstruction is inference, inference has
+// a residual error rate, and every one of #12/#13/#41/#44 plus the 07-27 heredoc misfire is a sample
+// from it. Being right about all five is not the same as being right about the next one.
+//
+// rUv's own ecosystem does not do this. It governs where the structure is ALREADY EXPLICIT:
+//   • ruvector/npm/packages/ruvector/bin/mcp-policy.js (ADR-256) decides by TOOL NAME over the MCP
+//     tool registry — an allowlist with a default-deny posture, precedence DENY > ALLOW/PROFILE.
+//     There is no string to parse: the caller already said which tool it wants, by name.
+//   • cognitum-seed's src/cognitum-agent/src/mcp_tools.rs maps tool name → AuthClass over a declared
+//     tool table, and `tool_auth_class()` returns `AuthClass::Paired` for an unknown name — an
+//     explicit SAFE DEFAULT for the case this file has to guess at.
+// Both are total functions over a finite, declared surface. Neither can be fooled by a quote.
+//
+// THE LONG-TERM FIX, recorded so it is not rediscovered a sixth time: move interface verification to
+// the structured boundary — the tool-call surface, where the tool name and its arguments arrive as
+// fields rather than as text to be re-derived — and shrink string handling to the minimum that the
+// remaining raw-Bash surface genuinely requires. This file should get smaller over time, not larger.
+// A new patch here is a signal to move the boundary, not to deepen the parser.
+// Tracked as stuinfla/ruvnet-brain#48 and ADR-055 conflict-matrix finding F23. Both deliberately
+// remain open until the structured boundary has executable migration tests, not merely this note.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// WHAT IS A COMMAND, AND WHAT IS DATA:
+//   COMMAND  simple commands split at `;` `&&` `||` `|` `&` newline and group boundaries; `$( … )`
+//            and backticks (live at top level AND inside double quotes); process substitutions
+//            `<( … )`; literal `sh -c` / `bash -lc` / `bash -ic` / `/bin/sh -c` payloads, recursively.
+//   DATA     every quoted ARGUMENT, heredoc bodies, herestrings, `#` comments, single-quoted `$( … )`
+//            (single quotes suppress substitution), and `$(( … ))` arithmetic.
+//   UNKNOWN  a dynamic executable (`$TOOL foo`, `eval "$cmd"`, `bash -c "$cmd"`). The name is not in
+//            the text, so there is nothing to classify: it is reported as NOT a managed invocation
+//            and the gate fails open — #12's lesson, kept.
+
+const SHELL_EXES = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh']);
+const NPX_WRAPPERS = new Set(['npx', 'bunx', 'pnpx']);
+const MAX_DEPTH = 8;    // `bash -c 'bash -c "…"'` nests; hostile input must still terminate
+const MAX_NODES = 256;  // and must not produce unbounded output
+
+function baseName(p) { const i = p.lastIndexOf('/'); return i === -1 ? p : p.slice(i + 1); }
+
+/** Skip a double-quoted region; `i` is the index just past the opening quote. Returns the index past its close. */
+function skipDouble(src, i) {
+  while (i < src.length) {
+    const c = src[i];
+    if (c === '\\' && i + 1 < src.length) { i += 2; continue; }
+    if (c === '"') return i + 1;
+    if (c === '`') { i = readBacktick(src, i).next; continue; }
+    if (c === '$' && src[i + 1] === '(') { i = readParen(src, i + 2).next; continue; }
+    i++;
+  }
+  return src.length;
+}
+
+/** Read a `$( … )` body; `start` is the index just past `$(`. Quote- and nesting-aware. */
+function readParen(src, start) {
+  let depth = 1;
+  let i = start;
+  while (i < src.length) {
+    const c = src[i];
+    if (c === '\\' && i + 1 < src.length) { i += 2; continue; }
+    if (c === "'") { const e = src.indexOf("'", i + 1); i = e === -1 ? src.length : e + 1; continue; }
+    if (c === '"') { i = skipDouble(src, i + 1); continue; }
+    if (c === '`') { i = readBacktick(src, i).next; continue; }
+    if (c === '(') { depth++; i++; continue; }
+    if (c === ')') { depth--; if (depth === 0) return { body: src.slice(start, i), next: i + 1 }; i++; continue; }
+    i++;
+  }
+  return { body: src.slice(start), next: src.length };
+}
+
+/** Read a backtick substitution; `i` is the index of the opening backtick. */
+function readBacktick(src, i) {
+  let j = i + 1;
+  let body = '';
+  while (j < src.length) {
+    if (src[j] === '\\' && j + 1 < src.length && '$`\\'.includes(src[j + 1])) { body += src[j + 1]; j += 2; continue; }
+    if (src[j] === '`') return { body, next: j + 1 };
+    body += src[j]; j++;
+  }
+  return { body, next: src.length };
+}
+
+/** Skip `$(( … ))` arithmetic — not a command substitution, and its `<<` is not a heredoc. */
+function readArith(src, i) {
+  let depth = 0;
+  let j = i + 1;
+  while (j < src.length) {
+    if (src[j] === '(') depth++;

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { nativeSatisfied as groundingNative } from '../lib/brain-grounding-code/native.mjs';
 import { exerciseNativeGrounding, probeGroundingCodeReplacement } from '../lib/brain-grounding-code/probe.mjs';
-import { readCapturePrivacySources, evaluateCapturePrivacy } from '../lib/brain-native/capture-privacy-proof.mjs';
+import { readCapturePrivacySources, evaluateCapturePrivacy, isReviewedNativeCaptureNormalizer } from '../lib/brain-native/capture-privacy-proof.mjs';
 import * as capture from '../lib/brain-managed-cli-capture/patcher.mjs';
 import { probeCaptureBehavior } from '../lib/brain-managed-cli-capture/probe.mjs';
 import * as diagnostics from '../lib/brain-managed-cli-diagnostics/patcher.mjs';
@@ -43,6 +43,12 @@ try {
   const root = path.join(temporary, 'bundle');
   fs.cpSync(prior, root, { recursive: true });
   fs.cpSync(fixture, root, { recursive: true });
+  // Assemble the exact full public parser from bounded fixtures. Its later prose
+  // mentions our binary; a prefix-only fixture concealed the ownership refusal.
+  const fullNormalizer = ['hook-input.mjs', 'hook-input-body-a.txt', 'hook-input-body-b.txt']
+    .map(name => fixtureRead('scripts/' + name)).join('');
+  assert(isReviewedNativeCaptureNormalizer(fullNormalizer));
+  fs.writeFileSync(path.join(root, 'scripts/hook-input.mjs'), fullNormalizer);
   const nativeRead = relative => read(path.join(root, relative));
   const privacySources = readCapturePrivacySources(nativeRead);
   const privacy = evaluateCapturePrivacy(privacySources);
@@ -101,8 +107,22 @@ try {
   for (const [name, source] of Object.entries(sources).filter(([name]) => ['store', 'outbox'].includes(name)))
     fs.writeFileSync(path.join(root, `scripts/project-progression-${name}.mjs`), source);
   fs.writeFileSync(path.join(root, 'scripts/project-capture-queue.mjs'), sources.queue);
-  const collisionProof = probeProgressionCollisionReplacement({ files: collision.SPECS.map(spec => path.join(root, spec.relative)), installed: [] });
+  const collisionOptions = { files: collision.SPECS.map(spec => path.join(root, spec.relative)), installed: [] };
+  const collisionProof = probeProgressionCollisionReplacement(collisionOptions);
   assert.equal(collisionProof.state, 'superseded', collisionProof.evidence);
+  const normalizerFile = path.join(root, 'scripts/hook-input.mjs');
+  for (const changed of [fullNormalizer + '\n// unreviewed bytes\n',
+    fullNormalizer.replace('`ruflo-source-patch`', '`ruflo-source-patch (stuinfla/ruvnet-brain#383)`')]) {
+    assert(!isReviewedNativeCaptureNormalizer(changed));
+    fs.writeFileSync(normalizerFile, changed);
+    assert.notEqual(probeProgressionCollisionReplacement(collisionOptions).state, 'superseded',
+      'unreviewed bytes or an ownership marker cannot inherit the native prose exception');
+  }
+  fs.writeFileSync(normalizerFile, fullNormalizer);
+  fs.renameSync(normalizerFile, normalizerFile + '.real'); fs.symlinkSync(normalizerFile + '.real', normalizerFile);
+  assert.notEqual(probeProgressionCollisionReplacement(collisionOptions).state, 'superseded',
+    'an exact source digest cannot override regular-file containment');
+  fs.unlinkSync(normalizerFile); fs.renameSync(normalizerFile + '.real', normalizerFile);
 
   const suspensionFixture = fileURLToPath(new URL('./fixtures/brain-progression-suspension/native/', import.meta.url));
   const suspensionRoot = path.join(temporary, 'suspension'); fs.cpSync(suspensionFixture, suspensionRoot, { recursive: true });

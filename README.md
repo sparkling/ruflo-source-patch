@@ -489,9 +489,15 @@ preserve outcomes and source identity, propagate policy refusal, and retain froz
 when current exclusions would change it. Policy lookup and durable storage are inert test
 boundaries; these checks do not establish universal explicit consent or retroactive filtering.
 Older compatible versions remain covered. Source acceptance does not activate a Brain release.
-The bounded-history frontier is still unproved. The installer-help discrepancy
+The complete [4.5.11 published package](https://github.com/stuinfla/ruvnet-brain/tree/v4.5.11)
+retains these six native replacements. Framework 4.46.33 fixes our collision proof's false
+ownership refusal: the full upstream `hook-input.mjs` mentions our binary in documentation.
+Only that exact reviewed file digest receives the exception; changed bytes, local ownership
+markers and symlinks still fail. Regression fixtures now include the entire native parser.
+This repairs our checker, not Brain's progression runtime. Issue #390 remains open with no
+new maintainer resolution; its bounded-history frontier is still unproved. The installer-help discrepancy
 [#400](https://github.com/stuinfla/ruvnet-brain/issues/400) and stale corpus reporting
-[#401](https://github.com/stuinfla/ruvnet-brain/issues/401) also remain in 4.5.10;
+[#401](https://github.com/stuinfla/ruvnet-brain/issues/401) also remain in 4.5.11;
 their new automated acknowledgments are not fixes.
 
 The outbox target also accepts exact public 4.5.6 bytes after the ordered streaming proof;
