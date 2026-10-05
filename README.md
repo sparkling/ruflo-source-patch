@@ -438,7 +438,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316](https://github.com/stuinfla/ruvnet-brain/issues/316) |
-| **`brain-grounding-code`** | **Retires on executable proof of Brain 4.5.9's native conservative projection.** Older copies receive the comment/docstring compatibility fix; current copies retain native executable, product-path, managed-memory and uncertain-context refusals. Missing, altered or escaping projection helpers fail visibly. | [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) · [#373](https://github.com/stuinfla/ruvnet-brain/issues/373) |
+| **`brain-grounding-code`** | **Retires on executable proof of Brain 4.5.9's native conservative projection.** Older copies receive the comment/docstring compatibility fix; current copies retain native executable, product-path, managed-memory and uncertain-context refusals. Missing, altered or escaping projection helpers fail visibly. | [#373](https://github.com/stuinfla/ruvnet-brain/issues/373) · related substance gate [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) |
 | **`brain-router-imports`** | Resolves omitted flat router imports through their existing native Console helpers; does not substitute a new router implementation. | [#341](https://github.com/stuinfla/ruvnet-brain/issues/341) |
 | **`brain-transition-notice`** | Deduplicates repeated pending-transition warnings through the native session ledger, preserving the first warning, distinct failures, durable capture and exact readback requirements. | [#380](https://github.com/stuinfla/ruvnet-brain/issues/380) |
 | **`brain-managed-cli-capture`** | Reuses the native redacted action projection before progression no-op comparison so a real managed command is captured while unchanged lifecycle events remain no-op. | [#382](https://github.com/stuinfla/ruvnet-brain/issues/382) |
@@ -512,8 +512,8 @@ evidence, and verifies that generic evidence cannot authorize unrelated product 
 when marker-free upstream code passes those same checks; anchor drift fails visibly, never counts as
 a fix. Install with `npx github:sparkling/ruflo-source-patch brain-grounding-evidence install`.
 
-`brain-grounding-code install` narrows [Brain #46](https://github.com/stuinfla/ruvnet-brain/issues/46)'s
-recency scan to added JS/Python code. Comments and standalone Python docstrings warning against
+`brain-grounding-code install` addresses [Brain #373](https://github.com/stuinfla/ruvnet-brain/issues/373)'s
+false-positive recency scan by projecting added JS/Python code. Comments and standalone Python docstrings warning against
 AgentDB access do not require a product stamp. Complete Write/Codex Add payloads support docstrings;
 partial Edit/Update payloads keep their conservative requirement. Executable strings/imports, product-bearing paths,
 uncertain syntax and unsupported languages retain the requirement; parser failure retains the
