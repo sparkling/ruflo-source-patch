@@ -474,6 +474,13 @@ marker-free behavioral retirement checks. Publication of 4.5.7 alone does not
 retire a target or establish that a host has activated it. None of these targets drives Brain's
 updater, selects/promotes a release, rewrites version identity or alters its KB/cache data.
 
+The outbox target also accepts exact public 4.5.6 bytes after the ordered streaming proof;
+that version does not include 4.5.7's lazy replay containment. Console promotion can copy
+an already patched installer without its adjacent patch backup. Recovery requires a healthy
+peer with the same package, version and executable identity, one unique marker-free pristine,
+and exact reproduction of both installed compositions. Missing, foreign or ambiguous evidence
+fails visibly and preserves the executable; this recovery does not select or promote a Brain release.
+
 On native Brain 4.5.2, `brain-grounding-evidence` retires after all installed stamp/Stop pairs
 pass executable ordinary/card, failed/empty/forged, stale-evidence and unrelated-write checks.
 `brain-dual-host-stdin` similarly requires every installed coordinator to load and deliver byte-exact
@@ -1850,7 +1857,7 @@ above includes the older repairs and their issue mappings too.
 | [Brain #384](https://github.com/stuinfla/ruvnet-brain/issues/384) | `brain-managed-cli-generation` | Dispatch and successful-help authorization must bind to the validated native-selected generation, including promotion races and missing/unsafe manifests. |
 | [Brain #385](https://github.com/stuinfla/ruvnet-brain/issues/385) | `brain-transition-validation` | One verified restore per capture, with independent public-builder validation and unchanged invalid-history/dedup/ancestry behavior. This does not bound cumulative history. |
 | [Brain #386](https://github.com/stuinfla/ruvnet-brain/issues/386) | `brain-managed-cli-diagnostics` | Nonempty stdout must not hide timeout/signal/error evidence; durable observations must preserve the real terminal outcome. |
-| [Brain #387](https://github.com/stuinfla/ruvnet-brain/issues/387) | `brain-outbox-streaming` | Complete ordered journal reads beyond the whole-string limit; unknown drift and malformed records fail closed. Native 4.5.7 containment requires its own installed proof. |
+| [Brain #387](https://github.com/stuinfla/ruvnet-brain/issues/387) | `brain-outbox-streaming` | Exact native 4.5.6 and 4.5.7 pass complete ordered journal reads beyond the whole-string limit; unknown drift and malformed records fail closed. Only 4.5.7 supplies the separately tested lazy replay containment. |
 | [Brain #389](https://github.com/stuinfla/ruvnet-brain/issues/389) | `brain-continuity-summary` | Display bounds preserve exact goals/actions and canonical evidence. A fitting summary is not proof of successful persistence or bounded restoration. |
 | [Brain #390](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062) | `brain-progression-suspension` | **Partially addressed upstream in 4.5.7:** native outbox containment and operator suspension are replacement candidates. Bounded mature-history capture/restore remains unproved; retain explicit suspension and pending evidence until behavior and migration preservation are verified. |
 | [Brain #391](https://github.com/stuinfla/ruvnet-brain/issues/391) | `brain-host-recovery` | Native causal failure attribution is accepted after reviewed-source proof. Fresh host identity/trust proof remains patched and must preserve historical failures; a previous failed receipt alone must not misclassify a healthy fresh host. |

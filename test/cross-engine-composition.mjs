@@ -9,6 +9,8 @@ const roots = [path.join(sandbox, 'user'), path.join(sandbox, 'system')];
 process.env.RUFLO_SOURCE_PATCH_HOME = path.join(sandbox, 'home');
 process.env.RUFLO_GLOBAL_ROOT = roots.join(path.delimiter);
 process.env.RUFLO_NPX_ROOT = path.join(sandbox, 'npx');
+process.env.RSP_RUVNET_BRAIN_HOME = path.join(process.env.RUFLO_SOURCE_PATCH_HOME, '.cache/ruvnet-brain');
+process.env.RSP_RUVNET_BRAIN_MARKETPLACE = path.join(process.env.RUFLO_SOURCE_PATCH_HOME, '.claude/plugins/marketplaces/ruvnet-brain');
 const plugin = 'ruflo-instruction-contract';
 const legacy = PLATFORM_GENERATOR + `
 function maybeInstallSkillsSh(ctx) {
@@ -140,5 +142,112 @@ try {
     for (const file of files) write(file, instruction.patchSource(cliBytes).next + '// unproved foreign edit');
     assert(compose.applyComposed([plugin]).incomplete, 'complete byte proof still rejects foreign changes');
   } finally { cli.ENTRIES.pop(); }
+  const lifecycle = await import('../lib/brain-console-lifecycle/patcher.mjs');
+  const lockstep = await import('../lib/brain-release-lockstep/patcher.mjs');
+  const hostRecovery = await import('../lib/brain-host-recovery/patcher.mjs');
+  const consoleTargets = [lifecycle, lockstep, hostRecovery].map(module => module.descriptor.name);
+  const consolePristine = lifecycle.fixtureSource().installer + '\n\n' + lockstep.fixtureSource() + '\n\n'
+    + fs.readFileSync(new URL('./fixtures/brain-host-recovery/installer.mjs', import.meta.url), 'utf8');
+  const consoleBytes = [lifecycle, lockstep, hostRecovery].reduce((source, module) => {
+    const result = module.patchSource(source); assert.deepEqual(result.missing, []); return result.next;
+  }, consolePristine);
+  const copiedRoot = path.join(process.env.RSP_RUVNET_BRAIN_HOME, 'kb/.console-runtime');
+  const peerRoots = [process.env.RSP_RUVNET_BRAIN_MARKETPLACE, path.join(process.env.RUFLO_NPX_ROOT, 'brain/node_modules/ruvnet-brain')];
+  const copied = path.join(copiedRoot, 'bin/install.mjs');
+  const peerFile = root => path.join(root, 'bin/install.mjs');
+  function consoleFixture(peers = peerRoots) {
+    for (const root of [copiedRoot, ...peerRoots]) fs.rmSync(root, { recursive: true, force: true });
+    state.writeState({ patchTargets: [], pluginTargets: consoleTargets });
+    for (const root of [copiedRoot, ...peers]) {
+      write(path.join(root, 'package.json'), JSON.stringify({ name: 'ruvnet-brain', version: '4.5.7' }));
+      write(peerFile(root), consoleBytes);
+      if (root !== copiedRoot) write(backup(peerFile(root)), consolePristine);
+    }
+  }
+  const applyCopy = () => compose.applyComposed(consoleTargets, { files: [copied] });
+  // Native Console promotion copies bin/install.mjs without its adjacent backup.
+  // Multiple actual patch owners require a matching healthy peer, never a guess.
+  consoleFixture();
+  const peerSnapshots = peerRoots.map(root => [fs.statSync(peerFile(root)).ino, fs.statSync(backup(peerFile(root))).ino]);
+  healthy(applyCopy());
+  assert.equal(fs.readFileSync(copied, 'utf8'), consoleBytes);
+  assert.equal(fs.readFileSync(backup(copied), 'utf8'), consolePristine);
+  peerRoots.forEach((root, index) => {
+    assert.equal(fs.statSync(peerFile(root)).ino, peerSnapshots[index][0], 'peer executable remains read-only');
+    assert.equal(fs.statSync(backup(peerFile(root))).ino, peerSnapshots[index][1], 'peer pristine remains read-only');
+  });
+  write(copied, consoleBytes + '// foreign change after recovery\n');
+  assert(applyCopy().incomplete, 'recovered ownership still requires exact provenance on later ticks');
+  assert.equal(fs.readFileSync(copied, 'utf8'), consoleBytes + '// foreign change after recovery\n');
+  assert.equal(fs.readFileSync(backup(copied), 'utf8'), consolePristine);
+  for (const invalidBackup of ['', consoleBytes]) {
+    consoleFixture(); write(backup(copied), invalidBackup);
+    healthy(applyCopy());
+    assert.equal(fs.readFileSync(backup(copied), 'utf8'), consolePristine, 'a poisoned copy backup uses the same proved peer path');
+    assert.equal(fs.readFileSync(copied, 'utf8'), consoleBytes);
+  }
+  consoleFixture();
+  healthy(compose.applyComposed([consoleTargets[0]], { files: [copied] }));
+  assert.equal(fs.readFileSync(backup(copied), 'utf8'), consolePristine,
+    'a selected subset must account for every actual historical Console owner');
+  assert.equal(fs.readFileSync(copied, 'utf8'), lifecycle.patchSource(consolePristine).next);
+  for (const order of [consoleTargets, [...consoleTargets].reverse()]) {
+    consoleFixture(); healthy(applyCopy());
+    let remaining = [...consoleTargets];
+    for (const removed of order) {
+      remaining = remaining.filter(name => name !== removed);
+      healthy(compose.reconcile(remaining, [removed])); state.removePluginTargets([removed]);
+      assert.equal(fs.readFileSync(copied, 'utf8'), compose.composeSource(consolePristine, remaining, { file: copied }));
+    }
+    assert.equal(fs.readFileSync(copied, 'utf8'), consolePristine);
+    assert(!fs.existsSync(backup(copied)), 'last owner removes only its proved backup');
+  }
+  const refusalCases = {
+    'no peer': () => { for (const root of peerRoots) fs.rmSync(root, { recursive: true, force: true }); },
+    'wrong package name': () => { for (const root of peerRoots) write(path.join(root, 'package.json'), JSON.stringify({ name: 'not-brain', version: '4.5.7' })); },
+    'wrong version': () => { for (const root of peerRoots) write(path.join(root, 'package.json'), JSON.stringify({ name: 'ruvnet-brain', version: '4.5.6' })); },
+    'empty backup': () => { for (const root of peerRoots) write(backup(peerFile(root)), ''); },
+    'marked backup': () => { for (const root of peerRoots) write(backup(peerFile(root)), consoleBytes); },
+    'unproved backup': () => { for (const root of peerRoots) write(backup(peerFile(root)), consolePristine + '// foreign baseline\n'); },
+    'foreign current edit': () => write(copied, consoleBytes + '// foreign live edit\n'),
+    'different peer bytes': () => { for (const root of peerRoots) write(peerFile(root), consoleBytes + '// foreign peer edit\n'); },
+    'symlink backup': () => { const external = path.join(sandbox, 'unowned-pristine'); write(external, consolePristine);
+      for (const root of peerRoots) { fs.rmSync(backup(peerFile(root))); fs.symlinkSync(external, backup(peerFile(root))); } },
+    'escaped executable': () => { const external = path.join(sandbox, 'unowned-bin'); fs.mkdirSync(external, { recursive: true });
+      write(path.join(external, 'install.mjs'), consoleBytes); write(path.join(external, 'install.mjs.rsp-backup'), consolePristine);
+      for (const root of peerRoots) { fs.rmSync(path.join(root, 'bin'), { recursive: true }); fs.symlinkSync(external, path.join(root, 'bin')); } },
+  };
+  for (const [label, corrupt] of Object.entries(refusalCases)) {
+    consoleFixture(); corrupt();
+    const before = fs.readFileSync(copied, 'utf8');
+    const refusal = applyCopy();
+    assert(refusal.incomplete || refusal.errors, `${label}: unavailable peer proof must be a failed gate`);
+    assert.equal(fs.readFileSync(copied, 'utf8'), before, `${label}: preserve live bytes`);
+    assert(!fs.existsSync(backup(copied)), `${label}: never seed an unproved backup`);
+  }
+  consoleFixture([]); write(backup(copied), consoleBytes);
+  assert(applyCopy().incomplete, 'unproved poisoned backups also fail loudly');
+  assert.equal(fs.readFileSync(backup(copied), 'utf8'), consoleBytes, 'retain unproved poisoned bytes');
+  fs.rmSync(backup(copied));
+  assert(compose.applyComposed([consoleTargets[0]], { files: [copied] }).incomplete,
+    'selected subset cannot reverse one owner and preserve siblings inside an unproved backup');
+  assert(!fs.existsSync(backup(copied)));
+  // Model a genuinely non-injective known contribution. Even individually
+  // valid peer roundtrips may not select between two different vendor baselines.
+  consoleFixture();
+  const originalPatch = hostRecovery.descriptor.patchSource;
+  const discardedHeader = '// fixture canonicalized header\n';
+  hostRecovery.descriptor.patchSource = source => {
+    const result = originalPatch(source);
+    return { ...result, next: result.next.replace(discardedHeader, '') };
+  };
+  try {
+    write(backup(peerFile(peerRoots[1])), discardedHeader + consolePristine);
+    assert.equal(compose.composeSource(discardedHeader + consolePristine, consoleTargets, { file: copied }), consoleBytes);
+    const ambiguous = applyCopy();
+    assert(ambiguous.incomplete, 'multiple distinct exactly proved peer baselines are ambiguous');
+    assert.equal(fs.readFileSync(copied, 'utf8'), consoleBytes);
+    assert(!fs.existsSync(backup(copied)), 'ambiguous peers never create a backup');
+  } finally { hostRecovery.descriptor.patchSource = originalPatch; }
   console.log('✓ shared CLI/plugin pristine: both install orders, protected steady state, selective uninstall, native retirement, real upstream replacement and poisoned-backup proof/refusal');
 } finally { fs.rmSync(sandbox, { recursive: true, force: true }); }

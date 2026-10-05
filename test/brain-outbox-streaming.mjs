@@ -9,7 +9,7 @@ process.env.RSP_CODEX_HOME = path.join(home, '.codex'); process.env.RUFLO_NPX_RO
 process.env.RSP_RUVNET_BRAIN_HOME = path.join(home, '.cache/ruvnet-brain');
 process.env.RSP_RUVNET_BRAIN_MARKETPLACE = path.join(home, '.claude/plugins/marketplaces/ruvnet-brain'); process.env.RSP_RUVNET_BRAIN_RUNTIME = path.join(home, '.claude/ruvnet-brain');
 const patcher = await import('../lib/brain-outbox-streaming/patcher.mjs');
-const { probeOutboxStreamingBehavior, exerciseOutbox } = await import('../lib/brain-outbox-streaming/probe.mjs');
+const { probeOutboxStreamingBehavior, exerciseOutbox, exerciseReplayContainment } = await import('../lib/brain-outbox-streaming/probe.mjs');
 const { brainOutboxStreamingSupersession } = await import('../lib/brain-outbox-streaming/supersede.mjs');
 const fixture = fileURLToPath(new URL('./fixtures/brain-outbox-streaming/project-progression-outbox.mjs', import.meta.url));
 const source = fs.readFileSync(fixture, 'utf8'), patched = patcher.patchSource(source);
@@ -85,5 +85,24 @@ try {
   const broken457 = native457.replace('line += 1;', 'line += 2;');
   assert.equal(patcher.nativeSatisfied(broken457), false);
   await assert.rejects(exerciseOutbox(broken457, path.join(temporary, 'native457-broken')));
+  const native456 = fs.readFileSync(new URL('./fixtures/brain-outbox-streaming/native-4.5.6.mjs', import.meta.url), 'utf8');
+  assert.deepEqual(patcher.nativeCapabilities(native456), { streaming: true, lazyReplay: false });
+  assert.deepEqual(patcher.nativeCapabilities(native457), { streaming: true, lazyReplay: true });
+  assert.deepEqual(patcher.patchSource(native456), { next: native456, applied: [], missing: [] });
+  await exerciseOutbox(native456, path.join(temporary, 'native456'));
+  write(member, native456);
+  assert.equal(patcher.preflight().ok, true);
+  assert.equal(brainOutboxStreamingSupersession().check().state, 'superseded', '#387 does not claim #390 historical containment');
+  const native456Apply = compose.applyComposed([patcher.NAME]);
+  assert.equal(native456Apply.incomplete, 0, JSON.stringify(native456Apply)); assert.equal(native456Apply.patched, 0);
+  for (const altered of [native456 + '\n// unexplained change', native456.replace('line += 1;', 'line += 2;')]) {
+    assert.equal(patcher.nativeCapabilities(altered), null);
+    assert.equal(patcher.nativeSatisfied(altered), false);
+    assert(patcher.patchSource(altered).missing.length, 'unknown native source must refuse');
+  }
+  await assert.rejects(exerciseOutbox(native456.replace('line += 1;', 'line += 2;'), path.join(temporary, 'native456-broken')));
+  const containment = await exerciseReplayContainment(native457, path.join(temporary, 'native457-containment'));
+  assert(containment.historicalBytes > 128 * 1024 * 1024);
+  console.log('  separate #390 partial containment proof (4.5.7 only):', JSON.stringify(containment));
   console.log('✓ Brain #387: native JSONL semantics, UTF-8 seams, exact append/fsync/torn suffixes/quarantine, >V8-string journal, shared pristine restoration and executable retirement');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
