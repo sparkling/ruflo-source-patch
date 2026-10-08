@@ -258,6 +258,8 @@ Run a script directly (no separate install step):
   npx github:sparkling/ruflo-source-patch codex-switch run status
 
 Other:
+  npx github:sparkling/ruflo-source-patch memory inspect-fence /absolute/path/memory.db
+  npx github:sparkling/ruflo-source-patch memory recover-fence /absolute/path/reviewed-expectation.json
   npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest
   npx github:sparkling/ruflo-source-patch all status         # every target at once
   npx github:sparkling/ruflo-source-patch monitor check      # exit 1 if anything drifted
@@ -270,6 +272,20 @@ Working with ADRs? Install all three — they cover the whole round-trip:
 }
 
 const [rawTarget, rawAction] = process.argv.slice(2);
+
+// Explicit operator recovery does not install patches, refresh stable source or update hosts.
+if (rawTarget === 'memory' && ['inspect-fence', 'recover-fence'].includes(rawAction)) {
+  try {
+    if (process.argv.length !== 5) throw new Error(`usage: memory ${rawAction} <${rawAction === 'inspect-fence' ? 'absolute-database-path' : 'reviewed-expectation.json'}>`);
+    const { inspectMemoryFence, recoverMemoryFenceFile } = await import('../lib/cwd/memory-fence-recovery.mjs');
+    console.log(JSON.stringify(rawAction === 'inspect-fence'
+      ? inspectMemoryFence(process.argv[4]) : recoverMemoryFenceFile(process.argv[4]), null, 2));
+  } catch (error) {
+    console.error(`[ruflo-source-patch] ${error?.message || error}`);
+    process.exitCode = 1;
+  }
+  process.exit(process.exitCode || 0);
+}
 
 if (!rawTarget || ['help', '--help', '-h'].includes(rawTarget)) {
   usage();

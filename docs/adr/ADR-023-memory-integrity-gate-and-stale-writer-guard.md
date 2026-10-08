@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-17
-**Updated**: 2026-10-04. Bounded CLI SIGTERM and SIGINT release only the terminating process's
+**Updated**: 2026-10-08. Explicit preboot recovery-fence disposition is described below; automatic
+recovery continues to refuse unknown fences. Bounded CLI SIGTERM and SIGINT release only the terminating process's
 exact token/inode claims and preserve default signal termination. Existing or later native signal
 handlers retain control, with normal finally/exit cleanup; delegation is never an early unlock.
 SIGKILL remains outside JavaScript cleanup. Recovery now serializes contenders with an exclusive
@@ -115,6 +116,32 @@ Installed-root discovery must match the patch engine. The guard resolves direct 
 verified `.bin/ruflo`, and launcher-discovered custom global prefixes. A wrapper is followed only after
 its package identity is proven, with a bounded walk to a nested or hoisted `@claude-flow/cli`. Failure to
 resolve remains visible as unpatched/unknown and never authorizes a signal.
+
+## Explicit interrupted-fence disposition
+
+`memory inspect-fence /absolute/path/memory.db` reads only the recovery directory and bounded
+writer claim, together with macOS `kern.boottime` and `kern.bootsessionuuid`. It emits a reviewable
+`rsp-memory-fence-recovery/v1` expectation only when the empty mode-0700 fence and regular writer
+claim belong to the current user, every creation/change timestamp predates this boot, and the
+claim's PID is positively absent (`ESRCH`). Canonical owned parent paths cannot contain symlinks
+or permit group/other writes. Other platforms currently refuse without a verified boot adapter.
+
+After operator review, `memory recover-fence /absolute/path/expected.json` requires those exact
+fence, claim, boot and lock-source identities again. It serializes operators through the existing
+patch-mutation lock, persists intent, rechecks immediately before moving the fence, and preserves
+the exact directory in a unique sibling archive with a completion receipt. It never opens the
+database, rewrites a writer claim, removes a sidecar, installs patches or restarts a process.
+The existing native lock owner subsequently recovers the unchanged dead claim; a successful fence
+receipt is not evidence of database health, native persistence or distillation.
+
+Same-boot, nonempty, symlinked, changed or unproved ownership stays refused. An unexpected external
+replacement or persistence failure after the move recreates an exclusive refusal marker without
+overwriting a successor, retaining the archive and failure evidence. This is an operator recovery
+operation under a reviewed quiescent, preboot condition, not automatic timeout-based lock stealing
+or protection against arbitrary concurrent filesystem mutation outside the lock protocol.
+Synthetic tests exercise refusal boundaries, post-move failures, evidence preservation and the
+existing injected native dead-claim recovery; they never use a managed database. Real restoration
+still requires fresh native exact read/write/readback and the requested operation's own receipt.
 
 ## Consequences
 

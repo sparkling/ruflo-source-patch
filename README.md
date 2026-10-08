@@ -562,6 +562,14 @@ fence, preserving its exact metadata as evidence. It refuses live, malformed or 
 SIGKILL cannot run process cleanup; an interrupted recovery fence remains visibly fail-closed.
 Database files and SQLite sidecars are not changed by claim recovery.
 
+For an interrupted **preboot** recovery on macOS, the memory owner provides an explicit operator
+path: `memory inspect-fence /absolute/path/memory.db` emits exact reviewable identity metadata;
+after reviewing that output, `memory recover-fence /absolute/path/expected.json` archives only
+the unchanged empty fence and retains intent/result receipts. Same-boot, active, nonempty,
+symlinked or changed ownership is refused. The unchanged dead writer claim remains for the native
+lock owner to recover. This does not prove memory health; verify the requested native operation
+afterward. Neither command installs patches or opens a database (ADR-023).
+
 `brain-managed-cli-capture install` fixes [Brain #382](https://github.com/stuinfla/ruvnet-brain/issues/382)
 by reusing the native redacted action projection before no-op comparison. The existing writer still
 records the action once and supplies its exact readback receipt; unchanged lifecycle events stay no-op.
