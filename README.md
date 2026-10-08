@@ -400,6 +400,8 @@ shapes must pass the same anchors before any bundled file changes. Source instal
 and migration are separate: an administrator must first qualify/reload the actual
 writers, then invoke the patched native `withPolicyTransaction` with
 `{ compactLedger: true }`. Subsequent transactions maintain the migrated ledger.
+The opt-in persists even for a small ledger, so future growth is bounded without
+another migration call.
 Older workers refuse the retained nonzero sequence/total-length mismatch rather
 than overwrite it. No model route, AgentDB store or Brain update asset is changed.
 

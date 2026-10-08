@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { patchSource, reverseSource, isPatched } from '../lib/ruflo-policy-ledger/patcher.mjs';
+import { patchSource, reverseSource, isPatched, recover } from '../lib/ruflo-policy-ledger/patcher.mjs';
 import { patchSource as serialization } from '../lib/ruflo-policy-serialization/patcher.mjs';
 const temporary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-policy-ledger-')));
 const fixture = new URL('./fixtures/ruflo-policy-ledger/', import.meta.url);
@@ -58,6 +58,22 @@ try {
   assert.deepEqual(applied.missing, []);
   assert.ok(isPatched(applied.next));
   assert.equal(reverseSource(applied.next), serialization(native).next);
+  // Upgrade the deployed hz.1 sources without recording patched bytes as pristine.
+  for (const original of [serialization(native).next, engineSource]) {
+    const current = patchSource(original).next;
+    const previous = current
+      .replace("        state.policyLedgerMode = 'segmented-v1';\n", '')
+      .replace('        if (state.policyLedgerMode === "segmented-v1") engine.state.policyLedgerMode = state.policyLedgerMode;\n', '')
+      .replace(" || engine.state.policyLedgerMode === 'segmented-v1'", '')
+      .replace('        const { policyArchive, policyLedgerMode, ...expanded } = state;\n        if (!state.policyArchive) return expanded;', '        if (!state.policyArchive) return state;')
+      .replace('        return { ...expanded, receipts };', '        const { policyArchive, ...expanded } = state;\n        return { ...expanded, receipts };');
+    const recovery = recover(previous);
+    assert.ok(recovery);
+    assert.equal(recovery.candidate, original);
+    assert.equal(recovery.verify(original), previous);
+    assert.equal(patchSource(previous).next, current);
+    assert.equal(recover(previous.replace('segmented', 'foreign')), null);
+  }
   assert.ok(patchSource(native.replace('verifyStateAnchor(projectRoot, parsed)', 'foreign(parsed)')).missing.length);
   // Test the actual native transaction/writer with real files. Only imports that
   // would reach external packages or the real user trust directory are isolated.
@@ -81,6 +97,17 @@ try {
   await api.evaluatePolicyRequest(request('ordinary'), untouchedRoot);
   assert.equal(api.loadPolicyState(untouchedRoot, { compact: true }).policyArchive, undefined);
   assert.equal(fs.existsSync(path.join(untouchedRoot, '.claude-flow/policy/receipt-segments')), false);
+  const smallRoot = path.join(temporary, 'small-opt-in');
+  write(path.join(smallRoot, '.claude-flow/policy/state.json'), JSON.stringify({ ...initial,
+    receipts: initial.receipts.slice(0, 1000), ledgerLength: 1000, ledgerHead: initial.receipts[999].hash }));
+  await api.withPolicyTransaction(smallRoot, () => null, { compactLedger: true });
+  assert.equal(api.loadPolicyState(smallRoot, { compact: true }).policyLedgerMode, 'segmented-v1');
+  assert.equal(api.loadPolicyState(smallRoot).policyLedgerMode, undefined);
+  await api.withPolicyTransaction(smallRoot, engine => {
+    for (let i = 0; i < 600; i++) engine.evaluate(request('small-' + i));
+  });
+  assert.ok(api.loadPolicyState(smallRoot, { compact: true }).policyArchive);
+  assert.deepEqual(await api.verifyPolicyLedger(smallRoot), { valid: true, length: 1600 });
   write(statePath, JSON.stringify(initial));
   const initialBytes = fs.statSync(statePath).size, migrationStarted = performance.now();
   await api.withPolicyTransaction(root, engine => engine.evaluate(request('migration')), { compactLedger: true });
