@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import {
-  EDGE_MARKER, EDGE_HELPER_ANCHOR, EDGE_PARSE_ANCHOR, patchEdgeHelpers, edgeHelpersPatched,
+  EDGE_MARKER, EDGE_HELPER_ANCHOR, EDGE_PARSE_ANCHOR, EDGE_HELPER_054, EDGE_PARSE_054, patchEdgeHelpers, edgeHelpersPatched,
 } from '../lib/adr-io-safety/edge-contract.mjs';
 import { patchSource } from '../lib/adr-io-safety/patcher.mjs';
 import { probeNativeRoot } from '../lib/adr-io-safety/probes.mjs';
@@ -20,6 +20,11 @@ try {
   assert.equal(patchEdgeHelpers(patched.next).next, patched.next);
   assert.ok(patchEdgeHelpers(helper + '\n' + EDGE_HELPER_ANCHOR).missing.some(s => s.includes('AMBIGUOUS')));
   assert.ok(patchEdgeHelpers(helper.replace('return `', 'return  `')).missing.length > 0);
+  const current = patchEdgeHelpers(EDGE_HELPER_054 + '\n' + EDGE_PARSE_054);
+  assert.deepEqual(current.missing, []);
+  assert.ok(edgeHelpersPatched(current.next));
+  assert.ok(patchEdgeHelpers(EDGE_HELPER_054 + '\n' + EDGE_HELPER_054 + '\n' + EDGE_PARSE_054)
+    .missing.some(s => s.includes('AMBIGUOUS')));
   fs.mkdirSync(path.join(dir, 'lib'));
   fs.writeFileSync(path.join(dir, 'lib/index-records.mjs'), patched.next);
   const { edgeKey, parseEdgeKey } = await import(pathToFileURL(path.join(dir, 'lib/index-records.mjs')));
@@ -27,7 +32,7 @@ try {
   assert.equal(edgeKey(expected), 'depends-on:ADR-006:ADR-005');
   assert.equal(edgeKey({ ...expected, capturedAt: 'different' }), edgeKey(expected));
   for (const key of [
-    edgeKey(expected), 'depends-on:ADR-006->ADR-005',
+    edgeKey(expected), 'depends-on:ADR-006__ADR-005', 'depends-on:ADR-006->ADR-005',
     'depends-on:ADR-006->ADR-005:1234-abc', 'depends-on-ADR-006-to-ADR-005',
   ]) {
     assert.deepEqual(parseEdgeKey(key), { ...expected, key });
@@ -67,7 +72,7 @@ if (args[1] === 'list') {
       RUFLO_ADR_CLI: fakeCli, VERIFY_STRICT: '1', VERIFY_FORMAT: 'json',
       EDGE_TEST_KEY: key, EDGE_TEST_VALUE: typeof value === 'string' ? value : JSON.stringify(value), ...extra },
   });
-  for (const key of [edgeKey(expected), 'depends-on-ADR-006-to-ADR-005', 'depends-on:ADR-006->ADR-005']) {
+  for (const key of [edgeKey(expected), 'depends-on-ADR-006-to-ADR-005', 'depends-on:ADR-006->ADR-005', 'depends-on:ADR-006__ADR-005']) {
     const result = run(key, expected);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(JSON.parse(result.stdout).edgeCount, 1);

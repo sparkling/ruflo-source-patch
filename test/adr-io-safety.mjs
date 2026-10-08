@@ -461,9 +461,13 @@ check('AIS17 legacy adr-index and adr-io-safety compose into one runnable exact-
   && composedImporter.includes('memoryListComplete(namespace)')
   && calls().every((call) => call.args.includes('--path=' + path.join(PROJECT, '.swarm', 'memory.db'))));
 
-// Replay the changed native 0.4.1 scripts against the same fake managed CLI.
-for (const name of ['verify.mjs', 'import.mjs']) {
-  const vendor = fs.readFileSync(new URL('./fixtures/adr-io-safety-0.4.1/' + name, import.meta.url), 'utf8');
+// Replay both dispatch variants against the same fake managed CLI; no native DB.
+for (const dispatch of ['npx', 'installed']) for (const name of ['verify.mjs', 'import.mjs']) {
+  let vendor = fs.readFileSync(new URL('./fixtures/adr-io-safety-0.4.1/' + name, import.meta.url), 'utf8');
+  if (dispatch === 'installed') vendor = vendor
+    .replace("import { spawnSync } from 'node:child_process';", "import { spawnCliSync } from './lib/ruflo-cli.mjs';")
+    .replaceAll("spawnSync('npx', [", 'spawnCliSync([')
+    .replace("spawnSync('npx', memoryStoreArgs(", 'spawnCliSync(memoryStoreArgs(');
   const patched = patchSource(vendor);
   check('AIS18 native ' + name + ' has every exact anchor', patched.missing.length === 0);
   fs.writeFileSync(path.join(SCRIPTS, name), patched.next);

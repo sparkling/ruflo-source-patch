@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-08-31
-**Updated**: 2026-10-05. Share a memory-safe edge identity, preserve legacy keys, and verify full edge values.
+**Updated**: 2026-10-08. Preserve the managed I/O contract across native 0.5.4 dispatch and edge-key changes.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo-adr, agentdb, verification, import, reindex, atomicity
 
@@ -60,7 +60,9 @@ A successfully read empty graph remains valid.
 The shared record helper emits the deterministic memory-safe `relation:FROM:TO` key. Ruflo's
 shared MCP/CLI key validation (#3570) rejects the former arrow separator; this patch does not weaken
 that guard. Reads accept existing arrow/timestamp keys and unambiguous historical
-`relation-ADR-NNN-to-ADR-NNN` keys without rewriting the database. The verifier retrieves every
+`relation-ADR-NNN-to-ADR-NNN` keys and native 0.5.4 `relation:FROM__TO` keys without rewriting
+the database. Exact 0.5.4 `spawnCliSync` source forms normalize into this same managed owner;
+the verifier and importer retain no npx fallback. The verifier retrieves every
 full edge value through the managed CLI and requires its relation and endpoints to match the key.
 Missing, malformed or conflicting values fail verification. Native retirement must prove these
 identity contracts as well as the existing I/O guarantees. This is graph verification, not a
