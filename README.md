@@ -389,8 +389,33 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 |--------|---------------|----------|
 | **`ruflo-pattern-receipt`** | Requires a successful delegated pattern store and exact namespace/key/content readback before acknowledging fallback persistence. Covers the MCP handler and memory bridge; a failed native controller cannot acquire a misleading persisted note. | [#3691](https://github.com/ruvnet/ruflo/issues/3691) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164](https://github.com/ruvnet/ruflo/issues/3164) |
+| **`ruflo-policy-ledger`** | Separates immutable receipt segments from a bounded working state after an explicit first migration. Native authorization and receipt verification remain authoritative. Archive contents and directories are synced before state publication; the prefix boundary is authenticated. Complete `policy audit`/verification retain all history. Installing alone does not migrate a project. | [#3164](https://github.com/ruvnet/ruflo/issues/3164); [review of #3892](https://github.com/ruvnet/ruflo/pull/3892#issuecomment-6059183467) |
 | **`ruflo-flywheel-evidence`** | Reuses the native scale-12 encoder for nested verification/canary evidence before receipt identity and signing. Keeps strict verification and historical receipts unchanged. | [#3229 residual](https://github.com/ruvnet/ruflo/issues/3229) |
 | **`ruflo-champion-authority`** | Protects a modern locally promoted champion from framework auto-application at CLI startup, using the native transaction lock. Busy, invalid, committed or pending ownership defers application; unowned framework baseline and updates remain enabled. Explicit promotion stays unchanged. | [#2579 source context](https://github.com/ruvnet/ruflo/issues/2579); ADR-322A authority contract |
+
+`ruflo-policy-ledger` is an independently developed repair, not PR #3892. Its exact
+anchors currently qualify the native persistent-anchor runtime in CLI 3.54.1 and
+security 3.0.1; pre-3.54.1 caches are outside this target's scope. Later source
+shapes must pass the same anchors before any bundled file changes. Source installation
+and migration are separate: an administrator must first qualify/reload the actual
+writers, then invoke the patched native `withPolicyTransaction` with
+`{ compactLedger: true }`. Subsequent transactions maintain the migrated ledger.
+Older workers refuse the retained nonzero sequence/total-length mismatch rather
+than overwrite it. No model route, AgentDB store or Brain update asset is changed.
+
+Keep `.claude-flow/policy/receipt-segments/` with `state.json` and the project's
+native user-level `policy-trust` key. The immutable files are part of the complete
+policy history, not disposable caches. Native `loadPolicyState()` reconstructs the
+complete original-format state for audit/export consumers; internal transactions
+request the compact representation. Full verification streams one segment at a
+time outside the writer lock. Initial migration verifies all existing receipts;
+ordinary migrated calls verify the bounded tail and authenticated archive boundary.
+Unreferenced segments after an interrupted commit are retained; they do not become
+authoritative merely by existing. Uninstall restores source bytes only: export and
+qualify a native-format state before withdrawing its segment reader. Automatic
+retirement remains blocked until an upstream reader/import passes preservation,
+crash, tamper and concurrency proof. This is an on-disk format change and requires
+an explicit controlled migration; installation tests are not live activation evidence.
 
 #### ruflo-adr
 
@@ -1892,7 +1917,7 @@ above includes the older repairs and their issue mappings too.
 |-------|-------------------|-----------------------------------|
 | [Ruflo #3693](https://github.com/ruvnet/ruflo/issues/3693) | `ruflo-sqlite-owner` | One native dependency owner across graph/repair and registry paths; no competing library or closed borrowed handle. |
 | [Ruflo #3691](https://github.com/ruvnet/ruflo/issues/3691) | `ruflo-pattern-receipt` | Successful native store plus exact namespace/key/content readback; failed persistence must remain a failure in both MCP and bridge handlers. |
-| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization` | Immutable full-state serialization reduces duplicate work while retaining every receipt, full validation and authorization. Remaining history growth is not solved by serialization alone. |
+| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization`, `ruflo-policy-ledger` | Serialization alone leaves growth unresolved. The independent segmented-ledger target preserves complete audit/export and requires an explicit first migration; installation is not proof of live qualification. PR #3892 remains a separate upstream proposal. |
 | [Ruflo #3229](https://github.com/ruvnet/ruflo/issues/3229) | `ruflo-flywheel-evidence` | Residual 3.52.0 evidence encoding; retirement requires native nested-fraction signing and strict tamper refusal. No historical migration or gate weakening. |
 | [Ruflo #2579, source context](https://github.com/ruvnet/ruflo/issues/2579) | `ruflo-champion-authority` | Reproduced 3.52.0 startup conflict with ADR-322A promotion authority; no defect-specific upstream issue found. Retirement requires unpatched native authority/lock behavior, normal framework updates, and preservation of foreign locks. |
 | [Ruflo #3688](https://github.com/ruvnet/ruflo/issues/3688) | `ruflo-swarm-codex-hooks` | Declared command hooks must reach a strict Codex manifest without changing Claude modules or granting hook trust. |

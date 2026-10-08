@@ -85,6 +85,7 @@ import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/command
 import { rufloFlywheelEvidenceCommand } from '../lib/ruflo-flywheel-evidence/commands.mjs';
 import { rufloChampionAuthorityCommand } from '../lib/ruflo-champion-authority/commands.mjs';
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
+import { rufloPolicyLedgerCommand } from '../lib/ruflo-policy-ledger/commands.mjs';
 import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
 import { brainHostRecoveryCommand } from '../lib/brain-host-recovery/commands.mjs';
@@ -142,6 +143,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
+  'ruflo-policy-ledger': rufloPolicyLedgerCommand,
   'ruflo-flywheel-evidence': rufloFlywheelEvidenceCommand,
   'ruflo-champion-authority': rufloChampionAuthorityCommand,
   'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
@@ -218,6 +220,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)
   ${pad('ruflo-champion-authority')}preserve local promotion authority during startup (ADR-322A; #2579 context)
   ${pad('ruflo-policy-serialization')}serialize verified policy state once, preserving all receipts and authorization (#3164)
+  ${pad('ruflo-policy-ledger')}durable segmented receipt history; explicit initial migration, complete audit (#3164)
   ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
   ${pad('brain-host-recovery')}prove fresh host readiness without rewriting failed update history (#391)

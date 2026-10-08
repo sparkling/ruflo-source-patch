@@ -38,6 +38,7 @@ npx github:sparkling/ruflo-source-patch ruflo-context-contract install # validat
 npx github:sparkling/ruflo-source-patch ruflo-sqlite-owner install # graph, registry and repair use the same native SQLite library (#3693)
 npx github:sparkling/ruflo-source-patch ruflo-pattern-receipt install # reject failed pattern fallback writes; exact namespace/key/value readback (#3691)
 npx github:sparkling/ruflo-source-patch ruflo-policy-serialization install # serialize verified policy state once, preserving every receipt and authorization (#3164)
+npx github:sparkling/ruflo-source-patch ruflo-policy-ledger install # bounded working ledger plus immutable receipt segments; initial migration is explicit, never an install side effect (#3164)
 npx github:sparkling/ruflo-source-patch ruflo-flywheel-evidence install # canonical nested receipt evidence before identity/signing (#3229)
 npx github:sparkling/ruflo-source-patch ruflo-champion-authority install # preserve modern promotion ownership during startup (ADR-322A; #2579 source context)
 ```

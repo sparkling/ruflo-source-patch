@@ -2,7 +2,20 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-05. `ruflo-flywheel-evidence` resolves the remaining #3229
+**Updated**: 2026-10-08. The `ruflo-policy-ledger` target composes the native
+policy runtime and security engine as one exact-anchor bundle for #3164.
+Installation does not migrate policy data. A separately authorized first native
+transaction enables bounded working state and immutable content-addressed receipt
+segments, with file/directory sync before publication and an authenticated prefix
+boundary. Native audit/export still returns complete history, and full verification
+checks every archived receipt outside the writer lock. Older readers refuse rather
+than overwrite migrated state. Receipt segments and the native trust key must be
+preserved; source uninstall cannot convert data. Native retirement needs an import
+and preservation proof, not a version or merged-PR check. The implementation is
+independent of PR #3892; fault injection and concurrent native-process tests govern
+qualification. At this update, live project migration has not yet been claimed.
+
+2026-10-05: `ruflo-flywheel-evidence` resolves the remaining #3229
 number-domain defect in native receipt evidence: the existing recursive scale-12
 encoder runs before receipt identity and signing. Strict signature, number-domain,
 unknown-field and statistical verification stay unchanged. No historical receipt is
