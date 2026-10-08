@@ -419,6 +419,16 @@ retirement remains blocked until an upstream reader/import passes preservation,
 crash, tamper and concurrency proof. This is an on-disk format change and requires
 an explicit controlled migration; installation tests are not live activation evidence.
 
+Fleet qualification on 2026-10-08 completed 53 project/user policy-ledger migrations
+across macOS and six Linux machines, preserving 1,281,493 receipts. Native full
+verification and exact expanded-state comparisons passed for every migration;
+private pre-migration state and trust backups remain on each owning machine.
+The combined working states decreased from 1,277,837,565 to 38,685,896 bytes;
+the archived receipts remain part of each live ledger. Actual MCP workers were
+restarted and checked separately: Codex's configuration-reload acknowledgement
+alone did not replace unchanged stdio workers. Future project migrations still
+require the same controlled writer qualification and preservation checks.
+
 #### ruflo-adr
 
 Changes to the installed `ruflo-adr` plugin. Together they cover the whole ADR round-trip: what

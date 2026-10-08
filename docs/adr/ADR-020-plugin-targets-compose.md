@@ -13,7 +13,11 @@ than overwrite migrated state. Receipt segments and the native trust key must be
 preserved; source uninstall cannot convert data. Native retirement needs an import
 and preservation proof, not a version or merged-PR check. The implementation is
 independent of PR #3892; fault injection and concurrent native-process tests govern
-qualification. At this update, live project migration has not yet been claimed.
+qualification. On 2026-10-08, the authorized fleet rollout migrated 53 project/user
+policy ledgers across seven machines, preserving all 1,281,493 receipts with native
+full verification and exact expanded-state comparisons. Private state/trust backups
+were retained, actual MCP workers restarted, and live calls checked separately from
+source installation. GCP programmes were resumed with their original provider/model.
 
 2026-10-05: `ruflo-flywheel-evidence` resolves the remaining #3229
 number-domain defect in native receipt evidence: the existing recursive scale-12
