@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-08. The `ruflo-policy-ledger` target composes the native
+**Updated**: 2026-10-09. Brain #423 adds the atomic `brain-codex-completion`
+two-script bundle. It normalizes native Codex turn/command events into the existing
+completion audit, reusing its bounded transcript reader and retaining scope,
+named-check and disclosure requirements. Unsupported/truncated evidence cannot
+produce a positive check verdict. Retirement requires equivalent marker-free
+Codex positive/negative Stop-path behavior; unknown source drift fails visibly.
+The `ruflo-policy-ledger` target composes the native
 policy runtime and security engine as one exact-anchor bundle for #3164.
 Installation does not migrate policy data. A separately authorized first native
 transaction enables bounded working state and immutable content-addressed receipt
