@@ -494,6 +494,7 @@ process.exit(0);
   write(path.join(market, researcherRel), nativeRef);
   write(path.join(market, discoverRel), nativeRef);
   write(path.join(market, smokeRel), smoke);
+  write(path.join(market, 'plugins/ruflo-mods/tests/describe.test.ts'), `assert.equal(legacy, '${ANCHOR}memory_search');\n`);
   write(path.join(market, standaloneRel), standalone);
   execFileSync('git', ['init', '-q'], { cwd: market });
   execFileSync('git', ['config', 'user.email', 'test@example.invalid'], { cwd: market });

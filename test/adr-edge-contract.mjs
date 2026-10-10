@@ -17,6 +17,10 @@ try {
   const patched = patchEdgeHelpers(helper);
   assert.deepEqual(patched.missing, []);
   assert.ok(edgeHelpersPatched(patched.next));
+  const previous = patched.next.replace(String.raw`  if (!match) match = /^([\w.-]+):([\w.-]+?)__([\w.-]+)$/.exec(key);` + '\n', '');
+  assert.notEqual(previous, patched.next);
+  assert.deepEqual(patchEdgeHelpers(previous).missing, []);
+  assert.equal(patchEdgeHelpers(previous).next, patched.next);
   assert.equal(patchEdgeHelpers(patched.next).next, patched.next);
   assert.ok(patchEdgeHelpers(helper + '\n' + EDGE_HELPER_ANCHOR).missing.some(s => s.includes('AMBIGUOUS')));
   assert.ok(patchEdgeHelpers(helper.replace('return `', 'return  `')).missing.length > 0);

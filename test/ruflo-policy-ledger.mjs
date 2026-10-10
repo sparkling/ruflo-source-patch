@@ -9,6 +9,10 @@ import { patchSource, reverseSource, isPatched, recover } from '../lib/ruflo-pol
 import { patchSource as serialization } from '../lib/ruflo-policy-serialization/patcher.mjs';
 const temporary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-policy-ledger-')));
 const fixture = new URL('./fixtures/ruflo-policy-ledger/', import.meta.url);
+const anchored = process.env.RSP_POLICY_ANCHORED === '1';
+const modern = anchored ? JSON.parse(fs.readFileSync(new URL('3.56.3.json', fixture), 'utf8')) : null;
+const sourceOf = name => modern?.files[name] ?? fs.readFileSync(new URL(name, fixture), 'utf8');
+if (anchored) process.env.XDG_CONFIG_HOME = path.join(temporary, '.config');
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const count = Number(process.env.RSP_POLICY_TEST_RECEIPTS || 5000);
 assert.ok(Number.isSafeInteger(count) && count >= 5000 && count <= 250000);
@@ -21,7 +25,7 @@ function write(file, value) {
 try {
   write(path.join(temporary, 'package.json'), '{"type":"module"}');
   for (const name of ['engine', 'canonical', 'evaluator', 'envelope', 'types']) {
-    const source = fs.readFileSync(new URL(name + '.js', fixture), 'utf8');
+    const source = sourceOf(name + '.js');
     const result = name === 'engine' ? patchSource(source) : { next: source, missing: [] };
     assert.deepEqual(result.missing, []);
     if (name === 'engine') {
@@ -30,7 +34,7 @@ try {
     }
     write(path.join(temporary, name + '.js'), result.next);
   }
-  const native = fs.readFileSync(new URL('policy-runtime.js', fixture), 'utf8');
+  const native = sourceOf('policy-runtime.js');
   const packageRoot = path.join(temporary, 'global/@claude-flow/cli');
   const runtimeFile = path.join(packageRoot, 'dist/src/services/policy-runtime.js');
   const securityRoot = path.join(packageRoot, 'node_modules/@claude-flow/security');
@@ -39,7 +43,7 @@ try {
   write(path.join(securityRoot, 'package.json'), '{"name":"@claude-flow/security","main":"dist/index.js"}');
   write(path.join(securityRoot, 'dist/index.js'), '');
   write(runtimeFile, native);
-  const engineSource = fs.readFileSync(new URL('engine.js', fixture), 'utf8');
+  const engineSource = sourceOf('engine.js');
   write(engineFile, engineSource);
   const composeChild = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict'; import fs from 'node:fs';
@@ -82,6 +86,7 @@ try {
     .replace("import { hostname, userInfo } from 'node:os';",
       `import { hostname } from 'node:os';\nconst userInfo = () => ({homedir:${JSON.stringify(temporary)}});`)
     .replace("import { syncPolicyProjection } from '../mods/policy-projection.js';", 'const syncPolicyProjection = () => {};');
+  if (anchored) write(path.join(temporary, 'policy-ledger-anchor.js'), sourceOf('policy-ledger-anchor.js'));
   write(path.join(temporary, 'runtime.js'), runtime);
   const api = await import(pathToFileURL(path.join(temporary, 'runtime.js')));
   const { AgenticPolicyEngine } = await import(pathToFileURL(path.join(temporary, 'engine.js')));
@@ -92,6 +97,31 @@ try {
   for (let i = 0; i < count; i++) engine.evaluate(request(i));
   assert.equal(engine.verifyLedger().valid, true);
   const initial = engine.exportState(), prefixHash = hash(initial.receipts);
+  if (anchored) {
+    // Upgrade an already-migrated 3.54.1 ledger, not merely a fresh 3.56 database.
+    const previousEngine = fs.readFileSync(new URL('engine.js', fixture), 'utf8');
+    write(path.join(temporary, 'upgrade-engine.js'), patchSource(previousEngine).next);
+    const previousRuntime = fs.readFileSync(new URL('policy-runtime.js', fixture), 'utf8');
+    let previous = patchSource(serialization(previousRuntime).next).next
+      .replace(/^import \{ AgenticPolicyEngine[^\n]+\n/,
+        "import { AgenticPolicyEngine, createLegacyCompatibleState } from './upgrade-engine.js';\n")
+      .replace("import { hostname, userInfo } from 'node:os';",
+        `import { hostname } from 'node:os';\nconst userInfo = () => ({homedir:${JSON.stringify(temporary)}});`)
+      .replace("import { syncPolicyProjection } from '../mods/policy-projection.js';", 'const syncPolicyProjection = () => {};');
+    write(path.join(temporary, 'upgrade-runtime.js'), previous);
+    const oldApi = await import(pathToFileURL(path.join(temporary, 'upgrade-runtime.js')));
+    const upgradeRoot = path.join(temporary, 'upgrade-from-3541');
+    write(path.join(upgradeRoot, '.claude-flow/policy/state.json'), JSON.stringify(initial));
+    await oldApi.withPolicyTransaction(upgradeRoot, () => null, {compactLedger:true});
+    const before = oldApi.loadPolicyState(upgradeRoot);
+    assert.ok(oldApi.loadPolicyState(upgradeRoot, {compact:true}).policyArchive);
+    assert.equal((await api.verifyPolicyLedger(upgradeRoot)).valid, true);
+    assert.deepEqual(api.loadPolicyState(upgradeRoot), before, 'native anchor upgrade preserves the entire expanded state');
+    await api.evaluatePolicyRequest(request('after-upgrade'), upgradeRoot);
+    assert.deepEqual(api.loadPolicyState(upgradeRoot).receipts.slice(0, count), before.receipts);
+    assert.equal((await api.verifyPolicyLedger(upgradeRoot)).length, count + 1);
+  }
+
   const untouchedRoot = path.join(temporary, 'no-implicit-migration');
   write(path.join(untouchedRoot, '.claude-flow/policy/state.json'), JSON.stringify(initial));
   await api.evaluatePolicyRequest(request('ordinary'), untouchedRoot);
@@ -189,7 +219,8 @@ try {
   const afterState = await import(pathToFileURL(afterStateFile));
   await assert.rejects(afterState.withPolicyTransaction(committedRoot,
     engine => engine.evaluate(request('after-state')), { compactLedger: true }), /injected-after-state/);
-  assert.deepEqual(await api.verifyPolicyLedger(committedRoot), { valid: true, length: count + 1 });
+  assert.deepEqual(await api.verifyPolicyLedger(committedRoot), { valid: true, length: count + 1,
+    ...(anchored ? { secondaryAnchor: 'recorded-from-state' } : {}) });
   assert.equal(hash(api.loadPolicyState(committedRoot).receipts.slice(0, count)), prefixHash);
   // Signed receipts remain signed; rules/budgets/approval decisions use the
   // same native engine before and after migration.
@@ -208,6 +239,19 @@ try {
     assert.ok(complete.receipts.every(receipt => receipt.signature));
     assert.equal(OldEngine.fromState(complete, { signingKey }).verifyLedger().valid, true);
   } finally { delete process.env.CLAUDE_FLOW_POLICY_SIGNING_KEY; }
+  if (anchored) {
+    const nativeAnchors = await import(pathToFileURL(path.join(temporary, 'policy-ledger-anchor.js')));
+    const expanded = api.loadPolicyState(root);
+    const truncated = { ...expanded, receipts: expanded.receipts.slice(0, -1) };
+    delete truncated.ledgerLength; delete truncated.ledgerHead;
+    assert.equal(nativeAnchors.assessAnchors(root, truncated).error, 'policy-ledger-truncated');
+    const logFile = nativeAnchors.anchorLogPath(root), saved = fs.readFileSync(logFile);
+    const log = JSON.parse(saved); log.entries.pop(); write(logFile, JSON.stringify(log));
+    try {
+      await assert.rejects(api.evaluatePolicyRequest(request('rolled-back-anchor'), root), /policy-anchor-log-rolled-back/);
+    } finally { write(logFile, saved); }
+    assert.equal((await api.verifyPolicyLedger(root)).valid, true);
+  }
   // A proven live owner is not evicted based on an old mtime.
   const lock = path.join(root, '.claude-flow/policy/state.lock');
   const release = await api.acquireLock(lock); fs.utimesSync(lock, new Date(0), new Date(0));
@@ -218,3 +262,10 @@ try {
   console.log(JSON.stringify({ count, initialBytes, compactBytes, migrationMs, concurrentMs, concurrentCalls: 48 }));
   console.log('policy-ledger: exact receipt preservation, full audit, tamper refusal, old writer refusal and multi-process ledger continuity passed');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+
+if (!anchored) {
+  const run = spawnSync(process.execPath, [process.argv[1]], { encoding: 'utf8', timeout: 120000,
+    env: { ...process.env, RSP_POLICY_ANCHORED: '1' } });
+  assert.equal(run.status, 0, run.stderr + run.stdout);
+  process.stdout.write(run.stdout);
+}

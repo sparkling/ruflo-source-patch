@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-08-17. Discovery now follows authenticated `ruflo`, `claude-flow`, and
+**Updated**: 2026-10-10. The extracted 3.56.3 memory-root caller remains project-root anchored. Brain discovery reads native active generation selection when the legacy Console directory is absent and retains older bytes only for the owning target.
+Discovery now follows authenticated `ruflo`, `claude-flow`, and
 `claude-flow-mcp` launchers, validates persisted package roots across narrow monitor environments,
 and keeps the effective OS-account home independent from a migrated `HOME`. All reporting surfaces
 share one satisfied-count contract: patched, behaviorally native, deliberately not applicable, or

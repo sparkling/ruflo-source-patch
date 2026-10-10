@@ -18,6 +18,12 @@ const write = (file, value) => {
 };
 try {
   assert.equal(patch.applicability().state, 'not-applicable');
+  const modern = JSON.parse(fs.readFileSync(new URL('./fixtures/ruflo-policy-ledger/3.56.3.json', import.meta.url))).files['policy-runtime.js'];
+  const modernPatched = patch.patchSource(modern);
+  assert.deepEqual(modernPatched.missing, []);
+  assert.equal(patch.reverseSource(modernPatched.next), modern);
+  await assert.rejects(exercisePolicySerialization(modern), /complete exportState clone/);
+  await exercisePolicySerialization(modernPatched.next);
   const rows = [];
   for (const name of ['policy-runtime.js', 'policy-runtime-async-legacy.js', 'policy-runtime-sync-legacy.js']) {
     const source = fs.readFileSync(new URL('./fixtures/ruflo-policy-serialization/' + name, import.meta.url), 'utf8');

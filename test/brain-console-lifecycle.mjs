@@ -309,4 +309,14 @@ check('BC23 public CLI authenticates and stops owned instances before restoring 
 check('BC24 public CLI uninstalls only after the owned-instance preflight',
   removed.status === 0 && removed.stdout.includes('restored'));
 
+// The native active generation remains the owner after the legacy KB Console directory disappears.
+const { discover } = await import('../lib/brain-console-lifecycle/discovery.mjs');
+fs.rmSync(path.join(BRAIN_HOME, 'kb', '.console-runtime'), { recursive: true });
+fs.writeFileSync(path.join(BRAIN_HOME, 'active.json'), JSON.stringify({version:'4.0.2',codeRoot:'versions/4.0.2'}));
+check('BC25 native selection excludes old unowned npx installer', !discover().some(file => file.startsWith(staleNpx)));
+fs.appendFileSync(path.join(staleNpx, 'bin/install.mjs'), '\n// ruflo-source-patch (stuinfla/ruvnet-brain#79)');
+check('BC26 old owned Console bytes remain eligible for restoration', discover().includes(path.join(staleNpx, 'bin/install.mjs')));
+check('BC27 ownership of a different target does not select that old installer',
+  !discover({ownedMarker:'ruflo-source-patch (stuinfla/ruvnet-brain#391)'}).some(file => file.startsWith(staleNpx)));
+
 console.log('✔ brain Console lifecycle (#79 immutable identity, private per-project receipts, authenticated replacement, atomic composition, exact restore)');

@@ -15,6 +15,12 @@ const h = await import('../lib/ruflo-wrapper-guard/hooks.mjs');
 const { PLUGIN_TARGETS } = await import('../lib/plugin-registry.mjs');
 assert(PLUGIN_TARGETS.includes('ruflo-wrapper-guard'));
 assert(c.COMPOSE_TARGETS.includes('ruflo-wrapper-guard'));
+const nativeWrapper = fs.readFileSync(new URL('./fixtures/ruflo-wrapper-3.56.3.mjs', import.meta.url), 'utf8');
+assert.deepEqual(p.patchSource(nativeWrapper), { next: nativeWrapper, applied: [], missing: [] });
+assert.equal(p.isPatched(nativeWrapper), true);
+assert.equal(p.reverseSource(nativeWrapper), nativeWrapper);
+assert.equal(p.isPatched(nativeWrapper.replace('console.error(`ruflo: warning:', 'console.log(`ruflo: warning:')), false);
+
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });

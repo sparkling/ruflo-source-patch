@@ -192,6 +192,22 @@ fs.mkdirSync(path.join(project, '.git'), { recursive: true });
 fs.mkdirSync(path.join(project, '.claude-flow'), { recursive: true });
 fs.mkdirSync(deep, { recursive: true });
 const projectReal = fs.realpathSync(project);
+// 3.56 extracted the resolver; its default caller must still supply the project root.
+{
+  const { ENTRIES, composeCliContribution } = await import('../lib/cwd/patch-library.mjs');
+  const delegate = "import { resolveMemoryRoot } from './memory-root.js';\nlet _memoryRootCache;\nexport function root() { _memoryRootCache = resolveMemoryRoot(process.cwd()); return _memoryRootCache; }";
+  const composed = composeCliContribution(delegate, ENTRIES.filter(e => e.id === 'cwd/memory-root-delegate'));
+  if (composed.missing.length || composed.applied.length !== 1) fail('extracted memory-root caller not patched');
+  const folder = path.join(SB, 'delegate'); fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, 'package.json'), '{"type":"module"}');
+  fs.writeFileSync(path.join(folder, 'memory-root.js'), 'export const resolveMemoryRoot = cwd => cwd;');
+  fs.writeFileSync(path.join(folder, 'initializer.mjs'), composed.next);
+  const run = spawnSync(process.execPath, ['--input-type=module', '-e',
+    `import { root } from ${JSON.stringify(pathToFileURL(path.join(folder, 'initializer.mjs')).href)}; console.log(root());`],
+    { cwd: deep, encoding: 'utf8' });
+  if (run.status !== 0 || run.stdout.trim() !== projectReal) fail(`extracted memory root escaped project: ${out(run)}`);
+}
+
 // Run both exact hooks constructor shapes. HZ's retained3.32.9 uses twelve
 // spaces, while current releases use sixteen; indentation is literal data for
 // the patcher, and both must anchor persistent router state at the project root.

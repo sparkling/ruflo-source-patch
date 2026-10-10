@@ -94,6 +94,8 @@ for (const rel of helperRels) fs.copyFileSync(path.join(nodeModules, rel), path.
 const native = nativeMemoryBridgeSatisfied(pristineBytes(path.join(vendor, bridgeRel)).toString());
 if (native) {
   const nativeSource = pristineBytes(path.join(vendor, bridgeRel)).toString();
+  check(nativeMemoryBridgeSatisfied("import { assertAppendConditions } from './append-conditions.js';\n" + nativeSource),
+    'append-condition dependency must not invalidate unrelated native identity proof');
   for (const [find, replace] of [
     ['const resolvedPath = canonicalDbPath(dbPath);', 'const resolvedPath = path.resolve(dbPath);'],
     ['    if (testRegistryOverride)', '    if (bridgeFailureReasons.size) return null;\n    if (testRegistryOverride)'],

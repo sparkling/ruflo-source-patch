@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-10. Native ADR-index retirement accepts all three shipped stable
+**Updated**: 2026-10-10. Ruflo 3.56.3 policy composition preserves native secondary anchor decisions while exposing the complete archived receipt sequence; both old and new runtime fixtures verify preservation and crash/tamper refusal.
+Native ADR-index retirement accepts all three shipped stable
 edge encodings and tests identity/upserts without requiring the unrelated parser API.
 Transition-notice VM probes retain a one-second execution bound, with an explicit
 runaway-code regression, replacing the flaky 100 ms wall-clock limit.
