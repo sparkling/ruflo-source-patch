@@ -107,6 +107,53 @@ The nightly registration remains Brain-only, using the native scheduler's
 `developerSuite: false` option to preserve the previous scope. Native updater
 receipts, not the presence of a scheduled job, establish successful execution.
 
+## Unreleased backup prerequisite (#2895)
+
+`ruflo-memory-backup` is **not in v4.46.51 and is not installed or activated**.
+It addresses [Ruflo #2895](https://github.com/ruvnet/ruflo/issues/2895): native
+backup errors could become successful main-file byte copies and rotate history.
+The patch removes that fallback, checks native source integrity, preserves failed
+partial output, refuses destination collisions, and withholds snapshot rotation.
+Encrypted stores now fail closed instead of taking the unproved copy fallback.
+With rotation withheld, scheduled backups would accumulate snapshots. Retention
+must be reviewed before deployment; this source-only change does not enable jobs.
+
+The added `memory_backup` MCP tool borrows only an already initialized native
+registry handle under Ruflo's existing operation lease. It does not initialize a
+registry, open another source connection, close the owner's handle, modify schema,
+checkpoint or manipulate sidecars, restore data, or rotate snapshots. An absent,
+WASM, wrong-path or unhealthy owner is refused. The destination must already be
+an owned canonical absolute directory.
+
+After a separately reviewed release/activation, the invocation would be:
+
+```json
+{"dbPath":"/absolute/project/.swarm/memory.db","destDir":"/absolute/approved-backup-directory"}
+```
+
+This is preservation, not recovery. `sourceIntegrity: "ok-before-backup"` does
+not independently validate the resulting snapshot; `snapshotIntegrity` remains
+`"not-checked"` and `restoreQualified` remains `false`. A malformed source is
+refused before creating a snapshot. Existing loaded MCP owners do not acquire a
+new tool merely because files changed. The current Codex daemon reload API has no
+thread/server selector; no BA-only reload or safe restore is established here.
+The live BA database, sidecars and owner have not been changed by this slice.
+
+Retire only after native backup failure/collision/preservation tests and an
+existing-owner lifecycle test pass without the overlay. Source fixtures cover
+malformed/IO/busy errors, no raw copy or rotation, borrowed-handle identity, an
+absent owner, WASM refusal, and shutdown waiting for the backup lease. These tests
+do not establish recovery of any live project database.
+
+Focused checks: `node test/ruflo-memory-backup.mjs` uses isolated mocks and the
+real native operation-lease source. The optional native qualification is
+`RUFLO_AGENTDB_PACKAGE=/absolute/installed/agentdb/package.json node test/ruflo-memory-backup-native.mjs`;
+it creates disposable SQLite files, proves committed WAL content reaches the
+snapshot while the source handle remains open, then removes only its fixtures.
+The patch target is `ruflo-memory-backup install`; do not run it against live
+owners before the separate activation review. Qualification currently covers
+Ruflo 3.56.3; unfamiliar cached source shapes are refused.
+
 ## Historical audit from 2026-09-19
 
 The following records that audit's artifacts and findings, not today's fleet state.
