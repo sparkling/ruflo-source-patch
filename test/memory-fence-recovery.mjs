@@ -174,6 +174,10 @@ await __rufloWithLock(${JSON.stringify(good.databasePath)}, async () => console.
   check(cli.status === 1 && /older than the current boot|only on macOS/.test(cli.stderr), 'CLI refuses fabricated preboot expectation using actual OS');
   const linked = path.join(root, 'expected-link.json'); fs.symlinkSync(expectedFile, linked);
   fails(() => recoverMemoryFenceFile(linked), /bounded regular JSON file/);
+  fs.writeFileSync(expectedFile, ' '.repeat(1100000) + JSON.stringify(sameBoot.expected));
+  fails(() => recoverMemoryFenceFile(expectedFile), /older than the current boot|legacy ownerless fence/);
+  fs.writeFileSync(expectedFile, ' '.repeat(2 * 1024 * 1024 + 1));
+  fails(() => recoverMemoryFenceFile(expectedFile), /bounded regular JSON file/);
   check(fs.existsSync(sameBoot.gate), 'public refusal leaves fence intact');
   console.log(`memory-fence-recovery: ${checks} checks passed`);
 } finally { fs.rmSync(root, { recursive: true, force: true }); }
