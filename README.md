@@ -477,7 +477,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`verify-interface`** | **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316](https://github.com/stuinfla/ruvnet-brain/issues/316) |
-| **`brain-codex-completion`** | **Completion-claim feature disabled by operator instruction.** Replaces the former Codex evidence/diagnostic workarounds with one exact upstream audit bypass. No completion-based blocking, automatic completion authority, correction ledger or replacement warning. Other Stop gates remain unchanged. Historical code exists only to remove previously installed overlays safely. Re-enable only after an explicitly reviewed upstream replacement. | [#425](https://github.com/stuinfla/ruvnet-brain/issues/425), related [#423](https://github.com/stuinfla/ruvnet-brain/issues/423) |
+| **`brain-codex-completion`** | **Completion-claim feature disabled by operator instruction.** Replaces the former Codex evidence/diagnostic workarounds with one exact upstream audit bypass. No completion-based blocking, automatic completion authority, correction ledger or replacement warning. Other Stop gates remain unchanged. Superseded parser and diagnostic implementations are deleted; old installations must first restore their recorded pristine source. Re-enable only after an explicitly reviewed upstream replacement. | [#425](https://github.com/stuinfla/ruvnet-brain/issues/425), related [#423](https://github.com/stuinfla/ruvnet-brain/issues/423) |
 | **`brain-grounding-code`** | **Retires on executable proof of Brain 4.5.9/4.5.10's native conservative projection.** The 4.5.10 proof additionally executes the repaired helper alias. Older copies receive the comment/docstring compatibility fix; current copies retain native executable, product-path, managed-memory and uncertain-context refusals. Missing, altered or escaping projection helpers fail visibly. | [#373](https://github.com/stuinfla/ruvnet-brain/issues/373) · related substance gate [#46](https://github.com/stuinfla/ruvnet-brain/issues/46) |
 | **`brain-router-imports`** | Resolves omitted flat router imports through their existing native Console helpers; does not substitute a new router implementation. | [#341](https://github.com/stuinfla/ruvnet-brain/issues/341) |
 | **`brain-transition-notice`** | Deduplicates repeated pending-transition warnings through the native session ledger, preserving the first warning, distinct failures, durable capture and exact readback requirements. | [#380](https://github.com/stuinfla/ruvnet-brain/issues/380) |
@@ -606,18 +606,13 @@ support a provably dead **recovery owner** on macOS/Linux without requiring anot
 Live/reused PIDs and ambiguous evidence remain refused. The exact fence is archived durably;
 the writer claim, database and SQLite sidecars remain untouched. A missing writer claim after
 native archival is supported. Ordinary live-writer contention no longer creates recovery fences.
-Legacy empty same-boot directories need independent proof of quiescence. The explicit
-`memory inspect-fence /absolute/path/memory.db --quiescent` diagnostic collects native process
-evidence for the installed cooperating runtime, then the same `recover-fence` command revalidates
-it before archival. It refuses unproved participants and unsupported evidence; it never invents
-a recovery owner from the dead writer PID. Fresh memory read/write/readback is a separate check.
-macOS uses native stack sampling; Linux x86-64 uses `/proc` and bounded GDB stack inspection
-where needed (requires `sudo -n` and GDB, briefly suspends and detaches each inspected process).
+Legacy empty same-boot directories still need independent proof of quiescence; this release does
+not invent a recovery owner for them. Fresh memory read/write/readback is a separate check.
 
 For an interrupted **preboot** recovery on macOS, the memory owner provides an explicit operator
 path: `memory inspect-fence /absolute/path/memory.db` emits exact reviewable identity metadata;
 after reviewing that output, `memory recover-fence /absolute/path/expected.json` archives only
-the unchanged empty fence and retains intent/result receipts. Unproved same-boot, active, nonempty,
+the unchanged empty fence and retains intent/result receipts. Same-boot, active, nonempty,
 symlinked or changed ownership is refused. The unchanged dead writer claim remains for the native
 lock owner to recover. This does not prove memory health; verify the requested native operation
 afterward. Neither command installs patches or opens a database (ADR-023).

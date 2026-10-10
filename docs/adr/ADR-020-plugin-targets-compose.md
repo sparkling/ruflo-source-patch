@@ -7,8 +7,7 @@ parser and diagnostic workarounds: `brain-codex-completion` now disables the
 completion-claim feature at its existing Stop audit boundary. The audit produces
 no completion authority and cannot contribute a blocking correction or automatic
 promise closure. Other Stop gates are unchanged. Earlier installed overlays are
-restored from the shared pristine composition; historical transformations remain
-migration-only. The unreleased once-per-turn workaround is discarded. There is
+restored from the shared pristine composition; historical transformations are deleted after fleet migration. The unreleased once-per-turn workaround is discarded. There is
 no replacement correction ledger or advisory. Re-enablement requires explicit
 review of an upstream replacement, not merely a new release number.
 The `ruflo-policy-ledger` target composes the native

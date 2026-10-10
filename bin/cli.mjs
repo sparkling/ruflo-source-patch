@@ -265,7 +265,6 @@ Run a script directly (no separate install step):
 
 Other:
   npx github:sparkling/ruflo-source-patch memory inspect-fence /absolute/path/memory.db
-  npx github:sparkling/ruflo-source-patch memory inspect-fence /absolute/path/memory.db --quiescent
   npx github:sparkling/ruflo-source-patch memory recover-fence /absolute/path/reviewed-expectation.json
   npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest
   npx github:sparkling/ruflo-source-patch all status         # every target at once
@@ -283,12 +282,10 @@ const [rawTarget, rawAction] = process.argv.slice(2);
 // Explicit operator recovery does not install patches, refresh stable source or update hosts.
 if (rawTarget === 'memory' && ['inspect-fence', 'recover-fence'].includes(rawAction)) {
   try {
-    const quiescent = rawAction === 'inspect-fence' && process.argv.length === 6 && process.argv[5] === '--quiescent';
-    if (process.argv.length !== 5 && !quiescent) throw new Error(`usage: memory ${rawAction} <${rawAction === 'inspect-fence' ? 'absolute-database-path> [--quiescent]' : 'reviewed-expectation.json>'}`);
-    const { inspectMemoryFence, inspectQuiescentMemoryFence, recoverMemoryFenceFile } = await import('../lib/cwd/memory-fence-recovery.mjs');
+    if (process.argv.length !== 5) throw new Error(`usage: memory ${rawAction} <${rawAction === 'inspect-fence' ? 'absolute-database-path' : 'reviewed-expectation.json'}>`);
+    const { inspectMemoryFence, recoverMemoryFenceFile } = await import('../lib/cwd/memory-fence-recovery.mjs');
     console.log(JSON.stringify(rawAction === 'inspect-fence'
-      ? (quiescent ? inspectQuiescentMemoryFence(process.argv[4]) : inspectMemoryFence(process.argv[4]))
-      : recoverMemoryFenceFile(process.argv[4]), null, 2));
+      ? inspectMemoryFence(process.argv[4]) : recoverMemoryFenceFile(process.argv[4]), null, 2));
   } catch (error) {
     console.error(`[ruflo-source-patch] ${error?.message || error}`);
     process.exitCode = 1;
