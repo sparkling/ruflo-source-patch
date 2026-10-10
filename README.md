@@ -21,7 +21,7 @@ Reviewed the 109 distinct issue links in this README, their current state and av
 comments: **83 closed, 26 open**. Issue labels in the target tables are this dated
 snapshot, not retirement decisions. CLI qualification uses published **Ruflo and
 @claude-flow/cli 3.56.3**; Brain executable qualification now includes published
-**4.6.1**, with old-generation compatibility retained. Live selected-generation,
+**4.6.2**, with old-generation compatibility retained. Live selected-generation,
 KB and host-convergence checks remain separate from source qualification.
 
 - **Native components accepted:** #3306's exact wrapper dependency pin and native
@@ -62,7 +62,7 @@ qualification alone does not certify a running process or a project programme.
 
 `brain-wrapper-ownership` repairs the native installer's rejection of its own
 older Codex bridge. It accepts only exact SHA-256 hashes independently verified
-against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1 wrapper bytes. The existing
+against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1/v4.6.2 wrapper bytes. The existing
 path, owner, regular-file, hardlink and symlink checks remain mandatory; an edited
 bridge remains a conflict. The patch does not replace the bridge itself, select a
 generation, change KB data, alter update schedules or forge convergence receipts.
@@ -75,11 +75,31 @@ release's wrapper and still refuses edited/foreign/indirect bridges. A closed
 issue alone is insufficient. Regression fixtures reproduce the native failure,
 exercise both published hashes and negative ownership cases, and prove exact
 reversal and source-drift refusal. Live fleet update results are verified
-separately from these fixtures. Native 4.6.1 suspension/collision/capture proofs
+separately from these fixtures. Native 4.6.1/4.6.2 suspension/collision/capture proofs
 retain the upstream implementation; their isolated test dependency graph and
 reviewed deadline-aware source boundaries were updated. Grounding qualification
 now tests native session/turn/nonce-bound search evidence and rejects unrelated
 product claims, matching the stronger upstream contract.
+
+Live rollout on 2026-10-10 selected Brain **4.6.2** on Mac, HZ and all five GCP
+hosts, using source-patch **v4.46.51** and Ruflo **3.56.3**. Native Codex hook
+trust was verified for all 19 declared Brain hooks; standing operator consent is
+recorded through Brain's `automaticHookTrustUpdates` setting. Native MCP reload
+and root-thread searches are checked separately; inactive child threads are not
+claimed as verified consumers. Existing programmes were not paused.
+
+Remaining upstream update observations are tracked separately:
+
+- [Brain #401](https://github.com/stuinfla/ruvnet-brain/issues/401): stale cached
+  corpus evidence can call an older release newer than the installed corpus.
+  This advisory does not negate a successful signed upgrade/nightly receipt.
+- [Brain #434](https://github.com/stuinfla/ruvnet-brain/issues/434): abandoned
+  native receipt temporary files block lifecycle retention; native `--clean`
+  refuses them too. Update/cache-plane code is not patched by this repository.
+
+The nightly registration remains Brain-only, using the native scheduler's
+`developerSuite: false` option to preserve the previous scope. Native updater
+receipts, not the presence of a scheduled job, establish successful execution.
 
 ## Historical audit from 2026-09-19
 
