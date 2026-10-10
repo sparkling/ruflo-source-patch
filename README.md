@@ -17,11 +17,12 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Upstream audit of 2026-10-10
 
-Reviewed the 108 distinct issue links in this README, their current state and available
-comments: **83 closed, 25 open**. Issue labels in the target tables are this dated
+Reviewed the 109 distinct issue links in this README, their current state and available
+comments: **83 closed, 26 open**. Issue labels in the target tables are this dated
 snapshot, not retirement decisions. CLI qualification uses published **Ruflo and
-@claude-flow/cli 3.56.3**; Brain qualification uses the **natively active 4.5.16**
-generation. A newer announced/downloading Brain release is not an installed proof.
+@claude-flow/cli 3.56.3**; Brain executable qualification now includes published
+**4.6.1**, with old-generation compatibility retained. Live selected-generation,
+KB and host-convergence checks remain separate from source qualification.
 
 - **Native components accepted:** #3306's exact wrapper dependency pin and native
   version-mismatch warning; #3143's canonical per-store identity, isolated failures
@@ -56,6 +57,29 @@ generation. A newer announced/downloading Brain release is not an installed proo
 Qualification covers source composition, reversible fixtures and native contract
 probes. Fleet installation and live MCP activation are separate checks; source
 qualification alone does not certify a running process or a project programme.
+
+## Brain automatic-update repair (#420)
+
+`brain-wrapper-ownership` repairs the native installer's rejection of its own
+older Codex bridge. It accepts only exact SHA-256 hashes independently verified
+against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1 wrapper bytes. The existing
+path, owner, regular-file, hardlink and symlink checks remain mandatory; an edited
+bridge remains a conflict. The patch does not replace the bridge itself, select a
+generation, change KB data, alter update schedules or forge convergence receipts.
+Brain's native updater performs those operations. The target covers installed
+installer copies, including the newer installer needed to upgrade an older active
+generation; the normal patch monitor maintains it.
+
+Retire this target only after pristine upstream code accepts a genuine previous
+release's wrapper and still refuses edited/foreign/indirect bridges. A closed
+issue alone is insufficient. Regression fixtures reproduce the native failure,
+exercise both published hashes and negative ownership cases, and prove exact
+reversal and source-drift refusal. Live fleet update results are verified
+separately from these fixtures. Native 4.6.1 suspension/collision/capture proofs
+retain the upstream implementation; their isolated test dependency graph and
+reviewed deadline-aware source boundaries were updated. Grounding qualification
+now tests native session/turn/nonce-bound search evidence and rejects unrelated
+product claims, matching the stronger upstream contract.
 
 ## Historical audit from 2026-09-19
 
@@ -541,6 +565,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-outbox-streaming`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reads the complete append-only journal incrementally beyond Node's whole-string limit, preserving record order, conflict evidence and native final-tail semantics. This alone does not bound all historical object memory or restore work. | [#387 · closed](https://github.com/stuinfla/ruvnet-brain/issues/387) |
 | **`brain-continuity-summary`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Bounds optional displayed observations and repeated conflict summaries with omission/digest evidence. Exact goals/actions and canonical snapshots remain intact; mandatory oversized state still fails honestly. | [#389 · closed](https://github.com/stuinfla/ruvnet-brain/issues/389) |
 | **`brain-progression-suspension`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390 · open](https://github.com/stuinfla/ruvnet-brain/issues/390) |
+| **`brain-wrapper-ownership`** | Allows native upgrades over exact, publicly verified historical Codex wrapper bytes while retaining every native ownership guard. No manual wrapper replacement or generation promotion. | [#420 · open](https://github.com/stuinfla/ruvnet-brain/issues/420) |
 | **`brain-host-recovery`** | Uses fresh Codex host declarations in doctor and identifies the causal failed refresh phase while preserving historical failure records, host trust and the native update lifecycle. | [#391 · open](https://github.com/stuinfla/ruvnet-brain/issues/391) |
 | **`flywheel-daily`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53 · closed](https://github.com/stuinfla/ruvnet-brain/issues/53) |
 | **`codex-hooks`** | **Retired.** Brain 4.0.2 replaced the legacy bridge with a native six-event lifecycle. Brain 4.3.10 subsequently withdrew automatic host hooks and ships an explicit schema-valid empty Codex registry. The target accepts either proven native state and never recreates hooks Brain deliberately removed; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52 · closed](https://github.com/stuinfla/ruvnet-brain/issues/52) |

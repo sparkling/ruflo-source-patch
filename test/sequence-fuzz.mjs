@@ -156,8 +156,8 @@ function check(step, seq, expected) {
   // I5 — monitor check exit code matches reality
   const drift = Object.entries(ENTRY_PROBE).some(([id, { rel, needle }]) =>
     expected.has(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle));
-  const rc = cli(['monitor', 'check']).status;
-  if ((rc === 1) !== drift) errs.push(`I5 monitor check exit=${rc} but drift=${drift}`);
+  const monitored = cli(['monitor', 'check']), rc = monitored.status;
+  if ((rc === 1) !== drift) errs.push(`I5 monitor check exit=${rc} but drift=${drift}\n${monitored.stdout || ''}${monitored.stderr || ''}`);
 
   if (errs.length) {
     console.log(`\n✘ FAILED after step ${step}: ${JSON.stringify(seq)}`);
