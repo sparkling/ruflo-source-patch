@@ -606,13 +606,18 @@ support a provably dead **recovery owner** on macOS/Linux without requiring anot
 Live/reused PIDs and ambiguous evidence remain refused. The exact fence is archived durably;
 the writer claim, database and SQLite sidecars remain untouched. A missing writer claim after
 native archival is supported. Ordinary live-writer contention no longer creates recovery fences.
-Legacy empty same-boot directories still need independent proof of quiescence; this release does
-not invent a recovery owner for them. Fresh memory read/write/readback is a separate check.
+Legacy empty same-boot directories need independent proof of quiescence. The explicit
+`memory inspect-fence /absolute/path/memory.db --quiescent` diagnostic collects native process
+evidence for the installed cooperating runtime, then the same `recover-fence` command revalidates
+it before archival. It refuses unproved participants and unsupported evidence; it never invents
+a recovery owner from the dead writer PID. Fresh memory read/write/readback is a separate check.
+macOS uses native stack sampling; Linux x86-64 uses `/proc` and bounded GDB stack inspection
+where needed (requires `sudo -n` and GDB, briefly suspends and detaches each inspected process).
 
 For an interrupted **preboot** recovery on macOS, the memory owner provides an explicit operator
 path: `memory inspect-fence /absolute/path/memory.db` emits exact reviewable identity metadata;
 after reviewing that output, `memory recover-fence /absolute/path/expected.json` archives only
-the unchanged empty fence and retains intent/result receipts. Same-boot, active, nonempty,
+the unchanged empty fence and retains intent/result receipts. Unproved same-boot, active, nonempty,
 symlinked or changed ownership is refused. The unchanged dead writer claim remains for the native
 lock owner to recover. This does not prove memory health; verify the requested native operation
 afterward. Neither command installs patches or opens a database (ADR-023).

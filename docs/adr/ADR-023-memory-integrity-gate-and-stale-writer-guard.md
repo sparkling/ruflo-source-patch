@@ -4,7 +4,9 @@
 **Date**: 2026-07-17
 **Updated**: 2026-10-10. Issue source-patch#6 replaces anonymous recovery directories with
 atomically published owner records and explicit dead-owner disposition on macOS/Linux. Legacy
-ownerless same-boot directories remain refused; their creator cannot be inferred from the writer.
+ownerless same-boot directories require separately collected native process quiescence evidence;
+their creator cannot be inferred from the writer. The explicit `inspect-fence --quiescent`
+diagnostic supplies that evidence to the existing guarded archival operation.
 Explicit preboot recovery-fence disposition is preserved below; automatic
 recovery continues to refuse unknown fences. Bounded CLI SIGTERM and SIGINT release only the terminating process's
 exact token/inode claims and preserve default signal termination. Existing or later native signal
@@ -154,10 +156,22 @@ database, rewrites a writer claim, removes a sidecar, installs patches or restar
 The existing native lock owner subsequently recovers the unchanged dead claim; a successful fence
 receipt is not evidence of database health, native persistence or distillation.
 
-Legacy same-boot directories, nonempty directories, symlinked, changed or unproved ownership stay refused. An unexpected external
+For a legacy same-boot fence, `memory inspect-fence /absolute/path/memory.db --quiescent`
+collects native process evidence before producing a recovery expectation. This is an explicit
+operator diagnostic, never a timeout-based automatic unlock. Recovery revalidates that evidence
+and the exact fence/claim identities; a dead writer PID alone is insufficient. The archived intent
+retains the evidence. Scope is the installed cooperating Node runtime protocol, not hostile code
+running as the same user. Unproved participants and unsupported OS evidence remain refused.
+macOS uses `/usr/bin/sample`. Linux x86-64 checks kernel epoll state and native stacks for
+every remaining thread, with no thread-name shortcuts. Bounded GDB inspection uses original
+mapped libraries when on-disk libraries changed, disables automatic scripts, prints no frame
+arguments, and verifies detachment. It briefly suspends the inspected process; it never executes
+application functions. Native stack evidence is retained in the operator receipt.
+
+Nonempty directories, symlinked, changed or unproved ownership stay refused. An unexpected external
 replacement or persistence failure after the move recreates an exclusive refusal marker without
 overwriting a successor, retaining the archive and failure evidence. This is an operator recovery
-operation under a reviewed quiescent, preboot condition, not automatic timeout-based lock stealing
+operation under a reviewed quiescent or preboot condition, not automatic timeout-based lock stealing
 or protection against arbitrary concurrent filesystem mutation outside the lock protocol.
 Synthetic tests exercise refusal boundaries, post-move failures, evidence preservation and the
 existing injected native dead-claim recovery; they never use a managed database. Real restoration

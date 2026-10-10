@@ -75,6 +75,27 @@ await __rufloWithLock(${JSON.stringify(good.databasePath)}, async () => console.
 
   const sameBoot = fixture('same-boot');
   fails(() => recoverMemoryFence(sameBoot.expected, { ...sameBoot.options, io: fs }), /older than the current boot/);
+  // The collector is tested independently against OS fixtures. Exercise disposition
+  // with a checked collector result, including its immediate pre-rename revalidation.
+  const quiescent = fixture('quiescent');
+  const nativeIdentity = st => Object.fromEntries(['dev', 'ino', 'uid', 'gid', 'mode', 'size',
+    'birthtimeMs', 'mtimeMs', 'ctimeMs'].map(key => [key, st[key]]));
+  const reviewed = { ...quiescent.expected, fence: nativeIdentity(fs.lstatSync(quiescent.gate)),
+    claim: { ...quiescent.expected.claim, ...nativeIdentity(fs.lstatSync(quiescent.lock)) },
+    quiescence: { schema: 'fixture-native-proof' } };
+  let verifications = 0;
+  const verified = recoverMemoryFence(reviewed, { ...quiescent.options, io: fs,
+    verifyQuiescence(proof, databasePath) {
+      assert.deepEqual(proof, reviewed.quiescence); assert.equal(databasePath, quiescent.databasePath);
+      verifications++;
+    } });
+  check(verified.status === 'fence-archived' && verifications === 3,
+    'same-boot disposition requires proof before serialization, under lock and after durable intent');
+  check(fs.readFileSync(quiescent.lock, 'utf8').includes(deceased + ':fixture:claim'),
+    'quiescent disposition leaves original writer claim unchanged');
+  const rejectedProof = fixture('invalid-quiescence');
+  fails(() => recoverMemoryFence({ ...rejectedProof.expected, quiescence: { allIdle: true } }, rejectedProof.options), /quiescen|schema|proof/i);
+  check(fs.existsSync(rejectedProof.gate), 'caller idle assertion cannot replace OS proof');
   const nonempty = fixture('nonempty'); fs.writeFileSync(path.join(nonempty.gate, 'unknown'), 'retain');
   fails(() => recoverMemoryFence(nonempty.expected, nonempty.options), /empty, owned/);
   check(fs.existsSync(path.join(nonempty.gate, 'unknown')), 'nonempty fence remains untouched');
