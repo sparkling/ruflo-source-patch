@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { patchSource, reverseSource, isPatched, SPECS } from '../lib/brain-codex-completion/patcher.mjs';
+import { patchSource, reverseSource, isPatched, SPECS, historicalPatchSource, SCOPE_EDIT } from '../lib/brain-codex-completion/patcher.mjs';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-completion-'));
 const pristine = fs.readFileSync(new URL('./fixtures/brain-codex-completion/completion-claim-evidence.mjs', import.meta.url), 'utf8');
@@ -13,15 +13,21 @@ assert.deepEqual(result.missing, []);
 assert.equal(isPatched(result.next), true);
 assert.equal(reverseSource(result.next), pristine);
 assert.equal(patchSource(result.next).next, result.next);
+const legacy = historicalPatchSource(pristine).next;
+assert.equal(patchSource(legacy).next, result.next, 'old installed composition upgrades without rebaselining');
+assert.equal(reverseSource(patchSource(legacy).next), pristine);
 for (const s of [pristine + pristine, pristine.replace('export function readClaudeTurn', 'export function altered'),
+  pristine.replace(SCOPE_EDIT[0], "problems.push('unknown scope policy');"),
   result.next.replace('pending.size', 'false')]) {
   assert.ok(patchSource(s).missing.length);
   assert.equal(patchSource(s).next, s);
 }
+assert.equal(isPatched(result.next.replace(SCOPE_EDIT[1], "problems.push('forged scope');")), false);
 const gate = SPECS[1].edits.map(([a]) => a).join('\n');
 assert.deepEqual(patchSource(gate).missing, []);
 assert.equal(reverseSource(patchSource(gate).next), gate);
 assert.equal(isPatched(patchSource(gate).next), true);
+assert.equal(patchSource(historicalPatchSource(gate).next).next, patchSource(gate).next);
 fs.writeFileSync(path.join(root, 'turn-outcome-capture.mjs'), 'export const readSettledTranscript = () => [];');
 fs.writeFileSync(path.join(root, 'pristine.mjs'), pristine);
 fs.writeFileSync(path.join(root, 'patched.mjs'), result.next);
@@ -70,6 +76,26 @@ assert.equal(audit([start, edit, check(),
     aggregated_output: 'failure' }, 50, 60)]).verdict, 'UNKNOWN');
 assert.equal(audit([start, edit, check()], 'The targeted tests are passing.').verdict, 'FAIL');
 assert.equal(audit([start, edit, check()], 'Fixed.\nVerified: npm test.\nUnverified: browser.').verdict, 'UNKNOWN');
+// Anonymized BA sequence: checks, documentation/delivery attempt, then a receipt update.
+// The final arbitrary script remains a conservative boundary, never a receipt-based exemption.
+const receiptScript = "python3 - <<'PY'\nimport json,datetime\nfrom pathlib import Path\n"
+  + "p=Path('.local/verification.json');d=json.loads(p.read_text())\n"
+  + "d['programmeComplete']=False\np.write_text(json.dumps(d,indent=2)+'\\n')\nPY";
+const receiptWrite = item('receipt', 'CommandExecution', { command: receiptScript,
+  status: 'completed', exit_code: 0, aggregated_output: 'dispositions reconciled; delivery blocker retained' }, 70, 80);
+const scopedTask = 'The five listed recovery tasks are complete at their documented local scope.\nVerified: npm test.\nUnverified: delivery.';
+const receiptAudit = audit([start, edit, check(), receiptWrite], scopedTask);
+assert.equal(receiptAudit.verdict, 'UNKNOWN');
+assert.match(receiptAudit.problems.join(' '), /no qualifying successful check evidence/);
+assert.match(receiptAudit.problems.join(' '), /not proof that no check ran/);
+assert.doesNotMatch(receiptAudit.problems.join(' '), /no end-to-end check ran/);
+assert.equal(audit([start, edit, check(), receiptWrite], 'Fixed.').verdict, 'FAIL');
+const qualifiedButUnsupportedScope = audit([start, edit, check()], scopedTask);
+assert.equal(qualifiedButUnsupportedScope.verdict, 'UNKNOWN');
+assert.match(qualifiedButUnsupportedScope.problems.join(' '), /repeating checks does not establish/);
+// A later supported check remains recognizable without any receipt exception.
+const laterCheck = check({}, 90, 100); laterCheck.payload.item.id = 'later-check';
+assert.equal(audit([start, edit, check(), receiptWrite, laterCheck]).verdict, 'OBSERVED_CHECK');
 assert.equal(after.readCodexTurn('x.jsonl', { read: () => lines([start, edit, check()]) }).events.length, 2);
 assert.equal(after.readCodexTurn('x.jsonl', { read: () => { throw Error('missing'); } }), null);
 assert.equal(after.readCodexTurn('x.txt'), null);
