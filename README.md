@@ -17,6 +17,15 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Upstream audit of 2026-10-10
 
+**Recurrence follow-up:** [Ruflo #4040](https://github.com/ruvnet/ruflo/issues/4040)
+reproduces graph encryption header sniffing dropping a live native owner's POSIX
+locks. The `memory/graph-header-process` patch runs the bounded header read in a
+fresh exec process, retaining encryption detection without closing a raw database
+descriptor in the SQLite owner. A two-process native regression proves the original
+WAL deletion and patched WAL identity plus exact cross-process readback. Retire only
+after the upstream header path passes that regression. This prevents the reproduced
+trigger; it does not repair an already-detached live connection or prove data loss.
+
 Reviewed the 109 distinct issue links in this README, their current state and available
 comments: **83 closed, 26 open**. Issue labels in the target tables are this dated
 snapshot, not retirement decisions. CLI qualification uses published **Ruflo and

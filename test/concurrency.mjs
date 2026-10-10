@@ -14,6 +14,7 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
 import { DAEMON_AUTOSTART_REL, legacyDaemonBytes } from './daemon-fixtures.mjs';
+import { HEADER_ANCHOR } from '../lib/ruflo-sqlite-owner/header.mjs';
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
@@ -29,7 +30,11 @@ const FILES = [...new Set(lib.ENTRIES
   .map((entry) => entry.suffix.join('/')))]
   .filter((rel) => fs.existsSync(path.join(REAL, rel)));
 const PRISTINE = new Map(FILES.map((rel) => {
-  const bytes = pristineBytes(path.join(REAL, rel));
+  let bytes = pristineBytes(path.join(REAL, rel));
+  // Older fixture packages predate the RFE1 sniff. Include its exact modern
+  // surface so concurrent memory installs exercise this new physical owner.
+  if (rel.endsWith('/graph-edge-writer.js') && !bytes.toString().includes('function readHeaderBytes('))
+    bytes = Buffer.from(bytes.toString() + '\n' + HEADER_ANCHOR + '\n');
   return [rel, legacyDaemonBytes(rel, bytes, lib)];
 }));
 const nm = path.join(SB, 'npx', 'h', 'node_modules');
