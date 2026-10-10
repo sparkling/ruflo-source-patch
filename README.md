@@ -87,6 +87,12 @@ trust was verified for all 19 declared Brain hooks; standing operator consent is
 recorded through Brain's `automaticHookTrustUpdates` setting. Native MCP reload
 and root-thread searches are checked separately; inactive child threads are not
 claimed as verified consumers. Existing programmes were not paused.
+All seven hosts subsequently produced **SUCCEEDED nightly** receipts through their
+registered native runner; Brain doctor returned `ok: true` on all seven. Patch
+monitor checks passed. This verifies the current update path, not future releases
+or each project's database integrity. Oxigraph's two abandoned empty temporary
+receipts were archived intact with explicit operator authorization before native
+cleanup; PLM's GitHub rate-limit failure cleared on a later native retry.
 
 Remaining upstream update observations are tracked separately:
 
