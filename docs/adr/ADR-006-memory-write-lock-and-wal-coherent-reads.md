@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-04. Native auxiliary handles resolve the actual AgentDB SQLite dependency
+**Updated**: 2026-10-10. Raw WAL refusal checks both the supplied path and its canonical symlink
+target; unresolved existing aliases are refused (source-patch #7). This corrects a guard bypass,
+not database recovery.
+2026-10-04. Native auxiliary handles resolve the actual AgentDB SQLite dependency
 (#3693); fallback pattern receipts require successful storage and exact readback (#3691).
 2026-09-21. MCP memory operations now carry the configured `CLAUDE_FLOW_DB_PATH`
 through to the existing memory API (#2105/#3153); initialization alone previously honored it.

@@ -1292,7 +1292,10 @@ the historical lost-update report, with the current ordinary-writer residual tra
 The `memory` target already solves both halves, so this **depends on it rather than reimplementing a
 weaker copy**. `memory/write-lock` makes `<db>.rsp-lock` mean something (a lock nothing else takes
 protects nothing), and `memory/wal-sidecar-refusal` stops raw access while a native connection owns
-WAL state. The script takes that same lock around its `DELETE`, which is *participation* in the
+WAL state. The guard checks both the supplied path and its resolved symlink target and refuses
+unresolved existing aliases ([source-patch #7](https://github.com/sparkling/ruflo-source-patch/issues/7)).
+This closes a demonstrated bypass; it does not repair existing data.
+The script takes that same lock around its `DELETE`, which is *participation* in the
 protocol, not duplication of it: the CLI's lock lives inside node and can't cover a `sqlite3`
 subprocess. It releases before the re-import because every patched store takes the same lock and now
 fails closed on contention.

@@ -403,9 +403,26 @@ fs.writeFileSync(`${walDb}-wal`, Buffer.alloc(0));
 let walCode;
 try { __rufloRefuseWalSidecars(walDb); } catch (e) { walCode = e?.code; }
 if (walCode !== 'RSP_UNSAFE_WAL_SIDECARS') fail(`WG live WAL was not refused: ${walCode}`);
+const walAlias = dbPath('wal-alias.db');
+fs.symlinkSync(walDb, walAlias);
+let aliasCode;
+try { __rufloRefuseWalSidecars(walAlias); } catch (e) { aliasCode = e?.code; }
+if (aliasCode !== 'RSP_UNSAFE_WAL_SIDECARS') fail(`WG symlink bypassed live WAL refusal: ${aliasCode}`);
 if (!fs.readFileSync(walDb).equals(mainBefore) || !fs.existsSync(`${walDb}-wal`)) fail('WG refusal modified the DB or sidecar');
 fs.unlinkSync(`${walDb}-wal`);
 __rufloRefuseWalSidecars(walDb);
+__rufloRefuseWalSidecars(walAlias);
+fs.writeFileSync(`${walDb}-shm`, Buffer.alloc(0));
+let shmCode;
+try { __rufloRefuseWalSidecars(walAlias); } catch (e) { shmCode = e?.code; }
+if (shmCode !== 'RSP_UNSAFE_WAL_SIDECARS') fail('WG symlink bypassed live SHM refusal');
+fs.unlinkSync(`${walDb}-shm`);
+const danglingAlias = dbPath('dangling.db');
+fs.symlinkSync(dbPath('absent.db'), danglingAlias);
+let danglingCode;
+try { __rufloRefuseWalSidecars(danglingAlias); } catch (e) { danglingCode = e?.code; }
+if (danglingCode !== 'RSP_UNSAFE_WAL_SIDECARS') fail('WG ambiguous dangling database alias was allowed');
+__rufloRefuseWalSidecars(dbPath('fresh.db'));
 __rufloRefuseWalSidecars(writeDb('not-db.txt', Buffer.from('x')));
 
 const fsEntry = lib.ENTRIES.find((entry) => entry.id === 'memory/wal-sidecar-refusal');
