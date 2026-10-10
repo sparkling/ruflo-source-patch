@@ -2,16 +2,15 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-10. Brain #423 adds the atomic `brain-codex-completion`
-two-script bundle. It normalizes native Codex turn/command events into the existing
-completion audit, reusing its bounded transcript reader and retaining scope,
-named-check and disclosure requirements. Unsupported/truncated evidence cannot
-produce a positive check verdict. Retirement requires equivalent marker-free
-Codex positive/negative Stop-path behavior; unknown source drift fails visibly.
-The #423/#425 follow-up corrects diagnostic certainty for arbitrary-script
-boundaries and unsupported locally scoped task claims. It preserves every verdict
-and refuses to exempt Python receipt writes. The adapter probe covers both cases;
-repeating recovery solely to satisfy the classifier is explicitly discouraged.
+**Updated**: 2026-10-10. Operator instruction supersedes the #423/#425 completion
+parser and diagnostic workarounds: `brain-codex-completion` now disables the
+completion-claim feature at its existing Stop audit boundary. The audit produces
+no completion authority and cannot contribute a blocking correction or automatic
+promise closure. Other Stop gates are unchanged. Earlier installed overlays are
+restored from the shared pristine composition; historical transformations remain
+migration-only. The unreleased once-per-turn workaround is discarded. There is
+no replacement correction ledger or advisory. Re-enablement requires explicit
+review of an upstream replacement, not merely a new release number.
 The `ruflo-policy-ledger` target composes the native
 policy runtime and security engine as one exact-anchor bundle for #3164.
 Installation does not migrate policy data. A separately authorized first native

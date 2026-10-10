@@ -1,112 +1,48 @@
-// Brain 4.5.16 pristine audit fixture; Codex native event shape observed on 0.161/0.162.
+// Completion disabling is one gate change; historical parser bytes are migration-only.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { patchSource, reverseSource, isPatched, SPECS, historicalPatchSource, SCOPE_EDIT } from '../lib/brain-codex-completion/patcher.mjs';
-
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-completion-'));
-const pristine = fs.readFileSync(new URL('./fixtures/brain-codex-completion/completion-claim-evidence.mjs', import.meta.url), 'utf8');
-const result = patchSource(pristine);
+import vm from 'node:vm';
+import { patchSource, reverseSource, isPatched, historicalPatchSource, recover, ANCHOR, REPLACEMENT } from '../lib/brain-codex-completion/patcher.mjs';
+import * as previous from '../lib/brain-codex-completion/migration-v44644.mjs';
+const evidence = fs.readFileSync(new URL('./fixtures/brain-codex-completion/completion-claim-evidence.mjs', import.meta.url), 'utf8');
+const gate = `const completion = (() => {\n  return auditCompletionClaims();\n})();\notherGate(completion);`;
+const result = patchSource(gate);
 assert.deepEqual(result.missing, []);
-assert.equal(isPatched(result.next), true);
-assert.equal(reverseSource(result.next), pristine);
+assert.equal(result.next, gate.replace(ANCHOR, REPLACEMENT));
+assert.equal(reverseSource(result.next), gate);
 assert.equal(patchSource(result.next).next, result.next);
-const legacy = historicalPatchSource(pristine).next;
-assert.equal(patchSource(legacy).next, result.next, 'old installed composition upgrades without rebaselining');
-assert.equal(reverseSource(patchSource(legacy).next), pristine);
-for (const s of [pristine + pristine, pristine.replace('export function readClaudeTurn', 'export function altered'),
-  pristine.replace(SCOPE_EDIT[0], "problems.push('unknown scope policy');"),
-  result.next.replace('pending.size', 'false')]) {
-  assert.ok(patchSource(s).missing.length);
-  assert.equal(patchSource(s).next, s);
+assert.equal(isPatched(result.next), true);
+let audits = 0, other = 0;
+vm.runInNewContext(result.next, { auditCompletionClaims() { audits++; throw Error('must not run'); },
+  otherGate(value) { other++; assert.equal(value.verdict, 'NONE'); assert.equal(value.claims.length, 0); } });
+assert.equal(audits, 0);
+assert.equal(other, 1);
+assert.equal(patchSource(evidence).next, evidence);
+assert.equal(isPatched(evidence), true);
+for (const old of [previous.patchSource(evidence).next, previous.historicalPatchSource(evidence).next]) {
+  assert.equal(patchSource(old).next, evidence);
+  assert.equal(reverseSource(old), evidence);
+  assert.equal(historicalPatchSource(evidence, old).next, old);
+  const proof = recover(old);
+  assert.equal(proof.candidate, evidence);
+  assert.equal(proof.verify(evidence), old);
 }
-assert.equal(isPatched(result.next.replace(SCOPE_EDIT[1], "problems.push('forged scope');")), false);
-const gate = SPECS[1].edits.map(([a]) => a).join('\n');
-assert.deepEqual(patchSource(gate).missing, []);
-assert.equal(reverseSource(patchSource(gate).next), gate);
-assert.equal(isPatched(patchSource(gate).next), true);
-assert.equal(patchSource(historicalPatchSource(gate).next).next, patchSource(gate).next);
-fs.writeFileSync(path.join(root, 'turn-outcome-capture.mjs'), 'export const readSettledTranscript = () => [];');
-fs.writeFileSync(path.join(root, 'pristine.mjs'), pristine);
-fs.writeFileSync(path.join(root, 'patched.mjs'), result.next);
-const before = await import(pathToFileURL(path.join(root, 'pristine.mjs')));
-const after = await import(pathToFileURL(path.join(root, 'patched.mjs')));
-const message = 'The targeted tests are passing.\nVerified: npm test.\nUnverified: browser behaviour.';
-const start = { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } };
-function item(id, type, fields = {}, started = 10, ended = 20, turn = 'turn-1') {
-  return { type: 'event_msg', payload: { type: 'item_completed', turn_id: turn,
-    started_at_ms: started, completed_at_ms: ended, item: { id, type, ...fields } } };
+// Old gate import/adapter/diagnostics disappear before the one disabling edit is applied.
+const oldGate = previous.SPECS[1].edits.map(([a]) => a).join('\n') + '\n' + gate;
+for (const old of [previous.patchSource(oldGate).next, previous.historicalPatchSource(oldGate).next,
+  previous.patchSource(oldGate).next.replace(...previous.DELIVERY_EDIT)]) {
+  const next = patchSource(old);
+  assert.deepEqual(next.missing, []);
+  assert.equal(next.next, oldGate.replace(ANCHOR, REPLACEMENT));
+  assert.equal(reverseSource(next.next), oldGate);
+  assert.equal(historicalPatchSource(oldGate, old).next, old);
 }
-const edit = item('edit', 'FileChange');
-const check = (fields = {}, started = 30, ended = 40) => item('check', 'CommandExecution', {
-  command: ['/bin/zsh', '-lc', 'npm test'], status: 'completed', exit_code: 0,
-  aggregated_output: '12 tests passed', ...fields,
-}, started, ended);
-const lines = rows => rows.map(r => typeof r === 'string' ? r : JSON.stringify(r));
-const turn = rows => after.codexTurnEvents(lines(rows));
-const audit = (rows, text = message) => after.auditCompletionClaims(text, { turn: turn(rows), host: 'codex' });
-assert.equal(before.auditCompletionClaims(message, { host: 'codex' }).verdict, 'UNKNOWN');
-assert.equal(audit([start, edit, check()]).verdict, 'OBSERVED_CHECK');
-assert.equal(audit([start,
-  { type: 'response_item', payload: { type: 'custom_tool_call', call_id: 'exec-1', name: 'exec' } },
-  edit, check(),
-  { type: 'response_item', payload: { type: 'custom_tool_call_output', call_id: 'exec-1', output: 'complete' } },
-]).verdict, 'OBSERVED_CHECK');
-for (const rows of [
-  [start, edit, check({ exit_code: 1 })], [start, edit, check({ status: 'inProgress' })],
-  [start, edit, check({ aggregated_output: '' })], [start, edit, check({ exit_code: null })],
-  [start, check({}, 1, 9), edit], [start, edit, check({}, 15, 40)],
-  [start, check(), item('later', 'FileChange', {}, 45, 50)],
-  [start, check(), item('unknown', 'NewNativeTool', {}, 45, 50)],
-  [start, edit, check({ command: 'node arbitrary-script.mjs' })],
-  [start, edit, check({ command: 'npm test; touch production' })],
-  [start, edit, check({ command: 'npm test -- --updateSnapshot' })],
-  [start, edit, check({ command: 'curl -X POST https://example.invalid' })],
-]) assert.notEqual(audit(rows).verdict, 'OBSERVED_CHECK');
-for (const rows of [
-  [edit, check()], [start, '{broken', check()], [start, edit, check(), check()],
-  [start, item('wrong', 'CommandExecution', { command: 'npm test' }, 30, 40, 'other-turn')],
-  [start, check(), { type: 'response_item', payload: { type: 'custom_tool_call', call_id: 'pending', name: 'exec' } }],
-  [start, item('bad-clock', 'CommandExecution', {}, 100, 1)],
-]) assert.equal(turn(rows), null);
-assert.equal(audit([start, edit, check(),
-  item('failed-repeat', 'CommandExecution', { command: 'npm test', status: 'completed', exit_code: 1,
-    aggregated_output: 'failure' }, 50, 60)]).verdict, 'UNKNOWN');
-assert.equal(audit([start, edit, check()], 'The targeted tests are passing.').verdict, 'FAIL');
-assert.equal(audit([start, edit, check()], 'Fixed.\nVerified: npm test.\nUnverified: browser.').verdict, 'UNKNOWN');
-// Anonymized BA sequence: checks, documentation/delivery attempt, then a receipt update.
-// The final arbitrary script remains a conservative boundary, never a receipt-based exemption.
-const receiptScript = "python3 - <<'PY'\nimport json,datetime\nfrom pathlib import Path\n"
-  + "p=Path('.local/verification.json');d=json.loads(p.read_text())\n"
-  + "d['programmeComplete']=False\np.write_text(json.dumps(d,indent=2)+'\\n')\nPY";
-const receiptWrite = item('receipt', 'CommandExecution', { command: receiptScript,
-  status: 'completed', exit_code: 0, aggregated_output: 'dispositions reconciled; delivery blocker retained' }, 70, 80);
-const scopedTask = 'The five listed recovery tasks are complete at their documented local scope.\nVerified: npm test.\nUnverified: delivery.';
-const receiptAudit = audit([start, edit, check(), receiptWrite], scopedTask);
-assert.equal(receiptAudit.verdict, 'UNKNOWN');
-assert.match(receiptAudit.problems.join(' '), /no qualifying successful check evidence/);
-assert.match(receiptAudit.problems.join(' '), /not proof that no check ran/);
-assert.doesNotMatch(receiptAudit.problems.join(' '), /no end-to-end check ran/);
-assert.equal(audit([start, edit, check(), receiptWrite], 'Fixed.').verdict, 'FAIL');
-const qualifiedButUnsupportedScope = audit([start, edit, check()], scopedTask);
-assert.equal(qualifiedButUnsupportedScope.verdict, 'UNKNOWN');
-assert.match(qualifiedButUnsupportedScope.problems.join(' '), /repeating checks does not establish/);
-// A later supported check remains recognizable without any receipt exception.
-const laterCheck = check({}, 90, 100); laterCheck.payload.item.id = 'later-check';
-assert.equal(audit([start, edit, check(), receiptWrite, laterCheck]).verdict, 'OBSERVED_CHECK');
-assert.equal(after.readCodexTurn('x.jsonl', { read: () => lines([start, edit, check()]) }).events.length, 2);
-assert.equal(after.readCodexTurn('x.jsonl', { read: () => { throw Error('missing'); } }), null);
-assert.equal(after.readCodexTurn('x.txt'), null);
-// The existing Claude classifier and verdict are byte-identical and behave identically.
-const claude = lines([
-  { type: 'user', message: { content: 'run checks', role: 'user' } },
-  { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', id: 'c', input: { command: 'npm test' } }] } },
-  { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'c', content: 'passed' }] } },
-]);
-assert.deepEqual(after.claudeTurnEvents(claude), before.claudeTurnEvents(claude));
-assert.deepEqual(after.auditCompletionClaims(message, { turn: after.claudeTurnEvents(claude) }),
-  before.auditCompletionClaims(message, { turn: before.claudeTurnEvents(claude) }));
-fs.rmSync(root, { recursive: true, force: true });
-console.log('Codex completion: pristine reproduction, scoped success, fail-closed cases, Claude parity and reversible anchors passed');
+for (const bad of [gate + gate, gate.replace(ANCHOR, 'const modified = (() => {'),
+  previous.patchSource(evidence).next.replace('pending.size', 'false'),
+  result.next.replace("verdict: 'NONE'", "verdict: 'PASS'")]) {
+  assert.ok(patchSource(bad).missing.length);
+  assert.equal(patchSource(bad).next, bad);
+}
+assert.ok(!result.next.includes('completion-correction-reservation'));
+assert.ok(!patchSource(previous.patchSource(evidence).next).next.includes('readCodexTurn'));
+console.log('Completion disable: audit unreachable, other gates preserved, evidence restored, historical upgrades/reversal and drift refusal passed');
