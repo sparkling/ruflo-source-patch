@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-10. Operator instruction supersedes the #423/#425 completion
+**Updated**: 2026-10-10. Native ADR-index retirement accepts all three shipped stable
+edge encodings and tests identity/upserts without requiring the unrelated parser API.
+Transition-notice VM probes retain a one-second execution bound, with an explicit
+runaway-code regression, replacing the flaky 100 ms wall-clock limit.
+Operator instruction supersedes the #423/#425 completion
 parser and diagnostic workarounds: `brain-codex-completion` now disables the
 completion-claim feature at its existing Stop audit boundary. The audit produces
 no completion authority and cannot contribute a blocking correction or automatic

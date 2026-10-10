@@ -97,6 +97,11 @@ check('AI1 compatibility patch applies cleanly to every Claude copy',
   applied.incomplete === 0 && claudeImporters.every((file) => fs.readFileSync(file, 'utf8').includes('ruflo-source-patch (#2660)')),
   JSON.stringify(applied));
 
+// The convergence contract does not require the later edge parser API.
+write(path.join(codexCache, recordsRel), records.toString().replace(
+  'export function parseEdgeKey(', 'function parseEdgeKey('));
+check('AI1b native records without an edge parser still prove convergence',
+  evaluate('adr-index').state === 'superseded');
 write(path.join(codexCache, recordsRel), brokenRecords);
 const stale = evaluate('adr-index');
 check('AI2 one stale active copy keeps the patch live',

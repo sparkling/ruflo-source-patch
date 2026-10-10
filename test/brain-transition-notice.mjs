@@ -53,6 +53,9 @@ for (const [name, source] of Object.entries(sources)) {
 }
 await assert.rejects(exerciseSources(sources, path.join(sandbox, 'vendor')), /deduplicated/, 'red: vendor repeats same warning');
 await exerciseSources(patched, path.join(sandbox, 'patched'));
+await assert.rejects(exerciseSources({ ...patched,
+  compat: patched.compat.replace('void (async () => {', 'void (async () => { while (true) {}'),
+}, path.join(sandbox, 'runaway')), /Script execution timed out/, 'runaway native code remains bounded');
 for (const [id, mutate] of [
   ['silent-first', s => ({ ...s, compat: s.compat.replace('if (message)', 'if (false)') })],
   ['cross-session', s => ({ ...s, notice: s.notice.replace("String(session || 'unknown')", "'all-sessions'") })],
