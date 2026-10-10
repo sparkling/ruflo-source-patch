@@ -2,15 +2,18 @@
 
 **Status**: Implemented
 **Date**: 2026-07-17
-**Updated**: 2026-10-08. Explicit preboot recovery-fence disposition is described below; automatic
+**Updated**: 2026-10-10. Issue source-patch#6 replaces anonymous recovery directories with
+atomically published owner records and explicit dead-owner disposition on macOS/Linux. Legacy
+ownerless same-boot directories remain refused; their creator cannot be inferred from the writer.
+Explicit preboot recovery-fence disposition is preserved below; automatic
 recovery continues to refuse unknown fences. Bounded CLI SIGTERM and SIGINT release only the terminating process's
 exact token/inode claims and preserve default signal termination. Existing or later native signal
 handlers retain control, with normal finally/exit cleanup; delegation is never an early unlock.
-SIGKILL remains outside JavaScript cleanup. Recovery now serializes contenders with an exclusive
-claim-recovery directory, proves ESRCH twice and unchanged descriptor/path inode and contents,
+SIGKILL remains outside JavaScript cleanup. Recovery prechecks dead writers before publishing a complete, fsynced recovery-owner file by
+exclusive hardlink, proves ESRCH again under that fence and unchanged descriptor/path inode and contents,
 then preserves the dead claim under a unique evidence name. Live, malformed, symbolic-link and
 ambiguous ownership remain refused. A crash during the synchronous recovery section leaves its
-recovery directory fail-closed for operator review; no database or SQLite sidecar is manipulated.
+identified recovery owner fail-closed for operator review; no database or SQLite sidecar is manipulated.
 Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
 sql.js writers. This target remains for the integrity gate, raw WAL refusal, stronger outer lock, and
 stale-process recovery. Writer discovery now shares current runnable-root coverage: npx, authenticated
@@ -119,6 +122,23 @@ resolve remains visible as unpatched/unknown and never authorizes a signal.
 
 ## Explicit interrupted-fence disposition
 
+Issue [source-patch#6](https://github.com/sparkling/ruflo-source-patch/issues/6): new fences are
+mode-0600 regular files with schema, recovery PID, unique token and exact writer-lock path.
+The private candidate is written and fsynced before an exclusive hardlink publishes it; the
+parent is synced before recovering the writer. Old clients already refuse any fence path.
+Ordinary live-writer contention creates no fence. Only the publishing owner removes its own
+exact inode/token/bytes; native clients never steal another recovery fence.
+
+`memory inspect-fence` accepts these records on macOS/Linux during the same boot only when
+the recovery owner is positively absent (ESRCH). A reused/live PID, including a surviving
+process whose worker thread died, remains refused. The writer claim must be unchanged and
+provably dead, or explicitly absent after interrupted native claim archival. The operator
+uses the same durable intent, exact rechecks and archive receipt described below. Failure
+restoration links the archived owner record back exclusively, preserving ownership metadata.
+A successful disposition does not establish database health or persistence.
+
+Legacy compatibility:
+
 `memory inspect-fence /absolute/path/memory.db` reads only the recovery directory and bounded
 writer claim, together with macOS `kern.boottime` and `kern.bootsessionuuid`. It emits a reviewable
 `rsp-memory-fence-recovery/v1` expectation only when the empty mode-0700 fence and regular writer
@@ -134,7 +154,7 @@ database, rewrites a writer claim, removes a sidecar, installs patches or restar
 The existing native lock owner subsequently recovers the unchanged dead claim; a successful fence
 receipt is not evidence of database health, native persistence or distillation.
 
-Same-boot, nonempty, symlinked, changed or unproved ownership stays refused. An unexpected external
+Legacy same-boot directories, nonempty directories, symlinked, changed or unproved ownership stay refused. An unexpected external
 replacement or persistence failure after the move recreates an exclusive refusal marker without
 overwriting a successor, retaining the archive and failure evidence. This is an operator recovery
 operation under a reviewed quiescent, preboot condition, not automatic timeout-based lock stealing

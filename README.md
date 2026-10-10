@@ -600,6 +600,15 @@ fence, preserving its exact metadata as evidence. It refuses live, malformed or 
 SIGKILL cannot run process cleanup; an interrupted recovery fence remains visibly fail-closed.
 Database files and SQLite sidecars are not changed by claim recovery.
 
+New recovery fences carry atomically published ownership ([source-patch#6](https://github.com/sparkling/ruflo-source-patch/issues/6)).
+`memory inspect-fence /absolute/path/memory.db` and `memory recover-fence /absolute/path/reviewed-expectation.json`
+support a provably dead **recovery owner** on macOS/Linux without requiring another boot.
+Live/reused PIDs and ambiguous evidence remain refused. The exact fence is archived durably;
+the writer claim, database and SQLite sidecars remain untouched. A missing writer claim after
+native archival is supported. Ordinary live-writer contention no longer creates recovery fences.
+Legacy empty same-boot directories still need independent proof of quiescence; this release does
+not invent a recovery owner for them. Fresh memory read/write/readback is a separate check.
+
 For an interrupted **preboot** recovery on macOS, the memory owner provides an explicit operator
 path: `memory inspect-fence /absolute/path/memory.db` emits exact reviewable identity metadata;
 after reviewing that output, `memory recover-fence /absolute/path/expected.json` archives only
