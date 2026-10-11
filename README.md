@@ -17,6 +17,8 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Upstream audit of 2026-10-10
 
+**OPDA qualification (v4.46.54):** Ruflo 3.56.6 includes the #4040 child-process header fix; exact native-source recognition and the two-process WAL regression accept it without local edits. Core 0.2.8 still needs #3306 hook selection; its new `npx --prefix` isolation is preserved by the patch.
+
 **Recurrence follow-up:** [Ruflo #4040](https://github.com/ruvnet/ruflo/issues/4040)
 reproduces graph encryption header sniffing dropping a live native owner's POSIX
 locks. The `memory/graph-header-process` patch runs the bounded header read in a
