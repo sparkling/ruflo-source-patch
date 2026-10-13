@@ -186,6 +186,21 @@ check('PHCI5 uninstall is byte-perfect',
   uninstalled.status === 0 && fs.readFileSync(INITIALIZER, 'utf8') === pristine,
   `${uninstalled.stdout}${uninstalled.stderr}`);
 
+// The newer published initializer retains named deadlines through the same resolver.
+const modern = pristine.replace("export class CodexInitializer", "const MARKETPLACE_ADD_TIMEOUT_MS = 180_000;\nconst PLUGIN_ADD_TIMEOUT_MS = 60_000;\nexport class CodexInitializer")
+  .replace("--ref main', { stdio: 'pipe', timeout: 20000", "--ref main', { stdio: 'pipe', timeout: MARKETPLACE_ADD_TIMEOUT_MS")
+  .replace("ruflo-core@ruflo', { stdio: 'pipe', timeout: 20000", "ruflo-core@ruflo', { stdio: 'pipe', timeout: PLUGIN_ADD_TIMEOUT_MS");
+write(INITIALIZER, modern);
+const modernInstall = cli('plugin-hosts', 'install');
+const modernBytes = fs.readFileSync(INITIALIZER, 'utf8');
+check('PHCI6 named upstream deadlines compose without losing budgets', modernInstall.status === 0
+  && modernBytes.includes('], { timeout: MARKETPLACE_ADD_TIMEOUT_MS });')
+  && modernBytes.includes('], { timeout: PLUGIN_ADD_TIMEOUT_MS });'));
+const modernClass = (await import(`${pathToFileURL(INITIALIZER).href}?modern=${Date.now()}`)).CodexInitializer;
+check('PHCI7 modern installer executes through the resolved host', (await new modernClass().installRufloCorePlugin()).installed);
+cli('plugin-hosts', 'uninstall');
+check('PHCI8 modern uninstall preserves upstream source', fs.readFileSync(INITIALIZER, 'utf8') === modern);
+
 if (failures) {
   console.error(`\n${failures} bundled Codex initializer test(s) failed`);
   process.exit(1);
