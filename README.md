@@ -71,6 +71,15 @@ API/fake-driver boundaries; no live database, lock or sidecar repair is involved
 fixture. Markdown validation passed. Installed-source application and live
 consumer checks are reported separately from these fixture results.
 
+Verified local installation of the immutable **v4.46.57** tag completed with no
+incomplete targets; the pinned-tag `monitor check` reports **live, no drift**.
+Fresh native MCP owners for global 3.56.9 and cached 3.56.10 both returned unified
+learning statistics with `counterWriter.contract = delta-lock-v1` and no writer
+error. Semantic-product's new memory value survived exact readback from a second
+fresh MCP owner; native Codex metadata reports all **28 hooks enabled/trusted**.
+This verifies those fresh consumer paths and the local installed source set;
+existing conversations and remote hosts were not restarted or qualified by this run.
+
 ## Upstream audit of 2026-10-10
 
 **Career qualification (v4.46.55):** Ruflo 3.56.9 names its Codex marketplace/install deadlines. The existing #2854 host-discovery patch now matches that rendition and preserves its 180/60-second deadlines.
