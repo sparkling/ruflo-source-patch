@@ -15,57 +15,52 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Compatibility review of 2026-10-15
+## Compatibility qualification of 2026-10-15 (v4.46.56)
 
-Review scope: source-patch **4.46.55**, installed global Ruflo/CLI **3.56.9**,
-new npx CLI cache **3.56.10**, Ruflo Core **0.2.11**, ADR plugin **0.5.8**, and
-Brain **4.7.6**. This is a local source/fixture review, not a fleet activation
-claim. The dated audit below remains historical evidence.
+Source-patch **4.46.56** repairs compatibility with the installed global Ruflo/CLI
+**3.56.9**, npx CLI **3.56.10**, Ruflo Core **0.2.11**, ADR plugin **0.5.8**,
+and Brain **4.7.6**. The dated audits below remain historical evidence.
+GitHub reports **112 linked issues: 85 closed, 27 open**; states and latest comments
+were fetched for every linked issue. Issue closure is not a retirement proof.
 
-GitHub currently reports **112 distinct issue links: 85 closed, 27 open**.
-States and latest comments were fetched for every issue linked in this README.
-An issue closure does not prove that all installed copies contain its fix.
+| Target | Qualified disposition | Upstream mapping |
+|--------|-----------------------|------------------|
+| `memory` | Keep the native 3.56.10 bridge untouched. The isolated retirement harness now supplies its new `search-defaults.js` dependency; canonical paths, aliases, isolated failures, retry and draining shutdown pass. Other memory safety components remain separately required. | [#3143](https://github.com/ruvnet/ruflo/issues/3143), open |
+| `cwd` | Support neural persistence's `getProjectCwd()` call and both modern claims-config paths through the existing project-root resolver. Nested-directory regression covers both stores. | [#2633](https://github.com/ruvnet/ruflo/issues/2633), open |
+| `ruflo-learning-stats` | Retain native pending deltas and late-load behavior while reusing our serialized counter writer. Failed flushes retain increments; retries do not duplicate them. Incomplete future counter composition reports `unavailable` rather than throwing `ReferenceError`. The exact previous health-line composition remains recognized for safe upgrade. | [#2245](https://github.com/ruvnet/ruflo/issues/2245), closed with residual reporting/concurrency scope |
+| `ruflo-wrapper-guard` | Preserve native detached-execution/concurrency options while retaining direct installed CLI selection. Old hook formats remain reversible. The native CLI branding wrapper remains unchanged. | [#3306](https://github.com/ruvnet/ruflo/issues/3306), closed for native wrapper scope |
+| `adr-io-safety` | Normalize 0.5.8 verifier imports while preserving `unknownStatusIds`; the complete four-file bundle can pass preflight again. Managed paths, exact readbacks and unsafe-reindex refusal remain required. | [#3097](https://github.com/ruvnet/ruflo/issues/3097), [#3147](https://github.com/ruvnet/ruflo/issues/3147), open |
+| `brain-wrapper-ownership` | Accept reviewed native 4.7.6 ownership behavior without overlaying its installer. The source-bound isolated proof covers current/prior wrapper acceptance and edited, foreign-owner/path, hardlink, symlink, directory and indirect-namespace refusal. Legacy published-hash compatibility remains for older installer copies. | [#420](https://github.com/stuinfla/ruvnet-brain/issues/420), open despite native source fix |
 
-`monitor check` currently reports these **six failing target groups**:
+The counter defect was real: native 3.56.10 uses atomic rename but performs an
+unlocked read/merge/write. A deterministic isolated two-writer interleaving retained
+one of two increments. Before this release, our partial composition also referenced
+undefined `counterPersistenceError`; this release covers both boundaries.
 
-| Target | Current finding | Required disposition |
-|--------|-----------------|----------------------|
-| `memory` | The 3.56.10 native bridge imports `search-defaults.js`, absent from our isolated retirement harness. Supplying only that dependency stub makes the existing canonical-path, alias, isolation, failure-recovery and draining-shutdown assertions pass. | Update the probe dependency graph; retain native bridge behavior. This does not retire the other memory safety components. [#3143](https://github.com/ruvnet/ruflo/issues/3143) remains open. |
-| `cwd` | Two 3.56.10 files no longer match: neural persistence now calls `getProjectCwd()`; claims now uses `getClaimsConfigPaths()` and `resolve(CLAIMS_CONFIG_PATHS[0])`. | Qualify native neural root delegation, and adapt the claims anchor after testing nested-directory behavior. Do not replace either function blindly. [#2633](https://github.com/ruvnet/ruflo/issues/2633). |
-| `ruflo-learning-stats` | Native counter persistence now merges deltas and atomically renames, but still performs an unlocked read/merge/write. A deterministic isolated two-writer interleaving retained one of two increments. Our old counter anchors fail, while the separately applied unified-statistics function references missing `counterPersistenceError` and throws `ReferenceError`. | Repair composition and qualify the changed counter implementation. Partial installation is a real runtime defect, not merely a warning. Historical [#2245](https://github.com/ruvnet/ruflo/issues/2245) is closed; that closure does not cover this installed composition. |
-| `ruflo-wrapper-guard` | Five hook copies fail the old anchor because native telemetry invocation now carries `options` for detached execution. Branded PATH selection remains; the native CLI wrapper fix and plugin-hook selection are separate components. | Preserve native background/concurrency behavior when adapting the residual selector. [#3306](https://github.com/ruvnet/ruflo/issues/3306) is closed for its native wrapper fix. |
-| `adr-io-safety` | All 16 script files remain unpatched because each 0.5.8 verifier fails the `same-managed-cli` anchor. The verifier now imports `unknownStatusIds` alongside `CLI_PKG` and `parseEdgeKey`; normalization no longer reconstructs the expected import. Bundle preflight correctly refuses every write. | Adapt normalization while preserving native unknown-status handling, then run the complete managed-I/O contract before installation. [#3097](https://github.com/ruvnet/ruflo/issues/3097) and [#3147](https://github.com/ruvnet/ruflo/issues/3147) remain open. |
-| `brain-wrapper-ownership` | Brain 4.7.6 natively recognizes wrappers shipped by a retained generation. Isolated checks accept a genuine retained old wrapper and reject edits, hardlinks and symlinks. Our old exact ownership-function hash rejects this new implementation. | Retirement candidate: complete the native ownership/upgrade regression matrix before retiring the overlay. [#420](https://github.com/stuinfla/ruvnet-brain/issues/420) remains open despite the changed source. |
-
-Additional upstream dispositions checked:
+Additional upstream dispositions:
 
 - [#3688](https://github.com/ruvnet/ruflo/issues/3688) is closed via
-  [#4050](https://github.com/ruvnet/ruflo/pull/4050). Swarm 0.3.7 now declares a
-  native Codex-specific empty-hook manifest. Our compatibility target still
-  projects the separate legacy Claude manifest in Codex copies; review discovery
-  so a natively declared Codex surface needs no redundant mutation. Other plugins
-  covered by that target require their own manifest checks.
+  [#4050](https://github.com/ruvnet/ruflo/pull/4050). Swarm 0.3.7 has a native
+  Codex-specific empty-hook declaration. Whole-target retirement is still refused:
+  only 2 of 54 discovered plugin copies have that reviewed native declaration;
+  the target also covers other plugins and legacy copies.
 - [#4040](https://github.com/ruvnet/ruflo/issues/4040) is closed via
   [#4044](https://github.com/ruvnet/ruflo/pull/4044). Native child-process header
   recognition already exists in our patch release; retain the two-process
   regression and legacy-only compatibility.
 - [#3164](https://github.com/ruvnet/ruflo/issues/3164) remains open. Its October 13
   report describes a 75 MB policy ledger, lock timeouts and abandoned temporary
-  files on unmitigated installs. Do not retire the ledger components on issue age.
+  files on unmitigated installs. The ledger components remain necessary.
 
-Regression review: `npm test` completed with one failed suite (`untested`);
-all other 85 suites passed. The failed suite cannot find the required pristine
-`commands/init.js` anchors in the installed package set. That is an unresolved
-fixture compatibility failure; it does not establish a live initialization failure.
-`node scripts/md-lint.mjs` passes with zero problems. The isolated bridge,
-wrapper-ownership, counter-race and statistics-exception checks above do not open
-managed databases or substitute a storage driver.
-
-The successful semantic-product native MCP store/fresh-process exact readback
-uses the global 3.56.9 runtime. It does not qualify the affected 3.56.10 npx
-learning-statistics surface. No live database, lock, sidecar, Brain updater or
-model transport was changed by this compatibility review. Hook trust and live MCP
-activation remain independent checks.
+The legacy initialization fixture now finds the supported `maybeInstallSkillsSh`
+function rather than requiring a removed opt-out spelling. It still tests native
+bounded skill materialization and old external-import suppression, rather than
+skipping those assertions. `current-compatibility` adds current-shape counter,
+composition-upgrade and nested-root checks. Tests use disposable files and native
+API/fake-driver boundaries; no live database, lock or sidecar repair is involved.
+`npm test` passed all **87 suites**, including the previously failing initialization
+fixture. Markdown validation passed. Installed-source application and live
+consumer checks are reported separately from these fixture results.
 
 ## Upstream audit of 2026-10-10
 
@@ -125,8 +120,8 @@ qualification alone does not certify a running process or a project programme.
 
 ## Brain automatic-update repair (#420)
 
-`brain-wrapper-ownership` repairs the native installer's rejection of its own
-older Codex bridge. It accepts only exact SHA-256 hashes independently verified
+`brain-wrapper-ownership` accepts reviewed Brain 4.7.6 native ownership without
+modification. For older installers, it repairs rejection of their own older Codex bridge. It accepts only exact SHA-256 hashes independently verified
 against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1/v4.6.2 wrapper bytes. The existing
 path, owner, regular-file, hardlink and symlink checks remain mandatory; an edited
 bridge remains a conflict. The patch does not replace the bridge itself, select a
@@ -656,7 +651,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-outbox-streaming`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reads the complete append-only journal incrementally beyond Node's whole-string limit, preserving record order, conflict evidence and native final-tail semantics. This alone does not bound all historical object memory or restore work. | [#387 · closed](https://github.com/stuinfla/ruvnet-brain/issues/387) |
 | **`brain-continuity-summary`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Bounds optional displayed observations and repeated conflict summaries with omission/digest evidence. Exact goals/actions and canonical snapshots remain intact; mandatory oversized state still fails honestly. | [#389 · closed](https://github.com/stuinfla/ruvnet-brain/issues/389) |
 | **`brain-progression-suspension`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390 · open](https://github.com/stuinfla/ruvnet-brain/issues/390) |
-| **`brain-wrapper-ownership`** | Allows native upgrades over exact, publicly verified historical Codex wrapper bytes while retaining every native ownership guard. No manual wrapper replacement or generation promotion. | [#420 · open](https://github.com/stuinfla/ruvnet-brain/issues/420) |
+| **`brain-wrapper-ownership`** | Accepts behaviorally proven native prior-generation ownership without edits; older installers retain exact published historical-wrapper compatibility and ownership guards. No manual wrapper replacement or generation promotion. | [#420 · open](https://github.com/stuinfla/ruvnet-brain/issues/420) |
 | **`brain-host-recovery`** | Uses fresh Codex host declarations in doctor and identifies the causal failed refresh phase while preserving historical failure records, host trust and the native update lifecycle. | [#391 · open](https://github.com/stuinfla/ruvnet-brain/issues/391) |
 | **`flywheel-daily`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53 · closed](https://github.com/stuinfla/ruvnet-brain/issues/53) |
 | **`codex-hooks`** | **Retired.** Brain 4.0.2 replaced the legacy bridge with a native six-event lifecycle. Brain 4.3.10 subsequently withdrew automatic host hooks and ships an explicit schema-valid empty Codex registry. The target accepts either proven native state and never recreates hooks Brain deliberately removed; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52 · closed](https://github.com/stuinfla/ruvnet-brain/issues/52) |

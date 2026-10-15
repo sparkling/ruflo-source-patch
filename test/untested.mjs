@@ -564,7 +564,7 @@ console.log('✔ leak detector (LK1 a stray subdir state dir is found, LK2 the r
     pristineBytes,
   } = await import(`file://${path.join(REPO, 'test', 'fixtures.mjs')}`);
   const vendorRoot = findVendorRootWith('dist/src/commands/init.js', [
-    "if (ctx.flags['no-skills-sh'] === true)",
+    'async function maybeInstallSkillsSh(ctx)',
   ]);
   const distSrc = path.join(vendorRoot, '@claude-flow', 'cli', 'dist', 'src');
   const initSrc = path.join(distSrc, 'init');

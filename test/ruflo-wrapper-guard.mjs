@@ -154,6 +154,7 @@ for (const [anchor, replacement, priors, legacy] of [
   [h.HOOK_ANCHOR, h.HOOK_REPLACEMENT, [h.PRIOR_HOOK_REPLACEMENT, h.NPX_HOOK_REPLACEMENT], false],
   [h.HOOK_ANCHOR_026, h.HOOK_REPLACEMENT_026, [h.NPX_HOOK_REPLACEMENT_026], false],
   [h.HOOK_ANCHOR_028, h.HOOK_REPLACEMENT_028, [], false],
+  [h.HOOK_ANCHOR_029, h.HOOK_REPLACEMENT_029, [], false],
   [h.LEGACY_ANCHOR, h.LEGACY_REPLACEMENT, [h.PRIOR_LEGACY_REPLACEMENT, h.NPX_LEGACY_REPLACEMENT], true],
 ]) {
   const fixture = legacy
@@ -187,6 +188,7 @@ for (const [anchor, replacement, priors, legacy] of [
     let exit = null;
     const context = {
       hookSubcommand: 'post-command', hookArgs, stdinData: 'payload',
+      options: { background: true, keep: false },
       npxPrefix: () => '/safe user home',
       commandExists: name => { throw new Error(`PATH probe for ${name}`); },
       invokeHook: (...args) => calls.push(args),
@@ -204,11 +206,12 @@ for (const [anchor, replacement, priors, legacy] of [
     catch (error) { assert.equal(error.message, 'exit:0'); }
     // Arrays built inside the vm realm carry that realm's prototype; compare structure.
     const executable = available ? context.process.execPath : 'npx';
-    const executableArgs = available ? [direct] : anchor === h.HOOK_ANCHOR_028
+    const executableArgs = available ? [direct] : [h.HOOK_ANCHOR_028, h.HOOK_ANCHOR_029].includes(anchor)
       ? ['--prefer-offline', '--yes', '--prefix', '/safe user home', '@claude-flow/cli@latest'] : NPX_ARGS;
     assert.deepEqual(JSON.parse(JSON.stringify(calls)), !available && skip ? [] : [legacy
       ? [executable, executableArgs, hookArgs, 'payload']
-      : [executable, executableArgs, 'post-command', hookArgs, 'payload']]);
+      : [executable, executableArgs, 'post-command', hookArgs, 'payload',
+        ...(anchor === h.HOOK_ANCHOR_029 ? [context.options] : [])]]);
     assert.equal(exit, legacy ? 0 : null);
   }
 }

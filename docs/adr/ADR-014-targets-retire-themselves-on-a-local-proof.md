@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-10. Ruflo 3.56.3 wrapper and memory-bridge components are accepted natively after exact-artifact behavior proof; the known upstream prefix test assertion is not an executable legacy call.
+**Updated**: 2026-10-15. Ruflo 3.56.10 bridge proof loads the new pure search-defaults dependency. Brain 4.7.6 ownership is accepted by an exact-source executable proof without an installer overlay; old installer compatibility remains.
 Native lifecycle proof accepts Brain's exact discovery wrapper only after
 executing its runner-selection, argument, output, refusal and timeout boundaries in an isolated fixture.
 It follows the installer's bounded, registered native Codex marketplace and compares physical owners,

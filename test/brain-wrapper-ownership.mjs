@@ -1,3 +1,4 @@
+import { nativeOwnershipSatisfied } from '../lib/brain-wrapper-ownership/native.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,6 +8,10 @@ import vm from 'node:vm';
 import { patchSource, reverseSource, HASHES } from '../lib/brain-wrapper-ownership/patcher.mjs';
 
 const fixture = name => fs.readFileSync(new URL('./fixtures/brain-wrapper-ownership/' + name, import.meta.url));
+const native = fixture('native-4.7.6.mjs').toString() + "\n// The bridge's previous bytes";
+assert.equal(nativeOwnershipSatisfied(native), true);
+assert.deepEqual(patchSource(native), { next: native, applied: [], missing: [] });
+assert.equal(nativeOwnershipSatisfied(native.replace('stat.nlink !== 1', 'false')), false);
 const source = fixture('ownership.mjs').toString();
 const patched = patchSource(source);
 assert.deepEqual(patched.missing, []);

@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-08-31
-**Updated**: 2026-10-08. Preserve the managed I/O contract across native 0.5.4 dispatch and edge-key changes.
+**Updated**: 2026-10-15. Native 0.5.8 verifier normalization preserves unknownStatusIds while retaining the existing complete managed-I/O bundle boundary.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo-adr, agentdb, verification, import, reindex, atomicity
 

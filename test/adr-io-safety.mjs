@@ -462,13 +462,19 @@ check('AIS17 legacy adr-index and adr-io-safety compose into one runnable exact-
   && calls().every((call) => call.args.includes('--path=' + path.join(PROJECT, '.swarm', 'memory.db'))));
 
 // Replay both dispatch variants against the same fake managed CLI; no native DB.
-for (const dispatch of ['npx', 'installed']) for (const name of ['verify.mjs', 'import.mjs']) {
+for (const dispatch of ['npx', 'installed', 'installed-status']) for (const name of ['verify.mjs', 'import.mjs']) {
   let vendor = fs.readFileSync(new URL('./fixtures/adr-io-safety-0.4.1/' + name, import.meta.url), 'utf8');
-  if (dispatch === 'installed') vendor = vendor
+  if (dispatch.startsWith('installed')) vendor = vendor
     .replace("import { spawnSync } from 'node:child_process';", "import { spawnCliSync } from './lib/ruflo-cli.mjs';")
     .replaceAll("spawnSync('npx', [", 'spawnCliSync([')
     .replace("spawnSync('npx', memoryStoreArgs(", 'spawnCliSync(memoryStoreArgs(');
+  if (dispatch === 'installed-status' && name === 'verify.mjs') {
+    vendor = vendor.replace('CLI_PKG, parseEdgeKey', 'CLI_PKG, parseEdgeKey, unknownStatusIds');
+    fs.appendFileSync(path.join(SCRIPTS, 'lib', 'index-records.mjs'), '\nexport const unknownStatusIds = () => [];\n');
+  }
   const patched = patchSource(vendor);
+  if (dispatch === 'installed-status' && name === 'verify.mjs')
+    check('AIS18 preserves native status helper', patched.next.includes('parseEdgeKey, unknownStatusIds'));
   check('AIS18 native ' + name + ' has every exact anchor', patched.missing.length === 0);
   fs.writeFileSync(path.join(SCRIPTS, name), patched.next);
   reset();
