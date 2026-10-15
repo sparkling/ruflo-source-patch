@@ -80,6 +80,45 @@ fresh MCP owner; native Codex metadata reports all **28 hooks enabled/trusted**.
 This verifies those fresh consumer paths and the local installed source set;
 existing conversations and remote hosts were not restarted or qualified by this run.
 
+## Fleet activation of 2026-10-15
+
+Live registry recheck at 11:40 UTC: **Ruflo/CLI 3.56.10**, **Brain 4.7.6**.
+All seven hosts now select those versions and source-patch **4.46.57**. Brain's
+native active generation was already current on every host; no manual Brain
+promotion, KB replacement or update-plane modification was needed.
+Both Mac npm prefixes were updated, including the executable actually selected by
+project MCP configurations. Global patch CLIs and the scheduled stable copies
+also select 4.46.57. Each host's pinned-tag `monitor check` reports no drift.
+
+| Host | Native root MCP consumers reporting 3.56.10 | Project memory write/exact-readback | Enabled/trusted hooks |
+|------|------------------------------------------:|-----------------------------------:|----------------------:|
+| Mac | 7 | 7 | 196 |
+| HZ | 1 | 1 | 27 |
+| GCP Builder | 1 | 1 | 28 |
+| GCP PLM | 1 | 1 | 27 |
+| GCP Fabric | 1 | 1 | 27 |
+| GCP Oxigraph | 1 | 1 | 27 |
+| GCP Query | 1 | 1 | 27 |
+
+Native Brain source searches and allowed exact-key shared user-memory reads passed
+on every host. All 13 project consumers returned the serialized counter contract
+without a writer error. These are bounded runtime checks, not acceptance tests for
+every research programme or learning controller.
+
+Activation used the existing Codex daemon's native queued MCP refresh, with no
+programme stop/resume, process suspension or daemon restart commands. The user-level
+rollout stamp is authoritative. Five obsolete Mac project stamp overrides were
+removed after verifying other configuration was unchanged, preventing those projects
+from silently retaining older MCP owners on the next global upgrade. Provider/model
+and permission settings were preserved; unrelated OPDA working-tree edits remain.
+
+**Verification boundary:** 25 loaded child threads received the queued refresh but
+reject direct app-server tool input under the native multi-agent v2 policy. Their
+individual execution versions were not independently verified, and no child turn
+was forced to obtain a check. Successful root checks do not erase that limitation.
+Private receipts are retained under
+`~/.ruflo-source-patch/diagnostics/fleet-upgrade-20261015/`, including `summary.json`.
+
 ## Upstream audit of 2026-10-10
 
 **Career qualification (v4.46.55):** Ruflo 3.56.9 names its Codex marketplace/install deadlines. The existing #2854 host-discovery patch now matches that rendition and preserves its 180/60-second deadlines.
