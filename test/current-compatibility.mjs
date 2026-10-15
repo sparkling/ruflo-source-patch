@@ -6,8 +6,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { COUNTER_IMPORT_NATIVE, COUNTER_LOAD_NATIVE, COUNTER_SAVE_NATIVE } from '../lib/ruflo-learning-stats/native-counter.mjs';
 import { UNIFIED_351, LEARNING_STATS_ENTRIES, COUNTER_HEALTH_PRIOR, COUNTER_HEALTH_CURRENT } from '../lib/ruflo-learning-stats/patcher.mjs';
-import { composeCliContribution, historicalCliContribution, ENTRIES } from '../lib/cwd/patch-library.mjs';
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-current-')));
+process.env.RUFLO_SOURCE_PATCH_HOME = path.join(dir, 'home');
+process.env.RUFLO_NPX_ROOT = path.join(dir, 'npx');
+process.env.RUFLO_GLOBAL_ROOT = path.join(dir, 'global');
+const { composeCliContribution, historicalCliContribution, cliClaimApplied, apply, ENTRIES } = await import('../lib/cwd/patch-library.mjs');
 const entries = LEARNING_STATS_ENTRIES.filter(e => e.suffix.at(-1) === 'intelligence.js');
 const file = path.join(dir, 'stats.json');
 const pristine = `${COUNTER_IMPORT_NATIVE}
@@ -54,6 +57,19 @@ try {
   // The previous released health line remains an exactly reconstructible composition.
   const old = compiled.next.replace(COUNTER_HEALTH_CURRENT, COUNTER_HEALTH_PRIOR);
   assert.equal(historicalCliContribution(pristine, old, entries).next, old);
+  const partial = composeCliContribution(pristine, entries.filter(e => e.id.endsWith('/unified'))).next
+    .replace(COUNTER_HEALTH_CURRENT, COUNTER_HEALTH_PRIOR);
+  assert.equal(cliClaimApplied(partial, entries), true, 'previous partial patch is owned before backup classification');
+  const pkg = path.join(dir, 'npx/cache/node_modules/@claude-flow/cli');
+  const installed = path.join(pkg, 'dist/src/memory/intelligence.js');
+  fs.mkdirSync(path.dirname(installed), { recursive: true });
+  fs.writeFileSync(path.join(pkg, 'package.json'), '{"name":"@claude-flow/cli","version":"fixture"}');
+  fs.writeFileSync(installed, partial); fs.writeFileSync(installed + '.rsp-backup', pristine);
+  const upgrade = apply(['ruflo-learning-stats']);
+  assert.equal(upgrade.errors, 0, upgrade.log.join('\n')); assert.equal(upgrade.incomplete, 0);
+  assert.equal(fs.readFileSync(installed + '.rsp-backup', 'utf8'), pristine, 'upgrade must never adopt the partial patch as vendor source');
+  assert.ok(fs.readFileSync(installed, 'utf8').includes(COUNTER_HEALTH_CURRENT));
+  assert.equal(apply(['ruflo-learning-stats']).patched, 0);
   const cwdEntries = ENTRIES.filter(e => ['state/claims', 'state/neural-datadir'].includes(e.id));
   fs.mkdirSync(path.join(dir, '.git')); const nested = path.join(dir, 'docs'); fs.mkdirSync(nested);
   const claims = composeCliContribution("import { resolve } from 'node:path';\nconst CLAIMS_CONFIG_PATHS=['.claude-flow/claims.json','claude-flow.claims.json'];\nexport function claim() { return [resolve(CLAIMS_CONFIG_PATHS[0]),\nresolve(CLAIMS_CONFIG_PATHS[1]),]; }", [cwdEntries[0]]);

@@ -15,26 +15,35 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Compatibility qualification of 2026-10-15 (v4.46.56)
+## Compatibility qualification of 2026-10-15 (v4.46.57)
 
-Source-patch **4.46.56** repairs compatibility with the installed global Ruflo/CLI
+Source-patch **4.46.57** repairs compatibility with the installed global Ruflo/CLI
 **3.56.9**, npx CLI **3.56.10**, Ruflo Core **0.2.11**, ADR plugin **0.5.8**,
 and Brain **4.7.6**. The dated audits below remain historical evidence.
-GitHub reports **112 linked issues: 85 closed, 27 open**; states and latest comments
+GitHub reports **113 linked issues: 85 closed, 28 open**; states and latest comments
 were fetched for every linked issue. Issue closure is not a retirement proof.
 
 | Target | Qualified disposition | Upstream mapping |
 |--------|-----------------------|------------------|
 | `memory` | Keep the native 3.56.10 bridge untouched. The isolated retirement harness now supplies its new `search-defaults.js` dependency; canonical paths, aliases, isolated failures, retry and draining shutdown pass. Other memory safety components remain separately required. | [#3143](https://github.com/ruvnet/ruflo/issues/3143), open |
 | `cwd` | Support neural persistence's `getProjectCwd()` call and both modern claims-config paths through the existing project-root resolver. Nested-directory regression covers both stores. | [#2633](https://github.com/ruvnet/ruflo/issues/2633), open |
-| `ruflo-learning-stats` | Retain native pending deltas and late-load behavior while reusing our serialized counter writer. Failed flushes retain increments; retries do not duplicate them. Incomplete future counter composition reports `unavailable` rather than throwing `ReferenceError`. The exact previous health-line composition remains recognized for safe upgrade. | [#2245](https://github.com/ruvnet/ruflo/issues/2245), closed with residual reporting/concurrency scope |
+| `ruflo-learning-stats` | Retain native pending deltas and late-load behavior while reusing our serialized counter writer. Failed flushes retain increments; retries do not duplicate them. Incomplete future counter composition reports `unavailable` rather than throwing `ReferenceError`. The exact previous health-line composition remains recognized for safe upgrade. | [#4217](https://github.com/ruvnet/ruflo/issues/4217), open counter-race report; [#2245](https://github.com/ruvnet/ruflo/issues/2245), closed historical reporting scope |
 | `ruflo-wrapper-guard` | Preserve native detached-execution/concurrency options while retaining direct installed CLI selection. Old hook formats remain reversible. The native CLI branding wrapper remains unchanged. | [#3306](https://github.com/ruvnet/ruflo/issues/3306), closed for native wrapper scope |
 | `adr-io-safety` | Normalize 0.5.8 verifier imports while preserving `unknownStatusIds`; the complete four-file bundle can pass preflight again. Managed paths, exact readbacks and unsafe-reindex refusal remain required. | [#3097](https://github.com/ruvnet/ruflo/issues/3097), [#3147](https://github.com/ruvnet/ruflo/issues/3147), open |
 | `brain-wrapper-ownership` | Accept reviewed native 4.7.6 ownership behavior without overlaying its installer. The source-bound isolated proof covers current/prior wrapper acceptance and edited, foreign-owner/path, hardlink, symlink, directory and indirect-namespace refusal. Legacy published-hash compatibility remains for older installer copies. | [#420](https://github.com/stuinfla/ruvnet-brain/issues/420), open despite native source fix |
 
+The first 4.46.56 installation exposed an additional upgrade-path defect: the old
+partial statistics rendition was not classified as owned before backup selection.
+4.46.57 recognizes that exact historical health line and tests a real sandboxed
+install over the old partial state, requiring the pristine backup to stay identical.
+The affected idle local npx package was preserved as source evidence and refreshed
+through npm at the same 3.56.10 version before reapplication. No project memory was
+part of that package refresh.
+
 The counter defect was real: native 3.56.10 uses atomic rename but performs an
 unlocked read/merge/write. A deterministic isolated two-writer interleaving retained
-one of two increments. Before this release, our partial composition also referenced
+one of two increments; the dedicated upstream report is
+[#4217](https://github.com/ruvnet/ruflo/issues/4217). Before this release, our partial composition also referenced
 undefined `counterPersistenceError`; this release covers both boundaries.
 
 Additional upstream dispositions:
@@ -481,7 +490,7 @@ Actions: `install` · `uninstall` · `status`
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
-| **`ruflo-learning-stats`** | Reports store-scoped learning counters honestly, reads retained patterns independently, and commits concurrent counter increments under the existing bounded lock without stale-snapshot overwrite. Pending increments remain process-local until a successful flush. | [#2245 · closed](https://github.com/ruvnet/ruflo/issues/2245) |
+| **`ruflo-learning-stats`** | Reports store-scoped learning counters honestly, reads retained patterns independently, and commits concurrent counter increments under the existing bounded lock without stale-snapshot overwrite. Pending increments remain process-local until a successful flush. | [#2245 · closed](https://github.com/ruvnet/ruflo/issues/2245) · [#4217 · open](https://github.com/ruvnet/ruflo/issues/4217) |
 | **`ruflo-sqlite-owner`** | Resolves native SQLite through ControllerRegistry's actual dependency owner for graph and repair/initializer handles, preventing competing native SQLite libraries from managing the same file. It neither borrows and closes the registry handle nor replaces the database. | [#3693 · closed](https://github.com/ruvnet/ruflo/issues/3693) |
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
