@@ -15,6 +15,19 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Canonical native controller store — 2026-10-18 (v4.46.58)
+
+The existing `memory` target now makes implicit trajectory, ReasoningBank and
+hierarchical calls honour `CLAUDE_FLOW_DB_PATH`, matching ordinary MCP memory.
+Ruflo's historical #2786 encryption workaround otherwise always selected the
+sibling `agentdb-memory.db`. Unencrypted defaults now use `memory.db`; an explicit
+native path combined with sql.js encryption refuses instead of silently splitting.
+Existing databases are untouched by installation. Consolidate eligible records
+through native interfaces separately; preserve unique controller state until its
+consumer has been verified. Regression tests exercise the pristine split, shared
+actual registry, user/project identities, encrypted legacy case and refusal,
+idempotent installation, native retirement and exact restoration.
+
 ## Compatibility qualification of 2026-10-15 (v4.46.57)
 
 Source-patch **4.46.57** repairs compatibility with the installed global Ruflo/CLI

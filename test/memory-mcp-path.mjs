@@ -2,7 +2,27 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { MCP_PATH_ANCHOR, MCP_PATH_REPLACEMENT, MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT } from '../lib/cwd/memory-mcp-path.mjs';
+import { MCP_PATH_ANCHOR, MCP_PATH_REPLACEMENT, MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT,
+  CONTROLLER_PATH_ANCHOR, CONTROLLER_PATH_REPLACEMENT, nativeControllerPathSatisfied } from '../lib/cwd/memory-mcp-path.mjs';
+
+const controllerPath = (source, env, fallback = '/project/.swarm/memory.db') =>
+  new Function('process', 'path', 'getDbPath', source + '\nreturn getAgentDbPath();')(
+    {env}, path, () => fallback);
+assert.notEqual(controllerPath(CONTROLLER_PATH_ANCHOR, {CLAUDE_FLOW_DB_PATH:'/configured/memory.db'}),
+  '/configured/memory.db', 'pristine resolver must demonstrate the split');
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_ANCHOR), false);
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT), true);
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT.replace('return path.resolve(configured);', 'return getDbPath();')), false);
+for (const configured of ['/configured/memory.db', '/outside/project/user-memory.db', ':memory:']) {
+  assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), configured);
+}
+for (const configured of [undefined, '', '   ']) {
+  assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), '/project/.swarm/memory.db');
+}
+assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {}, ':memory:'), ':memory:');
+assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_ENCRYPT_AT_REST:'1'}), '/project/.swarm/agentdb-memory.db');
+assert.throws(() => controllerPath(CONTROLLER_PATH_REPLACEMENT,
+  {CLAUDE_FLOW_DB_PATH:'/configured/memory.db', CLAUDE_FLOW_ENCRYPT_AT_REST:'1'}), /refusing an implicit second store/);
 
 const operations = ['storeEntry', 'searchEntries', 'listEntries', 'getEntry',
   'deleteEntry', 'initializeMemoryDatabase'];
@@ -52,16 +72,21 @@ const file = path.join(process.env.RUFLO_NPX_ROOT, 'fixture', 'node_modules',
 const source = `async function getMemoryFunctions() {\n${MCP_PATH_ANCHOR}\n}\nfunction migrate() {\n${MCP_LEGACY_ANCHOR}\n return true;\n}\n}`;
 fs.mkdirSync(path.dirname(file), {recursive:true});
 fs.writeFileSync(file, source);
+const bridgeFile = path.join(path.dirname(file), '..', 'memory', 'memory-bridge.js');
+fs.mkdirSync(path.dirname(bridgeFile), {recursive:true});
+fs.writeFileSync(bridgeFile, CONTROLLER_PATH_ANCHOR);
 const {apply} = await import('../lib/cwd/patch-library.mjs');
 try {
   const first = apply(['memory']);
-  assert.equal(first.patched, 1);
+  assert.equal(first.patched, 2);
   assert.equal(first.incomplete, 0);
   assert.equal(first.errors, 0);
   assert.equal(apply(['memory']).patched, 0, 'idempotent reapply');
   assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), source);
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_REPLACEMENT);
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), source, 'exact pristine restoration');
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8'), CONTROLLER_PATH_ANCHOR);
   const drift = source.replace(MCP_LEGACY_ANCHOR, '        if (changedLegacy()) {');
   fs.writeFileSync(file, drift);
   const refused = apply(['memory']);

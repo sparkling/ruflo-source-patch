@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-10. Raw WAL refusal checks both the supplied path and its canonical symlink
+**Updated**: 2026-10-18. Implicit native controllers now honour the configured canonical store;
+the legacy encrypted sql.js exception cannot silently override an explicit native binding.
+2026-10-10. Raw WAL refusal checks both the supplied path and its canonical symlink
 target; unresolved existing aliases are refused (source-patch #7). This corrects a guard bypass,
 not database recovery.
 2026-10-04. Native auxiliary handles resolve the actual AgentDB SQLite dependency
@@ -64,6 +66,16 @@ six operations and a two-store test proves that project and user results stay se
 `test/memory-mcp-path.mjs` checks that handoff and the pristine missing-path failure.
 
 ### Key native bridge state by canonical database identity
+
+The `memory/controller-configured-store` entry also makes implicit trajectory,
+ReasoningBank, graph and hierarchical calls use `CLAUDE_FLOW_DB_PATH`. Without an
+explicit override, unencrypted native calls use the normal `memory.db`. The old
+#2786 sibling path remains only for the legacy encrypted sql.js default; combining
+an explicit native path with encryption refuses instead of silently opening a
+second store. No database is moved, merged or deleted by installation. Existing
+unique records require a separately verified native migration. A behavioral
+retirement probe and pristine-failure regression cover the resolver, explicit
+user/project paths, the in-memory sentinel and the encryption conflict.
 
 Replace the process-global registry lifecycle with a map keyed by `path.resolve(dbPath)` and the
 `realpath` of an existing file or existing parent. Each database owns its initialization promise, registry instance,
