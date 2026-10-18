@@ -83,6 +83,7 @@ import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/com
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
+import { rufloPatternWithdrawalCommand } from '../lib/ruflo-pattern-withdrawal/commands.mjs';
 import { rufloFlywheelEvidenceCommand } from '../lib/ruflo-flywheel-evidence/commands.mjs';
 import { rufloChampionAuthorityCommand } from '../lib/ruflo-champion-authority/commands.mjs';
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
@@ -145,6 +146,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
+  'ruflo-pattern-withdrawal': rufloPatternWithdrawalCommand,
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
   'ruflo-policy-ledger': rufloPolicyLedgerCommand,
   'ruflo-flywheel-evidence': rufloFlywheelEvidenceCommand,
@@ -221,6 +223,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
+  ${pad('ruflo-pattern-withdrawal')} selective native ReasoningBank exact get/hash-guarded delete (#3450/#829 context)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
   ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)
   ${pad('ruflo-champion-authority')}preserve local promotion authority during startup (ADR-322A; #2579 context)

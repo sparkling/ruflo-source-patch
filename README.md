@@ -15,7 +15,26 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Canonical native controller store — 2026-10-18 (v4.46.58)
+## Selective native pattern withdrawal (v4.46.59)
+
+The new `ruflo-pattern-withdrawal` target exposes administrative exact
+`agentdb_pattern-get` and hash-guarded `agentdb_pattern-delete` through the native
+MCP owner. It reuses the public ReasoningBank controller API, canonical store and
+operation lease, with no ordinary-memory or SQL fallback. Deletion refuses an
+optional vector backend whose public removal behavior is unqualified. The exact
+body check and synchronous controller calls do not establish cross-process CAS.
+Fresh native identity and absence checks remain necessary before source cleanup.
+The standard read/destructive annotations are retained on the descriptors; the
+current Ruflo tool catalogue does not forward them. These administrative tools
+do not belong in a read-only business knowledge facade.
+
+This newly observed gap relates to [#3450](https://github.com/ruvnet/ruflo/issues/3450)
+and [#829](https://github.com/ruvnet/ruflo/issues/829); it does not claim either whole
+issue fixed. Retire this target after upstream exact get and guarded deletion are
+qualified against the intended native controller and its consumers. The existing
+canonical controller-path fix from 4.46.58 remains included.
+
+## Canonical native controller store (v4.46.58, 18 October 2026)
 
 The existing `memory` target now makes implicit trajectory, ReasoningBank and
 hierarchical calls honour `CLAUDE_FLOW_DB_PATH`, matching ordinary MCP memory.
