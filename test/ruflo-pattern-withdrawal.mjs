@@ -10,18 +10,21 @@ process.env.RUFLO_GLOBAL_ROOT=path.join(scratch,'global');
 process.env.RUFLO_NPX_ROOT=path.join(scratch,'npx');
 process.env.CLAUDE_FLOW_DB_PATH='/fixture/canonical.db';
 const patch=await import('../lib/ruflo-pattern-withdrawal/patcher.mjs');
+const { HISTORICAL_BRIDGES }=await import('../lib/ruflo-pattern-withdrawal/historical.mjs');
 const { BRIDGE_RUNTIME, TOOL_RUNTIME }=await import('../lib/ruflo-pattern-withdrawal/runtime.mjs');
 const hash=s=>createHash('sha256').update(s).digest('hex');
 let checks=0;
 try {
  const prefix=`import * as crypto from 'node:crypto';
-let active=false, leases=0, guardAllowed=true, registry;
+let active=false, leases=0, guardAllowed=true, registry, registryCalls=0, implicitPath='/fixture/canonical.db';
 export function configure(value, allowed=true){registry=value;guardAllowed=allowed;}
 export function leaseCount(){return leases;}
+export function scopeProbe(path){implicitPath=path;registryCalls=0;}
+export function calls(){return registryCalls;}
 const operationContext = {getStore:()=>({active})};
 async function withBridgeOperation(fn){leases++;active=true;try{return await fn();}finally{active=false;}}
-async function getRegistry(dbPath){if(registry instanceof Error)throw registry;return registry;}
-function canonicalDbPath(dbPath){return dbPath??'/fixture/canonical.db';}
+async function getRegistry(dbPath){registryCalls++;if(registry instanceof Error)throw registry;return registry;}
+function canonicalDbPath(dbPath){return dbPath??implicitPath;}
 async function guardValidate(reg,operation,params){if(!active)throw Error('missing lease');return {allowed:guardAllowed};}
 async function logAttestation(reg,operation,id,metadata){if(!active)throw Error('missing lease');reg.audit?.push({operation,id,metadata});}
 export async function bridgeStorePattern(options) {return options;}
@@ -40,6 +43,7 @@ export async function bridgeStorePattern(options) {return options;}
  const rows=new Map([[17,junk],[501,kept]]),deleted=[];
  const rb={getPattern:id=>rows.get(id)??null,deletePattern:id=>{deleted.push(id);return rows.delete(id);}};
  const reg={dbPath:'/fixture/canonical.db',audit:[],get:name=>name==='reasoningBank'?rb:null};mod.configure(reg);
+ mod.scopeProbe('/fixture/sibling.db');assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).reason,'native-registry-resolver-mismatch');assert.equal(mod.calls(),0);checks++;mod.scopeProbe('/fixture/canonical.db');
  const found=await mod.bridgeGetReasoningPattern({patternId:'17',dbPath:'/fixture/canonical.db'});
  assert.equal(found.found,true);assert.equal(found.registryIdentity.explicitAndImplicitSameInstance,true);assert.equal(found.dbPath,'/fixture/canonical.db');assert.equal(found.approachSha256,hash(junk.approach));assert.equal(found.pattern.approach,junk.approach);assert.equal(found.pattern.successRate,0.8);assert.equal('embedding'in found.pattern,false);checks++;
  for(const patternId of ['0','-1','01','1.0','1e2','9007199254740992',17,null]){
@@ -66,6 +70,14 @@ export async function bridgeStorePattern(options) {return options;}
  const root=path.join(process.env.RUFLO_GLOBAL_ROOT,'@claude-flow/cli/dist/src');for(const [name,body] of [['memory/memory-bridge.js',pristine],['mcp-tools/agentdb-tools.js',toolsPristine]]){const target=path.join(root,name);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,body);}
  assert.equal(patch.preflight().ok,true);const compose=await import('../lib/plugin-compose.mjs');
  const installed=compose.applyComposed([patch.NAME]);assert.equal(installed.errors,0,JSON.stringify(installed));assert.equal(installed.incomplete,0);assert.equal(installed.patched,2);assert.equal(compose.applyComposed([patch.NAME]).patched,0);assert.equal(compose.reconcile([],[patch.NAME]).errors,0);assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js'),'utf8'),pristine);checks++;
+ for(const historical of HISTORICAL_BRIDGES){
+  const old=pristine.replace('// ===== Phase 3: CausalMemoryGraph =====',()=>historical+'// ===== Phase 3: CausalMemoryGraph =====');
+  assert.deepEqual(patch.patchSource(old).missing,[]);assert.equal(patch.patchSource(old).next,fixed.next);
+  assert.equal(patch.historicalPatchSource(pristine,old).next,old);
+  fs.writeFileSync(path.join(root,'memory/memory-bridge.js'),old);fs.writeFileSync(path.join(root,'memory/memory-bridge.js.rsp-backup'),pristine);
+  fs.writeFileSync(path.join(root,'mcp-tools/agentdb-tools.js'),toolsFixed.next);fs.writeFileSync(path.join(root,'mcp-tools/agentdb-tools.js.rsp-backup'),toolsPristine);
+  const upgrade=compose.applyComposed([patch.NAME]);assert.equal(upgrade.errors,0,JSON.stringify(upgrade));assert.equal(upgrade.incomplete,0);assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js'),'utf8'),fixed.next);assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js.rsp-backup'),'utf8'),pristine);assert.equal(compose.applyComposed([patch.NAME]).patched,0);checks++;
+ }
  assert.equal(BRIDGE_RUNTIME.includes('.prepare('),false);assert.equal(BRIDGE_RUNTIME.includes('getDb('),false);assert.equal(TOOL_RUNTIME.includes('pattern-delete'),true);checks++;
  console.log('pattern-withdrawal: '+checks+' meaningful checks passed; no database/driver or real native owner opened');
 } finally {delete globalThis.fixtureBridge;fs.rmSync(scratch,{recursive:true,force:true});}

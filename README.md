@@ -15,14 +15,14 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Selective native pattern withdrawal (v4.46.60)
+## Selective native pattern withdrawal (v4.46.61)
 
 The new `ruflo-pattern-withdrawal` target exposes administrative exact
 `agentdb_pattern-get` and hash-guarded `agentdb_pattern-delete` through the native
 MCP owner. It reuses the public ReasoningBank controller API, canonical store and
 operation lease, with no ordinary-memory or SQL fallback. Exact reads and deletes
 refuse a registry whose actual bound path differs from the configured canonical
-path, or whose implicit and explicit lookups return different instances. Deletion refuses an
+path (before opening it), or whose implicit and explicit lookups return different instances. Deletion refuses an
 optional vector backend whose public removal behavior is unqualified. The exact
 body check and synchronous controller calls do not establish cross-process CAS.
 Fresh native identity and absence checks remain necessary before source cleanup.
