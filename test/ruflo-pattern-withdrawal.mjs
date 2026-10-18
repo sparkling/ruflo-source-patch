@@ -8,6 +8,7 @@ const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-patte
 process.env.RUFLO_SOURCE_PATCH_HOME=scratch;
 process.env.RUFLO_GLOBAL_ROOT=path.join(scratch,'global');
 process.env.RUFLO_NPX_ROOT=path.join(scratch,'npx');
+process.env.CLAUDE_FLOW_DB_PATH='/fixture/canonical.db';
 const patch=await import('../lib/ruflo-pattern-withdrawal/patcher.mjs');
 const { BRIDGE_RUNTIME, TOOL_RUNTIME }=await import('../lib/ruflo-pattern-withdrawal/runtime.mjs');
 const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -38,9 +39,9 @@ export async function bridgeStorePattern(options) {return options;}
  const junk={...kept,id:17,approach:'[turn 2026-10-18T00:00:00Z] fixture junk',tags:['raw-turn']};
  const rows=new Map([[17,junk],[501,kept]]),deleted=[];
  const rb={getPattern:id=>rows.get(id)??null,deletePattern:id=>{deleted.push(id);return rows.delete(id);}};
- const reg={audit:[],get:name=>name==='reasoningBank'?rb:null};mod.configure(reg);
- const found=await mod.bridgeGetReasoningPattern({patternId:'17',dbPath:'/fixture/a.db'});
- assert.equal(found.found,true);assert.equal(found.dbPath,'/fixture/a.db');assert.equal(found.approachSha256,hash(junk.approach));assert.equal(found.pattern.approach,junk.approach);assert.equal(found.pattern.successRate,0.8);assert.equal('embedding'in found.pattern,false);checks++;
+ const reg={dbPath:'/fixture/canonical.db',audit:[],get:name=>name==='reasoningBank'?rb:null};mod.configure(reg);
+ const found=await mod.bridgeGetReasoningPattern({patternId:'17',dbPath:'/fixture/canonical.db'});
+ assert.equal(found.found,true);assert.equal(found.registryIdentity.explicitAndImplicitSameInstance,true);assert.equal(found.dbPath,'/fixture/canonical.db');assert.equal(found.approachSha256,hash(junk.approach));assert.equal(found.pattern.approach,junk.approach);assert.equal(found.pattern.successRate,0.8);assert.equal('embedding'in found.pattern,false);checks++;
  for(const patternId of ['0','-1','01','1.0','1e2','9007199254740992',17,null]){
   assert.equal((await mod.bridgeGetReasoningPattern({patternId})).success,false);checks++;
  }
@@ -48,14 +49,15 @@ export async function bridgeStorePattern(options) {return options;}
  assert.equal((await mod.bridgeDeleteReasoningPattern({...input,expectedApproachSha256:'0'.repeat(64)})).reason,'pattern-hash-mismatch');assert.deepEqual(deleted,[]);checks++;
  rb.vectorBackend={};assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-vector-delete-unqualified');assert.deepEqual(deleted,[]);delete rb.vectorBackend;checks++;
  mod.configure(reg,false);assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'mutation-guard-refused');assert.deepEqual(deleted,[]);checks++;mod.configure(reg);
+ reg.dbPath='/fixture/sibling.db';assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-registry-identity-mismatch');assert.deepEqual(deleted,[]);reg.dbPath='/fixture/canonical.db';checks++;
  const result=await mod.bridgeDeleteReasoningPattern(input);assert.equal(result.success,true);assert.equal(result.verifiedAbsent,true);assert.deepEqual(deleted,[17]);assert.equal(rows.get(501),kept);assert.equal(reg.audit.length,1);assert.equal(reg.audit[0].metadata.approachSha256,input.expectedApproachSha256);assert.equal('approach'in reg.audit[0].metadata,false);checks++;
  assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).found,false);
  assert.equal((await mod.bridgeDeleteReasoningPattern(input)).alreadyAbsent,true);assert.deepEqual(deleted,[17]);checks++;
  for(const reason of ['',null,'x'.repeat(501)])assert.equal((await mod.bridgeDeleteReasoningPattern({...input,reason})).success,false);checks++;
- mod.configure({get:()=>null});assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).reason,'native-pattern-get-unsupported');assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-delete-unsupported');checks++;
- mod.configure({get:()=>({getPattern:()=>junk,deletePattern:()=>false})});assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-deletion-unconfirmed');checks++;
- mod.configure({get:()=>({getPattern:()=>junk,deletePattern:()=>true})});assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-deletion-unconfirmed');checks++;
- mod.configure({get:()=>({getPattern:()=>{throw Error('native refusal');},deletePattern:()=>true})});assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-delete-failed');checks++;
+ mod.configure({dbPath:'/fixture/canonical.db',get:()=>null});assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).reason,'native-pattern-get-unsupported');assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-delete-unsupported');checks++;
+ mod.configure({dbPath:'/fixture/canonical.db',get:()=>({getPattern:()=>junk,deletePattern:()=>false})});assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-deletion-unconfirmed');checks++;
+ mod.configure({dbPath:'/fixture/canonical.db',get:()=>({getPattern:()=>junk,deletePattern:()=>true})});assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-deletion-unconfirmed');checks++;
+ mod.configure({dbPath:'/fixture/canonical.db',get:()=>({getPattern:()=>{throw Error('native refusal');},deletePattern:()=>true})});assert.equal((await mod.bridgeDeleteReasoningPattern(input)).reason,'native-pattern-delete-failed');checks++;
  assert.ok(mod.leaseCount()>20);
  const toolsPristine="async function getBridge(){return globalThis.fixtureBridge;}\nexport const agentdbPatternStore={};\nexport const agentdbPatternSearch={};\n// ===== Export all tools =====\nexport const agentdbTools=[\n    agentdbPatternStore,\n    agentdbPatternSearch,\n];\n";
  const toolsFixed=patch.patchSource(toolsPristine);assert.deepEqual(toolsFixed.missing,[]);assert.equal(patch.reverse(toolsFixed.next),toolsPristine);assert.equal(patch.patchSource(toolsFixed.next).next,toolsFixed.next);checks++;
