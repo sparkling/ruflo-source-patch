@@ -83,6 +83,7 @@ import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/com
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
+import { rufloSelectiveLearningCommand } from '../lib/ruflo-selective-learning/commands.mjs';
 import { rufloTierConsolidationCommand } from '../lib/ruflo-tier-consolidation/commands.mjs';
 import { rufloPatternWithdrawalCommand } from '../lib/ruflo-pattern-withdrawal/commands.mjs';
 import { rufloFlywheelEvidenceCommand } from '../lib/ruflo-flywheel-evidence/commands.mjs';
@@ -149,6 +150,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'ruflo-tier-consolidation': rufloTierConsolidationCommand,
+  'ruflo-selective-learning': rufloSelectiveLearningCommand,
   'ruflo-pattern-withdrawal': rufloPatternWithdrawalCommand,
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
   'ruflo-policy-ledger': rufloPolicyLedgerCommand,
@@ -229,6 +231,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
   ${pad('ruflo-pattern-withdrawal')} selective native ReasoningBank exact get/hash-guarded delete (#3450/#829 context)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
+  ${pad('ruflo-selective-learning')}learn only explicitly selected completed trajectories as native patterns (#2245)
   ${pad('ruflo-tier-consolidation')}preserve explicit evaluated episodes in the semantic tier; dry-run and hash-approved apply (#2977)
   ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)
   ${pad('ruflo-champion-authority')}preserve local promotion authority during startup (ADR-322A; #2579 context)

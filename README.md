@@ -634,6 +634,7 @@ npx github:sparkling/ruflo-source-patch init install
 npx github:sparkling/ruflo-source-patch plugin-hosts install
 npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install
 npx github:sparkling/ruflo-source-patch ruflo-model-contract install
+npx github:sparkling/ruflo-source-patch ruflo-selective-learning install # exact selected completed-trajectory pattern learning; no global replay
 npx github:sparkling/ruflo-source-patch monitor install   # keeps them applied
 
 npx github:sparkling/ruflo-source-patch all status        # what's live, everything at once
@@ -652,6 +653,7 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`ruflo-learning-stats`** | Reports store-scoped learning counters honestly, reads retained patterns independently, and commits concurrent counter increments under the existing bounded lock without stale-snapshot overwrite. Pending increments remain process-local until a successful flush. | [#2245 · closed](https://github.com/ruvnet/ruflo/issues/2245) · [#4217 · closed](https://github.com/ruvnet/ruflo/issues/4217) |
+| **`ruflo-selective-learning`** | Makes explicit `hooks_intelligence_learn.trajectoryIds` retain complete evaluated source trajectories in the native ReasoningBank with exact provenance/outcomes, unchanged idempotence and correction refusal. No global buffered learning, trajectory replay or EWC/provider-weight training runs on this path. Partial writes are reported without a false rollback claim. Single-owner requests serialize; cross-process atomic reconciliation is not claimed. | Related manual-learning integration [#2245](https://github.com/ruvnet/ruflo/issues/2245), not a full repair of that historical issue |
 | **`ruflo-sqlite-owner`** | Resolves native SQLite through ControllerRegistry's actual dependency owner for graph and repair/initializer handles, preventing competing native SQLite libraries from managing the same file. It neither borrows and closes the registry handle nor replaces the database. | [#3693 · closed](https://github.com/ruvnet/ruflo/issues/3693) |
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. Count a verified retained source/copy pair once while retaining independent identical-content episodes. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
