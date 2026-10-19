@@ -69,19 +69,22 @@ six operations and a two-store test proves that project and user results stay se
 
 ### Key native bridge state by canonical database identity
 
-The `memory/controller-configured-store` entry makes explicitly bound trajectory,
-ReasoningBank, graph and hierarchical calls use `CLAUDE_FLOW_DB_PATH`. Without an
-explicit override, native calls retain upstream's `agentdb-memory.db` sibling
-in both encrypted and unencrypted modes (#2786/#3155). The one-file unencrypted
-default introduced in 4.46.58 is withdrawn through exact historical composition
-proof; it was a downstream architecture choice, separate from #3143. Combining
-an explicit native path with encryption refuses instead of silently opening a
-second store. No database is moved, merged or deleted by installation. Existing
-unique records require a separately verified native migration. A behavioral
-retirement probe and pristine-failure regression cover the resolver, explicit
-user/project paths, the in-memory sentinel and the encryption conflict. Existing
-combined stores and aliases require a separately verified native migration and
-fresh host processes; code installation must not claim that migration happened.
+The `memory/controller-configured-store` entry retires on upstream's independent
+controller resolution. `CLAUDE_FLOW_DB_PATH` binds ordinary MCP memory operations;
+implicit trajectory, ReasoningBank, graph and hierarchy controllers derive their
+`agentdb-memory.db` sibling independently. Explicit public bridge `dbPath` arguments
+remain database authority boundaries. This removes both the one-file default and
+the explicit environment override introduced downstream. Exact historical
+composition proof withdraws both known revisions, including shared-file upgrades;
+it must never reinstall them during a later monitor cycle.
+
+The native probe covers ordinary path overrides, both encryption settings,
+nondefault memory roots and the in-memory sentinel. No database is moved, merged
+or deleted by installation. Existing combined stores and aliases require a
+separately verified migration and fresh host processes; code installation must
+not claim that migration happened. The owner authorized a bounded native SQLite
+migration exception for this bugfix on 2026-10-19; ordinary operations continue
+through their native interfaces.
 
 Pattern get/delete validates the intended native operation's canonical path and
 actual registry, independently of the CLI/sql.js filename. Its guards must not

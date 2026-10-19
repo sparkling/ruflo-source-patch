@@ -7,7 +7,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { CONTROLLER_PATH_ANCHOR, CONTROLLER_PATH_REPLACEMENT } from '../lib/cwd/memory-mcp-path.mjs';
 
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
@@ -118,9 +117,8 @@ if (native) {
   const readOnlyModules = path.join(readOnlyRoot, 'npx', 'fixture', 'node_modules');
   const readOnlyFile = path.join(readOnlyModules, bridgeRel);
   fs.mkdirSync(path.dirname(readOnlyFile), { recursive: true });
-  // This fixture represents native identity AND native default-store support.
-  const nativeSource = Buffer.from(pristineBytes(path.join(vendor, bridgeRel)).toString()
-    .replace(CONTROLLER_PATH_ANCHOR, CONTROLLER_PATH_REPLACEMENT));
+  // Native identity and independent controller ownership need no local overlay.
+  const nativeSource = pristineBytes(path.join(vendor, bridgeRel));
   fs.writeFileSync(readOnlyFile, nativeSource);
   fs.chmodSync(readOnlyFile, 0o444);
   fs.chmodSync(path.dirname(readOnlyFile), 0o555);
@@ -262,8 +260,9 @@ const aFirstRegistry = await bridge.getControllerRegistry(dbA);
 const priorConfiguredPath = process.env.CLAUDE_FLOW_DB_PATH;
 process.env.CLAUDE_FLOW_DB_PATH = dbA;
 try {
-  check(await bridge.getControllerRegistry() === aFirstRegistry,
-    'implicit controller opened a sibling instead of the explicit configured registry');
+  const implicit = await bridge.getControllerRegistry();
+  check(implicit !== aFirstRegistry && path.basename(implicit.options.dbPath) === 'agentdb-memory.db',
+    'ordinary memory binding collapsed the independent native controller owner');
 } finally {
   if (priorConfiguredPath === undefined) delete process.env.CLAUDE_FLOW_DB_PATH;
   else process.env.CLAUDE_FLOW_DB_PATH = priorConfiguredPath;

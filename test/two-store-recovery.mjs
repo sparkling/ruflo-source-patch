@@ -57,6 +57,15 @@ try {
   await assert.rejects(snapshotProject({ project: invalid, destination: failed, cliRoot }));
   assert.equal(JSON.parse(fs.readFileSync(path.join(failed, 'receipt.json'))).status, 'incomplete');
   for (const name of ['memory.db', 'agentdb-memory.db']) assert.equal(fs.readFileSync(path.join(invalid, '.swarm', name), 'utf8'), 'RFE1-fixture');
+  const research = path.join(scratch, 'research'); fs.mkdirSync(path.join(research, '.swarm'), { recursive: true });
+  fs.writeFileSync(path.join(research, '.swarm/memory.db'), 'EXCLUDED-OPERATIONAL-FIXTURE');
+  const researchOwner = new Database(path.join(research, '.swarm/agentdb-memory.db')); owners.push(researchOwner);
+  researchOwner.exec('CREATE TABLE research(id TEXT PRIMARY KEY)');
+  const researchReceipt = await snapshotProject({ project: research, destination: path.join(scratch, 'research-recovery'), cliRoot,
+    storeNames: ['agentdb-memory.db'] });
+  assert.equal(researchReceipt.status, 'verified'); assert.equal(researchReceipt.stores.length, 1);
+  assert.equal(researchReceipt.stores[0].name, 'agentdb-memory.db');
+  assert.equal(fs.readFileSync(path.join(research, '.swarm/memory.db'), 'utf8'), 'EXCLUDED-OPERATIONAL-FIXTURE');
   console.log('native recovery: live WAL snapshots preserve int64/blob/FK data; stable exact fingerprints; aliases preserved; existing destinations and invalid native sources refuse without overwriting originals');
 } finally {
   for (const owner of owners) owner.close();

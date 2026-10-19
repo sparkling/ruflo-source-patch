@@ -180,7 +180,8 @@ Memory is optional context, not a delivery gate. Use native Ruflo MCP/AgentDB to
 
 Default storage follows upstream: CLI/sql.js owns `.swarm/memory.db`; native
 controllers own `.swarm/agentdb-memory.db`. Ordinary memory can live in AgentDB too.
-Explicit source/user bindings retain their exact authority. Existing combined
+Explicit ordinary source/user bindings retain their exact authority; they do not
+redirect implicit native controllers. Existing combined
 corpora and aliases need native reconciliation and controlled host reconnects;
 patch installation does not migrate data. Native-only recovery snapshots require
 `memory backup --native-only` and a verified `sqlite-online-backup` receipt.

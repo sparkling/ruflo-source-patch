@@ -52,12 +52,15 @@ export function inspectSnapshot(Database, file) {
   } finally { db.close(); }
 }
 
-export async function snapshotProject({ project, destination, cliRoot }) {
+export async function snapshotProject({ project, destination, cliRoot, storeNames = ['memory.db', 'agentdb-memory.db'] }) {
   if (![project, destination, cliRoot].every(value => typeof value === 'string' && path.isAbsolute(value)))
     throw Error('Project, destination and CLI root must be absolute');
   project = fs.realpathSync(project);
+  if (!Array.isArray(storeNames) || !storeNames.length || new Set(storeNames).size !== storeNames.length
+    || storeNames.some(name => !['memory.db', 'agentdb-memory.db'].includes(name)))
+    throw Error('Select existing memory.db and/or agentdb-memory.db only');
   if (fs.existsSync(destination)) throw Error('Recovery destination already exists; never overwrite a receipt');
-  const stores = ['memory.db', 'agentdb-memory.db'].map(name => {
+  const stores = storeNames.map(name => {
     const source = path.join(project, '.swarm', name);
     if (!fs.statSync(source).isFile()) throw Error('Required source is not a regular file');
     return { name, source, realpath: fs.realpathSync(source) };
@@ -100,10 +103,11 @@ export async function snapshotProject({ project, destination, cliRoot }) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [action, project, destination, cliRoot] = process.argv.slice(2);
-  if (action !== 'snapshot' || process.argv.length !== 6)
-    throw Error('Usage: two-store-recovery.mjs snapshot <absolute-project> <new-absolute-destination> <absolute-cli-root>');
-  const receipt = await snapshotProject({ project, destination, cliRoot });
+  const [action, project, destination, cliRoot, option, selected] = process.argv.slice(2);
+  if (action !== 'snapshot' || ![6, 8].includes(process.argv.length)
+    || option !== undefined && (option !== '--store' || !selected))
+    throw Error('Usage: two-store-recovery.mjs snapshot <absolute-project> <new-absolute-destination> <absolute-cli-root> [--store memory.db|agentdb-memory.db]');
+  const receipt = await snapshotProject({ project, destination, cliRoot, ...(selected && { storeNames: [selected] }) });
   console.log(JSON.stringify({ project, destination, status: receipt.status,
     stores: receipt.stores.map(store => ({ name: store.name, aliasOf: store.aliasOf,
       tables: store.tables?.map(table => ({ name: table.name, rows: table.rows, error: table.error })),

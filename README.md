@@ -40,13 +40,15 @@ source bindings remain supported; default ownership follows upstream as describe
 
 The `memory` target preserves upstream's default native `agentdb-memory.db`
 owner alongside the distinct CLI/sql.js `memory.db` owner (#2786/#3155).
-An explicit `CLAUDE_FLOW_DB_PATH` remains a full-file binding for configured native
-consumers and user memory (#2105/#3196); combining that explicit native binding
-with sql.js encryption refuses. Ordinary memory records can live in AgentDB too.
+`CLAUDE_FLOW_DB_PATH` binds the ordinary memory API and user memory
+(#2105/#3196). It does not select the implicit controller store: upstream derives
+that sibling from its memory root independently. Public bridge calls with an
+explicit `dbPath` still preserve that exact authority. Ordinary memory records
+can live in AgentDB too.
 
 Version 4.46.58 changed the unencrypted default to memory.db. The replacement
-recognizes that exact released source and withdraws the one-file default without
-moving data. Existing combined corpora, aliases and long-running clients require
+recognizes the historical default and explicit one-file overrides and withdraws
+both through native behavioral proof, without moving data. Existing combined corpora, aliases and long-running clients require
 separate reconciliation and controlled activation. Installation is not migration.
 The stale-client detector recognizes global `bin/ruflo` aliases and changes to
 bridge/controller/MCP modules, reports affected clients and never kills them.

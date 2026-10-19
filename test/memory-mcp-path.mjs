@@ -10,20 +10,20 @@ const controllerPath = (source, env, fallback = '/project/.swarm/memory.db') =>
     {env}, path, () => fallback);
 assert.notEqual(controllerPath(CONTROLLER_PATH_ANCHOR, {CLAUDE_FLOW_DB_PATH:'/configured/memory.db'}),
   '/configured/memory.db', 'pristine resolver must demonstrate the split');
-assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_ANCHOR), false);
-assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT), true);
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_ANCHOR), true);
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT), false, 'explicit one-store binding must also retire');
 assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_PREVIOUS), false, 'one-store default is not upstream ownership');
-assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT.replace('return path.resolve(configured);', 'return getDbPath();')), false);
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_ANCHOR.replace("'agentdb-memory.db'", "'memory.db'")), false);
 for (const configured of ['/configured/memory.db', '/outside/project/user-memory.db', ':memory:']) {
-  assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), configured);
+  assert.equal(controllerPath(CONTROLLER_PATH_ANCHOR, {CLAUDE_FLOW_DB_PATH:configured}), '/project/.swarm/agentdb-memory.db');
 }
 for (const configured of [undefined, '', '   ']) {
   assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), '/project/.swarm/agentdb-memory.db');
 }
 assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {}, ':memory:'), ':memory:');
 assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_ENCRYPT_AT_REST:'1'}), '/project/.swarm/agentdb-memory.db');
-assert.throws(() => controllerPath(CONTROLLER_PATH_REPLACEMENT,
-  {CLAUDE_FLOW_DB_PATH:'/configured/memory.db', CLAUDE_FLOW_ENCRYPT_AT_REST:'1'}), /refusing an implicit second store/);
+assert.equal(controllerPath(CONTROLLER_PATH_ANCHOR,
+  {CLAUDE_FLOW_DB_PATH:'/configured/memory.db', CLAUDE_FLOW_ENCRYPT_AT_REST:'1'}), '/project/.swarm/agentdb-memory.db');
 
 const operations = ['storeEntry', 'searchEntries', 'listEntries', 'getEntry',
   'deleteEntry', 'initializeMemoryDatabase'];
@@ -79,12 +79,12 @@ fs.writeFileSync(bridgeFile, CONTROLLER_PATH_ANCHOR);
 const {apply} = await import('../lib/cwd/patch-library.mjs');
 try {
   const first = apply(['memory']);
-  assert.equal(first.patched, 2);
+  assert.equal(first.patched, 1);
   assert.equal(first.incomplete, 0);
   assert.equal(first.errors, 0);
   assert.equal(apply(['memory']).patched, 0, 'idempotent reapply');
   assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), source);
-  assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_REPLACEMENT);
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_ANCHOR);
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), source, 'exact pristine restoration');
   assert.equal(fs.readFileSync(bridgeFile, 'utf8'), CONTROLLER_PATH_ANCHOR);
@@ -95,10 +95,14 @@ try {
   const upgrade = apply(['memory']);
   assert.equal(upgrade.errors, 0, JSON.stringify(upgrade));
   assert.equal(upgrade.incomplete, 0, JSON.stringify(upgrade));
-  assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_REPLACEMENT);
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_ANCHOR);
   assert(fs.readFileSync(file, 'utf8').includes(MCP_PATH_REPLACEMENT));
-  assert.equal(fs.readFileSync(bridgeFile + '.rsp-backup', 'utf8'), CONTROLLER_PATH_ANCHOR);
+  assert.equal(fs.existsSync(bridgeFile + '.rsp-backup'), false, 'withdrawn controller overlay leaves native source');
   assert.equal(apply(['memory']).patched, 0, 'monitor cannot reinstall the old one-store default');
+  fs.writeFileSync(bridgeFile, CONTROLLER_PATH_REPLACEMENT);
+  fs.writeFileSync(bridgeFile + '.rsp-backup', CONTROLLER_PATH_ANCHOR);
+  assert.equal(apply(['memory']).incomplete, 0, 'withdraw intermediate explicit-full-file overlay too');
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8'), CONTROLLER_PATH_ANCHOR);
   apply([]);
   assert.equal(fs.readFileSync(bridgeFile, 'utf8'), CONTROLLER_PATH_ANCHOR);
   const drift = source.replace(MCP_LEGACY_ANCHOR, '        if (changedLegacy()) {');
