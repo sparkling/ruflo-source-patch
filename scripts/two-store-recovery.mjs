@@ -5,10 +5,12 @@ import { createHash } from 'node:crypto';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const sha = value => createHash('sha256').update(value).digest('hex');
-const quote = name => '"' + name.replaceAll('"', '""') + '"';
+export const quoteIdentifier = name => '"' + name.replaceAll('"', '""') + '"';
+const quote = quoteIdentifier;
 const cell = value => Buffer.isBuffer(value) ? ['blob', value.toString('base64')]
   : typeof value === 'bigint' ? ['integer', String(value)]
   : value === null ? ['null'] : [typeof value, value];
+export const rowFingerprint = row => sha(JSON.stringify(row.map(cell)));
 
 export async function nativeDriver(cliRoot) {
   if (!path.isAbsolute(cliRoot)) throw Error('CLI root must be absolute');
@@ -37,7 +39,7 @@ export function inspectSnapshot(Database, file, { requireIntegrity = true } = {}
           Object.entries(row).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])));
         const statement = db.prepare(`SELECT * FROM ${quote(item.name)} NOT INDEXED`).raw();
         const hashes = [];
-        for (const row of statement.iterate()) hashes.push(sha(JSON.stringify(row.map(cell))));
+        for (const row of statement.iterate()) hashes.push(rowFingerprint(row));
         hashes.sort();
         const hash = createHash('sha256');
         for (const row of hashes) hash.update(row + '\n');
