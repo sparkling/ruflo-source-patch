@@ -15,6 +15,12 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+Release 4.46.66 recognizes Brain 4.7.14's native published-wrapper history proof
+for [Brain#420](https://github.com/stuinfla/ruvnet-brain/issues/420). An exact-source
+executable probe verifies retained/pruned release acceptance and rejects edited
+bytes, malformed history and foreign ownership. No Brain runtime bytes, update
+assets or generation pointers change when this native replacement satisfies the target.
+
 Release 4.46.65 fixes [source-patch#8](https://github.com/sparkling/ruflo-source-patch/issues/8):
 withdrawal preflight remains atomic within each installed bridge/tool pair. An
 unsupported older cache stays visibly incomplete while independently proven

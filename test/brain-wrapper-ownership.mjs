@@ -12,6 +12,14 @@ const native = fixture('native-4.7.6.mjs').toString() + "\n// The bridge's previ
 assert.equal(nativeOwnershipSatisfied(native), true);
 assert.deepEqual(patchSource(native), { next: native, applied: [], missing: [] });
 assert.equal(nativeOwnershipSatisfied(native.replace('stat.nlink !== 1', 'false')), false);
+const modern = fixture('native-4.7.14.mjs').toString() + "\n// The bridge's previous bytes";
+assert.equal(nativeOwnershipSatisfied(modern), true);
+assert.deepEqual(patchSource(modern), { next: modern, applied: [], missing: [] });
+for (const [before, after] of [['stat.nlink !== 1', 'false'], ['row.bytes === bytes.length', 'true'],
+  ["return { state: 'prior-release', release: past.tags[past.tags.length - 1] }", "return { state: 'conflict' }"]]) {
+  assert(modern.includes(before));
+  assert.equal(nativeOwnershipSatisfied(modern.replace(before, after)), false);
+}
 const source = fixture('ownership.mjs').toString();
 const patched = patchSource(source);
 assert.deepEqual(patched.missing, []);
