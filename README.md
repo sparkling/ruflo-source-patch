@@ -106,6 +106,14 @@ overlays remain exactly reconstructible for pristine restoration. The new native
 session-directory containment guard also follows the helper's project root when
 launched from a nested directory, retaining its symlink refusal.
 
+Release 4.46.64 accepts the exactly qualified Ruflo 3.57.0 native bounded
+policy runtime and security 3.0.5 engine. The opt-in native proof preserves 5,000
+original receipts through legacy expansion, verifies the complete native audit,
+checks a subsequent native write/prune, and rejects missing history. Existing
+local segmented policy data requires explicit `scripts/policy-native-restoration.mjs`
+conversion through its legacy native transaction owner, with private originals
+and trust backups. Installation never performs this data conversion.
+
 Additional upstream dispositions:
 
 - [#3688](https://github.com/ruvnet/ruflo/issues/3688) is closed via
