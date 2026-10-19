@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { CONTEXT_OLD, CONTEXT_351, CONTEXT_NEW } from '../lib/ruflo-context-contract/patcher.mjs';
+import { createHash } from 'node:crypto';
+import { CONTEXT_OLD, CONTEXT_351, CONTEXT_PREVIOUS, CONTEXT_NEW, contextWithLease } from '../lib/ruflo-context-contract/patcher.mjs';
 
 const argv = process.argv.slice(2);
 const usage = 'Usage: node test/ruflo-context-contract.mjs [<absolute scratch directory>] [--native-cli <absolute CLI package.json>]';
@@ -37,7 +38,7 @@ const { apply } = await import('../lib/cwd/patch-library.mjs');
 const critique = 'Use explicit outcome fields when adapting stored episodes.';
 const episode = (overrides = {}) => ({ task: 'repair adapter', success: true, reward: 0.8, critique, ...overrides });
 const examples = [episode(), episode({ task: 'test adapter', success: false, reward: 0.2 })];
-let captured = [], calls = 0, recallCalls = [];
+let captured = [], calls = 0, recallCalls = [], lineageCalls = [];
 const controller = {
   async synthesize(patterns, options) {
     calls++;
@@ -51,7 +52,7 @@ const controller = {
     };
   },
 };
-function registryFor(rows, { real = false, cs = controller, recallError } = {}) {
+function registryFor(rows, { real = false, cs = controller, recallError, consolidate } = {}) {
   const hm = {
     async recall(...args) {
       recallCalls.push(args);
@@ -60,10 +61,14 @@ function registryFor(rows, { real = false, cs = controller, recallError } = {}) 
       return rows;
     },
   };
+  if (consolidate) hm.consolidate = async options => {
+    lineageCalls.push(options);
+    return consolidate(options);
+  };
   if (real) hm.promote = () => assert.fail('recall must not promote memories');
   return { get(name) { return name === 'contextSynthesizer' ? cs : name === 'hierarchicalMemory' ? hm : null; } };
 }
-function reset() { captured = []; calls = 0; recallCalls = []; }
+function reset() { captured = []; calls = 0; recallCalls = []; lineageCalls = []; }
 function assertCounts(result, recalled, eligible, excluded) {
   assert.equal(result.recalledCount, recalled);
   assert.equal(result.eligibleCount, eligible);
@@ -79,6 +84,77 @@ async function mappingProof(mod) {
   assert.equal(result.synthesis.successRate, 0.5);
   assert.equal(result.synthesis.averageReward, 0.5);
   assertCounts(result, 2, 2, 0);
+}
+async function consolidationLineageProof(mod) {
+  const value = JSON.stringify(episode({ success: false, reward: -0.5 }));
+  const source = { id: 'tm_lineage_source', key: 'lineage-episode', value, tier: 'episodic', ts: 1700000000000,
+    validFrom: '2000-01-01T00:00:00.000Z', validUntil: '2999-01-01T00:00:00.000Z' };
+  const sourceSha256 = createHash('sha256').update(JSON.stringify([
+    source.id, source.key, value, source.tier, source.ts, source.validFrom, source.validUntil, null, 0,
+  ])).digest('hex');
+  const copy = { ...source, id: 'tm_consolidated_' + sourceSha256,
+    key: 'consolidated:' + source.key, tier: 'semantic' };
+  const proof = {
+    source: 'tiered-memory', operation: 'preserve-evaluated-episodes-in-semantic-tier', dryRun: true,
+    targetTier: 'semantic', sourceIntegrityVerified: false, qualityInference: false,
+    promoted: 0, wouldPromote: 0, alreadyConsolidated: 1, pruned: 0,
+    entries: [{ sourceKey: source.key, sourceId: source.id, sourceSha256,
+      targetKey: copy.key, targetId: copy.id, alreadyConsolidated: true }],
+  };
+  const run = async (rows, consolidate = () => proof) => {
+    reset();
+    mod.setRegistry(registryFor(rows, { consolidate }));
+    return mod.bridgeContextSynthesize({ query: 'lineage' });
+  };
+  let result = await run([source, copy]);
+  assert.equal(result.success, true);
+  assertCounts(result, 2, 1, 1);
+  assert.equal(result.synthesis.totalMemories, 1, 'a verified semantic preservation copy adds no second observation');
+  assert.deepEqual(captured, [episode({ success: false, reward: -0.5 })]);
+  assert.deepEqual(lineageCalls, [{ sources: [{ key: source.key }], dryRun: true }],
+    'lineage is proven through the existing native owner without a write');
+
+  result = await run([copy]);
+  assert.equal(result.success, true);
+  assertCounts(result, 1, 1, 0);
+  assert.equal(result.synthesis.totalMemories, 1, 'a copy recalled alone still contributes its evidence once');
+
+  const independent = { ...source, id: 'tm_independent_source', key: 'independent-episode' };
+  result = await run([source, independent]);
+  assert.equal(result.success, true);
+  assertCounts(result, 2, 2, 0);
+  assert.equal(result.synthesis.totalMemories, 2, 'independent episodes with identical JSON are not deduplicated');
+  assert.deepEqual(lineageCalls, []);
+
+  for (const changed of [
+    { id: 'tm_forged_copy' }, { ts: copy.ts + 1 },
+    { value: JSON.stringify(episode({ success: false, reward: -0.75 })) },
+    { validFrom: '2001-01-01T00:00:00.000Z' }, { validUntil: '2998-01-01T00:00:00.000Z' },
+    { supersededBy: 'tm_other' },
+  ]) {
+    result = await run([source, { ...copy, ...changed }]);
+    assert.equal(result.success, true, 'mismatched evidence remains independently eligible');
+    assertCounts(result, 2, 2, 0);
+    assert.equal(result.synthesis.totalMemories, 2, 'mismatched identity, bytes or temporal evidence is not collapsed');
+  }
+  for (const changed of [{ sourceId: 'tm_forged_source' }, { targetId: 'tm_consolidated_' + '0'.repeat(64) },
+    { sourceKey: 'another-source' }, { targetKey: 'consolidated:another-source' }, { alreadyConsolidated: false }]) {
+    result = await run([source, copy], () => ({ ...proof, entries: [{ ...proof.entries[0], ...changed }] }));
+    assert.equal(result.success, true);
+    assertCounts(result, 2, 2, 0);
+  }
+
+  result = await run([source, copy], () => { throw new Error('native lineage unavailable'); });
+  assert.equal(result.success, false, 'failed native lineage lookup must not produce a successful synthesis');
+  assert.equal(result.phase, 'lineage');
+  assert.equal(calls, 0);
+  assert.equal(Object.hasOwn(result, 'synthesis'), false);
+  for (const invalidProof of [null, { ...proof, dryRun: false }, { ...proof, pruned: 1 },
+    { ...proof, source: 'unverified-controller' }, { ...proof, entries: null }]) {
+    result = await run([source, copy], () => invalidProof);
+    assert.equal(result.success, false, 'an invalid native receipt fails closed');
+    assert.equal(calls, 0);
+  }
 }
 async function nativeProof(mod, original) {
   if (!nativeCli) return; // Default suite needs only Node and this repository.
@@ -120,6 +196,7 @@ try {
   assert.equal(apply(['ruflo-context-contract']).patched, 0, 'idempotent');
   assert.equal(spawnSync(process.execPath, ['--check', file]).status, 0);
   const mod = await import(pathToFileURL(file).href);
+  await consolidationLineageProof(mod);
   await mappingProof(mod);
   assert.deepEqual(recallCalls, [['adapter', 10]], 'async legacy recall is awaited');
   assert.equal(calls, 1);
@@ -342,6 +419,38 @@ function withBridgeOperation() { throw new Error('test holds its native lease');
   assert.equal(fs.readFileSync(file, 'utf8'), nativePristine, '3.51 exact reversal');
   fs.writeFileSync(file, pristine);
 
+  for (const [vendor, previous, expected, label] of [
+    [pristine, CONTEXT_PREVIOUS, CONTEXT_NEW, 'unleased'],
+    [nativePristine, contextWithLease(CONTEXT_PREVIOUS), contextWithLease(CONTEXT_NEW), 'leased'],
+  ]) for (const shared of [false, true]) {
+    const targets = shared ? ['cwd', 'ruflo-context-contract'] : ['ruflo-context-contract'];
+    fs.writeFileSync(file, vendor);
+    assert.equal(apply(targets).incomplete, 0);
+    const complete = fs.readFileSync(file, 'utf8');
+    assert.ok(complete.includes(expected));
+    const historical = complete.replace(expected, () => previous);
+    assert.notEqual(historical, complete);
+    fs.writeFileSync(file, historical);
+    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor,
+      label + ': complete prior composition retains the real saved pristine');
+    const upgraded = apply(targets);
+    assert.equal(upgraded.incomplete, 0, JSON.stringify(upgraded));
+    const current = fs.readFileSync(file, 'utf8');
+    assert.equal(current, complete, label + ': normal application upgrades the exact historical composition');
+    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor,
+      label + ': upgrade must not adopt prior patched bytes as pristine');
+    if (shared) {
+      assert.equal(apply(['cwd']).incomplete, 0);
+      const cwdOnly = fs.readFileSync(file, 'utf8');
+      assert.ok(cwdOnly.includes('__rufloResolveRoot(process.cwd())'));
+      assert.ok(cwdOnly.includes(label === 'leased' ? CONTEXT_351 : CONTEXT_OLD),
+        'removing upgraded context preserves its shared cwd owner');
+      assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor);
+    }
+    assert.equal(apply([]).incomplete, 0);
+    assert.equal(fs.readFileSync(file, 'utf8'), vendor, label + ': final uninstall restores exact vendor bytes');
+  }
+  fs.writeFileSync(file, pristine);
 
   for (const changed of [pristine.replace('reward: 1,', 'reward: 0.5,'), pristine + CONTEXT_OLD]) {
     fs.writeFileSync(file, changed);

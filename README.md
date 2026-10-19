@@ -15,6 +15,14 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+Release 4.46.69 prevents context synthesis from counting a verified semantic
+consolidation copy as another experience when its episodic source is also recalled.
+The existing native owner's read-only dry-run proves the source and retained copy
+identities; independent episodes with identical text remain distinct. Both stored
+records are preserved, and failed lineage reads remain failures. This extends
+`ruflo-context-contract` ([#3314](https://github.com/ruvnet/ruflo/issues/3314))
+for the scoped consolidation path below.
+
 Release 4.46.68 adds `ruflo-tier-consolidation` for scoped tier preservation
 under [Ruflo#2977](https://github.com/ruvnet/ruflo/issues/2977). It extends the
 existing native tier owner: select 1..32 explicit evaluated episodic keys,
