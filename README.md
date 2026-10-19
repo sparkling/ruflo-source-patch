@@ -46,6 +46,10 @@ that sibling from its memory root independently. Public bridge calls with an
 explicit `dbPath` still preserve that exact authority. Ordinary memory records
 can live in AgentDB too.
 
+Explicit graph reads and their encryption check follow that configured path too
+([#4291](https://github.com/ruvnet/ruflo/issues/4291)); an omitted binding retains
+the native `memory.db` graph default. This does not redirect implicit controllers.
+
 Version 4.46.58 changed the unencrypted default to memory.db. The replacement
 recognizes the historical default and explicit one-file overrides and withdraws
 both through native behavioral proof, without moving data. Existing combined corpora, aliases and long-running clients require
@@ -1114,6 +1118,14 @@ the scoped [#3143](https://github.com/ruvnet/ruflo/issues/3143) replacement proo
 obsolete overlay remains off on qualified native versions.
 
 #### The database path is an authority boundary
+
+The `memory/graph-configured-store` entry fixes a separate retained graph read
+gap ([#4291](https://github.com/ruvnet/ruflo/issues/4291)): fresh 3.57.0 MCP k-hop
+queries ignored an explicit research-store binding and returned the default
+store's synthetic edge. Both encryption sniffing and native graph opening now
+reuse `resolveDbPath()` precedence, preserving an explicit custom path first.
+Native checks cover explicit/default selection and missing/encrypted-source
+refusal. Behavioral retirement preserves upstream's independent controller owner.
 
 The `memory/mcp-configured-store` entry also carries `CLAUDE_FLOW_DB_PATH` through
 the MCP memory handlers (#2105/#3196). Previously, initialization honored it while

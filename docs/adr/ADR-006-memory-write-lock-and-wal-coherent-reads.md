@@ -4,6 +4,8 @@
 **Date**: 2026-07-14
 **Updated**: 2026-10-19. Restore upstream's separate default AgentDB owner, retain explicit
 source/user bindings, qualify native-only recovery snapshots and report global alias clients.
+Explicit retained-graph reads and encryption checks also honor the selected file
+(#4291); synthetic fresh-MCP checks verify source isolation and refusal behavior.
 2026-10-18. Implicit native controllers now honour the configured canonical store;
 the legacy encrypted sql.js exception cannot silently override an explicit native binding.
 2026-10-10. Raw WAL refusal checks both the supplied path and its canonical symlink
