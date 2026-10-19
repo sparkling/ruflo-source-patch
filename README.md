@@ -443,8 +443,17 @@ conflicting complete representations are excluded rather than guessed.
 No recalled rows and recalled-but-ineligible rows are distinct results.
 Both hierarchical recall interfaces are awaited; retained records remain untouched.
 
-This patch does not implement the unavailable hierarchical consolidator in
-[#2977](https://github.com/ruvnet/ruflo/issues/2977), nor changes SONA.
+Since 4.46.69, a recalled episodic source and its verified semantic consolidation
+copy count as one experience. The existing native tier owner's read-only plan
+proves the lineage; exact values and temporal fields must agree. Independent
+episodes with identical content remain distinct, and copy-only recall remains
+eligible. `consolidatedCopyCount` reports the excluded copies alongside raw
+recalled/eligible/excluded counts. A failed lineage read stops synthesis.
+
+The separate `ruflo-tier-consolidation` target supplies explicit, hash-approved
+tier preservation under [#2977](https://github.com/ruvnet/ruflo/issues/2977).
+Upstream's consolidation stub remains unsupported; this bounded downstream path
+does not supply every missing controller or change SONA.
 
 ```bash
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install
@@ -644,7 +653,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`ruflo-learning-stats`** | Reports store-scoped learning counters honestly, reads retained patterns independently, and commits concurrent counter increments under the existing bounded lock without stale-snapshot overwrite. Pending increments remain process-local until a successful flush. | [#2245 · closed](https://github.com/ruvnet/ruflo/issues/2245) · [#4217 · closed](https://github.com/ruvnet/ruflo/issues/4217) |
 | **`ruflo-sqlite-owner`** | Resolves native SQLite through ControllerRegistry's actual dependency owner for graph and repair/initializer handles, preventing competing native SQLite libraries from managing the same file. It neither borrows and closes the registry handle nor replaces the database. | [#3693 · closed](https://github.com/ruvnet/ruflo/issues/3693) |
-| **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
+| **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. Count a verified retained source/copy pair once while retaining independent identical-content episodes. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306 · closed](https://github.com/ruvnet/ruflo/issues/3306) |
 | **`cwd`** | **Silent data loss and stray state.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The semantic router and AgentDB's RuVector backend also omit RuVector's `storagePath`, which creates `./ruvector.db`; the patch assigns durable stores beside AgentDB's configured database, the router store under the project rooted `.swarm`, and an absolute OS-temporary path to memory-only or otherwise unconfigured backends. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |
@@ -776,7 +785,7 @@ Actions: `install` · `uninstall` · `status`
 |--------|---------------|----------|
 | **`ruflo-hooks-schema`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired on proof in Ruflo 3.32.39 / `ruflo-core` 0.2.6.** The compatibility edit removed unsupported manifest fields and Cursor-only PreToolUse output only from Codex copies. PR #2857 version-bumped the plugins and fixed both branches; retirement executes both real handlers before standing down | [#2801 · closed](https://github.com/ruvnet/ruflo/issues/2801) · [#2816 · closed](https://github.com/ruvnet/ruflo/issues/2816) · [PR #2857](https://github.com/ruvnet/ruflo/pull/2857) |
 | **`ruflo-codex-skills`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired on proof in Ruflo 3.32.39.** Older copies needed one read-only `ruflo-core:ruflo-status` skill. The native replacement's default doctor/status path is now read-only and `doctor --fix` requires explicit repair intent | [#2821 · closed](https://github.com/ruvnet/ruflo/issues/2821) |
-| **`ruflo-swarm-codex-hooks`** | Projects the verified Claude-only `modules` manifest into a valid Codex command-hook manifest. Preserves module source and all Claude copies. Codex does not gain Claude's function-hook engine or its Swarm pane; unfamiliar declarations fail visibly | [#3688 · open](https://github.com/ruvnet/ruflo/issues/3688) |
+| **`ruflo-swarm-codex-hooks`** | Projects the verified Claude-only `modules` manifest into a valid Codex command-hook manifest. Preserves module source and all Claude copies. Codex does not gain Claude's function-hook engine or its Swarm pane; unfamiliar declarations fail visibly | [#3688 · closed](https://github.com/ruvnet/ruflo/issues/3688) |
 
 #### Ruflo instruction generators
 
@@ -2267,6 +2276,21 @@ A test that cannot fail is worth nothing, and you only find out by making it fai
 
 Issue state is evidence to inspect, never the retirement signal. A source fix or closed issue becomes
 a retirement only after the installed native artifact passes the relevant behavior proof.
+
+### Live issue review of 2026-10-19
+
+All 120 distinct issues linked here were read through GitHub's live API: 88 closed,
+32 open. This records issue state, not a fresh behavior qualification of every
+native replacement. Earlier dated audits below remain historical evidence.
+
+| Issue | Current state and latest evidence |
+|-------|-----------------------------------|
+| [Ruflo #2977](https://github.com/ruvnet/ruflo/issues/2977#issuecomment-6274075319) | Open. Dead imports were removed upstream; native consolidation still reports unsupported. The update records 4.46.68's bounded native-owner tier preservation and 4.46.69's verified-copy consumer correction. |
+| [Ruflo #3314](https://github.com/ruvnet/ruflo/issues/3314#issuecomment-6274080012) | Closed for the original field mapper. The update distinguishes strict downstream eligibility and verified-copy counting from that original correction; it does not request reopening the completed mapper defect. |
+| [Brain #377](https://github.com/stuinfla/ruvnet-brain/issues/377#issuecomment-6274079996) | Open. The update adds Brain 4.7.14's adopted-user-store rejection beneath a parent Git checkout, consent/path safeguards, both hook-entry checks and automatic Codex capture/readback evidence. |
+| [Ruflo #2946](https://github.com/ruvnet/ruflo/issues/2946#issuecomment-6274079944) | Open. The update records an explicit two-package npx launch and fresh scanner verification, including the project-local bootstrap caveat. Manually side-loading an npx cache is still unsupported. |
+| [Ruflo #3143](https://github.com/ruvnet/ruflo/issues/3143#issuecomment-6267441004) | Closed after native identity qualification. The latest existing update already records the restored two-store ownership and exact producer-store trajectory readback without replay. |
+| [Ruflo #4287](https://github.com/ruvnet/ruflo/issues/4287#issuecomment-6267440939), [#4291](https://github.com/ruvnet/ruflo/issues/4291#issuecomment-6267440938) | Open. Existing October 19 updates distinguish deployed downstream backup/graph-binding mitigations from upstream fixes. |
 
 ### Recent repair coverage reviewed 2026-10-05
 
