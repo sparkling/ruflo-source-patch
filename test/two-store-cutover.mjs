@@ -12,7 +12,8 @@ fs.mkdirSync(path.join(project, '.swarm'));
 const memory = path.join(project, '.swarm/memory.db'), agent = path.join(project, '.swarm/agentdb-memory.db');
 let owner;
 try {
-  owner = new Database(memory); owner.exec("CREATE TABLE records(id TEXT PRIMARY KEY,value TEXT); INSERT INTO records VALUES('old','retained')"); owner.close(); owner = null;
+  owner = new Database(memory); owner.pragma('journal_mode = WAL');
+  owner.exec("CREATE TABLE records(id TEXT PRIMARY KEY,value TEXT); INSERT INTO records VALUES('old','retained')"); owner.close(); owner = null;
   fs.symlinkSync('memory.db', agent);
   const base = path.join(project, '.local/two-store-restoration');
   const final = await snapshotProject({ project, destination: base + '/final', cliRoot });

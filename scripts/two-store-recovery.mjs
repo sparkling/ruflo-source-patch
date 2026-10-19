@@ -20,8 +20,11 @@ export async function nativeDriver(cliRoot) {
   return { Database: await loadBetterSqlite3(), version: manifest.version };
 }
 
-export function inspectSnapshot(Database, file, { requireIntegrity = true } = {}) {
-  const db = new Database(file, { readonly: true, fileMustExist: true });
+export function inspectSnapshot(Database, file, { requireIntegrity = true, nativeOwner = false } = {}) {
+  // Operator-only nativeOwner permits SQLite's normal last-writer close to
+  // retire its own WAL after an externally verified transport drain. Queries
+  // remain query_only; no checkpoint command or sidecar manipulation is used.
+  const db = new Database(file, { readonly: !nativeOwner, fileMustExist: true });
   db.defaultSafeIntegers(true);
   try {
     db.pragma('query_only = ON');

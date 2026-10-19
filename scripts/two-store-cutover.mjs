@@ -32,8 +32,6 @@ export async function activateAgentDb({ project, staged, finalReceipt, destinati
   if (baseline.status !== 'verified' || baseline.project !== project) throw Error('Verified final project recovery receipt required');
   const sources = ['memory.db', 'agentdb-memory.db'].map(name => path.join(project, '.swarm', name));
   assertNoHolders(sources);
-  for (const file of sources) for (const suffix of ['-wal', '-shm'])
-    if (fs.existsSync(file + suffix)) throw Error('Database sidecar remains; native owner must close it before activation');
   const { Database, version } = await nativeDriver(cliRoot);
   const stagedStat = fs.statSync(staged);
   if (!stagedStat.isFile() || (stagedStat.mode & 0o222)) throw Error('Use an immutable verified staging file');
@@ -45,13 +43,15 @@ export async function activateAgentDb({ project, staged, finalReceipt, destinati
     const physical = fs.realpathSync(store.source);
     if (physical !== store.realpath) throw Error('Final source changed; original alias/owner no longer matches');
     if (store.aliasOf) continue;
-    if (!equal(inspectSnapshot(Database, physical), store))
+    if (!equal(inspectSnapshot(Database, physical, { nativeOwner: true }), store))
       throw Error('Final source changed; take a new native snapshot and reconcile the delta');
     verified.add(store.name);
   }
   if (!verified.has('memory.db') || !baseline.stores.some(s => s.name === 'agentdb-memory.db'))
     throw Error('Both scoped source owners require a final receipt');
   assertNoHolders(sources);
+  for (const file of sources) for (const suffix of ['-wal', '-shm'])
+    if (fs.existsSync(file + suffix)) throw Error('Database sidecar remains after native owner retirement; activation refused');
   fs.mkdirSync(destination, { recursive: true, mode: 0o700 });
   if (fs.statSync(destination).dev !== fs.statSync(path.dirname(sources[1])).dev) throw Error('Archive must share the source filesystem');
   const temporary = path.join(path.dirname(sources[1]), '.rsp-agentdb-cutover-' + process.pid + '-' + Date.now() + '.db');
@@ -67,7 +67,7 @@ export async function activateAgentDb({ project, staged, finalReceipt, destinati
     const db = new Database(staged, { readonly: true, fileMustExist: true });
     try { await db.backup(temporary); } finally { db.close(); }
     fs.chmodSync(temporary, 0o600);
-    if (!equal(inspectSnapshot(Database, temporary), expected)) throw Error('Prepared native target differs from verified stage');
+    if (!equal(inspectSnapshot(Database, temporary, { nativeOwner: true }), expected)) throw Error('Prepared native target differs from verified stage');
     assertNoHolders(sources);
     for (const file of [...sources, temporary]) for (const suffix of ['-wal', '-shm'])
       if (fs.existsSync(file + suffix)) throw Error('Refusing activation while a sidecar exists');
@@ -75,7 +75,7 @@ export async function activateAgentDb({ project, staged, finalReceipt, destinati
     fs.renameSync(sources[1], original); archived = true;
     fs.renameSync(temporary, sources[1]); activated = true;
     if (fs.statSync(sources[0]).ino === fs.statSync(sources[1]).ino) throw Error('Active owner files are still aliases');
-    receipt.after = inspectSnapshot(Database, sources[1]);
+    receipt.after = inspectSnapshot(Database, sources[1], { nativeOwner: true });
     if (!equal(receipt.after, expected)) throw Error('Activated native target differs from verified stage');
     receipt.status = 'activated'; receipt.completedAt = new Date().toISOString(); save(); return receipt;
   } catch (error) {
