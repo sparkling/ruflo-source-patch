@@ -70,7 +70,8 @@ const packageDir = path.join(nodeModules, '@claude-flow', 'cli');
 
 fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
 fs.writeFileSync(path.join(HOME, '.claude', 'settings.json'), '{}');
-const helperRels = ['live-memory-row.js', 'feedback-patterns.js']
+const helperRels = ['live-memory-row.js', 'feedback-patterns.js', 'append-conditions.js',
+  'shared-sqlite.js', 'search-defaults.js', 'embedding-q8.js']
   .map(file => path.join('@claude-flow', 'cli', 'dist', 'src', 'memory', file))
   .filter(rel => fs.existsSync(path.join(vendor, rel)));
 for (const rel of [bridgeRel, initRel, fsRel, ...helperRels]) {
@@ -94,7 +95,9 @@ for (const rel of helperRels) fs.copyFileSync(path.join(nodeModules, rel), path.
 const native = nativeMemoryBridgeSatisfied(pristineBytes(path.join(vendor, bridgeRel)).toString());
 if (native) {
   const nativeSource = pristineBytes(path.join(vendor, bridgeRel)).toString();
-  check(nativeMemoryBridgeSatisfied("import { assertAppendConditions } from './append-conditions.js';\n" + nativeSource),
+  const dependencySource = nativeSource.includes("from './append-conditions.js'") ? nativeSource
+    : "import { assertAppendConditions } from './append-conditions.js';\n" + nativeSource;
+  check(nativeMemoryBridgeSatisfied(dependencySource),
     'append-condition dependency must not invalidate unrelated native identity proof');
   for (const [find, replace] of [
     ['const resolvedPath = canonicalDbPath(dbPath);', 'const resolvedPath = path.resolve(dbPath);'],

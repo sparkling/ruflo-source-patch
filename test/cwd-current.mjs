@@ -343,6 +343,16 @@ for (const [name, source, args] of generated) {
   const run = spawnSync(process.execPath, [file, ...args], { cwd: deep, encoding: 'utf8' });
   if (run.status !== 0) fail(`${name} failed from nested cwd:\n${out(run)}`);
 }
+if (generated[0][1].includes('function assertSessionDirContained()')) {
+  const flow = path.join(project, '.claude-flow'), saved = flow + '.fixture-saved';
+  const outside = path.join(SB, 'outside-session-root'); fs.mkdirSync(outside);
+  fs.renameSync(flow, saved); fs.symlinkSync(outside, flow, 'dir');
+  try {
+    const run = spawnSync(process.execPath, [path.join(helperDir, 'session-manager.cjs'), 'start'], { cwd: deep, encoding: 'utf8' });
+    if (run.status === 0 || !out(run).includes('Session directory resolves outside the project')) fail('native session containment guard was bypassed');
+    if (fs.readdirSync(outside).length) fail('helper wrote through a planted session-directory symlink');
+  } finally { fs.unlinkSync(flow); fs.renameSync(saved, flow); }
+}
 for (const expected of [
   path.join(project, '.claude-flow', 'sessions', 'current.json'),
   path.join(project, '.claude-flow', 'data', 'memory.json'),

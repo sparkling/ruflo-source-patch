@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { COUNTER_IMPORT_NATIVE, COUNTER_LOAD_NATIVE, COUNTER_SAVE_NATIVE } from '../lib/ruflo-learning-stats/native-counter.mjs';
-import { UNIFIED_351, LEARNING_STATS_ENTRIES, COUNTER_HEALTH_PRIOR, COUNTER_HEALTH_CURRENT } from '../lib/ruflo-learning-stats/patcher.mjs';
+import { COUNTER_IMPORT_NATIVE, COUNTER_LOAD_NATIVE, COUNTER_SAVE_NATIVE, COUNTER_SUPPORT_NATIVE, COUNTER_SUPPORT_NATIVE_PREVIOUS } from '../lib/ruflo-learning-stats/native-counter.mjs';
+import { COUNTER_IMPORT_NEW, COUNTER_IMPORT_PREVIOUS } from '../lib/ruflo-learning-stats/counter-writer.mjs';
+import { UNIFIED_351, LEARNING_STATS_ENTRIES, COUNTER_HEALTH_PRIOR, COUNTER_HEALTH_CURRENT, COUNTER_HEALTH_V2 } from '../lib/ruflo-learning-stats/patcher.mjs';
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-current-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = path.join(dir, 'home');
 process.env.RUFLO_NPX_ROOT = path.join(dir, 'npx');
@@ -41,8 +42,8 @@ try {
   assert.equal(a.save(), true); assert.equal(b.save(), true);
   assert.equal(JSON.parse(fs.readFileSync(file)).signalsProcessed, 35);
   assert.equal(a.save(), true); assert.equal(JSON.parse(fs.readFileSync(file)).signalsProcessed, 35);
-  fs.mkdirSync(file + '.rsp-counter-lock'); b.bump(4);
-  assert.equal(b.save(), false); fs.rmdirSync(file + '.rsp-counter-lock');
+  fs.mkdirSync(file + '.lock'); b.bump(4);
+  assert.equal(b.save(), false); fs.rmdirSync(file + '.lock');
   assert.equal(b.save(), true); assert.equal(JSON.parse(fs.readFileSync(file)).signalsProcessed, 39);
   const report = await b.getUnifiedLearningStats();
   assert.equal(report.counterWriter.contract, 'delta-lock-v1'); assert.equal(report.counterWriter.lastError, null);
@@ -57,6 +58,9 @@ try {
   // The previous released health line remains an exactly reconstructible composition.
   const old = compiled.next.replace(COUNTER_HEALTH_CURRENT, COUNTER_HEALTH_PRIOR);
   assert.equal(historicalCliContribution(pristine, old, entries).next, old);
+  const v2 = compiled.next.replace(COUNTER_HEALTH_CURRENT, COUNTER_HEALTH_V2)
+    .replace(COUNTER_SUPPORT_NATIVE, COUNTER_SUPPORT_NATIVE_PREVIOUS).replace(COUNTER_IMPORT_NEW, COUNTER_IMPORT_PREVIOUS);
+  assert.equal(historicalCliContribution(pristine, v2, entries).next, v2, 'published counter lock and health fragments remain exactly reconstructible');
   const partial = composeCliContribution(pristine, entries.filter(e => e.id.endsWith('/unified'))).next
     .replace(COUNTER_HEALTH_CURRENT, COUNTER_HEALTH_PRIOR);
   assert.equal(cliClaimApplied(partial, entries), true, 'previous partial patch is owned before backup classification');

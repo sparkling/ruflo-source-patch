@@ -19,6 +19,8 @@ import { legacyDaemonBytes } from './daemon-fixtures.mjs';
 
 const SB = process.argv[2];
 const REAL = findVendorRoot(); // discovered — the npx cache hash is content-addressed, not fixed
+const delegatedMemoryRoot = pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/memory/memory-initializer.js'))
+  .toString().includes("import { resolveMemoryRoot } from './memory-root.js';");
 const FILES = [
   '@claude-flow/cli/dist/src/fs-secure.js',
   '@claude-flow/cli/dist/src/memory/memory-initializer.js',
@@ -71,7 +73,9 @@ function stateTargets() { return stateRaw().patchTargets || []; }
 // Re-derive expectations from the ENTRIES table (not from apply()).
 const ENTRY_PROBE = {
   'cwd/daemon-autostart': { rel: '@claude-flow/cli/dist/src/services/daemon-autostart.js', needle: 'projectRoot = __rufloResolveRoot(projectRoot);' },
-  'cwd/memory-root': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: "_memoryRootCache = path.resolve(__rufloResolveRoot(process.cwd()), '.swarm');" },
+  'cwd/memory-root': { rel: '@claude-flow/cli/dist/src/memory/memory-initializer.js', needle: delegatedMemoryRoot
+    ? '_memoryRootCache = resolveMemoryRoot(__rufloResolveRoot(process.cwd()));'
+    : "_memoryRootCache = path.resolve(__rufloResolveRoot(process.cwd()), '.swarm');" },
   'cwd/cli-core-getProjectCwd': { rel: '@claude-flow/cli-core/dist/src/mcp-tools/types.js', needle: 'return __rufloResolveRoot(process.cwd());' },
   'cwd/hooks-router-storage': { rel: '@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js', needle: "storagePath: join(routerStateDir, 'ruvector-router.db')," },
   'cwd/agentdb-vector-storage-path': { rel: 'agentdb/dist/src/core/AgentDB.js', needle: 'storagePath: vectorStoragePath' },

@@ -67,7 +67,7 @@ c.load(); process.send('ready'); process.on('message', () => {
   assert.equal(result.signalsProcessed,368);
 
   // A held lock never leads to an unbounded spin, destructive stealing or lost delta.
-  const lock=file+'.rsp-counter-lock';
+  const lock=file+'.lock';
   fs.mkdirSync(lock); a.bump(2);
   const started=Date.now();
   assert.equal(a.save(),false);
