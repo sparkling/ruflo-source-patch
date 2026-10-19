@@ -43,7 +43,10 @@ export async function bridgeStorePattern(options) {return options;}
  const rows=new Map([[17,junk],[501,kept]]),deleted=[];
  const rb={getPattern:id=>rows.get(id)??null,deletePattern:id=>{deleted.push(id);return rows.delete(id);}};
  const reg={dbPath:'/fixture/canonical.db',audit:[],get:name=>name==='reasoningBank'?rb:null};mod.configure(reg);
- mod.scopeProbe('/fixture/sibling.db');assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).reason,'native-registry-resolver-mismatch');assert.equal(mod.calls(),0);checks++;mod.scopeProbe('/fixture/canonical.db');
+ mod.scopeProbe('/fixture/sibling.db');assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).reason,'native-registry-identity-mismatch');assert.equal(mod.calls(),1);checks++;
+ // A distinct native AgentDB owner is valid even while CLI/sql.js env names another store.
+ reg.dbPath='/fixture/sibling.db';assert.equal((await mod.bridgeGetReasoningPattern({patternId:'17'})).found,true);checks++;
+ reg.dbPath='/fixture/canonical.db';mod.scopeProbe('/fixture/canonical.db');
  const found=await mod.bridgeGetReasoningPattern({patternId:'17',dbPath:'/fixture/canonical.db'});
  assert.equal(found.found,true);assert.equal(found.registryIdentity.explicitAndImplicitSameInstance,true);assert.equal(found.dbPath,'/fixture/canonical.db');assert.equal(found.approachSha256,hash(junk.approach));assert.equal(found.pattern.approach,junk.approach);assert.equal(found.pattern.successRate,0.8);assert.equal('embedding'in found.pattern,false);checks++;
  for(const patternId of ['0','-1','01','1.0','1e2','9007199254740992',17,null]){

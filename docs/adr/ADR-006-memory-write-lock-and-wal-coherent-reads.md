@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-18. Implicit native controllers now honour the configured canonical store;
+**Updated**: 2026-10-19. Restore upstream's separate default AgentDB owner, retain explicit
+source/user bindings, qualify native-only recovery snapshots and report global alias clients.
+2026-10-18. Implicit native controllers now honour the configured canonical store;
 the legacy encrypted sql.js exception cannot silently override an explicit native binding.
 2026-10-10. Raw WAL refusal checks both the supplied path and its canonical symlink
 target; unresolved existing aliases are refused (source-patch #7). This corrects a guard bypass,
@@ -10,7 +12,7 @@ not database recovery.
 2026-10-04. Native auxiliary handles resolve the actual AgentDB SQLite dependency
 (#3693); fallback pattern receipts require successful storage and exact readback (#3691).
 2026-09-21. MCP memory operations now carry the configured `CLAUDE_FLOW_DB_PATH`
-through to the existing memory API (#2105/#3153); initialization alone previously honored it.
+through to the existing memory API (#2105/#3196); initialization alone previously honored it.
 2026-09-15. Ruflo 3.41.2+ keys registry instances by `path.resolve()` natively (#3196)
 but still latches availability and failure reason process-wide and splits symlink aliases; the
 `memory/path-keyed-bridge-maps` entry applies the same canonical state to that shape. 2026-08-31. Exact published Ruflo 3.38.12 routes ordinary sql.js mutators and native
@@ -67,15 +69,31 @@ six operations and a two-store test proves that project and user results stay se
 
 ### Key native bridge state by canonical database identity
 
-The `memory/controller-configured-store` entry also makes implicit trajectory,
+The `memory/controller-configured-store` entry makes explicitly bound trajectory,
 ReasoningBank, graph and hierarchical calls use `CLAUDE_FLOW_DB_PATH`. Without an
-explicit override, unencrypted native calls use the normal `memory.db`. The old
-#2786 sibling path remains only for the legacy encrypted sql.js default; combining
+explicit override, native calls retain upstream's `agentdb-memory.db` sibling
+in both encrypted and unencrypted modes (#2786/#3155). The one-file unencrypted
+default introduced in 4.46.58 is withdrawn through exact historical composition
+proof; it was a downstream architecture choice, separate from #3143. Combining
 an explicit native path with encryption refuses instead of silently opening a
 second store. No database is moved, merged or deleted by installation. Existing
 unique records require a separately verified native migration. A behavioral
 retirement probe and pristine-failure regression cover the resolver, explicit
-user/project paths, the in-memory sentinel and the encryption conflict.
+user/project paths, the in-memory sentinel and the encryption conflict. Existing
+combined stores and aliases require a separately verified native migration and
+fresh host processes; code installation must not claim that migration happened.
+
+Pattern get/delete validates the intended native operation's canonical path and
+actual registry, independently of the CLI/sql.js filename. Its guards must not
+turn a legitimate two-store default into `native-registry-resolver-mismatch`.
+
+`memory/native-online-backup` and its command entry provide explicit
+`memory backup --native-only` recovery (#4287). Native-only failures return a
+refusal before any image-copy fallback; successful online snapshots include their
+method. The backup uses the existing shared SQLite owner. The default encrypted
+compatibility route is preserved. Retirement requires equivalent upstream native
+failure refusal, receipt and CLI-forwarding behavior; ordinary JSON exports do
+not establish complete vector/controller preservation.
 
 Replace the process-global registry lifecycle with a map keyed by `path.resolve(dbPath)` and the
 `realpath` of an existing file or existing parent. Each database owns its initialization promise, registry instance,

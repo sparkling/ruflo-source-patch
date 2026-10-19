@@ -2,17 +2,24 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { exerciseSuspensionSources, probeProgressionSuspensionReplacement,
+const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-suspension-native-test-'));
+// Imports freeze package discovery roots. Isolate before importing the shared
+// composer: cliTargets:[] must never restore the developer's installed CLI.
+process.env.RUFLO_SOURCE_PATCH_HOME = path.join(temporary, 'sandbox-home');
+process.env.RUFLO_NPX_ROOT = path.join(temporary, 'npx');
+process.env.RUFLO_GLOBAL_ROOT = path.join(temporary, 'global');
+const { exerciseSuspensionSources, probeProgressionSuspensionReplacement,
   prepareNativeProgressionSuspensionRetirement, prepareNativeProgressionSuspensionApplication,
-  verifyNativeProgressionSuspensionPreserved, CONTROL } from '../lib/brain-progression-suspension/probe.mjs';
-import { NAME, SPECS, descriptor, preflight, patchSource, nativeSatisfied } from '../lib/brain-progression-suspension/patcher.mjs';
-import { applyComposed, statusComposed } from '../lib/plugin-compose.mjs';
+  verifyNativeProgressionSuspensionPreserved, CONTROL } = await import('../lib/brain-progression-suspension/probe.mjs');
+const { NAME, SPECS, descriptor, preflight, patchSource, nativeSatisfied } = await import('../lib/brain-progression-suspension/patcher.mjs');
+const { applyComposed, statusComposed } = await import('../lib/plugin-compose.mjs');
+const { GLOBAL_ROOTS } = await import('../lib/cwd/paths.mjs');
+assert.deepEqual(GLOBAL_ROOTS, [process.env.RUFLO_GLOBAL_ROOT]);
 const fixture = new URL('./fixtures/brain-progression-suspension/native/', import.meta.url);
 const sources = {};
 for (const directory of ['scripts', 'mcp']) for (const file of fs.readdirSync(new URL(directory, fixture))) {
   sources[directory + '/' + file] = fs.readFileSync(new URL(directory + '/' + file, fixture), 'utf8');
 }
-const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-suspension-native-test-'));
 try {
   const exercise = path.join(temporary, 'exercise'); fs.mkdirSync(exercise);
   const proof = await exerciseSuspensionSources(sources, exercise);

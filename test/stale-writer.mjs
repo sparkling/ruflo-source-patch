@@ -102,25 +102,38 @@ const publish = () => new Promise((r) => setTimeout(r, 700)); // let ps see the 
 const preDaemonMi = path.join(SB, 'pre-daemon', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 const preMcpMi = path.join(SB, 'pre-mcp', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
 const preRuflo = fakeRuflo('pre-ruflo', { patched: true });
+const globalRuflo = fakeRuflo('global-ruflo', { patched: true });
+const globalBin = path.join(SB, 'global-prefix', 'bin');
+fs.mkdirSync(globalBin, {recursive:true});
+const globalEntry = path.join(globalBin, 'ruflo');
+fs.symlinkSync(fs.realpathSync(globalRuflo.entry), globalEntry);
+// Only the bridge changes after startup; initializer remains older than the child.
+const globalBridge = path.join(path.dirname(globalRuflo.mi), 'memory-bridge.js');
+const oldInitializerTime = new Date(Date.now() - 3600000);
+fs.utimesSync(globalRuflo.mi, oldInitializerTime, oldInitializerTime);
+fs.writeFileSync(globalBridge, '// native controller routing fixture\n');
 const preDaemon = fakeWorker(fakeCli('pre-daemon', { patched: true }), 'daemon', 'start');
 const preMcp = fakeWorker(fakeCli('pre-mcp', { patched: true }), 'mcp', 'start');
 const preRufloMcp = fakeWorker(preRuflo.entry, 'mcp', 'start');
+const globalMcp = fakeWorker(globalEntry, 'mcp', 'start');
 await new Promise((r) => setTimeout(r, 8000)); // age all three past the +5s margin
 // Poll: `ps etime` is 1s-resolution and can hiccup under parallel load, so re-touch each patch to
 // "now" (process predates it) and check until all three launch shapes are seen.
-let dHit, mHit, rHit;
-for (let i = 0; i < 60 && !(dHit && mHit && rHit); i++) {
+let dHit, mHit, rHit, gHit;
+for (let i = 0; i < 60 && !(dHit && mHit && rHit && gHit); i++) {
   // One second in the past avoids a filesystem timestamp rounding into the detector's future;
   // the process is already >=8s old, so it remains safely beyond the +5s production margin.
   const patchedAt = new Date(Date.now() - 1000);
   fs.utimesSync(preDaemonMi, patchedAt, patchedAt);
   fs.utimesSync(preMcpMi, patchedAt, patchedAt);
   fs.utimesSync(preRuflo.mi, patchedAt, patchedAt);
+  fs.utimesSync(globalBridge, patchedAt, patchedAt);
   const s = detect();
   dHit = s.find((w) => w.pid === preDaemon.pid);
   mHit = s.find((w) => w.pid === preMcp.pid);
   rHit = s.find((w) => w.pid === preRufloMcp.pid);
-  if (!(dHit && mHit && rHit)) await new Promise((r) => setTimeout(r, 500));
+  gHit = s.find((w) => w.pid === globalMcp.pid);
+  if (!(dHit && mHit && rHit && gHit)) await new Promise((r) => setTimeout(r, 500));
 }
 if (!dHit) fail(`SW1 a pre-patch daemon was NOT detected (alive=${alive(preDaemon.pid)}, pid=${preDaemon.pid}, seen=${JSON.stringify(detect())}, ps=${JSON.stringify(fixturePs())})`);
 if (dHit.kind !== 'daemon' || dHit.severity !== 'pre-patch') fail(`SW1 expected daemon/pre-patch, got ${dHit.kind}/${dHit.severity}`);
@@ -128,6 +141,7 @@ if (!mHit) fail(`SW6 a pre-patch MCP client was NOT detected (alive=${alive(preM
 if (mHit.kind !== 'mcp' || mHit.severity !== 'pre-patch') fail(`SW6 expected mcp/pre-patch, got ${mHit.kind}/${mHit.severity}`);
 if (!rHit) fail(`SW10 a pre-patch MCP client launched through .bin/ruflo was NOT detected (alive=${alive(preRufloMcp.pid)}, pid=${preRufloMcp.pid}, seen=${JSON.stringify(detect())})`);
 if (rHit.kind !== 'mcp' || rHit.severity !== 'pre-patch') fail(`SW10 expected mcp/pre-patch, got ${rHit.kind}/${rHit.severity}`);
+if (!gHit || gHit.kind !== 'mcp' || gHit.severity !== 'pre-patch' || !gHit.reason.includes('memory-bridge.js')) fail('SW12 global bin/ruflo bridge-only update was missed');
 
 // SW1a — dry-run reports but kills nothing.
 recover({ dryRun: true });
@@ -139,6 +153,7 @@ if (!alive(preDaemon.pid)) fail('SW1b RSP_NO_STALE_WRITER_KILL did not prevent t
 delete process.env.RSP_NO_STALE_WRITER_KILL;
 // SW1c + SW6 — one real recovery: daemon dies; both MCP launch shapes remain alive.
 const rec = recover();
+if (rec.killed.some(w => w.pid === globalMcp.pid) || !alive(globalMcp.pid)) fail('SW12 global MCP was killed instead of reported');
 if (!rec.killed.some((w) => w.pid === preDaemon.pid)) fail('SW1c recovery did not restart the pre-patch daemon');
 if (rec.killed.some((w) => w.pid === preMcp.pid || w.pid === preRufloMcp.pid)) fail('SW6/SW10 recovery killed an MCP client that the detached monitor cannot reconnect');
 await new Promise((r) => setTimeout(r, 400));
@@ -185,8 +200,14 @@ if (detect().some((w) => w.pid === wrapper.pid)) fail('SW3 a process whose argv 
 // SW11: a same-named wrapper without the official package identity is never trusted.
 const impostor = fakeRuflo('impostor-ruflo', { patched: true, packageName: 'not-ruflo' });
 const impostorMcp = fakeWorker(impostor.entry, 'mcp', 'start');
+const impostorGlobalDir = path.join(SB, 'impostor-prefix', 'bin');
+fs.mkdirSync(impostorGlobalDir, {recursive:true});
+const impostorGlobalEntry = path.join(impostorGlobalDir, 'ruflo');
+fs.symlinkSync(fs.realpathSync(impostor.entry), impostorGlobalEntry);
+const impostorGlobalMcp = fakeWorker(impostorGlobalEntry, 'mcp', 'start');
 await publish();
 if (detect().some((w) => w.pid === impostorMcp.pid)) fail('SW11 an unverified .bin/ruflo executable was treated as an official writer');
+if (detect().some(w => w.pid === impostorGlobalMcp.pid)) fail('SW13 an unverified global bin/ruflo was trusted');
 
 // ── SW5: the plugin MCP server's `.bin/cli` symlink is RESOLVED (unpatched copy: not killed) ─
 // The blind spot that let a live box report zero stale while five were running: `npm exec

@@ -33,6 +33,10 @@ export RSP_NO_STALE_WRITER_KILL=1
 # Every suite except plugin-hosts is a patch-engine fixture, so it must never reach those user-global
 # registries; plugin-hosts overrides this with its fake host CLIs and exercises the automatic path.
 export RSP_NO_HOST_AUTO_UPDATE=1
+# A mistaken early import can freeze discovery before a suite sets its sandbox.
+# Keep a second boundary in every Node child so such mistakes cannot restore,
+# rebaseline or patch the developer's actual installed runtime.
+export NODE_OPTIONS="${NODE_OPTIONS:-} --import=$PWD/test/guard-real-runtime.mjs"
 
 SUITES=(ruflo-wrapper-guard sequence-fuzz plugin-notify reporting hooks-migration untested concurrency memory-bridge-paths cwd-current daemon-native cleanup-procs stale-writer monitor-internals dual-host mcp-prefix adr-template-retirement adr-index-retirement adr-io-safety adr-reindex-native design-wall flywheel-daily codex-hooks codex-hooks-native codex-skills ruflo-codex-hooks codex-switch plugin-hosts-discovery plugin-hosts-codex-init plugin-hosts brain-release-lockstep brain-console-lifecycle brain-console-provider-keys brain-memory-doctor-roots brain-native-retirement brain-managed-memory-boundary brain-search-safety brain-dual-host-receipt brain-dual-host-stdin metaharness-codex-hooks ruflo-instruction-contract ruflo-instruction-migration ruflo-model-contract ruflo-learning-stats ruflo-learning-counter-writer current-compatibility)
 SUITES+=(ruflo-memory-stats)
@@ -41,6 +45,7 @@ SUITES+=(graph-withdrawal)
 SUITES+=(ruflo-wrapper-runtime)
 SUITES+=(ruflo-mcp-registration)
 SUITES+=(memory-mcp-path)
+SUITES+=(memory-native-backup)
 SUITES+=(brain-grounding-evidence brain-codex-completion)
 SUITES+=(brain-grounding-code)
 SUITES+=(brain-native-4510)
@@ -85,6 +90,7 @@ for p in "${pids[@]}"; do wait "$p"; done
 for s in "${SUITES[@]}"; do
   cat "$tmp/$s.out"
   [ "$(cat "$tmp/$s.code" 2>/dev/null || echo 1)" = "0" ] || { fail=1; echo "✘ test/$s.mjs FAILED"; }
+  if grep -q 'RSP_TEST_PROTECTED_RUNTIME' "$tmp/$s.out"; then fail=1; echo "✘ test/$s.mjs attempted a real runtime mutation"; fi
 done
 
 node scripts/md-lint.mjs || fail=1

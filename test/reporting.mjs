@@ -288,7 +288,12 @@ console.log('fake importer stored ${rows}');
 
   // The `memory` patch must LOOK installed to the script. It requires the current fail-closed
   // markers, not merely the old wrapper or state.json (which records only what was requested).
-  const memInit = path.join(HOME, '.npm', '_npx', 'x', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
+  // The legacy shell guard also inspects node's installation prefix. Give it a
+  // fixture prefix instead of consulting an unrelated real global CLI.
+  const fixturePrefix = path.join(SB, 'node-prefix');
+  fs.mkdirSync(path.join(fixturePrefix, 'bin'), {recursive:true});
+  fs.symlinkSync(process.execPath, path.join(fixturePrefix, 'bin', 'node'));
+  const memInit = path.join(fixturePrefix, 'lib', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory', 'memory-initializer.js');
   const setMemoryPatch = (patched) => {
     fs.mkdirSync(path.dirname(memInit), { recursive: true });
     fs.writeFileSync(memInit, patched
@@ -298,7 +303,8 @@ console.log('fake importer stored ${rows}');
       : 'export function storeEntry(){}\n');
   };
 
-  const runScript = (P) => spawnSync('bash', [SCRIPT, P], { env: { ...env, HOME }, encoding: 'utf8' });
+  const runScript = (P) => spawnSync('bash', [SCRIPT, P], { env: { ...env, HOME,
+    PATH: path.join(fixturePrefix, 'bin') + path.delimiter + process.env.PATH }, encoding: 'utf8' });
   const rows = (db) => execFileSync('sqlite3', [db, "SELECT count(*) FROM memory_entries WHERE namespace='adr-patterns';"], { encoding: 'utf8' }).trim();
 
   // R3 — the script REFUSES when nothing honours <db>.rsp-lock, and deletes NOTHING.

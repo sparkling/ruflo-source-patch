@@ -69,6 +69,9 @@ function switchTo(args, extraEnv = {}) {
     env: {
       ...process.env,
       HOME,
+      RUFLO_SOURCE_PATCH_HOME: HOME,
+      RUFLO_GLOBAL_ROOT: path.join(SB, 'global'),
+      RUFLO_NPX_ROOT: path.join(SB, 'npx'),
       PATH: `${BIN}:${process.env.PATH}`,
       CODEX_HOME,
       CODEX_SWITCH_STATE_HOME: STATE_HOME,

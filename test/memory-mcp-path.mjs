@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { MCP_PATH_ANCHOR, MCP_PATH_REPLACEMENT, MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT,
-  CONTROLLER_PATH_ANCHOR, CONTROLLER_PATH_REPLACEMENT, nativeControllerPathSatisfied } from '../lib/cwd/memory-mcp-path.mjs';
+import { MCP_PATH_ANCHOR, MCP_PATH_PREVIOUS, MCP_PATH_REPLACEMENT, MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT,
+  CONTROLLER_PATH_ANCHOR, CONTROLLER_PATH_PREVIOUS, CONTROLLER_PATH_REPLACEMENT, nativeControllerPathSatisfied } from '../lib/cwd/memory-mcp-path.mjs';
 
 const controllerPath = (source, env, fallback = '/project/.swarm/memory.db') =>
   new Function('process', 'path', 'getDbPath', source + '\nreturn getAgentDbPath();')(
@@ -12,12 +12,13 @@ assert.notEqual(controllerPath(CONTROLLER_PATH_ANCHOR, {CLAUDE_FLOW_DB_PATH:'/co
   '/configured/memory.db', 'pristine resolver must demonstrate the split');
 assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_ANCHOR), false);
 assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT), true);
+assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_PREVIOUS), false, 'one-store default is not upstream ownership');
 assert.equal(nativeControllerPathSatisfied(CONTROLLER_PATH_REPLACEMENT.replace('return path.resolve(configured);', 'return getDbPath();')), false);
 for (const configured of ['/configured/memory.db', '/outside/project/user-memory.db', ':memory:']) {
   assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), configured);
 }
 for (const configured of [undefined, '', '   ']) {
-  assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), '/project/.swarm/memory.db');
+  assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_DB_PATH:configured}), '/project/.swarm/agentdb-memory.db');
 }
 assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {}, ':memory:'), ':memory:');
 assert.equal(controllerPath(CONTROLLER_PATH_REPLACEMENT, {CLAUDE_FLOW_ENCRYPT_AT_REST:'1'}), '/project/.swarm/agentdb-memory.db');
@@ -86,6 +87,19 @@ try {
   assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_REPLACEMENT);
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), source, 'exact pristine restoration');
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8'), CONTROLLER_PATH_ANCHOR);
+  fs.writeFileSync(bridgeFile, CONTROLLER_PATH_PREVIOUS);
+  fs.writeFileSync(bridgeFile + '.rsp-backup', CONTROLLER_PATH_ANCHOR);
+  fs.writeFileSync(file, source.replace(MCP_PATH_ANCHOR, MCP_PATH_PREVIOUS).replace(MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT));
+  fs.writeFileSync(file + '.rsp-backup', source);
+  const upgrade = apply(['memory']);
+  assert.equal(upgrade.errors, 0, JSON.stringify(upgrade));
+  assert.equal(upgrade.incomplete, 0, JSON.stringify(upgrade));
+  assert.equal(fs.readFileSync(bridgeFile, 'utf8').trim(), CONTROLLER_PATH_REPLACEMENT);
+  assert(fs.readFileSync(file, 'utf8').includes(MCP_PATH_REPLACEMENT));
+  assert.equal(fs.readFileSync(bridgeFile + '.rsp-backup', 'utf8'), CONTROLLER_PATH_ANCHOR);
+  assert.equal(apply(['memory']).patched, 0, 'monitor cannot reinstall the old one-store default');
+  apply([]);
   assert.equal(fs.readFileSync(bridgeFile, 'utf8'), CONTROLLER_PATH_ANCHOR);
   const drift = source.replace(MCP_LEGACY_ANCHOR, '        if (changedLegacy()) {');
   fs.writeFileSync(file, drift);

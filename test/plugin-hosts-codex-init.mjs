@@ -137,7 +137,7 @@ const env = {
   HOME,
   RUFLO_SOURCE_PATCH_HOME: HOME,
   RUFLO_NPX_ROOT: NPX,
-  RUFLO_GLOBAL_ROOT: '',
+  RUFLO_GLOBAL_ROOT: path.join(SB, 'global'),
   RSP_NO_HOST_AUTO_UPDATE: '1',
   RSP_NO_LAUNCHCTL: '1',
 };

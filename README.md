@@ -33,21 +33,28 @@ do not belong in a read-only business knowledge facade.
 This newly observed gap relates to [#3450](https://github.com/ruvnet/ruflo/issues/3450)
 and [#829](https://github.com/ruvnet/ruflo/issues/829); it does not claim either whole
 issue fixed. Retire this target after upstream exact get and guarded deletion are
-qualified against the intended native controller and its consumers. The existing
-canonical controller-path fix from 4.46.58 remains included.
+qualified against the intended native controller and its consumers. Explicit
+source bindings remain supported; default ownership follows upstream as described below.
 
-## Canonical native controller store (v4.46.58, 18 October 2026)
+## Native controller storage ownership
 
-The existing `memory` target now makes implicit trajectory, ReasoningBank and
-hierarchical calls honour `CLAUDE_FLOW_DB_PATH`, matching ordinary MCP memory.
-Ruflo's historical #2786 encryption workaround otherwise always selected the
-sibling `agentdb-memory.db`. Unencrypted defaults now use `memory.db`; an explicit
-native path combined with sql.js encryption refuses instead of silently splitting.
-Existing databases are untouched by installation. Consolidate eligible records
-through native interfaces separately; preserve unique controller state until its
-consumer has been verified. Regression tests exercise the pristine split, shared
-actual registry, user/project identities, encrypted legacy case and refusal,
-idempotent installation, native retirement and exact restoration.
+The `memory` target preserves upstream's default native `agentdb-memory.db`
+owner alongside the distinct CLI/sql.js `memory.db` owner (#2786/#3155).
+An explicit `CLAUDE_FLOW_DB_PATH` remains a full-file binding for configured native
+consumers and user memory (#2105/#3196); combining that explicit native binding
+with sql.js encryption refuses. Ordinary memory records can live in AgentDB too.
+
+Version 4.46.58 changed the unencrypted default to memory.db. The replacement
+recognizes that exact released source and withdraws the one-file default without
+moving data. Existing combined corpora, aliases and long-running clients require
+separate reconciliation and controlled activation. Installation is not migration.
+The stale-client detector recognizes global `bin/ruflo` aliases and changes to
+bridge/controller/MCP modules, reports affected clients and never kills them.
+
+For migration recovery, `ruflo memory backup --native-only` requires an online
+snapshot and returns `method: sqlite-online-backup`. A native failure refuses
+image-copy fallback (#4287). Legacy encrypted-image backup behavior remains available
+without that explicit option. Qualify preservation and actual readers before cutover.
 
 ## Compatibility qualification of 2026-10-15 (v4.46.57)
 
@@ -1095,13 +1102,14 @@ durability failures reproduced in 3.33.0 were cross-process lost updates
 ([#2878](https://github.com/ruvnet/ruflo/issues/2878), focused follow-up to closed #2621) and
 WAL-incoherent sql.js access. Ruflo 3.38.12 now routes ordinary sql.js writers through native
 `withMemoryDbLock()`. This target retains the stronger fail-closed ownership/outer-serialization delta,
-WAL refusal, integrity gate, and stale-writer recovery. It separately repairs the bridge identity
-defect tracked by [#3143](https://github.com/ruvnet/ruflo/issues/3143).
+WAL refusal, integrity gate, and stale-writer recovery. Native bridge identity now passes
+the scoped [#3143](https://github.com/ruvnet/ruflo/issues/3143) replacement proof, so its
+obsolete overlay remains off on qualified native versions.
 
 #### The database path is an authority boundary
 
 The `memory/mcp-configured-store` entry also carries `CLAUDE_FLOW_DB_PATH` through
-the MCP memory handlers (#2105/#3153). Previously, initialization honored it while
+the MCP memory handlers (#2105/#3196). Previously, initialization honored it while
 list/search/retrieve could silently use project memory. A separately configured
 Ruflo MCP connection can now target the existing user store using its normal
 structured memory tools; the default connection retains project scope. Native
@@ -2245,7 +2253,7 @@ closed label.** The historical table records acceptance results within the state
 |-------|------------------|--------------|
 | [#2621](https://github.com/ruvnet/ruflo/issues/2621) | **Closed historical/incomplete.** Its quoted-sequence fix did not make ordinary writers share a lock | Superseded as the active acceptance target by focused #2878 |
 | [#2878](https://github.com/ruvnet/ruflo/issues/2878) | **Closed and delivered for the ordinary-writer baseline in 3.38.12.** `ensureSchemaColumns`, temporal decay, store, get, delete, and purge share native `withMemoryDbLock()` | Keep `memory` only for its stronger fail-closed ownership/outer serialization, WAL refusal, integrity gate, and stale-writer recovery |
-| [#3143](https://github.com/ruvnet/ruflo/issues/3143) | **Open and reproduced in 3.38.20.** `getRegistry(dbPath)` accepts a path but returns one process-global registry after the first open; availability and failure state are global too. Project-first hides the user store, while user-first makes a project request return user rows | Keep the path-keyed `memory` bridge overlay. Retire only after executable A -> B, B -> A, concurrent-open, canonical-alias, per-path-failure, and scoped/all-shutdown proof |
+| [#3143](https://github.com/ruvnet/ruflo/issues/3143) | **Native replacement verified.** The identity/lifecycle proof passes pristine 3.56.10; pristine published 3.57.0 also passes native CRUD/list/search/purge, project/user isolation, aliases, initialization-failure isolation and fresh-process visibility in disposable stores | Native identity overlay stays off; default two-store ownership is distinct from explicit source binding and unrelated memory safety overlays |
 | [#2633](https://github.com/ruvnet/ruflo/issues/2633) | **Open, residual live in 3.38.16.** Durable permission/swarm/neural/helper/hook-session state still has raw or implicit cwd paths; daemon identity is fixed separately by #2877 | Keep `cwd` and `cleanup`; release-shaped session repairs fail closed on drift, and `daemon` retires on native proof |
 | [#2634](https://github.com/ruvnet/ruflo/issues/2634), [#2635](https://github.com/ruvnet/ruflo/issues/2635), [#2636](https://github.com/ruvnet/ruflo/issues/2636), [#2637](https://github.com/ruvnet/ruflo/issues/2637) | **Fixed completely** in 3.32.36/3.32.37: backed skills, adapter fallback, both native scaffolds, root secret ignores | `dual` remains for #2638 and its stricter transaction, not these defects |
 | [#2638](https://github.com/ruvnet/ruflo/issues/2638) | **Open.** Claude and Codex instructions still have separate generators | Keep `dual` |

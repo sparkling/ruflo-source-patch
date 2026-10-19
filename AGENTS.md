@@ -178,6 +178,13 @@ Use AIDefence or other plugin tools only when the live registry reports them con
 
 Memory is optional context, not a delivery gate. Use native Ruflo MCP/AgentDB tools for store, search, retrieve, recall, list, delete, statistics, diagnosis, and verification.
 
+Default storage follows upstream: CLI/sql.js owns `.swarm/memory.db`; native
+controllers own `.swarm/agentdb-memory.db`. Ordinary memory can live in AgentDB too.
+Explicit source/user bindings retain their exact authority. Existing combined
+corpora and aliases need native reconciliation and controlled host reconnects;
+patch installation does not migrate data. Native-only recovery snapshots require
+`memory backup --native-only` and a verified `sqlite-online-backup` receipt.
+
 - Never open managed memory through direct SQL, `sqlite3`, `sql.js`, raw file reads/writes, or whole-image operations.
 - A live `memory.db-wal` is expected while a native owner is active. Never checkpoint, delete, rename, replace, or unlink database sidecars.
 - If recall fails or is safely refused, report it once and continue from repository/source evidence. Do not force a second driver or claim an empty result is healthy.
