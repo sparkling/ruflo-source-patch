@@ -6,6 +6,9 @@
 locally patched or passes an explicit behavioral native-replacement predicate. Zero discovered
 files, an unsatisfied entry, or an uncovered runnable build is failure, including in `all status`.
 **Deciders**: Henrik Pettersen
+**Updated 2026-10-19**: The issue-backed `brain-user-learning-root` target applies this
+same exact-anchor ownership to Brain's adopted user store; initialization remains
+an explicit native administration step, separate from patch installation.
 **Tags**: patching, safety, core
 
 ## Context

@@ -15,6 +15,13 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+Release 4.46.67 adds `brain-user-learning-root` for the remaining user-store
+adoption gap in [Brain#377](https://github.com/stuinfla/ruvnet-brain/issues/377).
+After explicit native store initialization, user learning works beneath a
+Git-managed `.claude` parent without resolving into its project store. Consent,
+regular-file ownership and symlink/hardlink refusals remain enforced. Installation
+does not create a database or change the selected learning scope.
+
 Release 4.46.66 recognizes Brain 4.7.14's native published-wrapper history proof
 for [Brain#420](https://github.com/stuinfla/ruvnet-brain/issues/420). An exact-source
 executable probe verifies retained/pruned release acceptance and rejects edited
@@ -784,6 +791,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-managed-cli-generation`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Uses the validated native-selected generation's actual manifest and managed-CLI adapter. Successful help authorizes only that generation; a promotion requires fresh help before execution. | [#384 · closed](https://github.com/stuinfla/ruvnet-brain/issues/384) |
 | **`brain-transition-validation`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reuses one verified native restore within a normalized transition. The public builder still restores independently; complete history, ancestry and persistence validation are retained. | [#385 · closed](https://github.com/stuinfla/ruvnet-brain/issues/385) |
 | **`brain-managed-cli-diagnostics`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Keeps terminal errors/signals beside nonempty command output and in redacted native observations, instead of masking a timeout or exit failure with stdout. | [#386 · closed](https://github.com/stuinfla/ruvnet-brain/issues/386) |
+| **`brain-user-learning-root`** | Keeps the explicitly adopted user-learning store independent of a Git-managed `.claude` parent. Retains consent and rejects directory, symlink and hardlink substitutions. Does not initialize, redirect or merge stores. Retire after pristine native capture/readback passes the same parent-Git and unsafe-path cases. | [#377 · open](https://github.com/stuinfla/ruvnet-brain/issues/377) |
 | **`brain-outbox-streaming`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reads the complete append-only journal incrementally beyond Node's whole-string limit, preserving record order, conflict evidence and native final-tail semantics. This alone does not bound all historical object memory or restore work. | [#387 · closed](https://github.com/stuinfla/ruvnet-brain/issues/387) |
 | **`brain-continuity-summary`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Bounds optional displayed observations and repeated conflict summaries with omission/digest evidence. Exact goals/actions and canonical snapshots remain intact; mandatory oversized state still fails honestly. | [#389 · closed](https://github.com/stuinfla/ruvnet-brain/issues/389) |
 | **`brain-progression-suspension`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390 · open](https://github.com/stuinfla/ruvnet-brain/issues/390) |
