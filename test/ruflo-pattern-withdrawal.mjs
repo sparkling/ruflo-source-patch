@@ -81,6 +81,27 @@ export async function bridgeStorePattern(options) {return options;}
   fs.writeFileSync(path.join(root,'mcp-tools/agentdb-tools.js'),toolsFixed.next);fs.writeFileSync(path.join(root,'mcp-tools/agentdb-tools.js.rsp-backup'),toolsPristine);
   const upgrade=compose.applyComposed([patch.NAME]);assert.equal(upgrade.errors,0,JSON.stringify(upgrade));assert.equal(upgrade.incomplete,0);assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js'),'utf8'),fixed.next);assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js.rsp-backup'),'utf8'),pristine);assert.equal(compose.applyComposed([patch.NAME]).patched,0);checks++;
  }
+ // Independent packages retain atomic bridge/tool pairs; old caches cannot
+ // prevent a proven package's shared bridge contributions from installing.
+ compose.reconcile([],[patch.NAME]);
+ const legacy=path.join(process.env.RUFLO_NPX_ROOT,'legacy/node_modules/@claude-flow/cli/dist/src');
+ const broken=pristine.replace('async function withBridgeOperation(', 'async function missingLease(');
+ for(const [name,body] of [['memory/memory-bridge.js',broken],['mcp-tools/agentdb-tools.js',toolsPristine]]){
+  const file=path.join(legacy,name);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,body);
+ }
+ const scoped=patch.preflight();assert.equal(scoped.ok,false);assert.deepEqual(new Set(scoped.blockedFiles),new Set([
+  path.join(legacy,'memory/memory-bridge.js'),path.join(legacy,'mcp-tools/agentdb-tools.js')]));
+ const mixed=compose.applyComposed([patch.NAME]);assert.equal(mixed.errors,0);assert(mixed.incomplete>0);assert.equal(mixed.patched,2);
+ assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js'),'utf8'),fixed.next);
+ assert.equal(fs.readFileSync(path.join(legacy,'memory/memory-bridge.js'),'utf8'),broken);
+ assert.equal(fs.readFileSync(path.join(legacy,'mcp-tools/agentdb-tools.js'),'utf8'),toolsPristine);
+ assert(!fs.existsSync(path.join(legacy,'mcp-tools/agentdb-tools.js.rsp-backup')));checks++;
+ compose.reconcile([],[patch.NAME]);
+ const realPreflight=patch.descriptor.preflight;
+ patch.descriptor.preflight=()=>({ok:false,errors:['fixture refusal'],blockedFiles:[path.join(scratch,'foreign.js')]});
+ const invalid=compose.applyComposed([patch.NAME]);assert.equal(invalid.patched,0);assert(invalid.incomplete>0);
+ assert.equal(fs.readFileSync(path.join(root,'memory/memory-bridge.js'),'utf8'),pristine);
+ patch.descriptor.preflight=realPreflight;checks++;
  assert.equal(BRIDGE_RUNTIME.includes('.prepare('),false);assert.equal(BRIDGE_RUNTIME.includes('getDb('),false);assert.equal(TOOL_RUNTIME.includes('pattern-delete'),true);checks++;
  console.log('pattern-withdrawal: '+checks+' meaningful checks passed; no database/driver or real native owner opened');
 } finally {delete globalThis.fixtureBridge;fs.rmSync(scratch,{recursive:true,force:true});}

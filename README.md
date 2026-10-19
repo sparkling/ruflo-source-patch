@@ -15,6 +15,11 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+Release 4.46.65 fixes [source-patch#8](https://github.com/sparkling/ruflo-source-patch/issues/8):
+withdrawal preflight remains atomic within each installed bridge/tool pair. An
+unsupported older cache stays visibly incomplete while independently proven
+packages receive their complete patches. Invalid preflight file scopes fail closed.
+
 ## Selective native pattern withdrawal (v4.46.61)
 
 The new `ruflo-pattern-withdrawal` target exposes administrative exact
