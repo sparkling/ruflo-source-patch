@@ -18,13 +18,14 @@ export async function nativeDriver(cliRoot) {
   return { Database: await loadBetterSqlite3(), version: manifest.version };
 }
 
-export function inspectSnapshot(Database, file) {
+export function inspectSnapshot(Database, file, { requireIntegrity = true } = {}) {
   const db = new Database(file, { readonly: true, fileMustExist: true });
   db.defaultSafeIntegers(true);
   try {
     db.pragma('query_only = ON');
     const integrity = db.pragma('integrity_check').map(row => row.integrity_check);
-    if (integrity.length !== 1 || integrity[0] !== 'ok') throw Error('Snapshot integrity check failed');
+    const healthy = integrity.length === 1 && integrity[0] === 'ok';
+    if (requireIntegrity && !healthy) throw Error('Snapshot integrity check failed: ' + JSON.stringify(integrity));
     const schema = db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name").all();
     const tables = [];
     for (const item of schema.filter(row => row.type === 'table')) {
@@ -34,7 +35,7 @@ export function inspectSnapshot(Database, file) {
           Object.entries(row).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])));
         table.foreignKeys = db.pragma(`foreign_key_list(${quote(item.name)})`).map(row => Object.fromEntries(
           Object.entries(row).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])));
-        const statement = db.prepare(`SELECT * FROM ${quote(item.name)}`).raw();
+        const statement = db.prepare(`SELECT * FROM ${quote(item.name)} NOT INDEXED`).raw();
         const hashes = [];
         for (const row of statement.iterate()) hashes.push(sha(JSON.stringify(row.map(cell))));
         hashes.sort();
@@ -47,9 +48,37 @@ export function inspectSnapshot(Database, file) {
     }
     const foreignKeyViolations = db.pragma('foreign_key_check').map(row => Object.fromEntries(
       Object.entries(row).map(([key, value]) => [key, typeof value === 'bigint' ? String(value) : value])));
-    return { integrity: 'ok', schemaSha256: sha(JSON.stringify(schema)), tables, foreignKeyViolations,
+    return { integrity: healthy ? 'ok' : integrity, schemaSha256: sha(JSON.stringify(schema)), tables, foreignKeyViolations,
       complete: tables.every(table => !table.error) };
   } finally { db.close(); }
+}
+
+export async function stageClone({ source, destination, cliRoot }) {
+  if (![source, destination, cliRoot].every(value => typeof value === 'string' && path.isAbsolute(value)))
+    throw Error('Source, new destination and CLI root must be absolute');
+  source = fs.realpathSync(source);
+  const stat = fs.statSync(source);
+  if (!stat.isFile() || (stat.mode & 0o222)) throw Error('Clone source must be an immutable recovery snapshot');
+  if (fs.existsSync(destination)) throw Error('Staging destination already exists');
+  const { Database, version } = await nativeDriver(cliRoot);
+  const before = inspectSnapshot(Database, source);
+  if (!before.complete) throw Error('Source inspection is incomplete');
+  fs.mkdirSync(destination, { recursive: true, mode: 0o700 });
+  const snapshot = path.join(destination, 'agentdb-memory.db');
+  const receipt = { schema: 'ruflo-two-store-staged-clone/v1', source, snapshot,
+    cliVersion: version, startedAt: new Date().toISOString(), status: 'incomplete', before,
+    qualification: 'Staging clone only; original owners and aliases unchanged.' };
+  const save = () => fs.writeFileSync(path.join(destination, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\n', { mode: 0o600 });
+  save();
+  try {
+    const db = new Database(source, { readonly: true, fileMustExist: true });
+    try { await db.backup(snapshot); } finally { db.close(); }
+    receipt.after = inspectSnapshot(Database, snapshot);
+    if (JSON.stringify(before) !== JSON.stringify(receipt.after)) throw Error('Staged clone failed exact parity');
+    fs.chmodSync(snapshot, 0o400);
+    receipt.status = 'verified'; receipt.completedAt = new Date().toISOString(); save();
+    return receipt;
+  } catch (error) { receipt.error = error.message; save(); throw error; }
 }
 
 export async function snapshotProject({ project, destination, cliRoot, storeNames = ['memory.db', 'agentdb-memory.db'] }) {

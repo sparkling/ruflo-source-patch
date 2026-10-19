@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { nativeDriver, snapshotProject, inspectSnapshot } from '../scripts/two-store-recovery.mjs';
+import { nativeDriver, snapshotProject, inspectSnapshot, stageClone } from '../scripts/two-store-recovery.mjs';
 
 const cliRoot = process.argv[2];
 const { Database } = await nativeDriver(cliRoot);
@@ -51,6 +51,12 @@ try {
   assert.equal(alias.status, 'verified'); assert.equal(alias.stores[1].aliasOf, 'memory.db');
   assert.equal(alias.stores[0].tables.find(t => t.name === 'retained').rows, 1);
   assert(fs.lstatSync(path.join(aliasProject, '.swarm/agentdb-memory.db')).isSymbolicLink());
+  const clone = await stageClone({ source: alias.stores[0].snapshot, destination: path.join(scratch, 'alias-stage'), cliRoot });
+  assert.equal(clone.status, 'verified'); assert.deepEqual(clone.before, clone.after);
+  assert.notEqual(fs.statSync(clone.source).ino, fs.statSync(clone.snapshot).ino);
+  assert(fs.lstatSync(path.join(aliasProject, '.swarm/agentdb-memory.db')).isSymbolicLink());
+  await assert.rejects(stageClone({ source: alias.stores[0].snapshot, destination: path.join(scratch, 'alias-stage'), cliRoot }), /already exists/);
+  await assert.rejects(stageClone({ source: path.join(aliasProject, '.swarm/memory.db'), destination: path.join(scratch, 'live-stage'), cliRoot }), /immutable recovery/);
   const invalid = path.join(scratch, 'invalid'); fs.mkdirSync(path.join(invalid, '.swarm'), { recursive: true });
   for (const name of ['memory.db', 'agentdb-memory.db']) fs.writeFileSync(path.join(invalid, '.swarm', name), 'RFE1-fixture');
   const failed = path.join(scratch, 'failed-recovery');
