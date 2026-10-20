@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-15. Current-release tests now cover Ruflo 3.38.12's native daemon resolver,
+**Updated**: 2026-10-20. Suite execution defaults to four concurrent suites, with validated `RSP_TEST_JOBS=1..16`; sandboxing and complete failure aggregation remain unchanged. The existing native policy qualification can assess a new pristine artifact before its digest is admitted, without granting that artifact installation authority. Backup/graph tests retain native behavior and reject removed residual guards.
+
+Historical 15 August qualification: Current-release tests now cover Ruflo 3.38.12's native daemon resolver,
 native #2878 writer-sharing baseline, residual permission/swarm/neural/helper cwd sites, runnable
 custom-prefix discovery without an npm binary, and fail-honest status parity. Brain #102/#103 fixtures
 now represent published 4.0.36 bytes rather than an unreleased shape. The complete suite also sandboxes

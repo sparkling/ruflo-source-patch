@@ -15,6 +15,60 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Current compatibility review: 20 October 2026
+
+Version **4.46.71** qualifies Ruflo and `@claude-flow/cli` **3.59.1**.
+The review checked all **55 registered patch targets** and read all **120 linked
+GitHub issues**: **90 closed, 30 open** at the review boundary. These dated counts
+are discovery evidence; executable installed-source checks determine retirement.
+Historical compatibility and fleet tables below retain their original dates.
+
+| Surface | Current disposition |
+|---------|---------------------|
+| Policy serialization and ledger | The pristine 3.59.1 runtime passes the existing 5,000-receipt conversion, complete-history audit, new-write/pruning and missing-history rejection proof. Its exact bytes are accepted without either older overlay; the engine is unchanged from the previously qualified native version. |
+| [Backup #4287](https://github.com/ruvnet/ruflo/issues/4287) | Closed upstream. Preserve its native ordinary-source refusal, encrypted/WAL checks and method receipt. Retain only shared SQLite loading and the explicit `--native-only` refusal, which the pristine release still lacks. Older packages keep their separately applicable compatibility rendition. |
+| [Graph binding #4291](https://github.com/ruvnet/ruflo/issues/4291) | Closed upstream. Remove the old file-binding replacement on 3.59.1. Retain only the explicit `:memory:` guard: its native file resolver otherwise converts that sentinel into a filesystem path. Both sniff and open retain the same selection. |
+| Wrapper #3306 | Importing the shared selector through `node --input-type=module -` no longer tries to resolve the pseudo filename `-`. Existing wrapper versions remain exactly recognizable for upgrade and rollback. |
+| Test execution | Run at most four suites concurrently by default. `RSP_TEST_JOBS=1..16` selects explicit suite parallelism; invalid values fail before dispatch. Each suite retains its isolated fixture and failure result. |
+| Installed versus live | Package installation and patch verification do not reload existing MCP modules. Use the owning host's native reconnect, preserving source bindings, hooks and permissions; never kill MCP transports to impersonate activation. |
+
+The owner confirms that the former GCP projects now live on **HZ under
+`/data/source`**. Current upgrade coverage is Mac plus HZ, including runnable npx
+caches; the seven-host table below describes the historical 15 October deployment.
+No GCP authentication or deployment is required for those retired hosts.
+
+### Opt-in npm and npx maintenance
+
+`monitor maintenance` explicitly enables and immediately runs package hygiene.
+The existing five-minute monitor checks the opt-in configuration; the work runs
+at most once per 24 hours, using the same mutation lock as patch installation.
+`monitor maintenance-status` reads its configuration and last receipt;
+`monitor maintenance-disable` stops it. It is off by default on other installs.
+
+The native npm installer updates npm and its bundled npx with `--engine-strict`,
+so an incompatible Node release cannot be silently forced. The owner-authorised
+Node 24 patch upgrade permits the current npm 12 train. `prefer-online=true`
+checks registry freshness during npm/npx resolution. Version-pinned requests
+retain their meaning; this does not rewrite project dependencies or lockfiles.
+
+Cleanup uses `npm cache npx rm` for obsolete Ruflo/source-patch packages and
+unused cache entries older than 30 days, followed by `npm cache verify` for native
+content garbage collection. Fresh process and open-file inventories protect live
+entries; user configuration and stable-source references are retained. Symlinks,
+unclassified entries, Brain-owned installers and caches with root runtime state
+are excluded. A failed inventory forbids deletion. A second live check immediately
+precedes each removal; this is best-effort coordination with independent launchers,
+not a system-wide lock on every possible npm caller. Every actual removal and
+failure is recorded under the existing stable-runtime directory. No MCP is killed,
+no database or sidecar is opened, and no new daemon or updater schedule is added.
+
+Release **4.46.70** added `ruflo-selective-learning`: explicit completed,
+evaluated trajectory IDs retain only those exact native patterns. The selected
+path preserves failures and idempotence, refuses missing or changed sources, and
+does not fall through to global buffered learning or EWC. Omitted IDs retain the
+separately requested historical global operation. Installation never replays old
+trajectories or runs learning.
+
 Release 4.46.69 prevents context synthesis from counting a verified semantic
 consolidation copy as another experience when its episodic source is also recalled.
 The existing native owner's read-only dry-run proves the source and retained copy
@@ -94,14 +148,16 @@ The stale-client detector recognizes global `bin/ruflo` aliases and changes to
 bridge/controller/MCP modules, reports affected clients and never kills them.
 
 For migration recovery, `ruflo memory backup --native-only` requires an online
-snapshot and returns `method: sqlite-online-backup`. A native failure refuses
+snapshot. Older patched releases return `method: sqlite-online-backup`; native
+3.59.1 returns `method: native-online-backup`. A native failure refuses
 image-copy fallback (#4287). Legacy encrypted-image backup behavior remains available
 without that explicit option. Qualify preservation and actual readers before cutover.
 
 [#3143 is closed as completed](https://github.com/ruvnet/ruflo/issues/3143#issuecomment-6264174018)
 after native 3.57.0 multi-store acceptance and isolated lifecycle proof. That closes
 the registry-identity defect; fleet reconciliation and activation remain separate.
-[The native-backup fallback defect remains open](https://github.com/ruvnet/ruflo/issues/4287#issuecomment-6264182622).
+[The native-backup fallback defect is now closed upstream](https://github.com/ruvnet/ruflo/issues/4287).
+The explicit native-only extension remains separately required as recorded above.
 
 ## Compatibility qualification of 2026-10-15 (v4.46.57)
 

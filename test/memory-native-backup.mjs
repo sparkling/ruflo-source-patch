@@ -64,5 +64,35 @@ try {
   const first=apply(['memory']);assert.equal(first.errors,0);assert.equal(first.incomplete,0);assert.equal(first.patched,2);
   assert.equal(apply(['memory']).patched,0);apply([]);
   assert.equal(fs.readFileSync(files[0],'utf8'),service);assert.equal(fs.readFileSync(files[1],'utf8'),command);
+  // Execute the exact published 3.59.1 function with fault-injected I/O only.
+  const modern=fs.readFileSync(new URL('./fixtures/memory-backup-3.59.1.js',import.meta.url),'utf8');
+  const entry=MEMORY_NATIVE_BACKUP_ENTRIES.find(e=>e.id==='memory/native-online-backup-modern');
+  const modernFixed=composeCliContribution(modern,MEMORY_NATIVE_BACKUP_ENTRIES);
+  assert.deepEqual(modernFixed.missing,[]);
+  assert(modernFixed.next.includes('explicit native-only'));
+  assert(!modernFixed.next.includes("method: 'sqlite-online-backup'"),'preserve the native method receipt');
+  async function runModern(source,{nativeOnly=false,encrypted=false,wal=false,failed=true}={}) {
+    let copied=0;
+    class Database {async backup(){if(failed)throw Error('SQLITE_BUSY');}close(){}}
+    const body=source.replace('export async function','async function')
+      .replace('(await import(mod)).default','Database');
+    const run=new AsyncFunction('fs','path','Database','loadBetterSqlite3','existingFileIsEncrypted',
+      'hasActiveWal','finishBackup','snapshotPrefix','fileStamp','defaultMemoryDbPath','opts',
+      body+'\nreturn backupMemoryDb(opts);');
+    const io={existsSync:()=>true,mkdirSync(){},statSync:()=>({size:8192}),rmSync(){},copyFileSync(){copied++;}};
+    const result=await run(io,path,Database,async()=>Database,()=>encrypted,()=>wal,
+      async(_a,_b,_c,_d,method)=>({backedUp:true,method}),()=> 'snapshot-',()=> 'time',()=> '/fixture/source.db',
+      {dbPath:'/fixture/source.db',nativeOnly});
+    return {result,copied};
+  }
+  assert.equal((await runModern(modern)).copied,0,'native ordinary-source failure is already fixed upstream');
+  assert.equal((await runModern(modern,{nativeOnly:true,encrypted:true})).copied,1,'pristine native-only contract is still missing');
+  const modernRefused=await runModern(modernFixed.next,{nativeOnly:true,encrypted:true});
+  assert.equal(modernRefused.copied,0);assert.equal(modernRefused.result.backedUp,false);
+  assert.equal((await runModern(modernFixed.next,{encrypted:true})).copied,1,'keep native encrypted compatibility');
+  assert.equal((await runModern(modernFixed.next,{encrypted:true,wal:true})).copied,0);
+  assert.equal((await runModern(modernFixed.next,{failed:false})).result.method,'native-online-backup');
+  assert(composeCliContribution(modern.replace('existingFileIsEncrypted(dbPath) !== true','changed(dbPath)'),[entry]).missing.length);
+  console.log('3.59.1 backup: native ordinary refusal retained; encrypted native-only mutant fails; method and WAL behavior preserved');
   console.log('native backup: failed native snapshot refuses copying; success has method receipt; CLI forwards explicit requirement; lifecycle preserves pristine');
 } finally {fs.rmSync(root,{recursive:true,force:true});}

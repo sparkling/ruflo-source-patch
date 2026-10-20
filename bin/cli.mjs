@@ -284,6 +284,8 @@ Other:
   npx github:sparkling/ruflo-source-patch memory uninstall   # drop one, keep the rest
   npx github:sparkling/ruflo-source-patch all status         # every target at once
   npx github:sparkling/ruflo-source-patch monitor check      # exit 1 if anything drifted
+  npx github:sparkling/ruflo-source-patch monitor maintenance # enable daily npm/npx hygiene
+  npx github:sparkling/ruflo-source-patch monitor maintenance-status
   npx github:sparkling/ruflo-source-patch cleanup . --dry-run
 
 Working with ADRs? Install all three — they cover the whole round-trip:

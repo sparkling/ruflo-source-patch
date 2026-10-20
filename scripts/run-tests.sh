@@ -83,11 +83,22 @@ SUITES+=(hook-failure-log)
 SUITES+=(brain-progression-suspension-native)
 SUITES+=(adr-edge-contract)
 SUITES+=(tiered-memory-coherence)
+SUITES+=(package-maintenance)
+# Bound suite fan-out: each suite may itself launch native child processes.
+jobs=${RSP_TEST_JOBS:-4}
+if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || [ "$jobs" -gt 16 ]; then
+  echo "RSP_TEST_JOBS must be an integer from 1 to 16" >&2
+  exit 2
+fi
 tmp=$(mktemp -d); pids=(); fail=0
 
 for s in "${SUITES[@]}"; do
   ( node "test/$s.mjs" "$(mktemp -d)" >"$tmp/$s.out" 2>&1; echo $? >"$tmp/$s.code" ) &
   pids+=($!)
+  if [ "${#pids[@]}" -ge "$jobs" ]; then
+    wait "${pids[0]}"
+    pids=("${pids[@]:1}")
+  fi
 done
 for p in "${pids[@]}"; do wait "$p"; done
 

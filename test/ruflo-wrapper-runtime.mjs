@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { selectCli } from '../lib/ruflo-wrapper-guard/runtime.mjs';
 
 if (!process.argv[2] || !path.isAbsolute(process.argv[2])) throw new Error('absolute isolated fixture root required');
@@ -63,3 +64,9 @@ fs.unlinkSync(manifest);
 fs.symlinkSync(path.join(path.dirname(path.dirname(direct)), 'package.json'), manifest);
 assert.throws(() => select({ prefix: path.join(root, 'custom') }), /non-regular CLI manifest/);
 console.log('✓ wrapper selection: semver, global/custom/nested, stable-only, deterministic ties, cwd exclusion, malformed/broken/symlink refusal');
+
+const runtimeUrl=new URL('../lib/ruflo-wrapper-guard/runtime.mjs',import.meta.url).href;
+const stdin=spawnSync(process.execPath,['--input-type=module','-'],{
+  input:`const m=await import(${JSON.stringify(runtimeUrl)});if(typeof m.selectCli!=='function')throw Error('missing selector');console.log('imported');`,encoding:'utf8'});
+assert.equal(stdin.status,0,stdin.stderr);assert.equal(stdin.stdout.trim(),'imported');
+console.log('✓ wrapper library import through stdin neither launches nor resolves the pseudo-entry filename');

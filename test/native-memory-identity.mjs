@@ -61,7 +61,7 @@ try {
     const { backupMemoryDb } = await import(pathToFileURL(path.join(cli, 'dist/src/services/memory-backup.js')));
     const receipt = await backupMemoryDb({ dbPath: paths[0], destDir: path.join(scratch, 'snapshots'), nativeOnly: true });
     assert.equal(receipt.backedUp, true, JSON.stringify(receipt));
-    assert.equal(receipt.method, 'sqlite-online-backup');
+    assert(['sqlite-online-backup','native-online-backup'].includes(receipt.method), 'require an actual native online-backup method');
     assert.equal(content(await bridge.bridgeGetEntry({ dbPath: receipt.path, namespace, key })), 'unique-store-0'); checks++;
   }
   const badParent = path.join(scratch, 'not-a-directory'); fs.writeFileSync(badParent, 'fixture');

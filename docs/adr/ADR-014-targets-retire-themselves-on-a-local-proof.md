@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-15. Ruflo 3.56.10 bridge proof loads the new pure search-defaults dependency. Brain 4.7.6 ownership is accepted by an exact-source executable proof without an installer overlay; old installer compatibility remains.
+**Updated**: 2026-10-20. Ruflo 3.59.1 passes the 5,000-receipt native policy proof; exact runtime and unchanged engine bytes remain unmodified. Native backup and graph file-binding fixes supersede those older renditions, while explicit native-only and in-memory-sentinel guards remain separately required. The review covers 55 targets and all 120 linked issues; issue closure never removes residual protections.
+
+Historical 15 October qualification: Ruflo 3.56.10 bridge proof loads the new pure search-defaults dependency. Brain 4.7.6 ownership is accepted by an exact-source executable proof without an installer overlay; old installer compatibility remains.
 Native lifecycle proof accepts Brain's exact discovery wrapper only after
 executing its runner-selection, argument, output, refusal and timeout boundaries in an isolated fixture.
 It follows the installer's bounded, registered native Codex marketplace and compares physical owners,

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { GRAPH_IMPORT, GRAPH_IMPORT_BOUND, GRAPH_PATH, GRAPH_PATH_BOUND,
-  memoryGraphPathEntry, nativeGraphPathSatisfied } from '../lib/cwd/memory-graph-path.mjs';
+  memoryGraphPathEntry, memoryGraphNativeSentinelEntry, GRAPH_NATIVE_PATH, GRAPH_NATIVE_SENTINEL, nativeGraphPathSatisfied } from '../lib/cwd/memory-graph-path.mjs';
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-graph-path-'));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
@@ -28,5 +28,13 @@ try {
   const resolve = expression => new Function('process', 'resolveDbPath', 'customDbPath', expression + '; return dbPath;')(
     { env: { CLAUDE_FLOW_DB_PATH: configured } }, () => configured, undefined);
   assert.equal(resolve(GRAPH_PATH_BOUND), configured);
+  const upstream=source.replace(GRAPH_IMPORT,"import { resolveDbPath } from './memory-initializer.js';").replaceAll(GRAPH_PATH,GRAPH_NATIVE_PATH);
+  assert.equal(nativeGraphPathSatisfied(upstream),false,'3.59.1 file resolver loses the memory sentinel');
+  const residual=composeCliContribution(upstream,[memoryGraphPathEntry,memoryGraphNativeSentinelEntry]);
+  assert.deepEqual(residual.missing,[]);assert(residual.next.includes(GRAPH_NATIVE_SENTINEL));
+  assert.equal(nativeGraphPathSatisfied(residual.next),true);
+  assert.equal(composeCliContribution(residual.next,[memoryGraphNativeSentinelEntry]).next,residual.next,'residual native guard remains recognizable after apply');
+  assert(!residual.next.includes('explicit graph store follows'),'do not overlay the native file selector');
+  assert.equal(nativeGraphPathSatisfied(residual.next.replace(GRAPH_NATIVE_SENTINEL,GRAPH_NATIVE_PATH)),false);
   console.log('explicit graph binding: native path precedence for sniff/open, custom override and in-memory isolation; default sibling policy unchanged; drift and split ownership refused');
 } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
