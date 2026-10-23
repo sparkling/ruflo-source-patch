@@ -19,6 +19,22 @@ const old=await import(pathToFileURL(path.join(dir,'policy-runtime.js')));const{
 const root=path.join(scratch,'project'),state=path.join(root,'.claude-flow/policy/state.json');fs.mkdirSync(path.dirname(state),{recursive:true});fs.writeFileSync(state,JSON.stringify(e.exportState()));await old.withPolicyTransaction(root,()=>null,{compactLedger:true});assert(old.loadPolicyState(root,{compact:true}).policyArchive);const before=old.loadPolicyState(root);assert.equal((await old.verifyPolicyLedger(root)).valid,true);
 const native=await import(pathToFileURL(path.join(nativeRoot,'dist/src/services/policy-runtime.js')));
 assert.equal((await native.verifyPolicyLedger(root)).valid,false,'native cannot read old compact format');
+// #4343: the newer native lock reports path faults immediately, preserves unsafe
+// paths and never steals a live owner. All files below are synthetic test state.
+if(runtimeSource.includes('policy-state-lock-error:')){
+ const lockDir=path.join(scratch,'lock-proof');fs.mkdirSync(lockDir);
+ await assert.rejects(native.acquireLock(path.join(lockDir,'missing','state.lock')),/policy-state-lock-error: ENOENT/);
+ const nonregular=path.join(lockDir,'directory.lock');fs.mkdirSync(nonregular);
+ await assert.rejects(native.acquireLock(nonregular),/not a regular file/);assert(fs.statSync(nonregular).isDirectory());
+ const target=path.join(lockDir,'target');fs.writeFileSync(target,'preserved');
+ const link=path.join(lockDir,'link.lock');fs.symlinkSync(target,link);
+ await assert.rejects(native.acquireLock(link),/not a regular file/);assert.equal(fs.readFileSync(target,'utf8'),'preserved');
+ const live=path.join(lockDir,'state.lock');const release=await native.acquireLock(live);
+ const owner=fs.readFileSync(live,'utf8');const waiter=native.acquireLock(live);
+ await new Promise(r=>setTimeout(r,25));assert.equal(fs.readFileSync(live,'utf8'),owner);
+ release();const releaseWaiter=await waiter;releaseWaiter();assert(!fs.existsSync(live));
+}
+
 const recovery=path.join(root,'.local/two-store-restoration');fs.mkdirSync(recovery,{recursive:true});
 const converted=await restoreNativePolicy({project:root,destination:path.join(recovery,'policy-format-v1'),oldCliRoot:legacyRoot,newCliRoot:nativeRoot});assert.equal(converted.status,'verified');assert.equal(converted.receipts,5000);
 await assert.rejects(restoreNativePolicy({project:root,destination:path.join(recovery,'policy-format-v1'),oldCliRoot:legacyRoot,newCliRoot:nativeRoot}),/never overwrite/);

@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-20. Ruflo 3.59.1 passes the 5,000-receipt native policy proof; exact runtime and unchanged engine bytes remain unmodified. Native backup and graph file-binding fixes supersede those older renditions, while explicit native-only and in-memory-sentinel guards remain separately required. The review covers 55 targets and all 120 linked issues; issue closure never removes residual protections.
+**Updated**: 2026-10-23. Ruflo 3.59.17 passes the 5,000-receipt native policy proof; exact runtime and unchanged engine bytes remain unmodified. Native backup and graph file-binding fixes supersede those older renditions, while explicit native-only and in-memory-sentinel guards remain separately required. The exact native wrapper now also retains its upstream shutdown fix. The statistics overlay preserves the current caller-path resolver. The review covers 55 targets and 120 previously linked issues plus the two newly relevant reports (122 total: 92 closed, 30 open); issue closure never removes residual protections.
 
 Historical 15 October qualification: Ruflo 3.56.10 bridge proof loads the new pure search-defaults dependency. Brain 4.7.6 ownership is accepted by an exact-source executable proof without an installer overlay; old installer compatibility remains.
 Native lifecycle proof accepts Brain's exact discovery wrapper only after

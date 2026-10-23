@@ -15,22 +15,38 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Current compatibility review: 20 October 2026
+## Current compatibility review: 23 October 2026
 
-Version **4.46.71** qualifies Ruflo and `@claude-flow/cli` **3.59.1**.
-The review checked all **55 registered patch targets** and read all **120 linked
-GitHub issues**: **90 closed, 30 open** at the review boundary. These dated counts
+Version **4.46.72** qualifies Ruflo and `@claude-flow/cli` **3.59.17**, preserving
+the previously qualified 3.59.1 and older compatibility renditions.
+The review checked all **55 registered patch targets** and read all **120 previously linked
+GitHub issues** plus the two new source-linked reports (**122 total: 92 closed,
+30 open**) at the review boundary. These dated counts
 are discovery evidence; executable installed-source checks determine retirement.
 Historical compatibility and fleet tables below retain their original dates.
 
 | Surface | Current disposition |
 |---------|---------------------|
-| Policy serialization and ledger | The pristine 3.59.1 runtime passes the existing 5,000-receipt conversion, complete-history audit, new-write/pruning and missing-history rejection proof. Its exact bytes are accepted without either older overlay; the engine is unchanged from the previously qualified native version. |
+| Policy serialization and ledger | The pristine 3.59.17 runtime passes the existing 5,000-receipt conversion, complete-history audit, new-write/pruning and missing-history rejection proof. Its exact bytes are accepted without either older overlay; the engine is unchanged. Native [#4343](https://github.com/ruvnet/ruflo/pull/4343) path-error reporting passes missing-directory, nonregular-path, symlink-preservation and live-owner serialization probes. |
 | [Backup #4287](https://github.com/ruvnet/ruflo/issues/4287) | Closed upstream. Preserve its native ordinary-source refusal, encrypted/WAL checks and method receipt. Retain only shared SQLite loading and the explicit `--native-only` refusal, which the pristine release still lacks. Older packages keep their separately applicable compatibility rendition. |
 | [Graph binding #4291](https://github.com/ruvnet/ruflo/issues/4291) | Closed upstream. Remove the old file-binding replacement on 3.59.1. Retain only the explicit `:memory:` guard: its native file resolver otherwise converts that sentinel into a filesystem path. Both sniff and open retain the same selection. |
-| Wrapper #3306 | Importing the shared selector through `node --input-type=module -` no longer tries to resolve the pseudo filename `-`. Existing wrapper versions remain exactly recognizable for upgrade and rollback. |
+| Memory statistics #3311 | The 3.59.17 caller-path helper is preserved. The remaining overlay reads complete aggregates through the existing registry handle, without capped enumeration, a second driver or unmeasured HNSW readiness claims. |
+| Wrapper #3306 | Importing the shared selector through `node --input-type=module -` no longer tries to resolve the pseudo filename `-`. The exact 3.59.17 native wrapper is now accepted unchanged after version, CLI/MCP delegation, mismatch warning and native teardown probes ([#3226](https://github.com/ruvnet/ruflo/issues/3226)). Older wrapper compatibility remains recognizable for upgrade and rollback. |
 | Test execution | Run at most four suites concurrently by default. `RSP_TEST_JOBS=1..16` selects explicit suite parallelism; invalid values fail before dispatch. Each suite retains its isolated fixture and failure result. |
 | Installed versus live | Package installation and patch verification do not reload existing MCP modules. Use the owning host's native reconnect, preserving source bindings, hooks and permissions; never kill MCP transports to impersonate activation. |
+
+Upstream [#3450](https://github.com/ruvnet/ruflo/issues/3450) is now closed:
+native ordinary-memory deletion removes its mirror and tombstones. This does not
+replace `ruflo-pattern-withdrawal`'s separate exact ReasoningBank get/delete and
+body-hash approval contract, which remains required. No native-history migration
+or historical learning replay is performed by patch installation.
+
+Hook approval and source compatibility are separate checks. A changed upstream
+hook definition or plugin fingerprint can require native host review even when
+all source patches pass. The logger may inherit existing trust only across its
+exact reversible preload wrapper; it never approves unrelated upstream changes.
+Stale host hook metadata must be refreshed before exact reconciliation, rather
+than treating mismatched metadata as permission to broaden approval.
 
 The owner confirms that the former GCP projects now live on **HZ under
 `/data/source`**. Current upgrade coverage is Mac plus HZ, including runnable npx

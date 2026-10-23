@@ -189,6 +189,30 @@ ${STATS_351}
   delete globalThis.__rspStatsOwner;
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), native351Source, '3.51 exact reversal');
+  const modernBlock = fs.readFileSync(new URL('./fixtures/memory-stats-3.59.17.txt', import.meta.url), 'utf8').trimEnd();
+  const modernSource = `import { resolve } from 'node:path';
+import { statSync } from 'node:fs';
+function ensureInitialized() { throw Error('default initialization forbidden'); }
+function getMemoryFunctions() { throw Error('enumeration forbidden'); }
+function resolveDbPathOption(value) { return typeof value === 'string' && value.trim() ? resolve(value) : undefined; }
+export const tool = {
+${modernBlock}
+};`;
+  fs.writeFileSync(file, modernSource);
+  assert.equal(apply(['ruflo-memory-stats']).incomplete, 0, '3.59.17 native path rendition');
+  const modernPatched = fs.readFileSync(file, 'utf8').replace("'../memory/memory-bridge.js'", JSON.stringify(pathToFileURL(proofBridge).href));
+  const modernTool = (await import('data:text/javascript;base64,' + Buffer.from(modernPatched).toString('base64'))).tool;
+  globalThis.__rspStatsOwner = value => ({ getAgentDB: () => ({ database: datedHandle }) });
+  // The imported fixture bridge already exposes __rspStatsOwner for explicit paths.
+  result = await modernTool.handler({ dbPath: explicit });
+  assert.equal(result.success, true);
+  assert.equal(result.totalEntries, 100008);
+  assert.equal(result.features.hnswIndex, null);
+  assert.equal((await modernTool.handler({ dbPath: ' ' })).success, false);
+  assert.equal(apply(['ruflo-memory-stats']).patched, 0, 'modern idempotence');
+  apply([]);
+  assert.equal(fs.readFileSync(file, 'utf8'), modernSource, 'modern exact restoration');
+  delete globalThis.__rspStatsOwner;
   const changedUpstream = pristine.replace('limit: 100000', 'limit: 200000');
   fs.writeFileSync(file, changedUpstream);
   const drift = apply(['ruflo-memory-stats']);

@@ -20,6 +20,12 @@ assert.deepEqual(p.patchSource(nativeWrapper), { next: nativeWrapper, applied: [
 assert.equal(p.isPatched(nativeWrapper), true);
 assert.equal(p.reverseSource(nativeWrapper), nativeWrapper);
 assert.equal(p.isPatched(nativeWrapper.replace('console.error(`ruflo: warning:', 'console.log(`ruflo: warning:')), false);
+const teardownWrapper = fs.readFileSync(new URL('./fixtures/ruflo-wrapper-3.59.17.mjs', import.meta.url), 'utf8');
+assert.deepEqual(p.patchSource(teardownWrapper), { next: teardownWrapper, applied: [], missing: [] });
+assert(p.isPatched(teardownWrapper));
+assert.equal(p.reverseSource(teardownWrapper), teardownWrapper);
+assert(!p.isPatched(teardownWrapper.replace('await shutdownBridge()', 'void shutdownBridge()')));
+
 
 
 function write(file, content) {
