@@ -17,7 +17,7 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Current compatibility review: 23 October 2026
 
-Version **4.46.72** qualifies Ruflo and `@claude-flow/cli` **3.59.17**, preserving
+Version **4.46.73** qualifies Ruflo and `@claude-flow/cli` **3.59.17**, preserving
 the previously qualified 3.59.1 and older compatibility renditions.
 The review checked all **55 registered patch targets** and read all **120 previously linked
 GitHub issues** plus the two new source-linked reports (**122 total: 92 closed,
@@ -778,7 +778,19 @@ its owned logger wrapper or back. Native compare-and-swap writes preserve unrela
 new, untrusted, disabled or unexplained modified hooks still require native review. An existing
 control server receives a reload request; the metadata-only fallback verifies disk state and
 does not claim an existing standalone session refreshed or a hook ran. It does not repair the
-underlying failure. No native retirement predicate is
+underlying failure.
+
+Codex 0.164 checks a whole-plugin content fingerprint in addition to each hook
+command. Native updates can replace a plugin's installed files during restart;
+reapplying our patches then changes that fingerprint again. Review and approve
+only after patching finishes. The legacy command-only logger trust migration
+cannot approve a changed bundle and leaves these cases for native review. Updated
+unwrapped declarations are counted as pending too; installation exits nonzero
+rather than claiming zero blocked hooks. A successful `hooks/list` is discovery
+and trust evidence, not proof that a subsequent runtime hook executed. Never
+suppress the native check or grant approval to future, unknown plugin contents.
+
+No native retirement predicate is
 registered yet; equivalent attributed native diagnostics remain the upstream acceptance goal.
 
 #### Ruflo persistence and policy

@@ -87,6 +87,23 @@ for (const change of [
   assert.equal(f.calls.some(c => c.method === 'config/batchWrite'), false, JSON.stringify(change));
   assert.equal(result.changed, false);
 }
+// Codex 0.164 adds a whole-plugin fingerprint. Neither a known declaration
+// nor our logger is authority to approve other changed plugin contents.
+for (const cmd of [original, command]) {
+  const modern = { ...base, command: cmd,
+    currentHash: hashHookMetadata(base, cmd) + '/sha256:' + 'e'.repeat(64) };
+  writeManifest({}, cmd);
+  f = fixture({ row: modern });
+  result = await reconcileLoggerTrust({ ...options, rpc: f.rpc });
+  assert.equal(result.state, 'review-required');
+  assert.equal(result.pendingReview, 1, 'unwrapped updated hooks must not disappear from review');
+  assert.equal(f.calls.some(c => c.method === 'config/batchWrite'), false, 'no bundle trust bypass');
+  f = fixture({ row: { ...modern, trustStatus: 'trusted' } });
+  result = await reconcileLoggerTrust({ ...options, rpc: f.rpc });
+  assert.equal(result.state, 'unchanged'); assert.equal(result.pendingReview, 0);
+}
+writeManifest();
+
 for (const mode of ['cas-fail', 'promotion', 'foreign-config', 'verify-fail']) {
   f = fixture({ mode }); result = await reconcileLoggerTrust({ ...options, rpc: f.rpc });
   assert.ok(['blocked', 'degraded'].includes(result.state), mode);

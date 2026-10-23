@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-20. Explicitly opted-in daily npm/npx maintenance reuses the existing short-lived monitor and mutation lock. Native engine-strict npm updates, online metadata checks, protected native npx-cache removal and cache verification retain receipts; no separate scheduler or resident process is added. Brain-owned assets and live MCP transports remain outside cleanup authority.
+**Updated**: 2026-10-23. Codex whole-plugin fingerprints remain host-owned: a native plugin replacement followed by patch reapplication requires review of the final bundle. Unwrapped modified hooks remain visible as pending; command-only trust migration cannot approve a bundle.
+
+20 October 2026 qualification: Explicitly opted-in daily npm/npx maintenance reuses the existing short-lived monitor and mutation lock. Native engine-strict npm updates, online metadata checks, protected native npx-cache removal and cache verification retain receipts; no separate scheduler or resident process is added. Brain-owned assets and live MCP transports remain outside cleanup authority.
 
 Historical 17 August qualification: Hook reconciliation now recognizes exact patch-owned stable-runtime
 commands across migrated home prefixes and collapses duplicate marked entries to one hook per event.
