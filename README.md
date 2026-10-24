@@ -15,15 +15,27 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Current compatibility review: 23 October 2026
+## Current compatibility review: 24 October 2026
 
-Version **4.46.73** qualifies Ruflo and `@claude-flow/cli` **3.59.17**, preserving
-the previously qualified 3.59.1 and older compatibility renditions.
-The review checked all **55 registered patch targets** and read all **120 previously linked
-GitHub issues** plus the two new source-linked reports (**122 total: 92 closed,
-30 open**) at the review boundary. These dated counts
+Version **4.46.73** qualifies Ruflo and `@claude-flow/cli` **3.61.1**, preserving
+the previously qualified 3.59.17, 3.59.1 and older compatibility renditions.
+The review checked all **59 registered patch targets** (10 CLI targets and 49
+plugin/package targets), correcting the previous count of 55. It refreshed all
+**122 previously linked GitHub issues and pull requests: 91 closed, one merged,
+30 open**, with no changes since the 23 October review. These dated counts
 are discovery evidence; executable installed-source checks determine retirement.
 Historical compatibility and fleet tables below retain their original dates.
+
+The 3.61.1 upgrade passed patch installation and monitor drift checks on Mac and
+HZ without a patch-source change. Its policy runtime and engine match the
+previously qualified bytes and again passed the 5,000-receipt audit. The pristine
+3.61.1 memory bridge passed 19 checks covering CRUD/search, source isolation,
+aliases, fresh-process visibility, restart and native backup; this does not
+measure retrieval quality. Controlled host reloads returned 3.61.1 plus an
+inventory and exact-key read from the three loaded Mac primary sessions and HZ's
+builder session. Native hook review found no pending approvals in the checked
+contexts. Brain learning writes and exact readbacks passed in both user stores;
+Brain's separately reported KB rollback/update failure remains unresolved.
 
 | Surface | Current disposition |
 |---------|---------------------|
