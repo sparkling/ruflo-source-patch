@@ -15,9 +15,9 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Current compatibility review: 24 October 2026
+## Current compatibility review: 25 October 2026
 
-Version **4.46.73** qualifies Ruflo and `@claude-flow/cli` **3.61.1**, preserving
+Version **4.46.74** qualifies Ruflo and `@claude-flow/cli` **3.61.1**, preserving
 the previously qualified 3.59.17, 3.59.1 and older compatibility renditions.
 The review checked all **59 registered patch targets** (10 CLI targets and 49
 plugin/package targets), correcting the previous count of 55. It refreshed all
@@ -36,6 +36,17 @@ inventory and exact-key read from the three loaded Mac primary sessions and HZ's
 builder session. Native hook review found no pending approvals in the checked
 contexts. Brain learning writes and exact readbacks passed in both user stores;
 Brain's separately reported KB rollback/update failure remains unresolved.
+
+Brain **4.7.19** adds native Codex 0.164 declaration **and** plugin-content approval.
+The `brain-host-recovery` dependency check now accepts that reviewed helper set
+without changing its source; the previous declaration-only set remains supported
+for older releases. Mixing the two sets, changing a helper, or presenting altered
+plugin contents fails verification. Regression tests exercise both native approval
+fields, unchanged-repeat behaviour and refusal of unexpected executable bytes.
+This fixes our obsolete compatibility rejection of the new native helpers. It
+does not auto-approve locally patched bundles or future releases: changed contents
+still require exact native review. The Mac 4.7.19 and HZ installed hooks were
+refreshed and reviewed separately through their owning hosts.
 
 | Surface | Current disposition |
 |---------|---------------------|
