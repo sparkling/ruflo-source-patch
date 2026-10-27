@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { nativeUserLearningSatisfied, probeNativeUserLearningSource, probeUserLearningReplacement } from '../lib/brain-user-learning-root/native.mjs';
 
 const SOURCE = `import fs from 'node:fs';
 import path from 'node:path';
@@ -134,7 +135,34 @@ try {
     assert.ok(refused.missing.length > 0);
     assert.deepEqual(refused.applied, []);
   }
+  const nativeSource = fs.readFileSync(new URL('./fixtures/brain-user-learning-root/learning-store-native-4.7.21.mjs', import.meta.url), 'utf8');
+  assert.equal(nativeUserLearningSatisfied(nativeSource), true);
+  assert.equal(hasPatch(nativeSource), false);
+  assert.equal(isPatched(nativeSource), true);
+  assert.deepEqual(patchSource(nativeSource), { next: nativeSource, applied: [], missing: [] });
+  assert.equal(reverseSource(nativeSource), nativeSource, 'native replacement is never locally rewritten');
+  const nativeFile = path.join(sandbox, 'native/scripts/learning-store.mjs'); write(nativeFile, nativeSource);
+  assert.equal(probeNativeUserLearningSource(nativeSource).state, 'proven');
+  assert.equal(probeUserLearningReplacement({ files: [nativeFile] }).state, 'superseded');
+  assert.equal(probeUserLearningReplacement({ files: [] }).state, 'unknown');
+  for (const drift of [nativeSource + nativeSource,
+    nativeSource.replace('dbStat.nlink !== 1', 'false'),
+    nativeSource.replace("if (!exact) throw new Error('canonical exact CLI readback failed');", 'if (!exact) return {};')]) {
+    assert.notEqual(probeNativeUserLearningSource(drift).state, 'proven', 'changed ownership/capture cannot authorize retirement');
+    write(nativeFile, drift);
+    assert.notEqual(probeUserLearningReplacement({ files: [nativeFile] }).state, 'superseded');
+  }
+  write(nativeFile, nativeSource);
+  const linkedFile = path.join(sandbox, 'linked-learning-store.mjs'); fs.symlinkSync(nativeFile, linkedFile);
+  assert.equal(probeUserLearningReplacement({ files: [linkedFile] }).state, 'unknown');
+  write(nativeFile, result.next);
+  assert.equal(probeUserLearningReplacement({ files: [nativeFile] }).state, 'live', 'our own overlay cannot establish native retirement');
+  write(nativeFile, nativeSource);
+  const { brainNativeSupersessions } = await import('../lib/brain-native/supersede.mjs');
+  assert.equal(brainNativeSupersessions['brain-user-learning-root'].check, probeUserLearningReplacement);
+  assert.equal(brainNativeSupersessions['brain-user-learning-root'].check({ files: [nativeFile] }).state, 'superseded');
   console.log('✓ Brain #377: original parent-Git failure, exact user store, consent, unsafe/missing path refusals, project scope and reversible anchors');
+  console.log('✓ Brain 4.7.21: native user-learning ownership and exact capture behavior, drift/linked-file refusal and terminal retirement registration');
 } finally {
   fs.rmSync(sandbox, { recursive: true, force: true });
 }

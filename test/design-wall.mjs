@@ -26,6 +26,7 @@ process.env.RSP_NO_SELF_UPDATE = '1';
 // this developer's actual ~/.claude/plugins/... instead of the sandbox). Dynamic import, after the
 // env var, is what makes this test's applyComposed()/reconcile() actually operate on SANDBOX.
 const { REPO, findVendorRoot, pristineBytes } = await import('./fixtures.mjs');
+const { stageNativeShellHookDependencies } = await import('../lib/brain-native/gate-probes.mjs');
 
 let fail = 0;
 const check = (desc, cond) => { console.log(`${cond ? '✓' : '✘'} ${desc}`); if (!cond) fail = 1; };
@@ -45,10 +46,26 @@ fs.chmodSync(brainScript, 0o755);
 // Current ruvnet-brain versions share the real JSON parser with every shell hook. A fixture that
 // copies design-wall.sh without this sibling silently fails open before reaching the behaviour under
 // test, which used to make both the "buggy" and "still gated" assertions lie.
-const realHookInput = path.join(path.dirname(REAL_BRAIN), 'hook-input.mjs');
-if (pristine.includes('hook-input.mjs') && fs.existsSync(realHookInput)) {
-  fs.copyFileSync(realHookInput, path.join(brainDir, 'hook-input.mjs'));
-}
+stageNativeShellHookDependencies(REAL_BRAIN, brainDir, pristine.toString('utf8'));
+
+// Keep compatibility with standalone parsers while refusing partial new bundles.
+const dependencyFixture = path.join(SANDBOX, 'dependency-source'); fs.mkdirSync(dependencyFixture);
+const dependencyTarget = path.join(SANDBOX, 'dependency-target');
+const fixtureGate = path.join(dependencyFixture, 'gate.sh'); fs.writeFileSync(fixtureGate, '# hook-input.mjs');
+const parser = path.join(dependencyFixture, 'hook-input.mjs'); fs.writeFileSync(parser, 'export const standalone = true;\n');
+stageNativeShellHookDependencies(fixtureGate, dependencyTarget);
+check('DW-D1 older standalone parser needs no new entrypoint sibling', !fs.existsSync(path.join(dependencyTarget, 'entrypoint.mjs')));
+fs.writeFileSync(parser, "import { isDirectInvocation } from './entrypoint.mjs';\n");
+let missingDependency = false;
+try { stageNativeShellHookDependencies(fixtureGate, dependencyTarget); } catch (error) { missingDependency = /missing.*entrypoint/.test(error.message); }
+check('DW-D2 parser import without its guard is refused before running a gate', missingDependency);
+const fixtureEntrypoint = path.join(dependencyFixture, 'entrypoint.mjs'); fs.writeFileSync(fixtureEntrypoint, 'export const isDirectInvocation = () => false;\n');
+stageNativeShellHookDependencies(fixtureGate, dependencyTarget);
+check('DW-D3 imported guard is staged byte-for-byte', fs.readFileSync(path.join(dependencyTarget, 'entrypoint.mjs'), 'utf8') === fs.readFileSync(fixtureEntrypoint, 'utf8'));
+fs.renameSync(fixtureEntrypoint, fixtureEntrypoint + '.outside'); fs.symlinkSync(fixtureEntrypoint + '.outside', fixtureEntrypoint);
+let linkedDependency = false;
+try { stageNativeShellHookDependencies(fixtureGate, dependencyTarget); } catch (error) { linkedDependency = /unsafe.*entrypoint/.test(error.message); }
+check('DW-D4 linked dependency cannot masquerade as native probe source', linkedDependency);
 
 // A minimal repo the gate will run `git -C <dir> remote get-url origin` against. `notRuflo` has a
 // origin naming an unrelated project (this project, in fact — the exact repo that measured the bug
@@ -114,6 +131,12 @@ if (upstreamFixed) {
   fs.writeFileSync(installedManifest, JSON.stringify(validManifest));
   const supersession = evaluate('design-wall');
   check('DW-U3 local design-wall target recognizes the runnable upstream replacement', supersession.state === 'superseded');
+  const entrypoint = path.join(brainDir, 'entrypoint.mjs');
+  if (fs.existsSync(entrypoint)) {
+    const guard = fs.readFileSync(entrypoint); fs.unlinkSync(entrypoint);
+    check('DW-U3a missing native parser dependency leaves retirement UNKNOWN', evaluate('design-wall').state === 'unknown');
+    fs.writeFileSync(entrypoint, guard);
+  }
   const { applyComposed, reconcile } = await import('../lib/plugin-compose.mjs');
   const layered = applyComposed(['design-wall']);
   check(

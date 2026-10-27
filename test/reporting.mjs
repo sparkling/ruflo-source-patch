@@ -23,6 +23,7 @@ import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
 import { verifyInterfaceFixMode } from '../lib/supersede.mjs';
 import { legacyDaemonBytes, DAEMON_AUTOSTART_REL } from './daemon-fixtures.mjs';
 import * as patchLibrary from '../lib/cwd/patch-library.mjs';
+import { stageNativeShellHookDependencies } from '../lib/brain-native/gate-probes.mjs';
 
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
@@ -506,9 +507,7 @@ if (viFixtureBytes === null) {
     fs.mkdirSync(brainDir, { recursive: true });
     fs.writeFileSync(brainScript, viFixtureBytes);
     fs.chmodSync(brainScript, 0o755);
-    const helper = path.join(path.dirname(REAL_BRAIN), 'hook-input.mjs');
-    if (!fs.existsSync(helper)) fail('V0 advisory replacement names hook-input.mjs but the parser is missing');
-    fs.copyFileSync(helper, path.join(brainDir, 'hook-input.mjs'));
+    stageNativeShellHookDependencies(REAL_BRAIN, brainDir, viFixtureBytes);
     const profileDir = path.join(HOME, '.claude', 'model-router');
     fs.mkdirSync(profileDir, { recursive: true });
     fs.writeFileSync(path.join(profileDir, 'profile.json'), '{}');

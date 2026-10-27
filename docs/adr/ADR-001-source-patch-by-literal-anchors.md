@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-08-15. A target is now satisfied only when every discovered entry is either
+**Updated**: 2026-10-27. Brain 4.7.21 adopted-user-learning retirement now requires
+exact native ownership and inert capture/readback behavior proof.
+The 2026-08-15 contract remains: A target is now satisfied only when every discovered entry is either
 locally patched or passes an explicit behavioral native-replacement predicate. Zero discovered
 files, an unsatisfied entry, or an uncovered runnable build is failure, including in `all status`.
 **Deciders**: Henrik Pettersen

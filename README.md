@@ -15,11 +15,12 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Current compatibility review: 25 October 2026
+## Current compatibility review: 27 October 2026
 
-Version **4.46.74** qualifies Ruflo and `@claude-flow/cli` **3.61.1**, preserving
-the previously qualified 3.59.17, 3.59.1 and older compatibility renditions.
-The review checked all **59 registered patch targets** (10 CLI targets and 49
+Version **4.46.75** qualifies Brain **4.7.21** against the installed native helper
+and adopted-user-learning boundaries. Ruflo and `@claude-flow/cli` remain qualified
+at **3.61.1**, preserving 3.59.17, 3.59.1 and older compatibility renditions.
+The 25 October review checked all **59 registered patch targets** (10 CLI targets and 49
 plugin/package targets), correcting the previous count of 55. It refreshed all
 **122 previously linked GitHub issues and pull requests: 91 closed, one merged,
 30 open**, with no changes since the 23 October review. These dated counts
@@ -37,16 +38,24 @@ builder session. Native hook review found no pending approvals in the checked
 contexts. Brain learning writes and exact readbacks passed in both user stores;
 Brain's separately reported KB rollback/update failure remains unresolved.
 
-Brain **4.7.19** adds native Codex 0.164 declaration **and** plugin-content approval.
-The `brain-host-recovery` dependency check now accepts that reviewed helper set
-without changing its source; the previous declaration-only set remains supported
-for older releases. Mixing the two sets, changing a helper, or presenting altered
-plugin contents fails verification. Regression tests exercise both native approval
-fields, unchanged-repeat behaviour and refusal of unexpected executable bytes.
-This fixes our obsolete compatibility rejection of the new native helpers. It
-does not auto-approve locally patched bundles or future releases: changed contents
-still require exact native review. The Mac 4.7.19 and HZ installed hooks were
-refreshed and reviewed separately through their owning hosts.
+Brain **4.7.21** changes the native Codex declaration/content comparison and
+refreshes the shared host through a version-checked, no-edit configuration reload.
+The `brain-host-recovery` check now qualifies the exact complete helper set,
+including its new transitive plugin entrypoint; older reviewed sets remain supported.
+Behaviour tests cover native approval, unchanged repeats, content drift and altered
+helper refusal, reload deadlines and error redaction. Mixed helper sets still fail.
+The source compatibility check grants no hook approval and performs no host reload.
+Native shell-gate probes also stage the parser's required entrypoint dependency;
+a missing or linked helper refuses qualification instead of silently allowing an
+empty parser result.
+
+Brain **4.7.21** also supplies the native adopted-user-learning fix for
+[#377](https://github.com/stuinfla/ruvnet-brain/issues/377), now closed upstream.
+`brain-user-learning-root` retires only after source-bound native tests prove fixed
+user ownership under a Git-managed parent, consent and unsafe-path refusal, and
+exact capture/readback handling with an inert owner. Retirement restores only
+owned legacy overlays. It does not initialize, migrate or replay memory, and these
+compatibility changes do not repair the separately reported Brain KB/update failure.
 
 | Surface | Current disposition |
 |---------|---------------------|
@@ -928,7 +937,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-managed-cli-generation`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Uses the validated native-selected generation's actual manifest and managed-CLI adapter. Successful help authorizes only that generation; a promotion requires fresh help before execution. | [#384 · closed](https://github.com/stuinfla/ruvnet-brain/issues/384) |
 | **`brain-transition-validation`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reuses one verified native restore within a normalized transition. The public builder still restores independently; complete history, ancestry and persistence validation are retained. | [#385 · closed](https://github.com/stuinfla/ruvnet-brain/issues/385) |
 | **`brain-managed-cli-diagnostics`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Keeps terminal errors/signals beside nonempty command output and in redacted native observations, instead of masking a timeout or exit failure with stdout. | [#386 · closed](https://github.com/stuinfla/ruvnet-brain/issues/386) |
-| **`brain-user-learning-root`** | Keeps the explicitly adopted user-learning store independent of a Git-managed `.claude` parent. Retains consent and rejects directory, symlink and hardlink substitutions. Does not initialize, redirect or merge stores. Retire after pristine native capture/readback passes the same parent-Git and unsafe-path cases. | [#377 · open](https://github.com/stuinfla/ruvnet-brain/issues/377) |
+| **`brain-user-learning-root`** | Retires on Brain 4.7.21 after exact native ownership and inert capture/readback behaviour passes parent-Git, consent, missing-path, directory, symlink and hardlink cases. Restores only owned legacy bytes; never initializes, redirects, merges or replays memory. | [#377 · closed](https://github.com/stuinfla/ruvnet-brain/issues/377) |
 | **`brain-outbox-streaming`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reads the complete append-only journal incrementally beyond Node's whole-string limit, preserving record order, conflict evidence and native final-tail semantics. This alone does not bound all historical object memory or restore work. | [#387 · closed](https://github.com/stuinfla/ruvnet-brain/issues/387) |
 | **`brain-continuity-summary`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Bounds optional displayed observations and repeated conflict summaries with omission/digest evidence. Exact goals/actions and canonical snapshots remain intact; mandatory oversized state still fails honestly. | [#389 · closed](https://github.com/stuinfla/ruvnet-brain/issues/389) |
 | **`brain-progression-suspension`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390 · open](https://github.com/stuinfla/ruvnet-brain/issues/390) |

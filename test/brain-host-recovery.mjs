@@ -4,6 +4,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import os from 'node:os';
+import net from 'node:net';
+import { EventEmitter } from 'node:events';
 import { codexHookIdentities, codexHookHash } from './fixtures/brain-host-recovery/trust-native-4.5.8.mjs';
 import { patchSource, reverseSource, isPatched, historicalPatchSource, preflight, applicability } from '../lib/brain-host-recovery/patcher.mjs';
 import { pluginStatusHealthy } from '../lib/plugin-registry.mjs';
@@ -195,10 +197,11 @@ try {
 } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 console.log('Brain 4.5.8 native scope refusal, exact declaration trust, missing/drifted dependency refusal and legacy overlay migration PASS');
 
-// 4.7.19's native fix approves both Codex identities only for verified release bytes.
-const modernTrust = await import('./fixtures/brain-host-recovery/native-4.7.19/codex-hook-trust.mjs');
-const modernReconcile = await import('./fixtures/brain-host-recovery/native-4.7.19/codex-hook-trust-reconcile.mjs');
-const modernRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-host-4719-'));
+// Both content-aware native renditions must pass the same complete approval contract.
+for (const [version, prefix] of [['4.7.19', 'native-4.7.19/'], ['4.7.21', 'native-4.7.21/scripts/']]) {
+const modernTrust = await import(new URL('./fixtures/brain-host-recovery/' + prefix + 'codex-hook-trust.mjs', import.meta.url));
+const modernReconcile = await import(new URL('./fixtures/brain-host-recovery/' + prefix + 'codex-hook-trust-reconcile.mjs', import.meta.url));
+const modernRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-host-' + version + '-'));
 try {
   fs.mkdirSync(path.join(modernRoot, 'bin')); fs.mkdirSync(path.join(modernRoot, 'scripts'));
   const file = path.join(modernRoot, 'bin/install.mjs'); fs.writeFileSync(file, nativeInstaller);
@@ -209,9 +212,24 @@ try {
   };
   for (const [name, fixture] of Object.entries(helpers)) fs.writeFileSync(path.join(modernRoot, 'scripts', name), read(fixture));
   assert.equal(preflight([file]).ok, true, 'previous native helper set remains supported');
+  if (version === '4.7.21') {
+    const entrypoint = path.join(modernRoot, 'plugin/scripts/entrypoint.mjs');
+    fs.mkdirSync(path.dirname(entrypoint), { recursive: true });
+    fs.writeFileSync(entrypoint, read('native-4.7.21/plugin/scripts/entrypoint.mjs'));
+  }
   for (const name of ['codex-hook-trust.mjs', 'codex-hook-trust-reconcile.mjs']) {
-    fs.writeFileSync(path.join(modernRoot, 'scripts', name), read('native-4.7.19/' + name));
+    fs.writeFileSync(path.join(modernRoot, 'scripts', name), read(prefix + name));
     assert.equal(preflight([file]).ok, name === 'codex-hook-trust-reconcile.mjs', 'mixed helper sets must fail');
+  }
+  if (version === '4.7.21') {
+    const entrypoint = path.join(modernRoot, 'plugin/scripts/entrypoint.mjs');
+    const pristine = fs.readFileSync(entrypoint, 'utf8');
+    fs.appendFileSync(entrypoint, '\n// unreviewed dependency');
+    assert.equal(preflight([file]).ok, false, 'new transitive entrypoint dependency must be reviewed too');
+    fs.writeFileSync(entrypoint, pristine);
+    fs.renameSync(entrypoint, entrypoint + '.outside'); fs.symlinkSync(entrypoint + '.outside', entrypoint);
+    assert.equal(preflight([file]).ok, false, 'linked native dependency must fail closed');
+    fs.unlinkSync(entrypoint); fs.renameSync(entrypoint + '.outside', entrypoint);
   }
   fs.appendFileSync(path.join(modernRoot, 'scripts/codex-hook-trust.mjs'), '\n// unreviewed');
   assert.equal(preflight([file]).ok, false, 'a changed helper is not blessed by its version');
@@ -222,7 +240,8 @@ try {
   fs.writeFileSync(hooksPath, JSON.stringify(manifest));
   const executable = path.join(pluginRoot, 'body.mjs'); fs.writeFileSync(executable, 'export const approved = true;\n');
   const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-  const pluginFiles = new Map(['hooks/codex-hooks.json', 'body.mjs'].map(name =>
+  const pluginFiles = new Map(['hooks/codex-hooks.json', 'body.mjs',
+    ...(version === '4.7.21' ? ['scripts/entrypoint.mjs'] : [])].map(name =>
     [name, sha(fs.readFileSync(path.join(pluginRoot, name)))]));
   const contentHash = modernTrust.codexPluginContentHash(pluginRoot);
   assert.equal(modernReconcile.verifiedPluginContentHash(pluginRoot, pluginFiles), contentHash);
@@ -258,8 +277,8 @@ try {
     }
     return { status: 'ok' };
   };
-  const args = { releaseIdentity: { version: '4.7.19', integrity: 'sha512-' + Buffer.alloc(64).toString('base64'),
-    hooksSha256: sha(fs.readFileSync(hooksPath)), pluginFiles }, installedVersion: '4.7.19', hooksPath,
+  const args = { releaseIdentity: { version, integrity: 'sha512-' + Buffer.alloc(64).toString('base64'),
+    hooksSha256: sha(fs.readFileSync(hooksPath)), pluginFiles }, installedVersion: version, hooksPath,
     configPath, cwd: modernRoot, backupDir: path.join(modernRoot, 'backups'), rpc };
   assert.equal((await modernReconcile.reconcileVerifiedCodexHookTrust(args)).state, 'registry-verified');
   assert.equal(edits.length, identities.size * 2);
@@ -274,5 +293,57 @@ try {
   observedContent = contentHash; fs.appendFileSync(executable, '// drift');
   assert.equal((await modernReconcile.reconcileVerifiedCodexHookTrust(args)).state, 'blocked');
   assert.equal(edits.length, identities.size * 2, 'modified executable must not be approved');
+
+  if (version === '4.7.21') {
+    assert.deepEqual(modernTrust.codexTrustChanges(manifest, manifest), []);
+    const changed = modernTrust.codexTrustChanges(manifest, manifest, undefined, { contentChanged: true });
+    assert.equal(changed.length, identities.size);
+    assert(changed.every(row => row.status === 'modified' && row.reason === 'plugin-content'));
+    for (const [text, expected] of [['codex-cli 0.163.0', false], ['codex-cli 0.164.0', true],
+      ['codex-cli 1.0.0', true], ['unknown', null]]) assert.equal(modernTrust.codexUsesContentTrust(text), expected);
+
+    const control = path.join(modernRoot, 'app-server-control'); fs.mkdirSync(control);
+    const socket = path.join(control, 'app-server-control.sock'); const server = net.createServer();
+    // Darwin's UNIX socket name bound is shorter than its default TMPDIR. Match
+    // Codex's rendezvous symlink to a short physical socket rather than truncating.
+    const socketRoot = fs.mkdtempSync('/tmp/rsp-host-socket-');
+    const physicalSocket = path.join(socketRoot, 'socket');
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(physicalSocket, resolve); });
+    fs.symlinkSync(physicalSocket, socket);
+    const requests = [];
+    class MockSocket extends EventEmitter {
+      closed = false;
+      constructor(mode = 'good') { super(); this.mode = mode; }
+      send(text) {
+        const request = JSON.parse(text); if (!request.id) return;
+        requests.push(request);
+        if (this.mode === 'silent') return;
+        const reply = this.mode === 'refuse' && request.method === 'config/batchWrite'
+          ? { id: request.id, error: { message: 'private-config-canary' } }
+          : { id: request.id, result: request.method === 'config/read'
+            ? { layers: [{ name: { type: 'user', file: configPath }, version: 'fixture' }] } : {} };
+        queueMicrotask(() => this.emit('message', JSON.stringify(reply)));
+      }
+      close() { this.closed = true; }
+      terminate() { this.closed = true; }
+    }
+    try {
+      const client = new MockSocket();
+      assert.deepEqual(await modernReconcile.refreshSharedCodexAppServer({ codexHome: modernRoot, connect: async () => client }),
+        { state: 'refreshed', changed: false, approvalsGranted: 0 });
+      assert(client.closed);
+      assert.deepEqual(requests.map(row => row.method), ['initialize', 'config/read', 'config/batchWrite']);
+      assert.deepEqual(requests[2].params, { filePath: configPath, expectedVersion: 'fixture', reloadUserConfig: true, edits: [] });
+      assert.equal(fs.readFileSync(configPath, 'utf8'), '# synthetic config\n');
+      const refused = await modernReconcile.refreshSharedCodexAppServer({ codexHome: modernRoot, connect: async () => new MockSocket('refuse') });
+      assert.equal(refused.state, 'failed'); assert(!refused.reason.includes('private-config-canary'));
+      const silent = new MockSocket('silent');
+      const timedOut = await modernReconcile.refreshSharedCodexAppServer({ codexHome: modernRoot, timeoutMs: 20, connect: async () => silent });
+      assert.equal(timedOut.state, 'failed'); assert.match(timedOut.reason, /timed out/); assert(silent.closed);
+    } finally { await new Promise(resolve => server.close(resolve)); fs.rmSync(socketRoot, { recursive: true, force: true }); }
+    assert.deepEqual(await modernReconcile.refreshSharedCodexAppServer({ codexHome: modernRoot }),
+      { state: 'no-shared-server', changed: false });
+  }
 } finally { fs.rmSync(modernRoot, { recursive: true, force: true }); }
-console.log('Brain 4.7.19: exact helper sets, native composite approvals, idempotence and content drift refusal PASS');
+console.log('Brain ' + version + ': exact helper sets, native composite approvals, idempotence, content drift refusal and supported refresh contract PASS');
+}

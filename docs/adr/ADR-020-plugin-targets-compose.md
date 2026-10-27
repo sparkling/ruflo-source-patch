@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-15. Compatibility preserves Core 0.2.9+ detached hook options and native counter deltas. Previous statistics compositions remain exactly reconstructible; unavailable counter support reports degradation instead of crashing.
+**Updated**: 2026-10-27. Brain 4.7.21 helper qualification includes its transitive
+entrypoint, shell-gate probes stage the same native dependency, and proven native
+user-learning ownership retires the composed overlay.
+The 2026-10-15 compatibility contract remains: Compatibility preserves Core 0.2.9+ detached hook options and native counter deltas. Previous statistics compositions remain exactly reconstructible; unavailable counter support reports degradation instead of crashing.
 Native ADR-index retirement accepts all three shipped stable
 edge encodings and tests identity/upserts without requiring the unrelated parser API.
 Transition-notice VM probes retain a one-second execution bound, with an explicit
