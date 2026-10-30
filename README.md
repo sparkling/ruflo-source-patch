@@ -15,6 +15,16 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Native host proof: 30 October 2026
+
+Brain's native lifecycle activated **4.7.22** on both hosts. Its doctor now adds
+isolated boot probes for changed shim, MCP and skill surfaces to fresh declaration
+proof. `brain-host-recovery` accepts that stronger native implementation only with
+its reviewed installer and complete helper dependency set. Executable tests reject
+missing, altered, linked, hanging and unsuccessful helpers, partial path evidence and
+claims that existing open windows were proven refreshed. No updater or host state is
+rewritten by this compatibility acceptance.
+
 ## Scratch preservation: 30 October 2026
 
 `brain-scratch-preservation` addresses Brain
@@ -26,12 +36,24 @@ nonempty directories, unknown contents and concurrent changes are retained and r
 Independent native KB-copy archive verification remains unchanged. This protects existing
 records without merging ordinary `memory.db` and native `agentdb-memory.db` stores.
 It neither changes native update selection nor resolves an interrupted KB transaction.
+Release **4.46.82** is installed and tracked on Mac and HZ, with **12/12** targeted
+files patched on each host. The full regression suite passed; real 4.7.21/4.7.22
+modules also passed against disposable sentinel stores and an independent KB archive.
 
 The latest bounded native read found **60 entries** across the nine HZ scratch AgentDB
 stores (59 `turns`, one `repo`), up from 34 at the earlier inspection. This is an
 ordinary-entry inventory, not all-table, vector or duplicate coverage. Ten RuVector
 files remain unclassified. Full backup/restore proof is required before any later
 disposal decision; the guard does not itself authorize cleanup of retained content.
+
+Subsequent inspection found that seven original SQLite files had been unlinked while
+the existing HZ MCP still held them open. That owner was preserved. Native exports
+saved **75 ordinary entries** from all nine cached stores; seven fresh-path native
+SQLite backups exposed 19 entries, all verified by exact reads, including 14 additional
+source-scoped entries. These preservation sets therefore represent **89 source-scoped
+ordinary records**. They do not prove preservation of deleted-store controller tables
+or RuVector data. Do not reconnect the old owner while those gaps remain unresolved.
+The original `RECOVERY_REQUIRED` transaction and KB candidate remain untouched.
 
 ## Capture and lock recovery: 30 October 2026
 
