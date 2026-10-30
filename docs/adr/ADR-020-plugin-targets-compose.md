@@ -2,7 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-27. Brain 4.7.21 helper qualification includes its transitive
+**Updated**: 2026-10-30. The `brain-learning-receipts` target moves the detached
+learning coalescing marker after exact readback. Failed or uncertain writes remain
+unmarked; capacity shedding, store selection and transport are separate unresolved
+work. No historical observations are replayed. Retirement requires equivalent
+marker-free failed-write and verified-child behavior.
+2026-10-27. Brain 4.7.21 helper qualification includes its transitive
 entrypoint, shell-gate probes stage the same native dependency, and proven native
 user-learning ownership retires the composed overlay.
 The 2026-10-15 compatibility contract remains: Compatibility preserves Core 0.2.9+ detached hook options and native counter deltas. Previous statistics compositions remain exactly reconstructible; unavailable counter support reports degradation instead of crashing.

@@ -91,6 +91,7 @@ import { rufloChampionAuthorityCommand } from '../lib/ruflo-champion-authority/c
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
 import { rufloPolicyLedgerCommand } from '../lib/ruflo-policy-ledger/commands.mjs';
 import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
+import { runPluginCommand } from '../lib/plugin-command.mjs';
 import { brainUserLearningRootCommand } from '../lib/brain-user-learning-root/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
 import { brainWrapperOwnershipCommand } from '../lib/brain-wrapper-ownership/commands.mjs';
@@ -158,6 +159,7 @@ const PLUGIN_PATCH_TARGETS = {
   'ruflo-champion-authority': rufloChampionAuthorityCommand,
   'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
   'brain-user-learning-root': brainUserLearningRootCommand,
+  'brain-learning-receipts': action => runPluginCommand('brain-learning-receipts', action),
   'brain-progression-suspension': brainProgressionSuspensionCommand,
   'brain-host-recovery': brainHostRecoveryCommand,
   'brain-wrapper-ownership': brainWrapperOwnershipCommand,
@@ -238,6 +240,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-policy-serialization')}serialize verified policy state once, preserving all receipts and authorization (#3164)
   ${pad('ruflo-policy-ledger')}durable segmented receipt history; explicit initial migration, complete audit (#3164)
   ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
+  ${pad('brain-learning-receipts')}mark capture only after verified readback (#377)
   ${pad('brain-user-learning-root')}keep the adopted user learner independent of parent Git roots (#377)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
   ${pad('brain-wrapper-ownership')}accept exact published older Codex wrappers during native updates (#420)

@@ -15,6 +15,16 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Capture repair in progress: 30 October 2026
+
+`brain-learning-receipts` addresses a residual capture acknowledgement defect
+related to Brain [#377](https://github.com/stuinfla/ruvnet-brain/issues/377): detached
+submission must not mark an observation as captured. The child marks it only after
+exact native readback. This does not remove load shedding or change stores,
+transport, historical data or the native update plane. Unknown upstream anchors
+refuse application. Fleet activation and the wider store/transport repair require
+separate live proof; this target alone does not establish either.
+
 ## Current compatibility review: 27 October 2026
 
 Version **4.46.75** qualifies Brain **4.7.21** against the installed native helper
