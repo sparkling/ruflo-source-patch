@@ -22,14 +22,16 @@ related to Brain [#377](https://github.com/stuinfla/ruvnet-brain/issues/377): de
 submission must not mark an observation as captured. The child marks it only after
 exact native readback. This does not remove load shedding or change stores,
 transport, historical data or the native update plane. Unknown upstream anchors
-refuse application. Version 4.46.78 is installed on Mac and HZ. Controlled native
+refuse application. Version 4.46.81 is installed on Mac and HZ. Controlled native
 MCP reloads and exact reads verified activation; the affected writer also passed a
 new write and complete-value readback. The wider upgrade remains a separate check.
 
 The memory lock now recovers a provably abandoned owned recovery fence through
 the existing exclusive recovery helper. Live or ambiguous owners still refuse.
-A bounded inventory of 149 Mac and 380 HZ store directories found no further
-recovery fences; an inactive worktree claim was preserved. No database or SQLite
+A bounded inventory of 149 Mac and 385 HZ store directories found no further
+recovery fences. The remaining inactive worktree's dead writer claim was subsequently
+archived by a bounded native exact read, leaving no active lock or recovery fence.
+That read is lock-recovery evidence, not a corpus-completeness check. No database or SQLite
 sidecar was altered by fence recovery. Brain history stays in `memory.db`; native
 controllers and research keep their independent `agentdb-memory.db`.
 
@@ -56,10 +58,29 @@ bytes are accepted unchanged. The capture acknowledgement and boolean dual-host
 persistence-proof defects remain, despite related issue closures. Operator-disabled
 completion stays disabled; closure of #423 does not resolve open #425.
 
-Brain's native KB updater still refuses unresolved rollback state. HZ also has
-a retained `RECOVERY_REQUIRED` transaction. These are distinct from Ruflo memory
-locks: patch installation does not clear them, and no Brain cache, candidate,
-transaction receipt or update authority was changed by this repair.
+OPDA's `receipt-chain-mismatch` was a legacy policy-format mismatch, not damaged
+history. The existing `scripts/policy-native-restoration.mjs` converted its verified
+segmented history through the retained compatibility reader and native owner:
+all 47,748 original receipts and trust records were preserved, live MCP status,
+inventory and exact reads passed, and full verification then accepted 47,751
+receipts including those three real calls. No policy decisions or signatures were
+reset. A bounded 139-state inventory found other archived legacy histories only
+outside the observed current MCP working directories; these remain preserved.
+Native policy format must be qualified separately from source-patch retirement.
+
+Owner-approved native Brain `--clean --archive` removed the Mac's two redundant
+KB copies after archiving their unique metadata. Both archived files matched their
+pre-cleanup hashes; one live KB remains and the native footprint check passes.
+This cleared the copy blocker, not the stale corpus: a successful subsequent native
+lifecycle refresh is not yet verified. No manual update or promotion was performed.
+
+HZ remains blocked by a retained `RECOVERY_REQUIRED` transaction with no supported
+native disposition. Its whole-footprint cleanup was withheld: nine paths classified
+as scratch contain 34 memory entries, and ten RuVector files remain unclassified.
+The native cleanup has no per-copy selector. The evidence and requested safe recovery
+route are recorded in [Brain #335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872).
+No HZ cleanup was performed; its memory stores, KB candidate and transaction
+receipts remain preserved.
 
 ## Previous compatibility review: 27 October 2026
 

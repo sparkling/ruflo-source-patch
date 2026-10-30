@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-23. Ruflo 3.59.17 passes the 5,000-receipt native policy proof; exact runtime and unchanged engine bytes remain unmodified. Native backup and graph file-binding fixes supersede those older renditions, while explicit native-only and in-memory-sentinel guards remain separately required. The exact native wrapper now also retains its upstream shutdown fix. The statistics overlay preserves the current caller-path resolver. The review covers 55 targets and 120 previously linked issues plus the two newly relevant reports (122 total: 92 closed, 30 open); issue closure never removes residual protections.
+**Updated**: 2026-10-30. Ruflo 3.65.0 passes the existing 5,000-receipt native policy proof and retains the previously qualified runtime and engine bytes unchanged. The fresh 122-reference review found 98 closed issues, 23 open issues and one merged pull request; issue closure never removes residual protections. OPDA's valid legacy segmented history required a separate explicit conversion despite source compatibility. Source retirement does not migrate data or prove a live session healthy.
+
+Historical 23 October qualification: Ruflo 3.59.17 passes the 5,000-receipt native policy proof; exact runtime and unchanged engine bytes remain unmodified. Native backup and graph file-binding fixes supersede those older renditions, while explicit native-only and in-memory-sentinel guards remain separately required. The exact native wrapper now also retains its upstream shutdown fix. The statistics overlay preserves the current caller-path resolver. The review covered 55 targets and 120 previously linked issues plus two newly relevant reports (122 total: 92 closed, 30 open).
 
 Historical 15 October qualification: Ruflo 3.56.10 bridge proof loads the new pure search-defaults dependency. Brain 4.7.6 ownership is accepted by an exact-source executable proof without an installer overlay; old installer compatibility remains.
 Native lifecycle proof accepts Brain's exact discovery wrapper only after

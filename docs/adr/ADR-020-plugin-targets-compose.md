@@ -2,7 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-30. The `brain-learning-receipts` target moves the detached
+**Updated**: 2026-10-30. OPDA's remaining legacy segmented policy was explicitly
+converted through the existing verified restoration owner, preserving all 47,748
+receipts and original trust snapshots. Native full audit and three live MCP reads
+passed. Installation still never migrates policy data; inactive legacy contexts
+remain preserved and must be qualified before activation.
+The `brain-learning-receipts` target moves the detached
 learning coalescing marker after exact readback. Failed or uncertain writes remain
 unmarked; capacity shedding, store selection and transport are separate unresolved
 work. No historical observations are replayed. Retirement requires equivalent
