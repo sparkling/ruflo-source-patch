@@ -160,6 +160,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-managed-cli-diagnostics': brainManagedCliDiagnosticsCommand,
   'brain-user-learning-root': brainUserLearningRootCommand,
   'brain-learning-receipts': action => runPluginCommand('brain-learning-receipts', action),
+  'brain-scratch-preservation': action => runPluginCommand('brain-scratch-preservation', action),
   'brain-progression-suspension': brainProgressionSuspensionCommand,
   'brain-host-recovery': brainHostRecoveryCommand,
   'brain-wrapper-ownership': brainWrapperOwnershipCommand,
@@ -247,6 +248,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-host-recovery')}prove fresh host readiness without rewriting failed update history (#391)
   ${pad('brain-continuity-summary')}bound optional observations and conflict metadata without dropping memory (#389)
   ${pad('brain-outbox-streaming')}read complete journals incrementally beyond the whole-string limit (#387)
+  ${pad('brain-scratch-preservation')}preserve nonempty scratch stores in every cleanup path (#335)
   ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)
   ${pad('brain-managed-cli-generation')}dispatch managed CLI through the validated native active generation (#384)
   ${pad('brain-progression-collision')}preserve conflicting captures under verified content-bound identities (#383)

@@ -15,6 +15,24 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Scratch preservation: 30 October 2026
+
+`brain-scratch-preservation` addresses Brain
+[#335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872).
+A scratch directory name and age do not establish that its contents are disposable.
+One shared helper protects pre-call cleanup, post-call cleanup and the native footprint
+sweep. It removes only an empty directory through atomic `rmdir`; files, links,
+nonempty directories, unknown contents and concurrent changes are retained and reported.
+Independent native KB-copy archive verification remains unchanged. This protects existing
+records without merging ordinary `memory.db` and native `agentdb-memory.db` stores.
+It neither changes native update selection nor resolves an interrupted KB transaction.
+
+The latest bounded native read found **60 entries** across the nine HZ scratch AgentDB
+stores (59 `turns`, one `repo`), up from 34 at the earlier inspection. This is an
+ordinary-entry inventory, not all-table, vector or duplicate coverage. Ten RuVector
+files remain unclassified. Full backup/restore proof is required before any later
+disposal decision; the guard does not itself authorize cleanup of retained content.
+
 ## Capture and lock recovery: 30 October 2026
 
 `brain-learning-receipts` addresses a residual capture acknowledgement defect
@@ -52,8 +70,8 @@ selective removal preserves the other owner and restores the original bytes.
 
 The fresh upstream review retrieved all **122 linked references**: **98 closed,
 23 open and one merged**. Seven Brain issues closed since the prior review;
-no Ruflo issue changed state. Brain's latest npm runtime remains **4.7.21**;
-the newer GitHub release is a corpus update. Native ownership and host-recovery
+no Ruflo issue changed state. That review covered Brain **4.7.21**;
+the native lifecycle subsequently activated **4.7.22** on Mac and HZ. Native ownership and host-recovery
 bytes are accepted unchanged. The capture acknowledgement and boolean dual-host
 persistence-proof defects remain, despite related issue closures. Operator-disabled
 completion stays disabled; closure of #423 does not resolve open #425.
@@ -76,7 +94,8 @@ lifecycle refresh is not yet verified. No manual update or promotion was perform
 
 HZ remains blocked by a retained `RECOVERY_REQUIRED` transaction with no supported
 native disposition. Its whole-footprint cleanup was withheld: nine paths classified
-as scratch contain 34 memory entries, and ten RuVector files remain unclassified.
+as scratch contain real memory entries (60 in the later bounded read above), and ten
+RuVector files remain unclassified.
 The native cleanup has no per-copy selector. The evidence and requested safe recovery
 route are recorded in [Brain #335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872).
 No HZ cleanup was performed; its memory stores, KB candidate and transaction
@@ -1018,6 +1037,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-console-provider-keys`** | **Retired on executable proof in Brain 4.0.12.** A copied active runtime stages and validates `model-catalog.json`, detects synthetic OpenAI/Google keys, refuses activation with the catalog missing, and renders the explicit `keysVerified: false` “Not checked” state instead of a false credential negative | [stuinfla/ruvnet-brain#86 · closed](https://github.com/stuinfla/ruvnet-brain/issues/86) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
 | **`brain-release-lockstep`** | Keeps Brain's read-only doctor and footprint reporting fail-closed on bundle/package/Stable-Spine/Claude/Codex version drift. The protected release rail now publishes 4.0.36 coherently, but pristine 4.0.36 doctor still compares only bundle versus Claude wrapper, calls drift “normal,” and excludes it from `allGreen`; the issue's doctor acceptance criterion remains open in its body. All eight exact 4.0.36 anchors still apply. The patch never invokes or changes Brain's updater, downloads, immutable versions, `active.json`, host caches, hooks, MCP, or learning runtime | [stuinfla/ruvnet-brain#77 · closed](https://github.com/stuinfla/ruvnet-brain/issues/77) |
 | **`brain-memory-doctor-roots`** | **Retired on executable proof in Brain 4.0.12.** The active standalone doctor finds common and configured roots without `~/Code`, preserves explicit-root scope, fails an all-invalid configured set, falls back safely from malformed configuration, and shares `candidateRoots()` / `findStores()` with the Console | [stuinfla/ruvnet-brain#81 · closed](https://github.com/stuinfla/ruvnet-brain/issues/81) · [PR #93](https://github.com/stuinfla/ruvnet-brain/pull/93) |
+| **`brain-scratch-preservation`** | Protects pre-call, post-call and footprint cleanup through one empty-directory-only removal helper. Nonempty stores, sidecars, unknown files, links and races are retained without raw database access. Independent KB archive proof and native update authority are preserved. Retirement requires the same native preservation behavior at all three call sites. | [stuinfla/ruvnet-brain#335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872) |
 | **`brain-managed-memory-boundary`** | Keeps the direct managed-store boundary complete above installed Brain 4.3.10. #102's structural detector and #103's opt-in `managedMemoryBoundary` setting are native and preserved. The default remains advisory, host non-execution is explicitly unproved, and the audited diagnostic plus truthful doctor/Console states are absent. The target adds only default refusal and the bounded diagnostic, preserving 4.3.10's native `ruvnet_registry_latest` dispatch and Brain's update plane | [stuinfla/ruvnet-brain#102 · closed](https://github.com/stuinfla/ruvnet-brain/issues/102) · [#103 · closed](https://github.com/stuinfla/ruvnet-brain/issues/103) · follow-up to [#48](https://github.com/stuinfla/ruvnet-brain/issues/48#issuecomment-5169487947) |
 | **`brain-search-safety`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retires on native active-KB proof.** Older KB copies need an own-array `symbolRoute` guard and non-mutating outage guidance. The historical Mac audit found a safe route and shared diagnosis-first guidance; retirement executes the installed route and checks both callers plus the helper. A missing or permissive helper cannot retire the patch. The target never changes stores, sidecars, models, updater state, version identity, or release selection | [stuinfla/ruvnet-brain#224 · closed](https://github.com/stuinfla/ruvnet-brain/issues/224) · [#225 · closed](https://github.com/stuinfla/ruvnet-brain/issues/225) |
 | **`brain-dual-host-receipt`** | Preserves Brain's complete subscription-only dual-host deliberation while removing its direct `ruflo memory store` child process. The coordinator emits an exact `memory_store` request for its MCP-aware caller and reports learning persisted only when an injected callback proves the same key was stored and read back. It patches the already-active persistent runtime and deployed helper after native activation; it does not touch Brain releases, updater state, AgentDB files, WAL sidecars, host authentication, or model execution | [stuinfla/ruvnet-brain#272 · closed](https://github.com/stuinfla/ruvnet-brain/issues/272) |

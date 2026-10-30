@@ -67,6 +67,7 @@ npx github:sparkling/ruflo-source-patch brain-console-provider-keys install # re
 npx github:sparkling/ruflo-source-patch brain-release-lockstep install # fail doctor on bundle/package/Spine/host version drift without touching Brain's updater (#77)
 npx github:sparkling/ruflo-source-patch brain-memory-doctor-roots install # retired on shared common/configured-root behavior in Brain 4.0.12+ (#81)
 npx github:sparkling/ruflo-source-patch brain-managed-memory-boundary install # preserve Brain 4.0.36's detector; add default raw-SQL refusal + audited exact diagnostic (#102/#103)
+npx github:sparkling/ruflo-source-patch brain-scratch-preservation install # retain nonempty/unclassified Ruflo scratch before/after calls and during footprint cleanup (#335)
 npx github:sparkling/ruflo-source-patch brain-search-safety install # ignore inherited symbol keys and refuse unproved automatic repair (#224/#225)
 npx github:sparkling/ruflo-source-patch brain-dual-host-receipt install # emit MCP persistence request; never start a second Ruflo memory driver (#272)
 npx github:sparkling/ruflo-source-patch brain-dual-host-stdin install # stream large host prompts over stdin; prevent cross-critique E2BIG (#273)

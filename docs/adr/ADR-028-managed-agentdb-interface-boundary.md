@@ -78,6 +78,28 @@ enforcement active with retrieval off, exposes the audited structured diagnostic
 or mutation, reports truthful doctor/Console state, and survives a native generation flip. #102/#103 issue
 closure and source-only code are insufficient under ADR-014.
 
+## Scratch preservation extension: 30 October 2026
+
+Brain's native scratch cleanup classified `.swarm`, `.claude-flow`, `ruvector.db`
+and old run directories as disposable without proving their contents redundant.
+Bounded native reads found retained records in nine such AgentDB stores. Preserving
+only raw-SQL access boundaries would leave native cleanup able to delete real data.
+
+The issue-backed `brain-scratch-preservation` target therefore composes exact edits
+in `ruflo-bin.mjs`, `ruflo-memory-hooks.mjs` and `brain-footprint.mjs`. They share one
+nonthrowing, metadata-only disposition helper. An atomic empty-directory `rmdir` is
+the sole permitted scratch deletion; files, links, unknown content, nonempty stores
+and races remain untouched. Footprint output reports those retained paths honestly.
+This does not stop native updates, modify update receipts, choose a release, access
+raw database contents, change bindings or weaken independent KB archive verification.
+
+Behavioral tests must exercise all three cleanup paths, sentinel DB/WAL/SHM and
+unknown files, symlinks, concurrent additions, safe empty cleanup, exact reversal
+and anchor refusal. Retirement requires equivalent native behavior at all three
+call sites, not issue closure. Backups and an honest supported transaction-recovery
+route remain separate requirements; this guard provides neither disposal authority
+nor a false `ROLLED_BACK` state for an unperformed rollback.
+
 ## Links
 
 - Upstream: [#102](https://github.com/stuinfla/ruvnet-brain/issues/102), [#103](https://github.com/stuinfla/ruvnet-brain/issues/103)
