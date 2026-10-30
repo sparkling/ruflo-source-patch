@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-17
-**Updated**: 2026-10-10. Issue source-patch#6 replaces anonymous recovery directories with
+**Updated**: 2026-10-30. Interrupted owned recovery fences now reuse guarded disposition on the
+next memory acquisition; live and ambiguous ownership still refuses. Published Ruflo 3.65.0 and
+upstream main d000e27e82c783a5a188abb01d89b8ccbc12b271 retain age-based native lock takeover,
+so the stronger owner boundary is not retired. The original #2878 ordinary-writer fix is upstream.
+Issue source-patch#6 replaces anonymous recovery directories with
 atomically published owner records and explicit dead-owner disposition on macOS/Linux. Legacy
 ownerless same-boot directories remain refused automatically; their creator cannot be inferred from the writer.
 The added cross-platform process-quiescence command was removed by operator instruction.
@@ -15,8 +19,9 @@ handlers retain control, with normal finally/exit cleanup; delegation is never a
 SIGKILL remains outside JavaScript cleanup. Recovery prechecks dead writers before publishing a complete, fsynced recovery-owner file by
 exclusive hardlink, proves ESRCH again under that fence and unchanged descriptor/path inode and contents,
 then preserves the dead claim under a unique evidence name. Live, malformed, symbolic-link and
-ambiguous ownership remain refused. A crash during the synchronous recovery section leaves its
-identified recovery owner fail-closed for operator review; no database or SQLite sidecar is manipulated.
+ambiguous ownership remain refused. A crash during recovery leaves an identified owner record;
+the next patched memory acquisition attempts the existing guarded disposition once. No database
+or SQLite sidecar is manipulated, and no process, inventory scan or second lock protocol is added.
 Ruflo 3.38.12 now supplies the basic native #2878 shared lock for ordinary
 sql.js writers. This target remains for the integrity gate, raw WAL refusal, stronger outer lock, and
 stale-process recovery. Writer discovery now shares current runnable-root coverage: npx, authenticated
@@ -123,7 +128,26 @@ verified `.bin/ruflo`, and launcher-discovered custom global prefixes. A wrapper
 its package identity is proven, with a bounded walk to a nested or hoisted `@claude-flow/cli`. Failure to
 resolve remains visible as unpatched/unknown and never authorizes a signal.
 
-## Explicit interrupted-fence disposition
+## Interrupted-fence disposition
+
+The 30 October incident exposed a gap in the earlier operator-only policy: a killed recovery
+process left a valid owned fence indefinitely, blocking subsequent Brain captures. The next
+memory acquisition now loads the installed source-patch recovery owner from its stable library
+and invokes `recoverOwnedMemoryFence` once for the exact database path. That function accepts
+only identified dead-owner files and delegates to the same inspected, serialized, durable
+archive operation used by the explicit CLI. Failed inspection, missing helper, live/reused PID,
+unknown owner and legacy directories stay refused. Competing callers recheck under the existing
+patch-mutation lock; no caller may remove a replacement fence from an earlier observation.
+The ordinary native lock owner still recovers the writer claim after fence disposition.
+
+Regression proof kills a real child immediately after fence publication and runs eight competing
+callers. All eight enter exclusively, one archive retains the exact fence and completion receipt,
+and one native dead-claim archive retains the writer. Synthetic database/WAL/SHM sentinels cannot
+be opened and remain unchanged. The existing operator tests retain identity-drift, successor,
+durability-failure and live-owner refusal coverage. Loading the patch in a fresh CLI is immediate;
+already loaded MCP runtimes require a controlled owning-host reconnect, never a detached kill.
+
+### Explicit operator route
 
 Issue [source-patch#6](https://github.com/sparkling/ruflo-source-patch/issues/6): new fences are
 mode-0600 regular files with schema, recovery PID, unique token and exact writer-lock path.
@@ -159,7 +183,7 @@ receipt is not evidence of database health, native persistence or distillation.
 
 Legacy same-boot directories, nonempty directories, symlinked, changed or unproved ownership stay refused. An unexpected external
 replacement or persistence failure after the move recreates an exclusive refusal marker without
-overwriting a successor, retaining the archive and failure evidence. This is an operator recovery
+overwriting a successor, retaining the archive and failure evidence. This legacy route is an operator recovery
 operation under a reviewed quiescent, preboot condition, not automatic timeout-based lock stealing
 or protection against arbitrary concurrent filesystem mutation outside the lock protocol.
 Synthetic tests exercise refusal boundaries, post-move failures, evidence preservation and the

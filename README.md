@@ -1060,17 +1060,28 @@ This controls notices; an abandoned writer claim still requires ownership diagno
 
 The `memory` target recovers a positively proved dead writer claim under an exclusive recovery
 fence, preserving its exact metadata as evidence. It refuses live, malformed or ambiguous claims.
-SIGKILL cannot run process cleanup; an interrupted recovery fence remains visibly fail-closed.
+SIGKILL cannot run process cleanup. On the next acquisition, the patched caller attempts the
+existing guarded recovery once for that exact database path. Only a positively dead, identified
+recovery owner qualifies; live/reused PIDs, unknown ownership and missing helpers remain refused.
+This adds no inventory scan, background process or alternative locking implementation.
 Database files and SQLite sidecars are not changed by claim recovery.
 
 New recovery fences carry atomically published ownership ([source-patch#6](https://github.com/sparkling/ruflo-source-patch/issues/6)).
 `memory inspect-fence /absolute/path/memory.db` and `memory recover-fence /absolute/path/reviewed-expectation.json`
-support a provably dead **recovery owner** on macOS/Linux without requiring another boot.
+support a provably dead **recovery owner** on macOS/Linux without requiring another boot;
+automatic acquisition recovery reuses this owner and excludes all legacy anonymous directories.
 Live/reused PIDs and ambiguous evidence remain refused. The exact fence is archived durably;
 the writer claim, database and SQLite sidecars remain untouched. A missing writer claim after
 native archival is supported. Ordinary live-writer contention no longer creates recovery fences.
 Legacy empty same-boot directories still need independent proof of quiescence; this release does
 not invent a recovery owner for them. Fresh memory read/write/readback is a separate check.
+
+Checked 30 October against published Ruflo 3.65.0 and main
+[`d000e27`](https://github.com/ruvnet/ruflo/blob/d000e27e82c783a5a188abb01d89b8ccbc12b271/v3/%40claude-flow/cli/src/memory/memory-initializer.ts):
+the original [#2878](https://github.com/ruvnet/ruflo/issues/2878) writer serialization is present,
+but native stale takeover still uses age alone. The stronger ownership patch remains necessary.
+The SIGKILL regression now proves automatic recovery with eight competing callers, one durable
+fence archive and unchanged synthetic database/sidecar sentinels (ADR-023).
 
 For an interrupted **preboot** recovery on macOS, the memory owner provides an explicit operator
 path: `memory inspect-fence /absolute/path/memory.db` emits exact reviewable identity metadata;
