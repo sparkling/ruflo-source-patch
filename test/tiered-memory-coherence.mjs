@@ -117,11 +117,31 @@ try {
   const target = path.join(process.env.RUFLO_GLOBAL_ROOT, '@claude-flow', 'memory', 'dist', 'tiered-memory.js');
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, pristine);
-  const { apply } = await import('../lib/cwd/patch-library.mjs');
-  assert.equal(apply(['memory']).patched, 1);
+  const cliRoot = path.join(process.env.RUFLO_GLOBAL_ROOT, '@claude-flow', 'cli');
+  fs.mkdirSync(cliRoot, { recursive: true });
+  fs.writeFileSync(path.join(cliRoot, 'package.json'), '{"name":"@claude-flow/cli"}');
+  const nestedTarget = path.join(cliRoot, 'node_modules', '@claude-flow', 'memory', 'dist', 'tiered-memory.js');
+  fs.mkdirSync(path.dirname(nestedTarget), { recursive: true });
+  fs.writeFileSync(nestedTarget, pristine);
+  const { apply, ENTRIES, composeCliContribution, historicalCliContribution } = await import('../lib/cwd/patch-library.mjs');
+  assert.equal(apply(['memory']).patched, 2);
+  assert.equal(fs.readFileSync(nestedTarget, 'utf8'), fs.readFileSync(target, 'utf8'),
+    'nested dependency receives the same single contribution as the hoisted copy');
+  assert.ok(!fs.readFileSync(nestedTarget, 'utf8').includes('this.hydrate();\n        this.hydrate();'));
   assert.equal(apply(['memory']).patched, 0);
-  assert.equal(apply([]).restored, 1);
+  const entry = ENTRIES.find(e => e.id === 'memory/tiered-coherence-hoisted');
+  const duplicate = composeCliContribution(pristine, [entry, entry]).next;
+  assert.ok(duplicate.includes('this.hydrate();\n        this.hydrate();'));
+  assert.equal(historicalCliContribution(pristine, duplicate, [entry]).next, duplicate,
+    'shared-file composer recognizes only the exact former duplicate contribution');
+  const foreign = duplicate + '\n// unrelated local edit';
+  assert.notEqual(historicalCliContribution(pristine, foreign, [entry]).next, foreign);
+  fs.writeFileSync(nestedTarget, duplicate);
+  assert.equal(apply(['memory']).patched, 1, 'repair exact 4.46.79 duplicate composition');
+  assert.equal(fs.readFileSync(nestedTarget, 'utf8'), fs.readFileSync(target, 'utf8'));
+  assert.equal(apply([]).restored, 2);
   assert.equal(fs.readFileSync(target, 'utf8'), pristine);
+  assert.equal(fs.readFileSync(nestedTarget, 'utf8'), pristine);
   // Neither a mutation driver nor SQL diagnostic against any managed DB is used:
   // only this suite's new private fixture file, using public TieredMemoryStore APIs.
   if (args[1]) {

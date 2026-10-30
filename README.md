@@ -35,11 +35,13 @@ controllers and research keep their independent `agentdb-memory.db`.
 
 ## Compatibility repairs: 30 October 2026
 
-Version **4.46.79** preserves Ruflo **3.65.0**'s new verified-outcome fields in
+Version **4.46.80** preserves Ruflo **3.65.0**'s new verified-outcome fields in
 both returned and atomically saved session state. Its plugin-host projection
 preserves the newer native verify/paths commands and the older command surface.
 Package discovery now also covers identified CLI dependencies nested by npm;
-it does not recursively search unrelated directories. The Codex manifest repair
+it does not recursively search unrelated directories. One shared tiered-memory
+contribution covers both layouts, preventing duplicate edits on nested copies.
+The Codex manifest repair
 accepts the exact MetaHarness **0.4.0** mixed command/module rendition, preserves
 its command hook, and retains the original Claude module source. Changed or
 unknown manifests still refuse application.
