@@ -52,6 +52,7 @@ try {
     '{"hooks":{},"hooks":{}}',
     '{"description":"x","description":"y","hooks":{}}',
     '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"unreviewed"}]}]}}',
+    '{"hooks":{"SessionStart":[{"hooks":{}}]}}',
   ]) {
     const refused = mod.patchSource(bad);
     assert.equal(refused.next, bad);
@@ -169,6 +170,57 @@ try {
   assert.equal(fs.readFileSync(path.join(mixedClaude, 'hooks/hooks.json'), 'utf8'), mixed);
   assert.equal(compose.reconcile([], [mod.NAME]).errors, 0);
   assert.equal(fs.readFileSync(mixedFile, 'utf8'), mixed);
+  const logger = await import('../lib/hook-failure-log/patcher.mjs');
+  const loggedOriginal = logger.patchSource(mixed).next;
+  const loggedProjection = logger.patchSource(mixedFixed.next).next;
+  assert.equal(mod.isPatched(loggedProjection), true, 'status recognizes the exact sibling logger composition');
+  assert.deepEqual(mod.patchSource(loggedProjection), { next: loggedProjection, applied: [], missing: [] });
+  assert.equal(mod.patchSource(loggedOriginal).next, loggedProjection, 'projection preserves an existing owned logger');
+  assert.equal(mod.reverseSource(loggedProjection), loggedOriginal, 'selective projection reversal preserves the logger');
+  assert.equal(logger.reverseSource(loggedProjection), mixedFixed.next);
+  for (const bad of [
+    loggedProjection.replaceAll(home, '/foreign-owner'),
+    loggedProjection.replace("openrouterApiKey:'OPENROUTER_API_KEY'", "openrouterApiKey:'DIFFERENT_VARIABLE'"),
+    loggedProjection.replace(' --require ', ' --trace-warnings --require '),
+    loggedProjection.replace(' -e ', ' --require /foreign/preload.cjs -e '),
+  ]) {
+    assert.equal(mod.isPatched(bad), false, 'foreign wrappers and altered commands never satisfy the projection');
+    assert.equal(mod.patchSource(bad).next, bad);
+    assert.equal(mod.patchSource(bad).missing.length, 1);
+    assert.equal(mod.reverseSource(bad), bad, 'unproved compositions cannot be selectively reversed');
+    write(mixedFile, bad);
+    assert.equal(mod.preflight().ok, false);
+    const refused = compose.applyComposed([mod.NAME, logger.NAME], { files: [mixedFile] });
+    assert.ok(refused.errors + refused.incomplete > 0, 'composition cannot overwrite an unproved hook');
+    assert.equal(fs.readFileSync(mixedFile, 'utf8'), bad);
+    assert.equal(fs.existsSync(`${mixedFile}.rsp-backup`), false, 'unproved bytes never become pristine');
+  }
+  write(mixedFile, mixed);
+  for (const removedFirst of [logger.NAME, mod.NAME]) {
+    const both = [mod.NAME, logger.NAME];
+    const combined = compose.applyComposed(both);
+    assert.equal(combined.errors, 0); assert.equal(combined.incomplete, 0);
+    assert.equal(fs.readFileSync(mixedFile, 'utf8'), loggedProjection);
+    assert.equal(fs.readFileSync(`${mixedFile}.rsp-backup`, 'utf8'), mixed, 'composition retains the true vendor pristine');
+    assert.equal(mod.preflight().ok, true);
+    for (const status of Object.values(compose.statusComposed(both))) assert.equal(status.patched, status.files);
+    const repeated = compose.applyComposed([...both].reverse());
+    assert.equal(repeated.errors, 0); assert.equal(repeated.incomplete, 0); assert.equal(repeated.patched, 0);
+    assert.equal(fs.readFileSync(mixedFile, 'utf8'), loggedProjection);
+    const survivor = both.find(name => name !== removedFirst);
+    const selective = compose.reconcile([survivor], [removedFirst]);
+    assert.equal(selective.errors, 0); assert.equal(selective.incomplete, 0);
+    assert.equal(fs.readFileSync(mixedFile, 'utf8'), survivor === logger.NAME ? loggedOriginal : mixedFixed.next);
+    assert.equal(fs.readFileSync(`${mixedFile}.rsp-backup`, 'utf8'), mixed);
+    assert.equal(mod.preflight().ok, true);
+    const status = compose.statusComposed([survivor])[survivor];
+    assert.equal(status.patched, status.files);
+    const final = compose.reconcile([], [survivor]);
+    assert.equal(final.errors, 0); assert.equal(final.incomplete, 0);
+    assert.equal(fs.readFileSync(mixedFile, 'utf8'), mixed, 'either removal order recovers exact pristine bytes');
+    assert.equal(fs.readFileSync(path.join(mixedClaude, 'hooks/hooks.json'), 'utf8'), mixed);
+    assert.equal(fs.existsSync(`${mixedFile}.rsp-backup`), false);
+  }
   const wrongMixedOwner = path.join(home, '.codex/plugins/cache/ruflo/ruflo-agent/0.3.1');
   populate(wrongMixedOwner, mixed, 'ruflo-agent');
   const wrongMixedProof = mod.preflight();

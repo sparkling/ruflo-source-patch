@@ -35,7 +35,7 @@ controllers and research keep their independent `agentdb-memory.db`.
 
 ## Compatibility repairs: 30 October 2026
 
-Version **4.46.80** preserves Ruflo **3.65.0**'s new verified-outcome fields in
+Version **4.46.81** preserves Ruflo **3.65.0**'s new verified-outcome fields in
 both returned and atomically saved session state. Its plugin-host projection
 preserves the newer native verify/paths commands and the older command surface.
 Package discovery now also covers identified CLI dependencies nested by npm;
@@ -44,7 +44,9 @@ contribution covers both layouts, preventing duplicate edits on nested copies.
 The Codex manifest repair
 accepts the exact MetaHarness **0.4.0** mixed command/module rendition, preserves
 its command hook, and retains the original Claude module source. Changed or
-unknown manifests still refuse application.
+unknown manifests still refuse application. Status and preflight recognize only
+the existing logger's exact reversible wrapper around those command hooks;
+selective removal preserves the other owner and restores the original bytes.
 
 The fresh upstream review retrieved all **122 linked references**: **98 closed,
 23 open and one merged**. Seven Brain issues closed since the prior review;
