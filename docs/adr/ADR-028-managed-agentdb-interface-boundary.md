@@ -86,7 +86,9 @@ Bounded native reads found retained records in nine such AgentDB stores. Preserv
 only raw-SQL access boundaries would leave native cleanup able to delete real data.
 
 The issue-backed `brain-scratch-preservation` target therefore composes exact edits
-in `ruflo-bin.mjs`, `ruflo-memory-hooks.mjs` and `brain-footprint.mjs`. They share one
+in `ruflo-bin.mjs`, `ruflo-memory-hooks.mjs`, `brain-footprint.mjs` and the
+learning, decision, durability and recall cleanup callers. It includes matching native
+npm and Console executable payloads as well as active and host plugin copies. They share one
 nonthrowing, metadata-only disposition helper. An atomic empty-directory `rmdir` is
 the sole permitted scratch deletion; files, links, unknown content, nonempty stores
 and races remain untouched. Footprint output reports those retained paths honestly.

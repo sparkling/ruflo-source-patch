@@ -179,6 +179,24 @@ This is the narrow policy from #2735 applied at the actual whole-image boundary.
 per-function gates remain useful, but the boundary also covers `ensureSchemaColumns`,
 `applyTemporalDecay`, purge fallback, and any future caller of the shared helpers.
 
+## Explicit auxiliary ownership: 30 October 2026
+
+Ruflo 3.65.0's primary bridge write accepts an explicit database, but the following
+`addToHNSWIndex` call and its `bridgeAddEmbedding` delegate omitted that identity.
+The delegate performs another native SQL upsert; it does not construct HNSW.
+Thus an otherwise correctly targeted write could copy a full record to the ambient
+native store. Brain's scratch cwd made that copy vulnerable to unrelated cleanup.
+
+The existing memory target forwards the optional path through ordinary and pattern
+auxiliary calls. Explicit requests never fall back to the unscoped HNSW singleton
+or mutate its key/namespace entries during store, delete or purge. A failed auxiliary
+sync leaves the committed primary receipt intact and does not replay the primary write.
+Calls without a path retain native behavior; native controller initialization keeps
+its independent default. No data migration, merge or cleanup follows from installing
+this source correction. Source fixtures must reproduce the wrong-store copy before
+patching and test explicit failure, native/raw writes, delete/purge, implicit defaults
+and sibling patch composition afterwards. Related upstream issue: [#3196](https://github.com/ruvnet/ruflo/issues/3196).
+
 ## Consequences
 
 ### Positive

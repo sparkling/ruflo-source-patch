@@ -120,8 +120,13 @@ if (native) {
   const readOnlyModules = path.join(readOnlyRoot, 'npx', 'fixture', 'node_modules');
   const readOnlyFile = path.join(readOnlyModules, bridgeRel);
   fs.mkdirSync(path.dirname(readOnlyFile), { recursive: true });
-  // Native identity and independent controller ownership need no local overlay.
-  const nativeSource = pristineBytes(path.join(vendor, bridgeRel));
+  // Isolate native registry identity and controller ownership. The unrelated
+  // bridgeStorePattern caller still needs #3196's auxiliary path overlay; the
+  // full mutable module above/below and memory-auxiliary-path cover that owner.
+  // Do not mistake a required caller repair for a mutation of native identity.
+  const nativeSource = Buffer.from(pristineBytes(path.join(vendor, bridgeRel)).toString()
+    .replace(/^export async function bridgeStorePattern\(options\) \{[\s\S]*?^\}/m, ''));
+  check(nativeMemoryBridgeSatisfied(nativeSource.toString()), 'isolated registry fixture lost native identity proof');
   fs.writeFileSync(readOnlyFile, nativeSource);
   fs.chmodSync(readOnlyFile, 0o444);
   fs.chmodSync(path.dirname(readOnlyFile), 0o555);

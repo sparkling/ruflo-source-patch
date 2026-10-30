@@ -15,6 +15,26 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Explicit embedding ownership: 30 October 2026
+
+Ruflo **3.65.0** still drops an explicit database path between a successful primary
+write and its auxiliary embedding sync. Brain uses the correct `memory store --path`
+argument; the subsequent `addToHNSWIndex` call omitted the path supported by
+`bridgeAddEmbedding`, which copied the row into the ambient native controller store.
+This residual of [#3196](https://github.com/ruvnet/ruflo/issues/3196#issuecomment-5849260721)
+explains why real records can appear under Brain's scratch working directories.
+It does not establish that any retained scratch row is redundant.
+
+The existing `memory` target now carries the explicit path through ordinary and
+pattern embedding calls. Explicit operations cannot fall through to the ambient
+HNSW singleton or remove entries from its index during store, delete or purge.
+Primary native writes already persist their embedding; auxiliary failure preserves
+that primary receipt without replaying the write or claiming a new index guarantee.
+Implicit controller defaults and the intentional two-store design remain unchanged.
+Tests execute installed native function bodies and patch composition with isolated
+driver doubles; they do not claim a refreshed live MCP or a complete retrieval benchmark.
+The old HZ recovery owner remains open until its deleted-store preservation gaps are resolved.
+
 ## Native host proof: 30 October 2026
 
 Brain's native lifecycle activated **4.7.22** on both hosts. Its doctor now adds
@@ -31,13 +51,14 @@ rewritten by this compatibility acceptance.
 [#335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872).
 A scratch directory name and age do not establish that its contents are disposable.
 One shared helper protects pre-call cleanup, post-call cleanup and the native footprint
-sweep. It removes only an empty directory through atomic `rmdir`; files, links,
+sweep. The extension covers learning, decision capture, durability probes and both
+recall cleanup callers, including executable npm and Console installer payloads. It removes only an empty directory through atomic `rmdir`; files, links,
 nonempty directories, unknown contents and concurrent changes are retained and reported.
 Independent native KB-copy archive verification remains unchanged. This protects existing
 records without merging ordinary `memory.db` and native `agentdb-memory.db` stores.
 It neither changes native update selection nor resolves an interrupted KB transaction.
-Release **4.46.82** is installed and tracked on Mac and HZ, with **12/12** targeted
-files patched on each host. The full regression suite passed; real 4.7.21/4.7.22
+The initial **4.46.82** deployment covered **12/12** files on each host. Further
+caller and installed-payload auditing found the additional boundaries described above. The full regression suite passed; real 4.7.21/4.7.22
 modules also passed against disposable sentinel stores and an independent KB archive.
 
 The latest bounded native read found **60 entries** across the nine HZ scratch AgentDB
@@ -62,7 +83,7 @@ related to Brain [#377](https://github.com/stuinfla/ruvnet-brain/issues/377): de
 submission must not mark an observation as captured. The child marks it only after
 exact native readback. This does not remove load shedding or change stores,
 transport, historical data or the native update plane. Unknown upstream anchors
-refuse application. Version 4.46.81 is installed on Mac and HZ. Controlled native
+refuse application. Version 4.46.81 was installed on Mac and HZ. Controlled native
 MCP reloads and exact reads verified activation; the affected writer also passed a
 new write and complete-value readback. The wider upgrade remains a separate check.
 
