@@ -62,6 +62,13 @@ try {
   const unknown = previous.replace('const deadline = Date.now() + 5000;', 'const deadline = Date.now() + 7000;');
   assert.notEqual(historicalCliContribution(pristine, unknown, [entry]).next, unknown);
   assert.ok(!previous.includes(entry.proof));
+  const diagnostic = ENTRIES.find(e => e.id === 'memory/path-keyed-bridge-diagnostics-native');
+  const vendor = pristine + '\nreturn { success: false, entries: [], total: 0, ' + diagnostic.edits[0].find
+    + ';\nreturn { success: false, deletedCount: 0, remainingEntries: 0, ' + diagnostic.edits[1].find + ';';
+  const combined = composeCliContribution(vendor, [entry, diagnostic]).next;
+  const copiedRuntime = combined.replace(MEMORY_LOCK_SOURCE, MEMORY_LOCK_SOURCE_V2);
+  assert.equal(historicalCliContribution(vendor, copiedRuntime, [entry, diagnostic]).next, copiedRuntime,
+    'copied runtime preserves the older lock plus already-applied path diagnostic');
   const crash = fixture('crash'); fs.unlinkSync(crash.gate);
   const claim = fs.readFileSync(crash.lock, 'utf8');
   const killed = spawnSync(process.execPath, [worker, crash.db, 'crash'], { encoding: 'utf8', timeout: 10000 });

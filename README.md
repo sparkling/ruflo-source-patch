@@ -1082,6 +1082,8 @@ the original [#2878](https://github.com/ruvnet/ruflo/issues/2878) writer seriali
 but native stale takeover still uses age alone. The stronger ownership patch remains necessary.
 The SIGKILL regression now proves automatic recovery with eight competing callers, one durable
 fence archive and unchanged synthetic database/sidecar sentinels (ADR-023).
+Already-patched path diagnostics remain recognizable after their edit; this preserves exact
+historical-composition proof when a migrated runtime has lost its pristine source backup.
 
 For an interrupted **preboot** recovery on macOS, the memory owner provides an explicit operator
 path: `memory inspect-fence /absolute/path/memory.db` emits exact reviewable identity metadata;
