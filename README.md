@@ -17,6 +17,14 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Explicit embedding ownership: 30 October 2026
 
+Release **4.46.84** is pushed and installed on Mac and HZ. Both patch monitors
+report no drift, and scratch preservation covers **48/48 files on each host**.
+The full regression suite passes. The existing HZ memory owner was deliberately
+not reconnected: it still holds deleted stores whose complete recovery is unproven.
+Fresh CLI/hook processes use the installed correction; existing loaded MCP code is
+not represented as refreshed. The native stuck transaction remains unresolved.
+
+
 Ruflo **3.65.0** still drops an explicit database path between a successful primary
 write and its auxiliary embedding sync. Brain uses the correct `memory store --path`
 argument; the subsequent `addToHNSWIndex` call omitted the path supported by
