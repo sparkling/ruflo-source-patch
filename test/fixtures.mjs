@@ -69,6 +69,17 @@ export function findVendorRoot() {
   return found;
 }
 
+/** Follow the CLI's nested dependency before npm's hoisted layout. */
+export function findVendorFile(root, relativeFile) {
+  const candidates = [
+    path.join(root, '@claude-flow', 'cli', 'node_modules', relativeFile),
+    path.join(root, relativeFile),
+  ];
+  const found = candidates.find((file) => fs.existsSync(file));
+  if (!found) die(`missing vendor fixture in nested or hoisted layout: ${relativeFile}`);
+  return found;
+}
+
 /** Find a real CLI copy whose pristine form contains every requested exact anchor. */
 export function findVendorRootWith(relativeFile, anchors) {
   const found = vendorRoots().find((root) => {

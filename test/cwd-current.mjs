@@ -7,7 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import {
-  REPO, findVendorRootWith, pristineBytes,
+  REPO, findVendorRootWith, findVendorFile, pristineBytes,
 } from './fixtures.mjs';
 
 const SB = process.argv[2];
@@ -118,7 +118,7 @@ function reset() {
   for (const rel of Object.values(AGENT_REL)) {
     const destination = path.join(AGENTDB, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, pristineBytes(path.join(SOURCE, 'agentdb', rel)));
+    fs.writeFileSync(destination, pristineBytes(findVendorFile(SOURCE, `agentdb/${rel}`)));
   }
 }
 

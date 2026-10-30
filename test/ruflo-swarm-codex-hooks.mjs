@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-swarm-codex-hooks-'));
 const home = path.join(temporary, 'home');
 process.env.RUFLO_SOURCE_PATCH_HOME = home;
@@ -10,6 +11,13 @@ const write = (file, body) => { fs.mkdirSync(path.dirname(file), { recursive: tr
 const original = `{\n  "description": ${JSON.stringify(mod.DESCRIPTION)},\n  "modules": ["./register.ts"]\n}\n`;
 const module = "import type { EngineInterface, On, PluginOptions } from 'claude-code'\nexport default function register($: EngineInterface) {}\n";
 const native = '{"description":"Native unsupported-host no-op","hooks":{}}\n';
+const mixedHooks = { SessionStart: [{ hooks: [{ type: 'command',
+  command: "node -e \"require(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','_secret-env.cjs')).bridge({openrouterApiKey:'OPENROUTER_API_KEY'})\"",
+}] }] };
+const mixed = JSON.stringify({
+  description: 'MetaHarness as a mod (ADR-445): a tighten-only guard on the metaharness tools (promotion needs an explicit confirm, no secrets in inputs), a status file the console reads, and /metaharness-mod. The classic SessionStart hook hands the sensitive option openrouterApiKey to the Bash tool as OPENROUTER_API_KEY through CLAUDE_ENV_FILE, only when that variable is not already set, so a redblue run started from a skill can use a key kept in the credential store (scripts/_secret-env.cjs, ADR-506).',
+  hooks: mixedHooks, modules: ['./register.ts'],
+}, null, 2) + '\n';
 const plugin = 'ruflo-swarm';
 const roots = [path.join(home, '.codex/.tmp/marketplaces/ruflo/plugins', plugin),
   path.join(home, '.codex/plugins/cache/ruflo', plugin, '0.3.1')];
@@ -48,6 +56,24 @@ try {
     const refused = mod.patchSource(bad);
     assert.equal(refused.next, bad);
     assert.equal(refused.missing.length, 1, `unknown manifest must remain unchanged: ${bad}`);
+  }
+  const mixedFixed = mod.patchSource(mixed);
+  assert.deepEqual(mixedFixed.missing, [], 'the exact MetaHarness 0.4.0 mixed manifest is supported');
+  assert.deepEqual(Object.keys(JSON.parse(mixedFixed.next)), ['description', 'hooks']);
+  assert.deepEqual(JSON.parse(mixedFixed.next).hooks, mixedHooks, 'existing command hooks must survive unchanged');
+  assert.equal(mod.reverseSource(mixedFixed.next), mixed);
+  assert.deepEqual(mod.patchSource(mixedFixed.next), { next: mixedFixed.next, applied: [], missing: [] });
+  assert.equal(mod.isNativeSchema(mixedFixed.next), false, 'our mixed projection is never native retirement evidence');
+  for (const bad of [mixed, mixedFixed.next].flatMap(source => [
+    source.replace("openrouterApiKey:'OPENROUTER_API_KEY'", "openrouterApiKey:'DIFFERENT_VARIABLE'"),
+    source.replace('"SessionStart":', '"SessionEnd":'),
+    source.replace('"hooks": {', '"hooks": {}, "hooks": {'),
+    source.replace('"hooks": {', '"metadata": {}, "hooks": {'),
+    source.replace('"type": "command"', '"type": "prompt"'),
+  ]).concat(mixed.replace('./register.ts', './unknown.ts'))) {
+    const refused = mod.patchSource(bad);
+    assert.equal(refused.next, bad);
+    assert.equal(refused.missing.length, 1, 'unknown mixed declarations and edited projections stay untouched');
   }
   roots.forEach((root) => populate(root)); populate(claudeRoot);
   const files = roots.map((root) => path.join(root, 'hooks/hooks.json'));
@@ -110,5 +136,43 @@ try {
   }
   assert.equal(compose.reconcile([], [mod.NAME]).errors, 0);
   for (const file of extraFiles) assert.equal(mod.hasPatch(fs.readFileSync(file, 'utf8')), false);
-  console.log('✓ Swarm #3688: Codex-only strict no-op, retained Claude modules, exact restoration, unsafe/mixed-module refusal and bounded native retirement');
+  const mixedRoot = path.join(home, '.codex/plugins/cache/ruflo/ruflo-metaharness/0.4.0');
+  const mixedClaude = path.join(home, '.claude/plugins/cache/ruflo/ruflo-metaharness/0.4.0');
+  for (const root of [mixedRoot, mixedClaude]) {
+    populate(root, mixed, 'ruflo-metaharness');
+    write(path.join(root, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'ruflo-metaharness', version: '0.4.0' }));
+  }
+  assert.equal(mod.preflight().ok, true, 'old and current MetaHarness renditions coexist');
+  const mixedApplied = compose.applyComposed([mod.NAME]);
+  assert.equal(mixedApplied.errors, 0); assert.equal(mixedApplied.incomplete, 0);
+  const mixedFile = path.join(mixedRoot, 'hooks/hooks.json');
+  assert.equal(fs.readFileSync(mixedFile, 'utf8'), mixedFixed.next);
+  assert.equal(fs.readFileSync(`${mixedFile}.rsp-backup`, 'utf8'), mixed);
+  // Codex documents CLAUDE_PLUGIN_ROOT as its compatibility alias alongside PLUGIN_ROOT.
+  const helper = path.join(mixedRoot, 'scripts/_secret-env.cjs');
+  write(helper, `module.exports.bridge = options => {
+    require('node:assert/strict').deepEqual(options, { openrouterApiKey: 'OPENROUTER_API_KEY' });
+    if (process.env.CLAUDE_ENV_FILE) throw Error('the Codex fixture has no Claude env-file');
+    process.stdout.write('resolved plugin helper');
+  };\n`);
+  const command = JSON.parse(mixedFixed.next).hooks.SessionStart[0].hooks[0].command;
+  const invocation = /^node -e "([\s\S]*)"$/.exec(command);
+  assert.ok(invocation, 'the reviewed Node bootstrap keeps its exact invocation shape');
+  const hookRun = spawnSync(process.execPath, ['-e', invocation[1]], { encoding: 'utf8', timeout: 3000,
+    cwd: temporary, env: { PLUGIN_ROOT: mixedRoot, CLAUDE_PLUGIN_ROOT: mixedRoot } });
+  assert.equal(hookRun.error, undefined);
+  assert.equal(hookRun.status, 0, hookRun.stderr);
+  assert.equal(hookRun.stdout, 'resolved plugin helper', 'the preserved command resolves from a different working directory');
+  assert.equal(hookRun.stderr, '');
+  assert.equal(mod.preflight().ok, true, 'the mixed projection retains its exact plugin identity');
+  for (const root of [mixedRoot, mixedClaude]) assert.equal(fs.readFileSync(path.join(root, 'hooks/register.ts'), 'utf8'), module);
+  assert.equal(fs.readFileSync(path.join(mixedClaude, 'hooks/hooks.json'), 'utf8'), mixed);
+  assert.equal(compose.reconcile([], [mod.NAME]).errors, 0);
+  assert.equal(fs.readFileSync(mixedFile, 'utf8'), mixed);
+  const wrongMixedOwner = path.join(home, '.codex/plugins/cache/ruflo/ruflo-agent/0.3.1');
+  populate(wrongMixedOwner, mixed, 'ruflo-agent');
+  const wrongMixedProof = mod.preflight();
+  assert.equal(wrongMixedProof.ok, false, 'reviewed mixed bytes do not authorize a different plugin owner');
+  assert.ok(wrongMixedProof.errors.some(error => error.includes('module manifest identity mismatch')));
+  console.log('✓ Swarm #3688: strict Codex projection, preserved mixed command hooks and Claude modules, exact restoration, drift refusal and bounded native retirement');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }

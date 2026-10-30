@@ -133,6 +133,33 @@ check('PHD4 a validated root captured by a rich shell survives a narrow monitor 
     && !JSON.parse(recordedProbe.stdout).includes(path.join(SB, 'unverified-root')),
   `${recordedProbe.stdout}${recordedProbe.stderr}`);
 
+const npxRoot = path.join(SB, 'npx');
+const nm = path.join(npxRoot, 'entry', 'node_modules');
+const nestedClis = [path.join(nm, '@claude-flow', 'cli'),
+  path.join(nm, '@claude-flow', '.cli-native'),
+  path.join(recordedRoot, 'ruflo', 'node_modules', '@claude-flow', 'cli')];
+const fixtureRelative = ['agentdb', 'dist', 'src', 'core', 'AgentDB.js'];
+const expected = [path.join(nm, ...fixtureRelative)];
+write(expected[0], '// hoisted native fixture\n');
+for (const cli of nestedClis) {
+  write(path.join(cli, 'package.json'), '{"name":"@claude-flow/cli"}');
+  const file = path.join(cli, 'node_modules', ...fixtureRelative);
+  write(file, '// nested native fixture\n'); expected.push(file);
+}
+const foreign = path.join(nm, '@claude-flow', '.cli-foreign');
+write(path.join(foreign, 'package.json'), '{"name":"@other/package"}');
+write(path.join(foreign, 'node_modules', ...fixtureRelative), '// unrelated package\n');
+const discoveryModule = pathToFileURL(path.join(REPO, 'lib/cwd/package-discovery.mjs')).href;
+const dependencyProbe = spawnSync(process.execPath, ['--input-type=module', '--eval',
+  `const m = await import(${JSON.stringify(discoveryModule)}); process.stdout.write(JSON.stringify(m.discover(${JSON.stringify(fixtureRelative)})));`], {
+  env: { ...process.env, RUFLO_SOURCE_PATCH_HOME: recordedHome,
+    RUFLO_GLOBAL_ROOT: recordedRoot, RUFLO_NPX_ROOT: npxRoot }, encoding: 'utf8',
+});
+check('PHD5 hoisted, nested and hidden-alias CLI dependencies are covered once; foreign aliases excluded',
+  dependencyProbe.status === 0
+    && JSON.stringify(JSON.parse(dependencyProbe.stdout).sort()) === JSON.stringify(expected.sort()),
+  `${dependencyProbe.stdout}${dependencyProbe.stderr}`);
+
 if (failures) {
   console.error(`\n${failures} plugin-host discovery test(s) failed`);
   process.exit(1);

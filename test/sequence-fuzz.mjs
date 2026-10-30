@@ -14,7 +14,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 
-import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+import { REPO, findVendorRoot, findVendorFile, pristineBytes } from './fixtures.mjs';
 import { legacyDaemonBytes } from './daemon-fixtures.mjs';
 
 const SB = process.argv[2];
@@ -42,7 +42,7 @@ function freshSandbox() {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     // pristineBytes() REFUSES a patched file with no backup, rather than adopting it as the
     // baseline — which is what the old `backup ?? file` fallback did, silently.
-    fs.writeFileSync(dest, legacyDaemonBytes(rel, pristineBytes(path.join(REAL, rel)), lib));
+    fs.writeFileSync(dest, legacyDaemonBytes(rel, pristineBytes(findVendorFile(REAL, rel)), lib));
   }
 }
 const filePath = (rel) => path.join(SB, 'npx', 'h', 'node_modules', rel);

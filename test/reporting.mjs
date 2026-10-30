@@ -72,7 +72,8 @@ const out = (r) => `${r.stdout || ''}${r.stderr || ''}`;
 // every one of its reporting surfaces (also stale) says everything is fine.
 
 freshSandbox();
-cli(['cwd', 'install']);
+const initialCwdInstall = cli(['cwd', 'install']);
+if (initialCwdInstall.status !== 0) fail(`S0 initial cwd install failed:\n${out(initialCwdInstall)}`);
 
 // S0 — session-end may only advertise a statePath it actually writes. Upstream returned a plausible
 // `.claude/sessions/...` string without a single filesystem write, so the CLI printed success over an

@@ -1,10 +1,5 @@
-// Behavioral coverage for the dual-host Ruflo marketplace commands (#2854).
-//
-// The real source patch is applied to a sandboxed @claude-flow/cli. Its injected
-// commands then execute against fake `claude` and `codex` binaries, so the test
-// proves argv, state transitions, failure reporting, idempotence, and uninstall
-// without touching either real host registry.
-
+// Exercise patched host commands against fake Claude/Codex binaries (#2854):
+// argv, transitions, failures, idempotence and exact source uninstall.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -12,6 +7,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { catalog, fakeHost, versions } from './plugin-hosts-fixture.mjs';
 
 const SB = path.resolve(process.argv[2]);
+const MODERN = process.argv[3] === 'modern';
 const REPO = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const HOME = path.join(SB, 'home');
 const NPX = path.join(SB, 'npx');
@@ -102,8 +98,7 @@ function seed() {
     skipCodexCopy: false,
     refreshVersion: null,
   });
-
-  const vendor = `const output = {
+  let vendor = `const output = {
   writeln() {},
   bold(value) { return value; },
   printJson() {},
@@ -131,10 +126,14 @@ export const pluginsCommand = {
   },
 };
 `;
+  if (MODERN) {
+    vendor = "import { pathsCommand } from './plugins-paths.js';\nconst verifyCommand = { name: 'verify' };\n" + vendor
+      .replace('rateCommand],', 'rateCommand, verifyCommand, pathsCommand],');
+    write(path.join(path.dirname(PLUGINS), 'plugins-paths.js'), "export const pathsCommand = { name: 'paths' };\n");
+  }
   write(PLUGINS, vendor);
   write(path.join(path.dirname(path.dirname(path.dirname(path.dirname(PLUGINS)))),
     'package.json'), '{"type":"module"}\n');
-
   for (const host of ['claude', 'codex']) {
     write(path.join(BIN, host), fakeHost(host), 0o755);
     write(path.join(HOME, '.local', 'bin', host),
@@ -211,7 +210,7 @@ write(path.join(
   CODEX_HOME, 'plugins', 'cache', 'ruflo', 'ruflo-metaharness', '0.1.1', '.claude-plugin', 'plugin.json',
 ), `${JSON.stringify({ name: 'ruflo-metaharness', version: '0.1.1' })}\n`);
 
-console.log('\nDual-host Ruflo plugin commands');
+console.log(`\nDual-host Ruflo plugin commands (${MODERN ? 'modern' : 'legacy'})`);
 const pristine = fs.readFileSync(PLUGINS, 'utf8');
 const installed = cli('plugin-hosts', 'install');
 check('PH1 patch installs cleanly', installed.status === 0,
@@ -257,9 +256,10 @@ check('PH3a status rejects and install upgrades an obsolete injected-fragment re
 Object.assign(process.env, env);
 const module = await import(`${pathToFileURL(PLUGINS).href}?patched=${Date.now()}`);
 const command = (name) => module.pluginsCommand.subcommands.find((item) => item.name === name);
-check('PH4 all five commands are registered',
-  ['host-install', 'host-uninstall', 'host-sync', 'host-refresh', 'host-update']
-    .every((name) => command(name)));
+const expectedCommands = ['list', 'search', 'install', 'uninstall', 'upgrade', 'toggle', 'info', 'create', 'rate',
+  ...(MODERN ? ['verify', 'paths'] : []), 'host-install', 'host-uninstall', 'host-sync', 'host-refresh', 'host-update'];
+check('PH4 every native and injected command is registered exactly once, in order',
+  JSON.stringify(module.pluginsCommand.subcommands.map(item => item.name)) === JSON.stringify(expectedCommands));
 const directHostPath = process.env.PATH;
 process.env.PATH = ['/usr/bin', '/bin']
   .filter((entry, index, rows) => entry && rows.indexOf(entry) === index)
