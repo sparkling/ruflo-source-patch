@@ -38,9 +38,10 @@ No database path changed and no database or sidecar was deleted. The separate HZ
 recovery process remains alive. New sessions inherit the service; loaded project
 overrides still require the owning host to reconcile their configuration.
 
-The residual upstream issue draft is retained locally. GitHub rejected issue
-creation under the authenticated Enterprise Managed User, so no issue number
-or upstream submission is claimed. No new source patch was added for that gap.
+The residual error-attribution and incompatible-backend fallback is reported in
+[Ruflo #4622](https://github.com/ruvnet/ruflo/issues/4622). The existing authorised
+repository-owner login was used without changing the active GitHub account.
+No new source patch was added for that gap; native transport fixes the observed contention.
 
 These are scoped retirements, not a claim that every patch or project is qualified.
 Ruflo 3.66.0's published `memory-bridge.js` is byte-identical to the pristine
