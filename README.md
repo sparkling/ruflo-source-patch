@@ -15,6 +15,41 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Ruflo 3.66 qualification: 31 October 2026
+
+Ruflo and `@claude-flow/cli` **3.66.0** are installed in all ten discovered
+launcher locations across Mac and HZ, including the dedicated HZ AI Strategy
+runtime. Retained patches were reapplied with **4.46.86**; both monitors report
+no drift. The source review covered 52 CLI contributions across 42 files with
+no missing anchors, plus the remaining registered package/plugin checks.
+Upstream's new verified-learning helper and ingestion behaviour are preserved.
+
+An npm upgrade can succeed while its script policy skips native SQLite binding
+installation. This happened on both hosts: an unbuilt `better-sqlite3` 12.11.1
+caused native initialization to fail and an inventory to misleadingly report
+zero. The reviewed package's own install script restored the binding; global
+script policy was not weakened. Verify native ABI and actual memory reads after
+an upgrade, not just npm's exit status or an advertised package version.
+
+The shared user-memory services were gracefully restarted. Two concurrent clients
+returned matching inventories (Mac 342; HZ 654), and exact reads and searches
+passed. HZ `system_status` reports 3.66.0; the local restricted service handshake
+uses upstream's generic 3.0.0 label, so its package/version and restart evidence
+are recorded separately. All four loaded local Codex project sessions report
+3.66.0 through their native `system_status` tool.
+
+HZ's loaded project sessions remain on their previous runtime. Its app-server
+refused scoped project writes with `configLayerReadonly`; a broad reconnect was
+not attempted because the protected old Builder owner retains deleted stores
+whose full recovery is unproven. That process remains alive. Updated files and
+successful patch installation are not presented as fresh loaded-module proof.
+Archived project dependency trees are not counted as active launcher locations.
+
+Every code regression suite passed against the updated installation. The overall
+`npm test` exit remains nonzero because its final broad Markdown scan reports
+191 formatting problems in ignored working/downloaded material. Changed README
+and ADR files pass their scoped Markdown validation.
+
 ## Upstream alignment: 31 October 2026
 
 Release **4.46.86** retires the three verified native replacements below.

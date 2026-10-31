@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-31. Brain 4.7.28 native learning acknowledgements retire
+**Updated**: 2026-10-31. Ruflo 3.66 qualification preserves upstream learning
+changes and requires native-binding plus live-read proof after npm installation;
+HZ protected-owner activation remains explicitly deferred.
+2026-10-31. Brain 4.7.28 native learning acknowledgements retire
 the receipt overlay only after executable producer/child failure, consent and
 readback-order proof. Shared composition and the native updater remain unchanged.
 2026-10-30. OPDA's remaining legacy segmented policy was explicitly
