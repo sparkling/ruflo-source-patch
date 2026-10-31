@@ -164,3 +164,8 @@ input.on('close', () => process.exit(0));\n`;
   assert.equal(env.HOME, '/isolated'); assert.equal(env.RUVNET_BRAIN_KB, '/isolated/kb');
 } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 console.log('Brain 4.7.22 native host recovery: exact installer/helper closure, changed-path evidence, bounded isolated shim/MCP probes, failure mutations and open-session uncertainty PASS');
+
+// The registered predicate must be the proven native one, not a later duplicate key.
+const registrySource = fs.readFileSync(new URL('../lib/brain-native/supersede.mjs', import.meta.url), 'utf8');
+assert.equal(registrySource.split("'brain-host-recovery':").length - 1, 1);
+assert(registrySource.includes("'brain-host-recovery': { ...brainHostRecoverySupersession"));

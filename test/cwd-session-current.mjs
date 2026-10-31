@@ -34,6 +34,13 @@ const dependencies = [
   'services/learned-routing.js', 'ruvector/typesafe-router.js', 'ruvector/router-embedder.js',
   'memory/verified-outcomes.js', 'memory/verified-guards.js', 'memory/verified-reverify.js',
 ];
+// Ruflo 3.66 extracts lesson projection into a required static dependency. Keep
+// the native module intact so a missing fixture import cannot masquerade as an
+// optional ingestion failure (ingestVerifiedQuietly would otherwise return null).
+const verifiedOutcomesSource = pristineBytes(path.join(SOURCE,
+  '@claude-flow/cli/dist/src/memory/verified-outcomes.js')).toString('utf8');
+if (verifiedOutcomesSource.includes("from './verified-lessons.js'"))
+  dependencies.push('memory/verified-lessons.js');
 
 for (const modern of [true, false]) {
   fs.rmSync(SB, { recursive: true, force: true });

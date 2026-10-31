@@ -17,6 +17,8 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Upstream alignment: 31 October 2026
 
+Release **4.46.86** retires the three verified native replacements below.
+
 Brain 4.7.28 supplies the native replacement for `brain-learning-receipts`.
 The retirement probe executes installed producer and child bodies with inert
 persistence: detached submission never acknowledges capture; failed exact
@@ -34,6 +36,8 @@ owner per host, bound to loopback. Concurrent client inventory, exact retrieval
 and search passed on HZ; local native inventory returned 342 records. HZ returned
 654. These counts describe current ordinary entries, not full corpus integrity.
 BA and Builder project overrides were removed so they inherit the shared owner.
+Claude Code user registrations on both hosts also use that service. This local
+session passed a real `ruflo_user.memory_search` after the configuration change.
 No database path changed and no database or sidecar was deleted. The separate HZ
 recovery process remains alive. New sessions inherit the service; loaded project
 overrides still require the owning host to reconcile their configuration.
@@ -42,6 +46,12 @@ The residual error-attribution and incompatible-backend fallback is reported in
 [Ruflo #4622](https://github.com/ruvnet/ruflo/issues/4622). The existing authorised
 repository-owner login was used without changing the active GitHub account.
 No new source patch was added for that gap; native transport fixes the observed contention.
+
+The full test run found one missing 3.66 fixture dependency (`verified-lessons.js`);
+the corrected fixture passes without relaxing assertions. The retirement suites
+and changed documentation pass. The broad Markdown scan also traverses ignored
+downloads under `.local` and reports their formatting failures; those are not
+claimed clean or silently suppressed.
 
 These are scoped retirements, not a claim that every patch or project is qualified.
 Ruflo 3.66.0's published `memory-bridge.js` is byte-identical to the pristine
