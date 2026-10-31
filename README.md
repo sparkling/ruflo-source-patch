@@ -15,6 +15,40 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Upstream alignment: 31 October 2026
+
+Brain 4.7.28 supplies the native replacement for `brain-learning-receipts`.
+The retirement probe executes installed producer and child bodies with inert
+persistence: detached submission never acknowledges capture; failed exact
+readback and withdrawn consent cannot acknowledge; successful synchronous and
+child writes acknowledge only after readback. Pending state is cleared on child
+failure. Mutated regressions fail the probe. Retirement uses the existing shared
+composition engine and never changes Brain's update selection or stored memories.
+
+Native wrapper ownership and host recovery also retire through their existing
+behaviour and complete dependency checks. Existing sessions are not claimed
+refreshed by that source proof.
+
+The local and HZ user-memory connections now use one authenticated native HTTP
+owner per host, bound to loopback. Concurrent client inventory, exact retrieval
+and search passed on HZ; local native inventory returned 342 records. HZ returned
+654. These counts describe current ordinary entries, not full corpus integrity.
+BA and Builder project overrides were removed so they inherit the shared owner.
+No database path changed and no database or sidecar was deleted. The separate HZ
+recovery process remains alive. New sessions inherit the service; loaded project
+overrides still require the owning host to reconcile their configuration.
+
+The residual upstream issue draft is retained locally. GitHub rejected issue
+creation under the authenticated Enterprise Managed User, so no issue number
+or upstream submission is claimed. No new source patch was added for that gap.
+
+These are scoped retirements, not a claim that every patch or project is qualified.
+Ruflo 3.66.0's published `memory-bridge.js` is byte-identical to the pristine
+3.65.0 copy checked here. Native path-keyed registry identity already supersedes
+our old bridge overlay; competing processes opening one RuVector companion are
+a separate unresolved transport/configuration problem. The raw-WAL safeguard
+must not be removed merely to conceal that native initialization failure.
+
 ## Explicit embedding ownership: 30 October 2026
 
 Release **4.46.84** is pushed and installed on Mac and HZ. Both patch monitors

@@ -1,4 +1,5 @@
 import { nativeOwnershipSatisfied } from '../lib/brain-wrapper-ownership/native.mjs';
+import { checkWrapperOwnershipRetirement } from '../lib/brain-wrapper-ownership/supersede.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,6 +31,17 @@ assert(patchSource(source.replace('stat.nlink !== 1', 'false')).missing.length);
 assert(patchSource(patched.next.replace('stat.nlink !== 1', 'false')).missing.length);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-wrapper-ownership-'));
 try {
+  const nativeFile = path.join(root, 'native-installer.mjs');
+  fs.writeFileSync(nativeFile, modern);
+  assert.equal(checkWrapperOwnershipRetirement([]).state, 'unknown');
+  assert.equal(checkWrapperOwnershipRetirement([nativeFile]).state, 'superseded');
+  fs.writeFileSync(nativeFile, patched.next);
+  assert.equal(checkWrapperOwnershipRetirement([nativeFile]).state, 'live');
+  fs.writeFileSync(nativeFile, modern.replace('stat.nlink !== 1', 'false'));
+  assert.equal(checkWrapperOwnershipRetirement([nativeFile]).state, 'live');
+  fs.writeFileSync(nativeFile, modern);
+  const nativeLink = path.join(root, 'native-link.mjs'); fs.symlinkSync(nativeFile, nativeLink);
+  assert.equal(checkWrapperOwnershipRetirement([nativeLink]).state, 'unknown');
   const home = path.join(root, 'home'), repo = path.join(root, 'package');
   const bridge = path.join(home, '.cache/ruvnet-brain/codex-hook.mjs');
   fs.mkdirSync(path.dirname(bridge), { recursive: true });

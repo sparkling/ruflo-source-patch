@@ -36,3 +36,13 @@ vm.runInContext("child({tool:'Bash', action:'git status', session:'s'})", contex
 assert.equal(writes, 2);
 assert.equal(marks, 1, 'only a verified write creates a marker');
 console.log('brain-learning-receipts: passed');
+
+const { readFileSync } = await import('node:fs');
+const { nativeLearningReceipts } = await import('../lib/brain-learning-receipts/native.mjs');
+const native = readFileSync(new URL('./fixtures/brain-learning-receipts/native-4.7.28.mjs', import.meta.url), 'utf8');
+assert(nativeLearningReceipts(native), 'upstream native replacement passes');
+assert(!nativeLearningReceipts(native.replace('markInFlight(brainHome, key); // NOT', 'markCaptured(brainHome, key); // NOT')), 'early parent acknowledgement rejected');
+assert(!nativeLearningReceipts(native.replace('    recordLearningObservation(binary, context, observation, { env: process.env', '    markCaptured(brainHome, observationKey(observation));\n    recordLearningObservation(binary, context, observation, { env: process.env')), 'early child acknowledgement rejected');
+assert(!nativeLearningReceipts(native.replace('    if (!context.enabled) return;', '    if (false) return;')), 'withdrawn consent respected');
+assert(!nativeLearningReceipts(native.replace('if (observation) clearInFlight', 'if (false) clearInFlight')), 'pending marker released after failure');
+assert(!nativeLearningReceipts(native.replace('    markCaptured(brainHome, observationKey(observation)); // acknowledged', '    void 0; // acknowledged')), 'successful capture must acknowledge');

@@ -2,7 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-19. Restore upstream's separate default AgentDB owner, retain explicit
+**Updated**: 2026-10-31. Shared user memory uses the native authenticated
+loopback HTTP transport, one owner per host; project stores retain their own
+bindings. Concurrent HZ inventory, exact retrieval and search passed without
+sidecar manipulation. Per-process path identity does not coordinate exclusive
+RuVector companions across processes.
+2026-10-19. Restore upstream's separate default AgentDB owner, retain explicit
 source/user bindings, qualify native-only recovery snapshots and report global alias clients.
 Explicit retained-graph reads and encryption checks also honor the selected file
 (#4291); synthetic fresh-MCP checks verify source isolation and refusal behavior.

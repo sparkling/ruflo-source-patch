@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-10-30. OPDA's remaining legacy segmented policy was explicitly
+**Updated**: 2026-10-31. Brain 4.7.28 native learning acknowledgements retire
+the receipt overlay only after executable producer/child failure, consent and
+readback-order proof. Shared composition and the native updater remain unchanged.
+2026-10-30. OPDA's remaining legacy segmented policy was explicitly
 converted through the existing verified restoration owner, preserving all 47,748
 receipts and original trust snapshots. Native full audit and three live MCP reads
 passed. Installation still never migrates policy data; inactive legacy contexts
