@@ -30,7 +30,7 @@ try {
   assert.ok(patchEdgeHelpers(EDGE_HELPER_054 + '\n' + EDGE_HELPER_054 + '\n' + EDGE_PARSE_054)
     .missing.some(s => s.includes('AMBIGUOUS')));
   fs.mkdirSync(path.join(dir, 'lib'));
-  fs.writeFileSync(path.join(dir, 'lib/index-records.mjs'), patched.next);
+  fs.writeFileSync(path.join(dir, 'lib/index-records.mjs'), "export const CLI_PKG = '@claude-flow/cli@latest';\n" + patched.next);
   const { edgeKey, parseEdgeKey } = await import(pathToFileURL(path.join(dir, 'lib/index-records.mjs')));
   const expected = { relation: 'depends-on', from: 'ADR-006', to: 'ADR-005' };
   assert.equal(edgeKey(expected), 'depends-on:ADR-006:ADR-005');
@@ -59,7 +59,7 @@ try {
   fs.writeFileSync(fakeCli, `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
-const option = n => args[args.indexOf('--'+n)+1];
+const option = n => args.find(arg => arg.startsWith('--'+n+'='))?.slice(n.length + 3) ?? args[args.indexOf('--'+n)+1];
 const ns = option('namespace');
 const key = process.env.EDGE_TEST_KEY;
 if (args[1] === 'list') {

@@ -233,7 +233,7 @@ if (op === 'list') {
   let rows = Object.entries(state[ns] || {}).map(([key]) => ({ key, namespace: ns }));
   if (mode === 'wrong-final' && state.listCalls > 2 && ns === 'adr-patterns' && rows.length) rows[0].key = 'ADR-WRONG::wrong.md';
   const limit = Number(option('limit') || 20);
-  process.stdout.write(JSON.stringify(rows.slice(0, limit)) + '\\n');
+  fs.writeSync(1, JSON.stringify(rows.slice(0, limit)) + '\\n');
   process.exit(0);
 }
 if (op === 'store') {
@@ -461,6 +461,8 @@ check('AIS17 legacy adr-index and adr-io-safety compose into one runnable exact-
   && composedImporter.includes('memoryListComplete(namespace)')
   && calls().every((call) => call.args.includes('--path=' + path.join(PROJECT, '.swarm', 'memory.db'))));
 
+// Execute the exact native 0.5.8 helper in the existing isolated fake CLI harness.
+fs.copyFileSync(new URL('./fixtures/adr-io-safety-0.4.1/ruflo-cli.mjs', import.meta.url), path.join(SCRIPTS, 'lib', 'ruflo-cli.mjs'));
 // Replay both dispatch variants against the same fake managed CLI; no native DB.
 for (const dispatch of ['npx', 'installed', 'installed-status']) for (const name of ['verify.mjs', 'import.mjs']) {
   let vendor = fs.readFileSync(new URL('./fixtures/adr-io-safety-0.4.1/' + name, import.meta.url), 'utf8');
@@ -489,4 +491,5 @@ for (const dispatch of ['npx', 'installed', 'installed-status']) for (const name
   check('AIS18 native ' + name + ' refuses false success', result.status !== 0);
 }
 
+await (await import('./adr-io-native.mjs')).testNativeAdr({ check, run, reset, calls, operation, SCRIPTS, PROJECT, DOCS, BIN, ROOT, ALT_ROOT, REINDEX_VENDOR, RECORDS_VENDOR });
 process.exit(failed);
