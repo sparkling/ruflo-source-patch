@@ -156,10 +156,21 @@ the legacy diagnostic exception to native controller stores. Brain 4.7.28's
 grounding helper and its shared entrypoint passed 44 isolated native cases;
 the grounding patch remains retired.
 
-The release-lockstep review remains open: current upstream ADRs distinguish
-search/runtime identity from host update lag. The existing blanket doctor
-overlay requires a separate native behavior and migration proof before its
-current-release rendition can be retired; it is not included in this repair.
+Version 4.46.99 retires the blanket release-equality overlay on qualified
+modern Brain doctors. Current native ADR-089/098 distinguish installed
+search/runtime integrity from advisory currency and proven open-session lag.
+The proof executes reviewed native classifiers, their actual check adapter and
+complete check expressions, and the native verdict reducer against bounded
+46 identity and host-state assertions. Damaged or stale identity still fails; coherent
+ahead versions and supported advisory states retain native behavior. Mutation
+tests reject an always-successful adapter or an identity failure downgraded to
+a warning. Exact historical restoration preserves sibling patches and pristine
+sources. Unknown helper bytes refuse qualification, and legacy sources retain
+their issue-specific repair. No updater, KB, host-state or version data changes.
+
+Version 4.46.98 activation passed on Mac and HZ: both monitors reported no drift
+and native hook trust had no pending approvals. Doctor qualification remains
+separate from live host activation and does not reload long-lived MCP sessions.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 
@@ -1319,7 +1330,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-codex-skills`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired on executable proof in Brain 4.0.12.** The active immutable plugin payload contains the skill, manifest, curated notes, and `scripts/whats-new.mjs`; the installed executable returns its exact version and fails nonzero when the notes are removed. The retirement restores only locally owned legacy bytes and preserves the native workflow | [stuinfla/ruvnet-brain#76 · closed](https://github.com/stuinfla/ruvnet-brain/issues/76) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
 | **`brain-console-lifecycle`** | **Still live, narrowed to the doctor delta.** Brain 4.7.21 retains native ownership of the whole-runtime digest, receipt, `/api/runtime`, token-bound shutdown, stale/foreign classification, and process replacement, so the patch preserves that launcher. The issue's acceptance contract also requires doctor to compare candidate bytes, persistent runtime, receipt, live endpoint, PID, and API identity; current pristine doctor still relies on `host-convergence.json`. The target adds that read-only live comparison and leaves Brain's updater and activation plane untouched | [stuinfla/ruvnet-brain#79 · closed](https://github.com/stuinfla/ruvnet-brain/issues/79) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
 | **`brain-console-provider-keys`** | **Retired on executable proof in Brain 4.0.12.** A copied active runtime stages and validates `model-catalog.json`, detects synthetic OpenAI/Google keys, refuses activation with the catalog missing, and renders the explicit `keysVerified: false` “Not checked” state instead of a false credential negative | [stuinfla/ruvnet-brain#86 · closed](https://github.com/stuinfla/ruvnet-brain/issues/86) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
-| **`brain-release-lockstep`** | Historical read-only version-drift repair. Current native ADRs and classifiers distinguish coherent search/runtime identity from pending host updates, so the blanket modern verdict is under retirement review. Its exact native behavior and historical composition must pass before restoration. No updater, downloads, versions, `active.json`, KB or host caches are changed | [stuinfla/ruvnet-brain#77 · closed](https://github.com/stuinfla/ruvnet-brain/issues/77) |
+| **`brain-release-lockstep`** | Historical read-only version-drift repair; current native ADR-089/098 doctors retire the equality overlay after exact helper, check-assembly and verdict proof. Legacy sources retain the original repair. Historical restoration preserves sibling patches; unknown native code refuses qualification. No updater, downloads, versions, `active.json`, KB or host caches are changed | [stuinfla/ruvnet-brain#77 · closed](https://github.com/stuinfla/ruvnet-brain/issues/77) |
 | **`brain-memory-doctor-roots`** | **Retired on executable proof in Brain 4.0.12.** The active standalone doctor finds common and configured roots without `~/Code`, preserves explicit-root scope, fails an all-invalid configured set, falls back safely from malformed configuration, and shares `candidateRoots()` / `findStores()` with the Console | [stuinfla/ruvnet-brain#81 · closed](https://github.com/stuinfla/ruvnet-brain/issues/81) · [PR #93](https://github.com/stuinfla/ruvnet-brain/pull/93) |
 | **`brain-scratch-preservation`** | Protects pre-call, post-call and footprint cleanup through one empty-directory-only removal helper. Nonempty stores, sidecars, unknown files, links and races are retained without raw database access. Independent KB archive proof and native update authority are preserved. Retirement requires the same native preservation behavior at all three call sites. | [stuinfla/ruvnet-brain#335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872) |
 | **`brain-managed-memory-boundary`** | Retains the owner-required default raw-SQL refusal for both `.swarm/memory.db` and `.swarm/agentdb-memory.db`, plus the configured user store. Native detector/settings are preserved; the current native Brain-off route does not enforce this owner policy. The legacy exact diagnostic remains limited to ordinary stores and cannot inspect native controller stores. Brain's update plane is untouched | [stuinfla/ruvnet-brain#102 · closed](https://github.com/stuinfla/ruvnet-brain/issues/102) · [#103 · closed](https://github.com/stuinfla/ruvnet-brain/issues/103) · owner policy [ADR-028](docs/adr/ADR-028-managed-agentdb-interface-boundary.md) |
@@ -2772,7 +2783,7 @@ invariants, and an untested notification path rots without anyone noticing.
 | **CW · DN · AR-N** | exact Ruflo 3.38.16 residual cwd/session shapes · native daemon resolver execution plus route/resolver mutations and terminal retirement · native reindex writer-lock proof plus an unlocked-writer mutation and nested public-wrapper discovery |
 | **CS** | **Codex skill rendering, ownership, and #76 retirement.** JavaScript replacement tokens remain literal · active immutable notes execute with their exact version · a missing-notes mutation fails closed · an owned malformed render migrates from verified pristine · retirement restores only vendor bytes |
 | **BNR** | **Brain native retirement.** #81 common/configured/scoped/invalid discovery · #86 packed/staged catalog, synthetic provider keys, missing-catalog refusal, and UI truth state · deliberate regressions fail · simultaneous composed retirement does not re-apply a sibling |
-| **BL1 to BL23** | **Brain release lockstep.** Bounded npm/npx/persistent-runtime discovery · all five release-bearing components compared · `v` prefixes normalized · split releases fail health · partial/ambiguous anchors write nothing · deleting the doctor gate invalidates patch evidence · public install/status/uninstall round-trips every byte |
+| **BL1 onward** | **Brain release lockstep.** Bounded npm/npx/persistent-runtime discovery · all five release-bearing components compared · `v` prefixes normalized · split releases fail health · partial/ambiguous anchors write nothing · deleting the doctor gate invalidates patch evidence · public install/status/uninstall round-trips every byte · current native identity/convergence/check/verdict qualification · exact modern overlay retirement with sibling preservation · helper/wiring mutation refusal |
 
 **Every regression is mutation-tested**: the guard is removed and the test confirmed to fail. That
 discipline has now caught **six vacuous tests**, ones that passed with the guard deleted, and were
@@ -2852,8 +2863,8 @@ active 0.4.1 host copies. #2877 and the legacy #2666 compatibility target retire
 proof; #2878 supplies the native ordinary-writer baseline, while #3097 records the still-non-atomic
 purge/rebuild and #3147 records incomplete fail-open reads. Brain #76, #81, and #86 remain retired after
 executable replacement and mutation proof.
-#79 remains narrowed despite closure; #77's release rail is fixed but its doctor acceptance remains
-incomplete; #223 tracks the missing Codex live-generation lease after #128/#153; and #129/#130
+#79 remains narrowed despite closure; #77's legacy doctor repair is retained, while the
+qualified current native doctor retires its blanket equality overlay; #223 tracks the missing Codex live-generation lease after #128/#153; and #129/#130
 track native update-plane defects that this downstream package must not replace. MetaHarness #168
 remains reproducible in `metaharness@0.4.7` and `@metaharness/host-codex@0.1.2`.
 
@@ -2898,7 +2909,7 @@ closed label.** The historical table records acceptance results within the state
 | [Brain #64](https://github.com/stuinfla/ruvnet-brain/issues/64) | **Fixed and released in 4.0.2.** This machine auto-flipped 4.0.1→4.0.2 and recorded both Claude and Codex `ready` | No downstream updater patch was added |
 | [Brain #66](https://github.com/stuinfla/ruvnet-brain/issues/66) | **Fixed and released in 4.0.2.** The focused newest-store memory detection suite passes upstream | No patch |
 | [Brain #76](https://github.com/stuinfla/ruvnet-brain/issues/76) | **Closed and delivered in active 4.0.12.** PR #110 binds the executable and every asset it reads to one runtime surface and validates the staged workflow before activation | `brain-codex-skills` retires terminally after positive exact-version execution and a missing-notes mutation |
-| [Brain #77](https://github.com/stuinfla/ruvnet-brain/issues/77) | **Closed; modern local verdict under review on 2 November.** Subsequent accepted native ADRs distinguish coherent search/runtime identity and host convergence from blanket version equality | Qualify the native classifiers and exact restoration before retiring the modern overlay. Legacy historical issue scope does not establish current doctor policy |
+| [Brain #77](https://github.com/stuinfla/ruvnet-brain/issues/77) | **Closed; current native doctor qualified on 2 November.** Accepted ADR-089/098 distinguish coherent search/runtime integrity and host convergence from blanket version equality | Modern overlay retires on executable native classifier/check/verdict and exact restoration proof. Legacy repair remains; unknown native bytes refuse qualification. Historical issue scope is not imposed as current doctor policy |
 | [Brain #78](https://github.com/stuinfla/ruvnet-brain/issues/78) | **Closed and delivered in published 4.0.36.** The persistent server answers `tools/list` from its static fallback and handles managed CLI tools without awaiting worker warmup | No local runtime patch |
 | [Brain #79](https://github.com/stuinfla/ruvnet-brain/issues/79) | **Closed, but incomplete against its own doctor acceptance criterion.** PR #110 fixes whole-runtime identity and detached-process replacement; the released doctor still does not re-probe candidate/runtime/receipt/live/PID/API convergence | Keep the narrowed `brain-console-lifecycle` doctor overlay; native launcher bytes are accepted and preserved |
 | [Brain #81](https://github.com/stuinfla/ruvnet-brain/issues/81) | **Closed and delivered in active 4.0.12.** The shared root implementation passes common/configured, exact-root, invalid-config, malformed-config, and Console-convergence probes | `brain-memory-doctor-roots` retires terminally on that local executable proof |
