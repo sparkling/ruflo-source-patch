@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { spawn, spawnSync } from 'node:child_process';
-import { EDITS, patchSource, reverseSource, isPatched } from '../lib/brain-capture-launch/patcher.mjs';
+import { EDITS, PREVIOUS_EDITS, patchSource, reverseSource, isPatched } from '../lib/brain-capture-launch/patcher.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource, COMPOSE_TARGETS } from '../lib/plugin-compose.mjs';
 import { PLUGIN_TARGETS, PLUGIN_INFO } from '../lib/plugin-registry.mjs';
@@ -15,6 +15,16 @@ const native = fs.readFileSync(new URL('./fixtures/brain-learning-receipts/nativ
 // Brain4.7.28/current main blob751c071b9c71ad28ddbfa66e80ad2781f3479863, verified2026-11-02.
 assert.equal(crypto.createHash('sha256').update(native).digest('hex'), 'cf9fb218c5e51cdb29298801cb5634f864c9bb73b93926afac505624a4fd3edc');
 const fixed = patchSource(native);
+const previous = PREVIOUS_EDITS.reduce((text, [, from, to]) => text.replace(from, () => to), native);
+assert.equal(crypto.createHash('sha256').update(previous).digest('hex'), 'fa3f72c1bd95a76459f25d227e291948725f2d1c2bc385f0054c05b50e9d70ee');
+assert(!isPatched(previous), 'previous launch repair still needs admission repair');
+assert.equal(patchSource(previous).next, fixed.next);
+assert.equal(reverseSource(previous), native);
+assert.equal(patchSource(diagnose(previous).next).next, diagnose(fixed.next).next);
+assert.equal(undiagnose(reverseSource(diagnose(previous).next)), native);
+const changedPrevious = previous.replace('return token;', 'return null; // unowned edit');
+assert.equal(patchSource(changedPrevious).next, changedPrevious); assert(patchSource(changedPrevious).missing.length);
+assert.equal(reverseSource(changedPrevious), changedPrevious);
 assert.deepEqual(fixed.missing, []);
 assert(isPatched(fixed.next));
 assert.equal(patchSource(fixed.next).next, fixed.next);
@@ -26,6 +36,7 @@ assert(COMPOSE_TARGETS.includes('brain-capture-launch') && PLUGIN_TARGETS.includ
 assert(PLUGIN_INFO['brain-capture-launch'].includes('#519'));
 assert.equal(composeSource(native, ['brain-capture-diagnostics', 'brain-capture-launch']), diagnose(fixed.next).next);
 assert.equal(composeSource(diagnose(native).next, ['brain-capture-launch']), diagnose(fixed.next).next, 'existing diagnostics gain only the launch fix');
+assert.equal(composeSource(diagnose(previous).next, ['brain-capture-launch']), diagnose(fixed.next).next, 'released composition upgrades exactly');
 for (const [, from, to] of EDITS) {
   assert(patchSource(native.replace(from, '// unknown source')).missing.length);
   assert(patchSource(native + '\n' + from).missing.length);
@@ -34,6 +45,7 @@ for (const [, from, to] of EDITS) {
   assert.equal(reverseSource(changed), changed);
 }
 assert.equal(spawnSync(process.execPath, ['--input-type=module', '--check'], { input: fixed.next, encoding: 'utf8' }).status, 0);
+assert.equal(fixed.next.slice(fixed.next.indexOf('function runDetached(')), native.slice(native.indexOf('function runDetached(')), 'child consent, write, readback and cleanup remain native bytes');
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-capture-launch-'));
 let number = 0;
@@ -62,6 +74,35 @@ function harness(source, launch) {
     get attempts() { return attempts; }, get writes() { return writes; }, get child() { return lastChild; } };
 }
 try {
+  // Both callers observed an absent pending marker before either reserved it. B launches
+  // while A still holds its prior stat result; only one fresh same-key admission should survive.
+  for (const source of [native, previous, fixed.next, diagnose(fixed.next).next]) {
+    const sessions = [];
+    const raced = harness(source, (_binary, _args, options) => {
+      sessions.push(JSON.parse(options.env.RUVNET_LEARN_OBSERVATION).session); return child();
+    });
+    let entered = false, innerResult, retainedPending;
+    raced.ctx.fs = { ...fs, statSync(file, ...args) {
+      try { return fs.statSync(file, ...args); } catch (error) {
+        if (!entered && String(file).endsWith('.pending') && error.code === 'ENOENT') {
+          entered = true; innerResult = raced.capture('same-race'); raced.child.emit('spawn');
+          retainedPending = fs.readFileSync(raced.names('recent')[0]);
+        }
+        throw error;
+      }
+    } };
+    assert.equal(raced.capture('same-race'), true); assert.equal(innerResult, true);
+    const repaired = isPatched(source);
+    assert.equal(raced.attempts, repaired ? 1 : 2);
+    if (repaired) assert.deepEqual(fs.readFileSync(raced.names('recent')[0]), retainedPending, 'coalescing preserves the live owner token');
+    assert.equal(raced.capture('distinct-race'), repaired);
+    assert.equal(raced.capture('over-cap'), false, 'unique observations still obey native two-slot admission');
+    assert.deepEqual(sessions, repaired ? ['same-race', 'distinct-race'] : ['same-race', 'same-race']);
+    assert.equal(raced.names('slots').length, 2); assert.equal(raced.writes, 0);
+    assert(raced.names('recent').every(file => file.endsWith('.pending')), 'coalescing never acknowledges persistence');
+    assert.equal(raced.failures.at(-1).error, 'shed observation (load)');
+  }
+
   // Execute the actual native defect before checking the repaired function.
   let refuse = true;
   const failThenStart = () => { if (refuse) throw Object.assign(Error('private argv must not appear'), { code: 'EAGAIN' }); return child(); };
@@ -133,8 +174,8 @@ try {
   assert.equal(JSON.parse(fs.readFileSync(ownSlot)).foreign, true);
   assert.equal(replaced.failures.length, 1, 'one failed launch produces one diagnostic');
 
-  // Both callers may pass captureInFlight before either marks. Interleave B after A's
-  // real pending write, before A returns from markInFlight or snapshots the marker.
+  // An older writer can still refresh a marker after A's exclusive creation. Simulate
+  // that mixed-version caller directly; failed launch cleanup must retain its live pending.
   for (const outerFails of [true, false]) {
     let launches = 0, entered = false, innerResult;
     const concurrent = harness(fixed.next, () => {
@@ -149,8 +190,8 @@ try {
       entered = true;
       const slot = concurrent.ctx.acquireObserveSlot(concurrent.home);
       assert(slot, 'B independently passed native admission');
-      const admissionToken = concurrent.ctx.markInFlight(concurrent.home, keyOf(observation));
-      assert.equal(admissionToken, null, 'refresh cannot claim exclusive pending ownership');
+      fs.writeFileSync(file, '', { mode: 0o600 });
+      const admissionToken = null; // native/previous refresh cannot claim exclusive pending ownership
       innerResult = concurrent.ctx.detachLearning('--observe', { brainHome: concurrent.home, observation, slot, admissionToken });
       if (innerResult) concurrent.child.emit('spawn');
     } };
@@ -174,6 +215,42 @@ try {
   assert.equal(stale.names('slots').length, 0);
   assert.equal(fs.readFileSync(staleMarker, 'utf8'), '', 'unowned preexisting marker is retained conservatively');
   assert(stale.ctx.captureInFlight(stale.home, keyOf(staleObservation)), 'native stale-marker refresh is unchanged');
+
+  // A observes an expired marker; B refreshes it and starts before A resumes that old stat.
+  // A must coalesce with the now-fresh marker, not overwrite it or retain another slot.
+  const refreshed = harness(fixed.next, () => child());
+  const refreshedKey = keyOf({ tool: 'Bash', action: 'git status', session: 'refresh-race' });
+  const refreshedDir = path.join(refreshed.home, 'learn-capture', 'recent'); fs.mkdirSync(refreshedDir, { recursive: true });
+  const refreshedMarker = path.join(refreshedDir, refreshedKey + '.pending');
+  fs.writeFileSync(refreshedMarker, ''); fs.utimesSync(refreshedMarker, new Date(0), new Date(0));
+  let refreshedOnce = false, refreshedMtime;
+  refreshed.ctx.fs = { ...fs, statSync(file, ...args) {
+    const result = fs.statSync(file, ...args);
+    if (!refreshedOnce && file === refreshedMarker) {
+      refreshedOnce = true; assert.equal(refreshed.capture('refresh-race'), true); refreshed.child.emit('spawn');
+      refreshedMtime = fs.statSync(refreshedMarker).mtimeMs;
+    }
+    return result;
+  } };
+  assert.equal(refreshed.capture('refresh-race'), true); assert.equal(refreshed.attempts, 1);
+  assert.equal(refreshed.names('slots').length, 1); assert.equal(refreshed.writes, 0);
+  assert.equal(fs.statSync(refreshedMarker).mtimeMs, refreshedMtime);
+  assert.equal(fs.readFileSync(refreshedMarker, 'utf8'), '');
+  assert.equal(refreshed.capture('distinct-after-refresh'), true);
+
+  const denied = harness(fixed.next, () => child());
+  denied.ctx.learningContext = () => ({ enabled: false });
+  assert.equal(denied.capture('consent-denied'), false); assert.equal(denied.attempts, 0);
+  assert.equal(denied.names('slots').length, 0); assert.equal(denied.names('recent').length, 0);
+  const revoked = harness(fixed.next, () => child());
+  assert.equal(revoked.capture('consent-revoked'), true); revoked.child.emit('spawn');
+  revoked.ctx.learningContext = () => ({ enabled: false });
+  revoked.ctx.process = { ...process, env: { RUVNET_BRAIN_HOME: revoked.home,
+    RUVNET_LEARN_OBSERVATION: JSON.stringify({ tool: 'Bash', action: 'git status', session: 'consent-revoked' }),
+    RUVNET_LEARN_SLOT: revoked.names('slots')[0] } };
+  revoked.ctx.runDetached('--observe');
+  assert.equal(revoked.writes, 0); assert.equal(revoked.names('slots').length, 0);
+  assert(revoked.names('recent').every(file => file.endsWith('.pending')), 'revoked consent never acknowledges capture');
 
   const markerUnavailable = harness(fixed.next, () => child());
   markerUnavailable.ctx.fs = { ...fs, mkdirSync(dir, options) {
@@ -199,5 +276,5 @@ try {
   assert.equal(distill.failures[0].hook, 'learn-distill'); assert.equal(distill.failures[0].event, 'SessionEnd');
   assert.equal(distill.failures[0].error, 'detach failed: ERR_INVALID_ARG_TYPE');
   assert.equal(distill.writes, 0);
-  console.log('Brain#519: native launch leak reproduced; sync/real async failure cleanup, live/foreign admission preservation, two-slot shedding, exact acknowledgement and composition PASS');
+  console.log('Brain#519/#521: native launch leak and duplicate admission reproduced; fresh coalescing, stale renewal/replacement, consent, live/foreign preservation, two-slot shedding and previous composition upgrade/reverse PASS');
 } finally { fs.rmSync(sandbox, { recursive: true, force: true }); }
