@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
+import { nativeVectorStorageSatisfied, nativeVectorCoreSatisfied } from '../lib/cwd/native-vector-storage.mjs';
 
 import { REPO, findVendorRoot, findVendorFile, pristineBytes } from './fixtures.mjs';
 import { legacyDaemonBytes } from './daemon-fixtures.mjs';
@@ -126,7 +127,9 @@ function check(step, seq, expected) {
   for (const [id, { rel, needle }] of Object.entries(ENTRY_PROBE)) {
     const src = fs.readFileSync(filePath(rel), 'utf8');
     const applied = src.includes(needle);
-    const should = expected.has(OWNER[id]);
+    const native = id === 'cwd/agentdb-ruvector-storage' && nativeVectorStorageSatisfied(src)
+      || id === 'cwd/agentdb-vector-storage-path' && nativeVectorCoreSatisfied(src);
+    const should = expected.has(OWNER[id]) && !native;
     if (applied !== should) errs.push(`I1 ${id}: applied=${applied} but the commands asked for ${OWNER[id]}=${should}`);
   }
 
@@ -159,7 +162,9 @@ function check(step, seq, expected) {
 
   // I5 — monitor check exit code matches reality
   const drift = Object.entries(ENTRY_PROBE).some(([id, { rel, needle }]) =>
-    expected.has(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle));
+    expected.has(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle)
+    && !(id === 'cwd/agentdb-ruvector-storage' && nativeVectorStorageSatisfied(fs.readFileSync(filePath(rel), 'utf8')))
+    && !(id === 'cwd/agentdb-vector-storage-path' && nativeVectorCoreSatisfied(fs.readFileSync(filePath(rel), 'utf8'))));
   const monitored = cli(['monitor', 'check']), rc = monitored.status;
   if ((rc === 1) !== drift) errs.push(`I5 monitor check exit=${rc} but drift=${drift}\n${monitored.stdout || ''}${monitored.stderr || ''}`);
 

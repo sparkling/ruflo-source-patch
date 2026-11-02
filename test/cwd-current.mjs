@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { nativeVectorStorageSatisfied, nativeVectorCoreSatisfied } from '../lib/cwd/native-vector-storage.mjs';
 import {
   REPO, findVendorRootWith, findVendorFile, pristineBytes,
 } from './fixtures.mjs';
@@ -140,7 +141,8 @@ for (const key of Object.keys(AGENT_REL)) {
 }
 
 const agentCore = readAgent('core');
-for (const required of [
+const nativeCore = nativeVectorCoreSatisfied(agentCore);
+if (!nativeCore) for (const required of [
   "const vectorStoragePath = dbPath === ':memory:'",
   "? path.join(os.tmpdir(), `agentdb-ruvector-${process.pid}-${randomUUID()}.db`)",
   ': `${path.resolve(dbPath)}.ruvector.db`;',
@@ -149,7 +151,7 @@ for (const required of [
   if (!agentCore.includes(required)) fail(`AgentDB core still omits the derived RuVector path: ${required}`);
 }
 const agentBackend = readAgent('ruvector');
-for (const required of [
+if (!nativeVectorStorageSatisfied(agentBackend)) for (const required of [
   'Never let RuVector select its cwd-relative ./ruvector.db default.',
   'const storagePath = this.config.storagePath ?? path.join(',
   'storagePath: storagePath,',
@@ -275,6 +277,7 @@ fs.writeFileSync(path.join(fakeRuvector, 'index.js'), [
   'export class VectorDB {',
   '  constructor(options) { this.options = options; }',
   '  setEfSearch() {}',
+  '  async len() { return 0; }',
   '}',
   '',
 ].join('\n'));
@@ -283,6 +286,7 @@ const behaviorRunner = path.join(NM, 'ruvector-storage-behavior.mjs');
 fs.writeFileSync(behaviorRunner, [
   "import assert from 'node:assert/strict';",
   "import os from 'node:os';",
+  "import fs from 'node:fs';",
   "import path from 'node:path';",
   "import { AgentDB } from './agentdb/dist/src/core/AgentDB.js';",
   "import { RuVectorBackend } from './agentdb/dist/src/backends/ruvector/RuVectorBackend.js';",
@@ -293,10 +297,10 @@ fs.writeFileSync(behaviorRunner, [
   `const configuredDb = ${JSON.stringify(path.join(project, '.swarm', 'agentdb-memory.db'))};`,
   "await new TestAgentDB({ dbPath: configuredDb, vectorBackend: 'ruvector' }).initialize();",
   "await new TestAgentDB({ dbPath: ':memory:', vectorBackend: 'ruvector' }).initialize();",
-  'assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, `${path.resolve(configuredDb)}.ruvector.db`);',
+  `assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, configuredDb + '${nativeCore ? '.ruvector' : '.ruvector.db'}');`,
   'const memoryPath = globalThis.__agentdbBackendConfigs[1].config.storagePath;',
-  'assert.equal(path.isAbsolute(memoryPath), true);',
-  'assert.equal(memoryPath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
+  nativeCore ? 'assert.equal(memoryPath, undefined);' : 'assert.equal(path.isAbsolute(memoryPath), true);',
+  nativeCore ? '' : 'assert.equal(memoryPath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
   'const explicitPath = path.join(os.tmpdir(), `explicit-${process.pid}.db`);',
   "const explicit = new RuVectorBackend({ dimensions: 384, metric: 'cosine', storagePath: explicitPath });",
   'await explicit.initialize();',
@@ -306,11 +310,41 @@ fs.writeFileSync(behaviorRunner, [
   'assert.equal(path.isAbsolute(fallback.db.options.storagePath), true);',
   'assert.equal(fallback.db.options.storagePath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
   "assert.notEqual(fallback.db.options.storagePath, path.join(process.cwd(), 'ruvector.db'));",
+  "if (typeof fallback.resolveStoragePath === 'function') {",
+  "  const another = new RuVectorBackend({ dimensions: 384, storagePath: ':memory:' });",
+  '  await another.initialize();',
+  '  assert.notEqual(another.db.options.storagePath, fallback.db.options.storagePath);',
+  "  const relative = new RuVectorBackend({ dimensions: 384, storagePath: 'nested/index.db' });",
+  '  await relative.initialize();',
+  "  assert.equal(relative.db.options.storagePath, path.resolve('nested/index.db'));",
+  "  for (const storagePath of [42, '../escape.db', '/etc/forbidden.db']) {",
+  '    const invalid = new RuVectorBackend({ dimensions: 384, storagePath });',
+  '    await assert.rejects(invalid.initialize());',
+  '  }',
+  '  const dirs = [fallback.ownedTempDir, another.ownedTempDir];',
+  '  fallback.removeOwnedTempDir(); another.removeOwnedTempDir();',
+  '  await new Promise(resolve => setTimeout(resolve, 20));',
+  '  assert(dirs.every(dir => !fs.existsSync(dir)));',
+  '}',
+
   '',
 ].join('\n'));
 const behavior = spawnSync(process.execPath, [behaviorRunner], { cwd: deep, encoding: 'utf8' });
 if (behavior.status !== 0) fail(`AgentDB RuVector storage behavior failed:\n${out(behavior)}`);
 if (fs.existsSync(path.join(deep, 'ruvector.db'))) fail('AgentDB backend created ruvector.db in the invocation directory');
+if (nativeCore && nativeVectorCoreSatisfied(agentCore.replace("storagePath: dbPath === ':memory:' ? undefined : `${dbPath}.ruvector`", "storagePath: 'shared.db'"))) fail('native core mutation accepted');
+if (nativeVectorStorageSatisfied(agentBackend)) {
+  for (const [from, to] of [
+    ['return pathModule.resolve(this.config.storagePath);', "return '/fixed/index.db';"],
+    ["fs.mkdtempSync(pathModule.join(os.tmpdir(), 'agentdb-ruvector-'))", "pathModule.join(os.tmpdir(), 'shared-index')"],
+    ['storagePath: this.storagePath', 'storagePath: this.config.storagePath'],
+    ['validatePath(this.config.storagePath);', '// validation removed'],
+  ]) {
+    if (!agentBackend.includes(from)) fail('native mutation anchor absent: ' + from);
+    if (nativeVectorStorageSatisfied(agentBackend.replace(from, to))) fail('native mutation was accepted');
+  }
+}
+
 
 // Permission defaults are live API behavior, not merely strings in a build.
 const priorCwd = process.cwd();

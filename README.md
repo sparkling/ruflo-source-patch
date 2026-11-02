@@ -117,10 +117,15 @@ hooks trusted. Private receipts are under `memory-recovery-20261102`: HZ
 Native load shedding remains bounded and visible; this release does not promise
 unlimited observation capture or replay historical failures.
 
-The broader suite also exposes an unchanged AgentDB project-root anchor mismatch
-and formatting failures in ignored working artefacts. Those suite failures remain
-disclosed. The separate HZ AI policy-runtime variant passed the existing native
-qualification and is recognised from 4.46.90; installed patch reapplication passes.
+The AgentDB storage mismatch was a native replacement: the new core already
+passes `<dbPath>.ruvector`, and its backend validates and resolves that path or
+creates a private temporary directory. Version 4.46.92 recognises only the exact
+artifacts exercised by the existing constructor tests, including explicit paths,
+private-path isolation, invalid-path refusal and cleanup. Older copies retain the
+legacy patch. This removes redundant injected properties without changing the
+existing selected path or migrating data. Unknown or mutated artifacts remain
+unqualified. Markdown checks exclude private `.local` qualification downloads.
+The separate HZ AI policy-runtime variant is recognised from 4.46.90.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 
