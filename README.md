@@ -210,6 +210,17 @@ changed rendered actions or other fields still fail. No queue or history replay 
 added. Constructor mutation, failed reads, altered content, overlapping attempts,
 composition and exact restoration have regression coverage.
 
+Version 4.46.101 is published and activated on both hosts; all 280 packaged files
+matched its immutable tag. The actual failed BA turn then passed the installed
+shared writer in 1,736 ms: one append-only duplicate refusal, one exact read,
+`alreadyRecorded: true`, and the original timestamp and complete 1,876-byte value
+preserved. Stop dispatch exercised that writer without launching SessionEnd
+distillation. Both monitors passed and native hook trust had no pending approvals.
+The full test run passed every suite except one inherited-cwd isolation case; that
+test was corrected to use its own sandbox, and the affected suite passed in full.
+No diagnostic stores were removed to make a test pass. Private activation proof is
+`release-v4.46.101/activation.json` under the recovery directory.
+
 The loaded-session follow-up verified all three local and nine HZ parent sessions:
 each returned a one-entry inventory and exact retrieval. HZ's native host refresh
 changed only an inert user-level Ruflo registration stamp, preserving project
