@@ -234,7 +234,7 @@ for (const file of sentinels) fs.writeFileSync(file, `sentinel:${path.basename(f
 const sentinelState = sentinels.map((file) => [file, fs.statSync(file).mtimeMs, fs.readFileSync(file, 'utf8')]);
 
 const patcher = await import('../lib/ruflo-instruction-contract/patcher.mjs');
-const { applyComposed, composeSource, reconcile, statusComposed } = await import('../lib/plugin-compose.mjs');
+const { applyComposed, composeSource, isKnownFileComposition, reconcile, statusComposed } = await import('../lib/plugin-compose.mjs');
 const discovered = patcher.discover().sort();
 const vendorBytes = new Map(discovered.map((file) => [file, fs.readFileSync(file, 'utf8')]));
 check('RIC1 bounded discovery finds generators, platform skill, packaged skills, and direct Codex',
@@ -250,6 +250,14 @@ for (const [label, source, edits] of [['Claude', CLAUDE_VENDOR, 2], ['Codex', CO
   check(`RIC4 ${label} pure transform is complete and idempotent`,
     patcher.isPatched(result.next) && patcher.patchSource(result.next).next === result.next);
   check(`RIC5 ${label} transform has a byte-exact inverse`, patcher.reverseSource(result.next) === source);
+  const historical = patcher.descriptor.historicalPatchSource(source).next;
+  check(`RIC5e ${label} prior workflow policy is exactly reversible and upgrades`,
+    historical.includes('One writer per worktree; one integration owner.')
+      && historical.includes('separately authorized release gate')
+      && patcher.reverseSource(historical) === source && patcher.patchSource(historical).next === result.next);
+  const recovery = patcher.descriptor.recover(historical);
+  check(`RIC5f ${label} prior runtime reconstruction is proved against its forward composition`,
+    recovery?.candidate === source && recovery.verify(source) === historical);
 }
 for (const [name, source] of Object.entries(SKILLS)) {
   const result = patcher.patchSource(source);
@@ -281,11 +289,21 @@ check('RIC10 pristine backups contain exact vendor bytes',
   [...vendorBytes].every(([file, source]) => fs.readFileSync(`${file}.rsp-backup`, 'utf8') === source));
 
 const currentClaudePatch = fs.readFileSync(claudeFile, 'utf8');
-fs.writeFileSync(claudeFile, `// ${patcher.PATCH_MARKER}\n// exact prior installed patch revision\n`);
+const previousClaudePatch = patcher.descriptor.historicalPatchSource(CLAUDE_VENDOR).next;
+fs.writeFileSync(claudeFile, previousClaudePatch);
+check('RIC10d exact old instruction policy remains a known composition',
+  isKnownFileComposition(CLAUDE_VENDOR, previousClaudePatch, claudeFile, ['ruflo-instruction-contract']));
 const revisionUpgrade = applyComposed(['ruflo-instruction-contract']);
 check(`RIC10a a prior named patch revision upgrades from its proven pristine: ${revisionUpgrade.log.join(' | ')}`,
   !revisionUpgrade.errors && !revisionUpgrade.incomplete
     && fs.readFileSync(claudeFile, 'utf8') === currentClaudePatch);
+fs.writeFileSync(claudeFile, previousClaudePatch);
+fs.rmSync(`${claudeFile}.rsp-backup`);
+const recoveredPrior = applyComposed(['ruflo-instruction-contract']);
+check('RIC10e exact historical generator recovers a missing backup before upgrading',
+  !recoveredPrior.errors && !recoveredPrior.incomplete
+    && fs.readFileSync(claudeFile, 'utf8') === currentClaudePatch
+    && fs.readFileSync(`${claudeFile}.rsp-backup`, 'utf8') === CLAUDE_VENDOR);
 const { patchPreviousPlatformGenerator } = await import('../lib/ruflo-instruction-contract/skill-contract.mjs');
 const currentPlatformPatch = fs.readFileSync(platformFile, 'utf8');
 const previousPlatformPatch = patchPreviousPlatformGenerator(vendorBytes.get(platformFile)).next;
@@ -312,6 +330,10 @@ for (const template of Object.keys(claudeBodies)) {
       && output.includes('ruvnet_cli_run({executable: "ruflo", argv:')
       && !output.includes('executable: "claude-flow"'));
   check(`RIC12 Claude ${template} keeps valid bootstrap`, output.includes('npx ruflo@latest doctor --fix'));
+  check(`RIC12b Claude ${template} defers workspace and existing release authority to the caller`,
+    output.includes('Follow caller instructions for workspace isolation and release authorization')
+      && output.includes('including standing authorization')
+      && !/worktrees?|separately authorized release gate/.test(output));
 }
 const standaloneClaudeApi = await import(`${pathToFileURL(standaloneClaudeFile).href}?patched`);
 for (const template of Object.keys(legacyClaudeBodies)) {
@@ -328,6 +350,10 @@ for (const template of Object.keys(codexBodies)) {
       && output.includes('ruvnet_cli_run({executable: "ruflo", argv:')
       && !output.includes('executable: "claude-flow"'));
   check(`RIC14 Codex ${template} has no stale task_orchestrate`, !output.includes('task_orchestrate'));
+  check(`RIC14a Codex ${template} defers workspace and existing release authority to the caller`,
+    output.includes('Follow caller instructions for workspace isolation and release authorization')
+      && output.includes('including standing authorization')
+      && !/worktrees?|separately authorized release gate/.test(output));
 }
 const enterprise = await codexApi.generateAgentsMd({ template: 'enterprise' });
 check('RIC15 enterprise policy is labelled as unimplemented scaffolding',

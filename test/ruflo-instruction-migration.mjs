@@ -112,6 +112,18 @@ check('RIM4d mixed or edited interface revisions are refused',
   Boolean(migrateInterfaceRevisionText(customV1.replace('genuine CLI-only gap', 'custom CLI gap')).error));
 
 const pureClaude = migrateText(CLAUDE, 'claude', { known: KNOWN });
+const priorAgents = pureAgents.next.replace(
+  '- Follow caller workspace and isolation rules; assign non-overlapping file ownership and name one integration owner.',
+  '- Give every writer an isolated worktree and non-overlapping ownership; name one integration owner.');
+const priorClaude = pureClaude.next.replace(
+  '- Launch independent agents together; follow caller workspace rules and give writers non-overlapping ownership.',
+  '- Launch independent agents together; give writers isolated worktrees and non-overlapping ownership.');
+check('RIM4b exact previous worktree guidance migrates to caller workspace authority',
+  migrateText(priorAgents, 'agents').next === pureAgents.next
+    && migrateText(priorClaude, 'claude').next === pureClaude.next
+    && !/worktree/.test(pureAgents.next + pureClaude.next));
+check('RIM4c edited previous worktree guidance remains protected',
+  Boolean(migrateText(priorAgents.replace('isolated worktree', 'custom isolated worktree'), 'agents').error));
 check('RIM5 Claude overlay keeps project-only content and continues after spawning',
   pureClaude.changed
     && pureClaude.next.includes('CUSTOM-CLAUDE-MIDDLE')
