@@ -50,6 +50,14 @@ It does not change that runtime, policy state or the timeout. Qualification:
 
 ## Learning capture ownership: 2 November 2026
 
+Version 4.46.93 removes the adapter's downstream requirement for a
+`vector_indexes` table. Fresh capture tests reproduced this refusal in
+semantic-learn and semantic-modelling on both hosts. Upstream bridge writes
+explicitly tolerate that table being absent on legacy stores; native
+`ensureBridgeSchema` remains responsible for the ordinary-entry schema. The
+repair neither creates a replacement index table nor changes database bindings.
+Exact legacy patch bytes remain reversible; unrecognised drift still refuses.
+
 `ruflo-memory-entries-only` incorporates the previously retained HZ capture
 patch into the released composition and monitor. This is a downstream adapter,
 not code shipped in Ruflo 3.66.0. It reuses the host-native SQLite library,

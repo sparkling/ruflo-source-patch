@@ -167,8 +167,9 @@ assert.equal(calls, 0);
     ['open', '/fixture/memory.db', true], ['pragma', 'journal_mode = WAL'],
     ['embedder', 'Xenova/all-MiniLM-L6-v2', 384, 'transformers'], ['close'],
   ]);
+  assert(!(await exercise('missing-index')).error, 'native bridge permits legacy stores without vector_indexes');
   for (const [mode, expected] of [
-    ['wrong-path', /identity mismatch/], ['missing-index', /vector_indexes table missing/],
+    ['wrong-path', /identity mismatch/],
     ['schema-failure', /schema not writable/], ['embedding-failure', /embedding unavailable/],
   ]) {
     const refused = await exercise(mode);
@@ -396,7 +397,7 @@ console.log('ruflo-memory-entries-only: descriptor discovery passed');
 
 // Withdrawn initialization changes are recognized only for exact rollback.
 {
-  const {captureCostEdits, descriptor: current} = await import('../lib/ruflo-memory-entries-only/patcher.mjs');
+  const {captureCostEdits, legacySchemaCheck, descriptor: current} = await import('../lib/ruflo-memory-entries-only/patcher.mjs');
   let source = pristineOf(specs[0], '\n');
   for (const [from] of captureCostEdits) if (!makeSurface(specs[0]).patch(source).next.includes(from)) source += '\n'+from;
   const original = makeSurface(specs[0]).patch(source).next;
@@ -406,4 +407,14 @@ console.log('ruflo-memory-entries-only: descriptor discovery passed');
   assert(current.isPatched(original));assert(!current.isPatched(withdrawn));
   assert.equal(current.reverse(withdrawn),source);
   assert.equal(current.patchSource(original).next,original);
+  const oldRequirement = original.replace('        const embedder = new EmbeddingService({',
+    legacySchemaCheck + '        const embedder = new EmbeddingService({');
+  assert(current.hasPatch(oldRequirement));
+  assert(!current.isPatched(oldRequirement));
+  assert.equal(current.historicalPatchSource(source, oldRequirement).next, oldRequirement);
+  assert.equal(current.patchSource(oldRequirement).next, original);
+  assert.equal(current.reverse(oldRequirement), source);
+  const drifted = oldRequirement.replace('vector_indexes table missing', 'unexpected schema drift');
+  assert(current.patchSource(drifted).missing.length);
+  assert.equal(current.patchSource(drifted).next, drifted);
 }
