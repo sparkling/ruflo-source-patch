@@ -164,6 +164,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-adr-envelope': action => runPluginCommand('brain-adr-envelope', action),
   'brain-capture-budget': action => runPluginCommand('brain-capture-budget', action),
   'brain-capture-diagnostics': action => runPluginCommand('brain-capture-diagnostics', action),
+  'brain-capture-launch': action => runPluginCommand('brain-capture-launch', action),
   'brain-learning-native-owner': action => runPluginCommand('brain-learning-native-owner', action),
   'brain-learning-receipts': action => runPluginCommand('brain-learning-receipts', action),
   'brain-scratch-preservation': action => runPluginCommand('brain-scratch-preservation', action),
@@ -253,6 +254,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-adr-envelope')}bounded complete JSON for ADR scope inspection (#515)
   ${pad('brain-capture-budget')}align Stop/PreCompact with existing native capture budget (#513)
   ${pad('brain-capture-diagnostics')}retain hashed failure scope and redacted terminal stderr (#518)
+  ${pad('brain-capture-launch')}release admission after failed child spawn; retain two-slot shedding (#519)
   ${pad('brain-learning-native-owner')}withdraw capture selection and restore native execution (#4666)
   ${pad('brain-user-learning-root')}keep the adopted user learner independent of parent Git roots (#377)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
