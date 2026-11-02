@@ -197,6 +197,19 @@ preserved. Native two-slot admission, shedding, consent, exact acknowledgement a
 no-replay behavior remain. Tests cover synchronous launch exceptions, real asynchronous
 ENOENT, both same-key overlap orders, replaced files and post-spawn errors.
 
+The `brain-capture-idempotency` target addresses
+[Brain #520](https://github.com/stuinfla/ruvnet-brain/issues/520). The native turn key
+excludes capture time, while its value includes the current timestamp. A retry of
+the unchanged transcript can therefore conflict with its own earlier committed
+record. After a native append-only duplicate and one successful exact read, the
+repair reuses the original committed timestamp only if the unchanged native record
+constructor reproduces both requested and stored values completely. It preserves
+raw piped readback bytes, including whitespace, and reports `alreadyRecorded`,
+`committedAt` and the committed value's SHA-256. Original content is never overwritten;
+changed rendered actions or other fields still fail. No queue or history replay is
+added. Constructor mutation, failed reads, altered content, overlapping attempts,
+composition and exact restoration have regression coverage.
+
 The loaded-session follow-up verified all three local and nine HZ parent sessions:
 each returned a one-entry inventory and exact retrieval. HZ's native host refresh
 changed only an inert user-level Ruflo registration stamp, preserving project
@@ -1378,6 +1391,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
 | **`brain-capture-launch`** | Release owned admission only after proven child launch failure; retain native shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) |
+| **`brain-capture-idempotency`** | Verify an existing turn at its committed timestamp through the unchanged native constructor and complete byte comparison; retain original content and expose its committed identity. | [#520 · open](https://github.com/stuinfla/ruvnet-brain/issues/520) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
