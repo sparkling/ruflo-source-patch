@@ -77,6 +77,7 @@ try {
     assert.equal(refused.missing.length, 1, 'unknown mixed declarations and edited projections stay untouched');
   }
   roots.forEach((root) => populate(root)); populate(claudeRoot);
+  fs.mkdirSync(path.join(roots[1], '.codex-plugin/migrated-command-skills'), { recursive: true });
   const files = roots.map((root) => path.join(root, 'hooks/hooks.json'));
   assert.deepEqual(mod.discover(), files);
   assert.deepEqual(mod.preflight(), { ok: true, errors: [] });
@@ -171,6 +172,19 @@ try {
   assert.equal(compose.reconcile([], [mod.NAME]).errors, 0);
   assert.equal(fs.readFileSync(mixedFile, 'utf8'), mixed);
   const logger = await import('../lib/hook-failure-log/patcher.mjs');
+  // Existing descriptor APIs may use optional parameters for something other
+  // than file context. They must keep their original argument contracts.
+  for (const method of ['patchSource', 'isPatched', 'reverse']) {
+    const originalMethod = logger.descriptor[method];
+    logger.descriptor[method] = (...args) => {
+      assert.equal(args.length, 1, `non-opted-in ${method} retains its source-only contract`);
+      return originalMethod(...args);
+    };
+  }
+  logger.descriptor.historicalPatchSource = (...args) => {
+    assert.equal(args.length, 2, 'non-opted-in history retains (source, current)');
+    return logger.patchSource(args[0]);
+  };
   const loggedOriginal = logger.patchSource(mixed).next;
   const loggedProjection = logger.patchSource(mixedFixed.next).next;
   assert.equal(mod.isPatched(loggedProjection), true, 'status recognizes the exact sibling logger composition');
@@ -221,6 +235,77 @@ try {
     assert.equal(fs.readFileSync(path.join(mixedClaude, 'hooks/hooks.json'), 'utf8'), mixed);
     assert.equal(fs.existsSync(`${mixedFile}.rsp-backup`), false);
   }
+  // A native selector retires only that physical surface, even when another
+  // installed version has identical module bytes and still needs projection.
+  const select = (root, selected = native, name = plugin, selector = './hooks/codex-hooks.json') => {
+    write(path.join(root, '.codex-plugin/plugin.json'), JSON.stringify({ name, version: '0.3.1', hooks: selector }));
+    write(path.join(root, 'hooks/codex-hooks.json'), selected);
+  };
+  roots.forEach(root => populate(root));
+  assert.equal(compose.applyComposed([mod.NAME]).errors, 0);
+  select(roots[0]);
+  assert.equal(compose.isKnownFileComposition(original, fixed.next, files[0], [mod.NAME]), true,
+    'native selection preserves exact historical composition recognition');
+  assert.equal(compose.composeSource(original, [mod.NAME], { file: files[0] }), original);
+  assert.equal(compose.composeSource(original, [mod.NAME]), fixed.next, 'source-only composition remains compatible');
+  assert.equal(compose.statusComposed([mod.NAME])[mod.NAME].patched, mod.discover().length - 1,
+    'native selection reports the still-present unused projection as drift');
+  const selectiveNative = compose.applyComposed([mod.NAME]);
+  assert.equal(selectiveNative.errors + selectiveNative.incomplete, 0, selectiveNative.log.join('\n'));
+  assert.equal(fs.readFileSync(files[0], 'utf8'), original);
+  assert.equal(fs.readFileSync(files[1], 'utf8'), fixed.next, 'same bytes on an unselected surface still require projection');
+  for (const file of extraFiles) assert.equal(mod.hasPatch(fs.readFileSync(file, 'utf8')), true);
+  assert.equal(mod.probeNativeSwarmHooksReplacement().state, 'live', 'remaining modules prevent whole-target retirement');
+
+  const adrRoot = path.dirname(path.dirname(extraFiles.find(file => file.includes('/ruflo-adr/'))));
+  const nativeCommands = JSON.stringify({
+    description: 'Native Codex ADR secret guard and session status; Claude module hooks remain separate.',
+    hooks: Object.fromEntries(['SessionStart', 'PreToolUse'].map(event => [event, [{ hooks: [{
+      type: 'command', command: `node "${'${PLUGIN_ROOT}'}/hooks/codex-hook.cjs" ${event}`, timeout: 5,
+    }] }]])),
+  }, null, 2) + '\n';
+  const loggedNative = logger.patchSource(nativeCommands).next;
+  select(adrRoot, loggedNative, 'ruflo-adr');
+  write(path.join(adrRoot, 'hooks/codex-hook.cjs'), '// existing native guard/status helper\n');
+  const nativeResult = compose.applyComposed([mod.NAME, logger.NAME]);
+  assert.equal(nativeResult.errors + nativeResult.incomplete, 0, nativeResult.log.join('\n'));
+  assert.equal(fs.readFileSync(path.join(adrRoot, 'hooks/hooks.json'), 'utf8'), MANIFESTS['ruflo-adr']);
+  assert.equal(fs.readFileSync(path.join(adrRoot, 'hooks/codex-hooks.json'), 'utf8'), loggedNative,
+    'selected native guard/status commands and exact logger stay unchanged');
+  assert.equal(fs.readFileSync(path.join(adrRoot, 'hooks/register.ts'), 'utf8'), "import type { Hook, Register } from 'claude-code'\n");
+  assert.equal(compose.statusComposed([mod.NAME])[mod.NAME].patched, mod.discover().length);
+
+  for (const badSelector of [undefined, null, [], './hooks/unknown.json', '../outside.json', '/tmp/hooks.json']) {
+    select(roots[0], native, plugin, badSelector === undefined ? './hooks/codex-hooks.json' : badSelector);
+    if (badSelector === undefined) write(path.join(roots[0], '.codex-plugin/plugin.json'), JSON.stringify({ name: plugin, version: '0.3.1' }));
+    const before = fs.readFileSync(files[1], 'utf8');
+    assert.equal(mod.preflight().ok, false, 'missing, unknown, malformed and escaping selectors refuse');
+    assert.ok(compose.statusComposed([mod.NAME])[mod.NAME].patched < mod.discover().length);
+    const refused = compose.applyComposed([mod.NAME]);
+    assert.ok(refused.errors + refused.incomplete > 0);
+    assert.equal(fs.readFileSync(files[1], 'utf8'), before);
+  }
+  select(roots[0]);
+  fs.rmSync(path.join(roots[0], 'hooks/codex-hooks.json'));
+  assert.equal(mod.preflight().ok, false, 'a selector requires its native file');
+  write(path.join(temporary, 'native-outside.json'), native);
+  fs.symlinkSync(path.join(temporary, 'native-outside.json'), path.join(roots[0], 'hooks/codex-hooks.json'));
+  assert.equal(mod.preflight().ok, false, 'selected native symlink escape refuses');
+  fs.unlinkSync(path.join(roots[0], 'hooks/codex-hooks.json')); select(roots[0]);
+  write(path.join(roots[0], 'hooks/codex-hooks.json'), '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"unknown"}]}]}}');
+  assert.equal(mod.preflight().ok, false, 'unreviewed native command shape refuses');
+  select(roots[0]);
+  write(files[0], fixed.next);
+  write(`${files[0]}.rsp-backup`, original.replace(mod.DESCRIPTION, 'unrelated saved source'));
+  assert.equal(mod.preflight().ok, false, 'a mismatched saved pristine cannot restore marked bytes');
+  write(`${files[0]}.rsp-backup`, original);
+  assert.equal(compose.reconcile([logger.NAME], [mod.NAME]).errors, 0,
+    'selective uninstall recognizes historical projection after native selector appeared');
+  assert.equal(fs.readFileSync(files[0], 'utf8'), original);
+  assert.equal(fs.readFileSync(path.join(adrRoot, 'hooks/codex-hooks.json'), 'utf8'), loggedNative);
+  assert.equal(compose.reconcile([], [logger.NAME]).errors, 0);
+  assert.equal(fs.readFileSync(path.join(adrRoot, 'hooks/codex-hooks.json'), 'utf8'), nativeCommands);
+
   const wrongMixedOwner = path.join(home, '.codex/plugins/cache/ruflo/ruflo-agent/0.3.1');
   populate(wrongMixedOwner, mixed, 'ruflo-agent');
   const wrongMixedProof = mod.preflight();
