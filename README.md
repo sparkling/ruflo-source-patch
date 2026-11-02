@@ -82,8 +82,9 @@ WAL refusal, database identity, scratch preservation and exact-readback safeguar
 remain in place. No historical observations are replayed and no programme is
 resumed by this release.
 
-Monitor/status now use installation's exact shared-file composition check. An
-unknown edit retaining a patch marker must report drift, not green. ADR-001,
+Monitor/status now use installation's exact composition check for shared CLI
+files and transaction-owned files. This proves derivation from a saved baseline;
+it does not authenticate that baseline against upstream. ADR-001,
 ADR-006 and ADR-016 record these decisions. Ruflo issue
 [#4666](https://github.com/ruvnet/ruflo/issues/4666) carries the corrected downstream
 attribution. Private evidence is under `.local/memory-recovery-20261102/review/`,
@@ -109,6 +110,26 @@ driver, queue or replay. Native observation shedding at two occupied slots and
 the ledger's 64-window/256-KiB bounds remain unchanged. Existing unattributed
 historical rows cannot acquire identity retroactively. Retire this target when
 the native scope, repeat, terminal-diagnostic and privacy behaviour is verified.
+
+Version 4.46.97 repairs three downstream CLI defects from the one-by-one audit.
+The root resolver cached a relative argument across working-directory changes;
+its cache now uses the resolved absolute path. The plain SQLite integrity check
+rejected Ruflo's native `RFE1` encrypted format; native format detection and
+authentication now retain ownership, while WAL and corrupt-plaintext refusal
+remain. Finally, the native parser normalizes `--native-only` to `nativeOnly`,
+but our forwarding read the kebab-case spelling. Tests now use the actual parser,
+native encryption functions, real cwd changes and exact historical compositions.
+
+The fresh HZ hook timeout exposed another downstream source deviation: four
+`session-snapshot-hook.mjs` copies and their saved baselines selected inline
+learning (`detach: false`). The published Brain 4.7.28 tag, current upstream
+source, Mac and HZ's Console copy all select `detach: true`. Inline execution
+puts the six-second capture budget inside Codex's four-second wrapper; it is
+not evidence that Ruflo needs a new initialization or a larger timeout.
+The exact altered baseline and live composition are archived before restoring
+the verified native route and its uninstall baseline. Unknown bytes refuse
+repair. The originating writer remains unidentified. This recovery changes no
+timeouts, learning consent, admission limits, databases or update behavior.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 
@@ -518,6 +539,8 @@ after native 3.57.0 multi-store acceptance and isolated lifecycle proof. That cl
 the registry-identity defect; fleet reconciliation and activation remain separate.
 [The native-backup fallback defect is now closed upstream](https://github.com/ruvnet/ruflo/issues/4287).
 The explicit native-only extension remains separately required as recorded above.
+Its forwarding is tested against the native command parser, including the
+normalized `flags.nativeOnly` property.
 
 ## Compatibility qualification of 2026-10-15 (v4.46.57)
 
@@ -1075,7 +1098,7 @@ Actions: `install` · `uninstall` · `status`
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. Count a verified retained source/copy pair once while retaining independent identical-content episodes. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306 · closed](https://github.com/ruvnet/ruflo/issues/3306) |
-| **`cwd`** | **Silent data loss and stray state.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The semantic router and AgentDB's RuVector backend also omit RuVector's `storagePath`, which creates `./ruvector.db`; the patch assigns durable stores beside AgentDB's configured database, the router store under the project rooted `.swarm`, and an absolute OS-temporary path to memory-only or otherwise unconfigured backends. The target anchors the resolver, callees, and implicit-relative constants; Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |
+| **`cwd`** | **Silent data loss and stray state.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; cache identity uses the resolved absolute starting path. AgentDB vector-storage overrides were withdrawn in 4.46.95: native AgentDB storage owns those paths. Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired on executable proof in Ruflo 3.38.11+.** Older releases need direct start/stop/status/supervisor paths normalized to one project-root lock/PID identity. Current releases export and use `resolveDaemonProjectRoot()` throughout; retirement executes nested, nested-project, `.git` stop, and no-marker behavior and rejects route/resolver mutations | [#2877 · closed](https://github.com/ruvnet/ruflo/issues/2877) · [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`memory`** | Keeps an explicit project/user database path an authority boundary: one long-lived bridge process gets one canonical registry state per database instead of silently reusing whichever store opened first. Above Ruflo 3.38.12's native #2878 shared-lock baseline it also retains stricter token/inode-safe fail-closed lock ownership and outer fallback/bridge serialization, **WAL-sidecar refusal**, an **integrity gate**, and a **stale-writer guard**. The monitor restarts only positively resolved pre-patch daemons. It detects and reports stale MCP clients but never kills them because only their owning host can reconnect the stdio transport; `RSP_NO_STALE_WRITER_KILL` disables daemon restarts | [#3143 · closed](https://github.com/ruvnet/ruflo/issues/3143) · [#2878 · closed](https://github.com/ruvnet/ruflo/issues/2878) · [#2735 · closed](https://github.com/ruvnet/ruflo/issues/2735) · [#2584 · closed](https://github.com/ruvnet/ruflo/issues/2584) · historical [#2621 · closed](https://github.com/ruvnet/ruflo/issues/2621) |
 | **`init`** | **Stops `ruflo init`/`doctor` regenerating what the plugins provide.** The durable complement to [`plugin-only`](#plugin-only-dedupe). Disables the standalone `claude-flow` `.mcp.json` emission and the `.claude/{skills,commands,agents}` bundle gates (helpers kept). **Plugin-always deployments only:** the CLI hardcodes `mcp.claudeFlow: true` with no plugin-off flag, so on a plugin machine the standalone + bundle are pure duplicates (ADR-022). The legacy #2777 edit now applies only to builds that still shell out to the whole-repository `npx skills add`; Ruflo 3.32.10+'s bounded in-process `SKILL.md` materialization is left untouched | [#2640 · open](https://github.com/ruvnet/ruflo/issues/2640) · [#2685 · closed](https://github.com/ruvnet/ruflo/issues/2685) · [#2777 · closed](https://github.com/ruvnet/ruflo/issues/2777) |
@@ -1734,7 +1757,9 @@ at the actual `writeFileAtomic` boundary, a pure-buffer check reads the 100-byte
 and verifies it is self-consistent (magic, a power-of-two page size, and `page_size * page_count`
 equal to the file size when the header's page count is authoritative). A torn image is **refused**
 (the write throws) rather than overwritten. Missing and zero-byte files remain valid initialization
-inputs. Every existing non-empty `.db`, including `ensureSchemaColumns` output, must be verifiable.
+inputs. Plain SQLite images, including `ensureSchemaColumns` output, must be verifiable.
+Native `RFE1` encrypted images remain owned by Ruflo's format parser and
+authentication; the SQLite-header check does not reinterpret their ciphertext.
 Successful native AgentDB bridge calls never cross this raw boundary and are not falsely rejected.
 
 #### The stale-writer guard (ADR-023)

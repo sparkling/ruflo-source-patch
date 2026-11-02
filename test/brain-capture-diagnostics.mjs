@@ -5,7 +5,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
-import { SPECS, patchSource, reverseSource, isPatched, preflight } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { SPECS, patchSource, reverseSource, hasPatch, isPatched, preflight } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { INLINE_SNAPSHOT_SHA256, NATIVE_SNAPSHOT_SHA256, NATIVE_LEARNING_CALL, INLINE_LEARNING_CALL,
+  prepareNativeLearningRoute, preservedRoutePath } from '../lib/brain-capture-diagnostics/native-route.mjs';
+import { writeIfChanged, restoreFromBackup } from '../lib/pristine.mjs';
 
 const fixture = name => {
   const reused = {
@@ -38,6 +41,96 @@ const hash = text => crypto.createHash('sha256').update(text).digest('hex').slic
 const rows = home => fs.existsSync(path.join(home, 'hook-failures.jsonl'))
   ? fs.readFileSync(path.join(home, 'hook-failures.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [];
 try {
+  const nativeSnapshot = fixture('session-snapshot-hook');
+  const inlineSnapshot = nativeSnapshot.replace('captureLearning(payload, { env, detach: true })', 'captureLearning(payload, { env, detach: false })');
+  assert(patchSource(inlineSnapshot).missing.length, 'unregistered inline PostToolUse source must be refused');
+  const digest = text => crypto.createHash('sha256').update(text).digest('hex');
+  assert.equal(digest(nativeSnapshot), NATIVE_SNAPSHOT_SHA256, 'fixture equals published v4.7.28/main');
+  assert.equal(digest(inlineSnapshot), INLINE_SNAPSHOT_SHA256, 'reproduces exact HZ poisoned baseline');
+  const nativePatched = patchSource(nativeSnapshot).next;
+  const inlinePatched = nativePatched.replace(NATIVE_LEARNING_CALL, INLINE_LEARNING_CALL);
+  assert(!isPatched(inlinePatched), 'read-only status rejects marked inline caller');
+
+  // Execute the actual native PostToolUse branch; only the module-loading seam is inert.
+  const route = source => context(section(source, 'export async function runLifecycleBoundary(', '\nif (process.argv[1]')
+    .replace("await import('./learn-capture.mjs')", 'await captureModule()'), {
+    captureModule: async () => ({ captureLearning(payload, options) {
+      assert.equal(options.detach, true, 'PostToolUse must dispatch native bounded detached capture');
+      assert.equal(payload.cwd, '/inert/project');
+      return { detached: true };
+    } }),
+  });
+  const invokeRoute = source => route(source).runLifecycleBoundary('PostToolUse', { cwd: '/inert/project' }, {
+    env: { RUVNET_HOOK_HOST: 'codex' }, deadlineAt: 0,
+  });
+  await assert.rejects(invokeRoute(inlinePatched), /PostToolUse must dispatch/, 'reproduce altered actual hook route');
+  for (const source of [nativeSnapshot, nativePatched]) assert.equal((await invokeRoute(source)).learning.detached, true);
+
+  let recoveryNumber = 0;
+  const recoveryFixture = () => {
+    const dir = path.join(sandbox, 'route-' + recoveryNumber++);
+    fs.mkdirSync(dir);
+    const file = path.join(dir, 'session-snapshot-hook.mjs'), backup = file + '.rsp-backup';
+    fs.writeFileSync(file, inlinePatched); fs.writeFileSync(backup, inlineSnapshot);
+    return { dir, file, backup };
+  };
+  const healthy = recoveryFixture();
+  assert.equal(preflight([healthy.file]).ok, false, 'read-only preflight refuses known poisoned route');
+  assert.equal(fs.readFileSync(healthy.backup, 'utf8'), inlineSnapshot, 'preflight never repairs');
+  const restore = file => restoreFromBackup(file, {
+    hasPatch, isKnownPatched: (saved, current) => patchSource(saved).missing.length === 0 && patchSource(saved).next === current,
+  });
+  assert.equal(restore(healthy.file).unresolved, true, 'uninstall cannot restore poisoned baseline');
+  assert.deepEqual(prepareNativeLearningRoute([healthy.file], patchSource).errors, []);
+  assert.equal(fs.readFileSync(healthy.file, 'utf8'), nativePatched);
+  assert.equal(fs.readFileSync(healthy.backup, 'utf8'), nativeSnapshot);
+  assert.equal(fs.readFileSync(preservedRoutePath(healthy.file, inlinePatched), 'utf8'), inlinePatched);
+  assert.equal(fs.readFileSync(preservedRoutePath(healthy.backup, inlineSnapshot), 'utf8'), inlineSnapshot);
+  assert.equal(preflight([healthy.file]).ok, true);
+  assert.equal(prepareNativeLearningRoute([healthy.file], patchSource).log.length, 0, 'recovery is idempotent');
+  assert.equal(restore(healthy.file).restored, true);
+  assert.equal(fs.readFileSync(healthy.file, 'utf8'), nativeSnapshot, 'uninstall restores upstream detached route');
+
+  for (const change of ['source', 'backup', 'missing-backup', 'archive-collision', 'symlink']) {
+    const f = recoveryFixture();
+    if (change === 'source') fs.appendFileSync(f.file, '\n// unknown edit');
+    if (change === 'backup') fs.appendFileSync(f.backup, '\n// unknown baseline');
+    if (change === 'missing-backup') fs.unlinkSync(f.backup);
+    if (change === 'archive-collision') fs.writeFileSync(preservedRoutePath(f.backup, inlineSnapshot), 'other evidence');
+    if (change === 'symlink') { fs.renameSync(f.file, f.file + '.outside'); fs.symlinkSync(f.file + '.outside', f.file); }
+    const before = fs.readFileSync(f.file, 'utf8');
+    assert(prepareNativeLearningRoute([f.file], patchSource).errors.length, change + ' refused');
+    assert.equal(fs.readFileSync(f.file, 'utf8'), before, change + ' preserved');
+  }
+  const bundleRefusal = recoveryFixture(), unknown = path.join(bundleRefusal.dir, 'hook-failures.mjs');
+  fs.writeFileSync(unknown, 'unrecognized member');
+  assert(prepareNativeLearningRoute([bundleRefusal.file, unknown], patchSource).errors.length);
+  assert.equal(fs.readFileSync(bundleRefusal.backup, 'utf8'), inlineSnapshot, 'all-member proof precedes mutation');
+  assert.equal(fs.existsSync(preservedRoutePath(bundleRefusal.file, inlinePatched)), false);
+
+  const interrupted = recoveryFixture();
+  const partial = prepareNativeLearningRoute([interrupted.file], patchSource, { write(file, body, options) {
+    if (file === interrupted.file) throw Error('simulated interruption after native backup');
+    return writeIfChanged(file, body, options);
+  } });
+  assert(partial.errors.length);
+  assert.equal(fs.readFileSync(interrupted.backup, 'utf8'), nativeSnapshot, 'interrupted uninstall source is native');
+  assert.equal(restore(interrupted.file).unresolved, true);
+  assert.deepEqual(prepareNativeLearningRoute([interrupted.file], patchSource).errors, [], 'preserved exact handoff can finish');
+  assert.equal(fs.readFileSync(interrupted.file, 'utf8'), nativePatched);
+  const unprovedPartial = recoveryFixture();
+  fs.writeFileSync(unprovedPartial.backup, nativeSnapshot);
+  assert(prepareNativeLearningRoute([unprovedPartial.file], patchSource).errors.length, 'native baseline alone cannot authorize unknown handoff');
+
+  const raced = recoveryFixture();
+  const race = prepareNativeLearningRoute([raced.file], patchSource, { write(file, body, options) {
+    if (file === raced.file) fs.appendFileSync(file, '\n// concurrent change');
+    return writeIfChanged(file, body, options);
+  } });
+  assert(race.errors.some(message => /concurrent change/.test(message)));
+  assert.equal(fs.readFileSync(raced.file, 'utf8'), inlinePatched + '\n// concurrent change', 'concurrent live bytes not overwritten');
+  assert.equal(fs.readFileSync(raced.backup, 'utf8'), nativeSnapshot);
+  assert(prepareNativeLearningRoute([raced.file], patchSource).errors.length, 'unknown raced source cannot be silently retried');
   const bundle = [];
   for (const spec of SPECS) {
     const source = fixture(path.basename(spec.relative, '.mjs'));
@@ -197,5 +290,5 @@ try {
   assert.equal(turn.project, a.project); assert.equal(turn.session, a.session);
   assert.equal(turn.store, hash('/origin/memory.db')); assert.equal(turn.expectedKey, hash('expected-turn'));
   assert(!JSON.stringify(rows(home)).includes('/origin/'));
-  console.log('Brain#518: exact source transforms/reversal, scoped repeats, native stderr privacy/terminal precedence, bounded ledger, unchanged shedding, detached origin and caller correlation PASS');
+  console.log('Brain#518: exact native PostToolUse restoration, preserved recovery/race refusal, actual detached route, scoped repeats, native stderr privacy, bounded ledger and unchanged shedding PASS');
 } finally { fs.rmSync(sandbox, { recursive: true, force: true }); }
