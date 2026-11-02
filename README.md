@@ -131,6 +131,15 @@ the verified native route and its uninstall baseline. Unknown bytes refuse
 repair. The originating writer remains unidentified. This recovery changes no
 timeouts, learning consent, admission limits, databases or update behavior.
 
+After 4.46.97 activation, the actual Codex PostToolUse entry point returned in
+174 ms in the affected HZ worktree, followed by detached acknowledgement and
+exact native readback in 3,117 ms overall. The HZ canonical user-scope path
+passed in 3,044 ms (142 ms foreground); Mac also passed. Both monitors and the
+full regression suite pass. These bounded probes do not establish that every
+historical or intermittent timeout has the same cause. Receipts:
+`posttool-v497-affected-worktree.json`, `posttool-v497-canonical.json` and
+`native-route-v497.json` in the HZ recovery directory above.
+
 ## Ruflo 3.66 qualification: 31 October 2026
 
 Ruflo and `@claude-flow/cli` **3.66.0** are installed in all ten discovered
