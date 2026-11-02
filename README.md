@@ -35,6 +35,12 @@ Receipts on HZ: `/data/programme-state/memory-recovery-20261102/adr-envelope-bef
 `adr-envelope-after.json`, `adr-owning-checkout-verification.json` and
 `adr-envelope-trust-hz.json`. Publication workers and project files were untouched.
 
+Version 4.46.89 fixes a downstream installation conflict in 4.46.88: the ADR
+shim and managed-memory boundary now share the existing composition owner and
+one pristine backup. Exact legacy boundary-only backups are recovered by inverse
+and forward composition proof, with their old bytes retained. Regression tests
+cover reapplication, drift refusal and independent removal of either patch.
+
 ## Learning capture ownership: 2 November 2026
 
 `ruflo-memory-entries-only` incorporates the previously retained HZ capture

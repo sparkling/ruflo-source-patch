@@ -367,5 +367,47 @@ check('BMB44 exact modular uninstall preserves native generation dispatch', modu
   && fs.readFileSync(path.join(nextRoot, 'mcp/server.mjs'), 'utf8') === modularSource
   && fs.readFileSync(path.join(RUNTIME, 'mcp/server.mjs'), 'utf8') === modularSource);
 
+console.log('\nShared decision shim lifecycle (#515)');
+const envelope = await import('../lib/brain-adr-envelope/patcher.mjs');
+const sharedShim = path.join(nextRoot, 'scripts/hook-shim.mjs');
+const shimNative = fs.readFileSync(sharedShim, 'utf8').replace('};', envelope.SPECS[0].edits[0][0] + '\n};');
+write(sharedShim, shimNative);
+write(path.join(nextRoot, 'scripts/decision-gate.mjs'), envelope.SPECS[1].edits[0][0] + '\n');
+const envelopeCli = action => spawnSync(process.execPath, [path.join(REPO, 'bin/cli.mjs'), envelope.NAME, action], {
+  env: process.env, encoding: 'utf8', timeout: 30_000,
+});
+check('BMB45 boundary installs before the envelope sibling', cli('install').status === 0);
+const envelopeInstall = envelopeCli('install');
+check('BMB46 both shim owners compose without rebaselining', envelopeInstall.status === 0
+  && fs.readFileSync(sharedShim + '.rsp-backup', 'utf8') === shimNative,
+  envelopeInstall.stdout + envelopeInstall.stderr);
+const exactShim = fs.readFileSync(sharedShim, 'utf8');
+check('BMB47 both policies are present', transforms.isPatched('shim', exactShim) && envelope.isPatched(exactShim));
+// Reproduce the exact v4.46.88 failure: the saved pristine is boundary-only output.
+const legacyBackup = transforms.patchShim(shimNative).next;
+write(sharedShim + '.rsp-backup', legacyBackup);
+const recoveredShim = cli('install');
+check('BMB48 exact legacy backup recovery preserves its prior bytes', recoveredShim.status === 0
+  && fs.readFileSync(sharedShim + '.rsp-backup', 'utf8') === shimNative
+  && fs.readFileSync(sharedShim + '.rsp-backup.boundary-legacy', 'utf8') === legacyBackup
+  && fs.readFileSync(sharedShim, 'utf8') === exactShim, recoveredShim.stdout + recoveredShim.stderr);
+check('BMB49 monitor-style reapply is stable', cli('install').status === 0 && patcher.composerPreflight().ok
+  && fs.readFileSync(sharedShim, 'utf8') === exactShim);
+write(sharedShim + '.rsp-backup', legacyBackup + '\n// unproved drift');
+const refusedRecovery = patcher.apply();
+check('BMB50 drifted legacy backup is refused without mutation', refusedRecovery.incomplete === 1
+  && fs.readFileSync(sharedShim, 'utf8') === exactShim);
+write(sharedShim + '.rsp-backup', shimNative);
+check('BMB51 removing envelope preserves boundary and original pristine', envelopeCli('uninstall').status === 0
+  && fs.readFileSync(sharedShim, 'utf8') === legacyBackup
+  && fs.readFileSync(sharedShim + '.rsp-backup', 'utf8') === shimNative);
+check('BMB52 reinstalling envelope succeeds', envelopeCli('install').status === 0);
+const removeBoundary = cli('uninstall');
+check('BMB53 removing boundary preserves envelope and original pristine', removeBoundary.status === 0
+  && fs.readFileSync(sharedShim, 'utf8') === envelope.patchSource(shimNative).next
+  && fs.readFileSync(sharedShim + '.rsp-backup', 'utf8') === shimNative, removeBoundary.stdout + removeBoundary.stderr);
+check('BMB54 removing last owner restores exact native shim', envelopeCli('uninstall').status === 0
+  && fs.readFileSync(sharedShim, 'utf8') === shimNative);
+
 if (failures) process.exit(1);
 console.log('\n✓ brain-managed-memory-boundary: detector, denial, diagnostic, updater coexistence, and removal proven');

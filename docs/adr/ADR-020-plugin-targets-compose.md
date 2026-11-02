@@ -221,11 +221,13 @@ the other is removed (ADR-026, ADR-027).
 MetaHarness #168's `metaharness-codex-hooks` target also joins composition. It owns authenticated
 installed `metaharness` and `@metaharness/host-codex` runtime files, adds no output when hooks are
 absent, and keeps an exact reverse transform for safe npm/npx re-baselining and removal (ADR-029).
-Brain #102/#103's `brain-managed-memory-boundary` intentionally stays outside per-file composition.
-It must atomically coordinate vendor transforms and marker-owned additive modules across the native active
-generation, matching host copies, and the persistent MCP shell. It therefore preflights one global
-transaction and rolls every write back on failure, while still using exact pristine backups for vendor
-bytes (ADR-028).
+Brain #102/#103's `brain-managed-memory-boundary` retains its atomic bundle transaction
+for vendor transforms and marker-owned additive modules across the native active generation,
+matching host copies and persistent MCP shell (ADR-028). Its shared MCP server and hook shim
+participate in per-file composition; bundle preflight protects their required additive modules.
+Version 4.46.89 registers the shim alongside Brain #515, correcting 4.46.88's missing claimant.
+Legacy boundary-only shim backups are restored only with exact inverse/forward composition
+proof; original backup bytes are retained. Either owner can then be removed independently.
 Brain #224/#225's `brain-search-safety` joins composition for the three executable files in the active
 shared KB. Its `hasPatch` is deliberately narrower than `isPatched`: native-equivalent behavior satisfies
 status, while only the local marker proves ownership during reconciliation. The composition engine now
