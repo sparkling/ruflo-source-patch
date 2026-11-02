@@ -139,6 +139,17 @@ try {
     assert(isPatched(result.next), spec.relative);
     assert.equal(patchSource(result.next).next, result.next, 'idempotent');
     assert.equal(reverseSource(result.next), source, 'exact reverse');
+    if (spec.relative === 'scripts/turn-outcome-capture.mjs') {
+      const previous = spec.edits.filter(({ id }) => !id.startsWith('readback-'))
+        .reduce((text, { from, to }) => text.replace(from, () => to), source);
+      assert(!isPatched(previous), 'prior release needs precise readback diagnostics upgrade');
+      assert.equal(patchSource(previous).next, result.next, 'prior release upgrades to current exact composition');
+      assert.equal(reverseSource(previous), source, 'prior release remains exactly uninstallable');
+      assert.equal(reverseSource(patchSource(previous).next), source);
+      const partial = previous.replace("verified = read({ ruflo, db, key, run, options }) === value", 'verified = true');
+      assert(patchSource(partial).missing.length, 'unknown prior readback changes cannot be blessed');
+      assert.equal(reverseSource(partial), partial, 'unknown prior readback changes are preserved');
+    }
     const syntax = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: result.next, encoding: 'utf8' });
     assert.equal(syntax.status, 0, syntax.stderr);
     const file = path.join(sandbox, path.basename(spec.relative));
@@ -193,6 +204,57 @@ try {
   // Use native redaction, not a substitute sanitizer. All operations here are pure functions.
   const redaction = context(section(fixture('continuity-events'), 'function canonicalize(', '/** Redact, then'));
   const privacy = context(section(fixture('turn-capture-privacy'), 'export function captureFailureReason(', '/** One notice'), { redactText: redaction.redactText });
+
+  // Execute the native exact-readback boundary with inert CLI/consent seams. A failed read
+  // cannot establish a content conflict; append-only writes and strict byte equality remain.
+  const readbackTarget = { projectRoot: sandbox, db: path.join(sandbox, 'inert-memory.db'), contentPathExcludes: [] };
+  function turnReadback(source, retrieved, storeResult = { status: 1, stderr: '[ERROR] Key already exists' }) {
+    let reads = 0, stores = 0;
+    const turn = context(section(source, 'function readBack(', '/** Bounded recent evidence'), {
+      TURN_NAMESPACE: 'turns', STEP_TIMEOUT_MS: 60_000, RUFLO_ENV: {},
+      resolveTurnDb: () => readbackTarget, storeEncryptedAtRest: () => false,
+      resolveRuflo: () => '/inert/ruflo', rufloInvocation: (file, args) => ({ executable: file, args }),
+      rufloScratchRoot: () => sandbox, rufloRunDir: () => fs.mkdtempSync(path.join(sandbox, 'readback-')),
+      flagValue: (args, flag) => args[args.indexOf(flag) + 1],
+      redactText: redaction.redactText, maskExcludedPaths: value => value,
+      captureFailureReason: privacy.captureFailureReason, digest: value => hash(value),
+      recordHookFailure: () => {}, failureScope: () => ({}), validFailureScope: () => ({}),
+    });
+    const [row] = turn.runSteps({ event: 'SessionEnd', steps: [{ kind: 'store', projectRoot: sandbox,
+      projectDir: sandbox, brainHome: sandbox, args: ['--key', 'turn-inert', '--value', 'exact outcome', '--path', readbackTarget.db] }] }, {
+      projectDir: sandbox, brainHome: sandbox, run: (binary, args) => {
+        if (args[1] === 'retrieve') { reads++; return retrieved; }
+        stores++; assert(args.includes('--no-upsert') && args.includes('--append-only'));
+        return storeResult;
+      },
+    });
+    assert.equal(stores, 1, 'one native append attempt; no overwrite or replay');
+    assert.equal(reads, 1, 'exact key is read once');
+    return row;
+  }
+  const nativeTurn = fixture('turn-outcome-capture');
+  // Brain4.7.28 and main blob16e1b784a516bb148d2d320d150eb66e927f316b (2026-11-02).
+  assert.equal(digest(nativeTurn), 'e55c539a53fab2d9dc56be788c2af6df82b2083dd112fda74fb6631d720f2d34');
+  const currentTurn = patched('turn-outcome-capture');
+  assert.equal(turnReadback(nativeTurn, { status: 1, stderr: 'key not found' }).error,
+    'duplicate turn key holds different content', 'native negative read is misleadingly called a content conflict');
+  for (const result of [{ status: 1, stderr: 'key not found' }, { status: null, signal: 'SIGTERM' },
+    { status: 0, stdout: 'exact outcome', error: Error('transport failed') }, { status: 0, stdout: 'exact outcome', signal: 'SIGTERM' }]) {
+    const row = turnReadback(currentTurn, result);
+    assert.equal(row.error, 'duplicate turn key could not be read back');
+    assert.equal(row.verified, false); assert.notEqual(row.status, 0);
+  }
+  const conflict = turnReadback(currentTurn, { status: 0, stdout: 'different outcome' });
+  assert.equal(conflict.error, 'duplicate turn key holds different content'); assert.equal(conflict.verified, false);
+  for (const source of [nativeTurn, currentTurn]) {
+    const identical = turnReadback(source, { status: 0, stdout: 'exact outcome' });
+    assert.equal(identical.verified, true); assert.equal(identical.status, 0); assert.equal(identical.error, null);
+  }
+  const firstWrite = turnReadback(currentTurn, { status: 0, stdout: 'exact outcome' }, { status: 0 });
+  assert.equal(firstWrite.verified, true);
+  const unverifiedWrite = turnReadback(currentTurn, { status: 1 }, { status: 0 });
+  assert.equal(unverifiedWrite.verified, false); assert.equal(unverifiedWrite.status, 1);
+  assert.equal(unverifiedWrite.error, 'exact turn key/content readback failed');
   let kills = 0, cleanups = 0;
   const memory = context(section(patched('ruflo-memory-hooks'), 'export function rufloMemory(', '\nfunction parseJson('), {
     resolveRuflo: () => '/inert/ruflo', rufloInvocationOrPlain: (file, args) => ({ executable: file, args }),
