@@ -89,9 +89,15 @@ total deadline and whole-session child retirement remain intact. Unsupported sea
 capabilities retain the CLI fallback ([Brain #514](https://github.com/stuinfla/ruvnet-brain/issues/514)).
 
 Review correction: the scoped adapter changes controller initialization and
-disables controllers, including attestation. It preserves selected native calls;
-it is not equivalent to unmodified native initialization. The original deadline
-and duplicate recall processes are present in pristine Brain 4.7.28.
+disables the vector, reasoning, learning and other controllers. MutationGuard
+and AttestationLog are initially disabled but the subsequent native security
+wiring still attempts to activate them. Their implementation files are absent
+from the resolved AgentDB 3.0.0-alpha.20 on both hosts, and the installed registry
+returns null for these controllers; their absence is not established as a
+regression caused by this adapter. The scoped result reports whether guarding
+and attestation actually ran. This is not equivalent to unmodified native
+initialization. The original deadline and duplicate recall processes are present
+in pristine Brain 4.7.28.
 
 A subsequent isolated comparison establishes downstream causation at the vector
 provider boundary: two saved-pristine backend processes in different scratch
@@ -105,6 +111,26 @@ one correct shared owner. The capture adapter is a containment measure whose
 controller and indexing parity remain unproved, not an upstream-equivalent fix.
 Receipt: `.local/memory-recovery-20261102/review/vector-collision-control/receipt.json`.
 The upstream attribution in Ruflo #4666 has been corrected accordingly.
+
+Review verdict: **containment verified for the recorded operations; permanent
+ownership repair not approved**. An additional source trace finds that a
+successful embedding-bearing `storeEntry` calls `addToHNSWIndex`, which calls
+`bridgeAddEmbedding` and re-enters the full registry without the scoped mode.
+That can reopen the contested vector owner after the row has committed; the
+caller ignores the auxiliary failure. Exact readback therefore cannot prove
+that this second initialization was avoided. Despite its name, native
+`bridgeAddEmbedding` updates the SQL embedding row, not an HNSW index. Ordinary
+bridge search scores stored rows with cosine/BM25; neither successful recall nor
+this source trace proves ANN or controller parity. No new algorithm is needed.
+
+The corrective direction is to use the existing long-lived native owner for
+hook operations and preserve its normal initialization. Ruflo ships MCP
+transports, but the inspected Brain capture implementation launches CLI
+processes; an automatic hook-to-existing-owner route has not been verified.
+This is a proposed integration correction, not a claim of a shipped route.
+Do not remove WAL protection, fragment indexes again, or treat absent controller
+files as justification for a replacement security implementation. Review evidence
+and source hashes: `.local/memory-recovery-20261102/review/final-review.json`.
 
 Live success does not establish embedding/ranking parity. Negative
 probes found three downstream defects, corrected in 4.46.91: shared search now
