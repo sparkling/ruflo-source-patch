@@ -139,3 +139,30 @@ assert.equal(preflight([nativeFile]).ok, true);
 assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live', 'older overlays cannot retire by version or nearby helper presence');
 assert.equal(probeGroundingCodeReplacement({ files: [] }).state, 'unknown');
 console.log('PASS brain-grounding-code: exact native guard/helper acceptance, behavioral retirement, missing/drifted/escaping helper refusal and legacy preservation');
+
+// 4.7.28 changes only direct-invocation detection, now imported from its packaged shared owner.
+// Qualify the full dependency instead of accepting a helper hash that cannot run on its own.
+const entrypointHelper = fs.readFileSync(new URL('./fixtures/brain-grounding-code/projection-native-4.7.28.mjs', import.meta.url), 'utf8');
+const entrypoint = fs.readFileSync(new URL('./fixtures/brain-grounding-code/entrypoint-native-4.7.28.mjs', import.meta.url), 'utf8');
+const entrypointFile = path.join(nativeScripts, 'entrypoint.mjs');
+fs.writeFileSync(nativeFile, nativeGuard);
+fs.writeFileSync(helperFile, entrypointHelper);
+assert.equal(preflight([nativeFile]).ok, false, 'shared native entrypoint must be present');
+fs.writeFileSync(entrypointFile, entrypoint);
+assert.equal(preflight([nativeFile]).ok, true);
+const entrypointProof = probeGroundingCodeReplacement({ files: [nativeFile] });
+assert.equal(entrypointProof.state, 'superseded', entrypointProof.evidence);
+assert.match(entrypointProof.evidence, /44 isolated native replays/);
+fs.writeFileSync(entrypointFile, entrypoint.replace('return false;', 'return true;'));
+assert.equal(preflight([nativeFile]).ok, false, 'changed dependency cannot retain native qualification');
+assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live');
+fs.unlinkSync(entrypointFile);
+const externalEntrypoint = path.join(root, 'external-entrypoint.mjs');
+fs.writeFileSync(externalEntrypoint, entrypoint);
+fs.symlinkSync(externalEntrypoint, entrypointFile);
+assert.equal(preflight([nativeFile]).ok, false, 'shared dependency cannot escape its native bundle');
+fs.unlinkSync(entrypointFile);
+fs.writeFileSync(entrypointFile, entrypoint);
+assert.equal(preflight([nativeFile]).ok, true);
+assert.equal(patchSource(nativeGuard).next, nativeGuard, 'qualification never reinstalls the retired overlay');
+console.log('PASS brain-grounding-code: reviewed native shared entrypoint, 43-case matrix plus alias execution, and dependency refusal');
