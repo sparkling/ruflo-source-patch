@@ -164,3 +164,101 @@ check('BL23 CLI lifecycle leaves every vendor byte pristine',
   files.every((file) => fs.readFileSync(file, 'utf8') === pristine && !fs.existsSync(`${file}.rsp-backup`)));
 
 console.log('✔ brain release lockstep (#77 fail-closed all-component doctor verdict, bounded discovery, atomic refusal, behavior proof, mutation test, exact restore)');
+
+// Current native ADR-089/098 contracts supersede the historical equality gate.
+const nativeFixture = JSON.parse(fs.readFileSync(new URL('./fixtures/brain-release-native-4.7.28.json', import.meta.url), 'utf8'));
+const modernFixture = fs.readFileSync(new URL('./fixtures/brain-doctor-4.5.2.txt', import.meta.url), 'utf8');
+const nativeProof = await import('../lib/brain-release-lockstep/native.mjs');
+const { exerciseNativeDoctor } = await import('../lib/brain-release-lockstep/probe.mjs');
+const consolePatch = await import('../lib/brain-console-lifecycle/patcher.mjs');
+const { historicalPatchSource, preflight } = await import('../lib/brain-release-lockstep/patcher.mjs');
+let nativeInstaller = modernFixture.replace(nativeFixture.wiring.find(anchor => anchor.includes("check('identity',")),
+  nativeFixture.doctorChecks[1].trimEnd()) + '\n' + nativeFixture.sources['bin/install.mjs']
+  + '\n' + nativeFixture.doctorChecks[0];
+for (const anchor of nativeFixture.wiring) if (!nativeInstaller.includes(anchor)) nativeInstaller += '\n' + anchor;
+for (const root of roots) {
+  writeInstaller(root, nativeInstaller);
+  for (const relative of new Set([...Object.keys(nativeFixture.sources), ...Object.keys(nativeFixture.links)])) {
+    if (relative === 'bin/install.mjs') continue;
+    const helper = path.join(root, relative);
+    fs.mkdirSync(path.dirname(helper), { recursive: true });
+    fs.writeFileSync(helper, (nativeFixture.links[relative] || []).join('\n') + '\n' + (nativeFixture.sources[relative] || ''));
+  }
+}
+for (const file of files) {
+  const proof = nativeProof.proveNativeDoctor(nativeInstaller, file);
+  check('BL24 native current dependency graph passes isolated cases', proof.ok && /46 isolated/.test(proof.evidence));
+  check('BL25 current native source is accepted unchanged', patchSource(nativeInstaller, file).next === nativeInstaller
+    && patchSource(nativeInstaller, file).missing.length === 0 && isPatched(nativeInstaller, file));
+  const oldRelease = historicalPatchSource(nativeInstaller);
+  check('BL26 historical modern output remains exactly reproducible', oldRelease.missing.length === 0
+    && reverseSource(oldRelease.next) === nativeInstaller && hasPatch(oldRelease.next));
+  const sibling = consolePatch.patchSource(oldRelease.next);
+  check('BL27 historical gate and Console sibling compose', !sibling.missing.length);
+  fs.writeFileSync(file, sibling.next);
+  fs.writeFileSync(file + '.rsp-backup', nativeInstaller);
+}
+const nativeApply = applyComposed(['brain-console-lifecycle', 'brain-release-lockstep']);
+check('BL28 installed historical equality gate withdraws through existing composition', !nativeApply.errors && !nativeApply.incomplete,
+  JSON.stringify(nativeApply));
+for (const file of files) {
+  const current = fs.readFileSync(file, 'utf8');
+  check('BL29 native verdict restored while Console owner and pristine survive', !hasPatch(current)
+    && consolePatch.isPatched(current) && isPatched(current, file)
+    && fs.readFileSync(file + '.rsp-backup', 'utf8') === nativeInstaller);
+}
+check('BL30 native qualification is stable across repeated install', applyComposed(['brain-console-lifecycle', 'brain-release-lockstep']).patched === 0);
+check('BL31 native status proves every current surface', statusComposed(['brain-release-lockstep'])['brain-release-lockstep'].patched === files.length);
+const helper = path.join(roots[0], 'scripts/installed-brain-health.mjs');
+const helperBytes = fs.readFileSync(helper, 'utf8');
+const liveBytes = files.map(file => fs.readFileSync(file, 'utf8'));
+fs.writeFileSync(helper, helperBytes.replace('result.healthy = result.issues.length === 0;', 'result.healthy = true;'));
+check('BL32 changed native health cannot retain qualification', !preflight().ok && !isPatched(liveBytes[0], files[0]));
+const unproved = applyComposed(['brain-console-lifecycle', 'brain-release-lockstep']);
+check('BL33 unproved native helper preserves every executable and never reinstalls old gate', unproved.incomplete > 0
+  && files.every((file, index) => fs.readFileSync(file, 'utf8') === liveBytes[index]));
+fs.unlinkSync(helper);
+check('BL34 missing helper refuses current native qualification', !preflight().ok);
+fs.symlinkSync(path.join(roots[1], 'scripts/installed-brain-health.mjs'), helper);
+check('BL34a helper identity cannot follow another package through a symlink', !preflight().ok);
+fs.unlinkSync(helper);
+fs.writeFileSync(helper, helperBytes);
+check('BL34b current native source requires its physical package context',
+  patchSource(nativeInstaller).missing.length > 0 && !isPatched(nativeInstaller));
+for (const anchor of nativeFixture.wiring) {
+  const changed = nativeInstaller.replace(anchor, '// missing native verdict wiring');
+  check('BL35 every missing native linkage fails closed', nativeProof.nativeCandidate(changed)
+    && !nativeProof.proveNativeDoctor(changed, files[0]).ok && patchSource(changed, files[0]).missing.length > 0);
+}
+check('BL35a ambiguous native linkage fails closed',
+  !nativeProof.proveNativeDoctor(nativeInstaller + '\n' + nativeFixture.wiring[0], files[0]).ok);
+for (const [label, from, to] of [
+  ['always-ok adapter', "state: failedNow ? (advisory ? 'warn' : 'fail') : 'ok'", "state: 'ok'"],
+  ['advisory identity', "'npx ruvnet-brain@latest --update'),", "'npx ruvnet-brain@latest --update', { advisory: true }),"],
+  ['advisory convergence', "'npx ruvnet-brain --update'),", "'npx ruvnet-brain --update', { advisory: true }),"],
+]) {
+  const mutated = nativeInstaller.replace(from, to);
+  check('BL35b source proof refuses ' + label, mutated !== nativeInstaller
+    && !nativeProof.proveNativeDoctor(mutated, files[0]).ok
+    && patchSource(mutated, files[0]).missing.length > 0 && !isPatched(mutated, files[0]));
+  const evidence = nativeProof.readNativeSources(nativeInstaller, files[0]);
+  evidence.doctorChecks = evidence.doctorChecks.map(source => source.replace(from, to));
+  let error;
+  try { exerciseNativeDoctor(evidence); } catch (failure) { error = failure; }
+  check('BL35c native behavior independently rejects ' + label, error?.message.includes('assembled verdict'));
+}
+const markedDrift = historicalPatchSource(nativeInstaller).next + '\n// unexplained change';
+check('BL36 direct restoration never invents a pristine for foreign drift', reverseSource(markedDrift) !== nativeInstaller);
+fs.writeFileSync(files[0], markedDrift);
+const refusedDrift = applyComposed(['brain-console-lifecycle', 'brain-release-lockstep']);
+check('BL36a composition refuses unexplained historical drift', refusedDrift.incomplete > 0
+  && fs.readFileSync(files[0], 'utf8') === markedDrift
+  && fs.readFileSync(files[0] + '.rsp-backup', 'utf8') === nativeInstaller);
+fs.writeFileSync(files[0], liveBytes[0]);
+const nativeRecovered = (await import('../lib/brain-release-lockstep/patcher.mjs')).descriptor.recover(historicalPatchSource(nativeInstaller).next);
+check('BL37 historical recovery proves old bytes, not newly retired output', nativeRecovered.candidate === nativeInstaller
+  && nativeRecovered.verify(nativeRecovered.candidate) === historicalPatchSource(nativeInstaller).next);
+const nativeRemoved = reconcile([], ['brain-console-lifecycle', 'brain-release-lockstep']);
+check('BL38 removing the remaining owner restores the exact native installer', !nativeRemoved.errors && !nativeRemoved.incomplete
+  && files.every(file => fs.readFileSync(file, 'utf8') === nativeInstaller && !fs.existsSync(file + '.rsp-backup')));
+console.log('✔ current native Brain doctor: reviewed identity/convergence/verdict proof, historical withdrawal, sibling preservation, mutation refusal and exact uninstall');

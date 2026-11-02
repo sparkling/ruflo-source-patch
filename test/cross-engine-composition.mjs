@@ -156,6 +156,8 @@ try {
   const consoleTargets = [lifecycle, lockstep, hostRecovery].map(module => module.descriptor.name);
   const consolePristine = lifecycle.fixtureSource().installer + '\n\n' + lockstep.fixtureSource() + '\n\n'
     + fs.readFileSync(new URL('./fixtures/brain-host-recovery/installer.mjs', import.meta.url), 'utf8');
+  const { nativeCandidate } = await import('../lib/brain-release-lockstep/native.mjs');
+  assert(!nativeCandidate(consolePristine), 'legacy host classifier alone does not imply the current structured doctor');
   const consoleBytes = [lifecycle, lockstep, hostRecovery].reduce((source, module) => {
     const result = module.patchSource(source); assert.deepEqual(result.missing, []); return result.next;
   }, consolePristine);
