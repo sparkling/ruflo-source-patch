@@ -10,6 +10,9 @@ for (const spec of SPECS) {
   assert.equal(reverseSource(patched.next), source);
   assert.equal(patchSource(patched.next).next, patched.next);
   assert(patchSource(source.replace(spec.edits[0][1], 'changed upstream')).missing.length);
+  assert(descriptor.isPatched(source));
+  assert.equal(descriptor.patchSource(source).next, source);
+  assert.equal(descriptor.patchSource(patched.next).next, source);
 }
 const body = SPECS[0].edits[1][2].split("    if (op === 'list') {")[0];
 const args = { op: 'search', namespace: 'project', query: 'repair evidence', limit: 12 };

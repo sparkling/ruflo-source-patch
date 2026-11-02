@@ -127,6 +127,11 @@ check('BL15 bundle/package/Spine/Claude/Codex divergence is detected',
 fs.writeFileSync(path.join(BRAIN_HOME, 'active.json'), '{"version":"4.0.3"}\n');
 const converged = makeClassifier('v4.0.3', '4.0.3', '4.0.3', '4.0.3')('/unused');
 check('BL16 a v-prefixed but otherwise identical release is converged', !converged.drift);
+check('BL16a provenance status refuses an incomplete native generation declaration',
+  statusComposed(['brain-release-lockstep'])['brain-release-lockstep'].patched === 0);
+// The classifier-only fixture is not a complete installed Spine generation. Do not leave that
+// invalid active.json in place for the independent legacy npm/Console CLI lifecycle below.
+fs.unlinkSync(path.join(BRAIN_HOME, 'active.json'));
 
 const mutated = pure.next.replace(' && !versionState.drift', '');
 check('BL17 mutation test: deleting the doctor gate invalidates patch evidence', !isPatched(mutated));

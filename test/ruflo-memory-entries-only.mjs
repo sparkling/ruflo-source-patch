@@ -79,6 +79,16 @@ assert.notEqual(toolsPatched, toolsPristine);
 assert.deepEqual(toolsSurface.patch(toolsPatched), { next: toolsPatched, applied: [], missing: [] });
 assert.equal(toolsSurface.reverse(toolsPatched), toolsPristine);
 const { makeHandler } = await import('data:text/javascript;base64,' + Buffer.from(toolsPatched).toString('base64'));
+const { descriptor: production } = await import('../lib/ruflo-memory-entries-only/patcher.mjs');
+const toolsNarrow = production.patchSource(toolsPatched).next;
+assert(!toolsNarrow.includes('memoryEntriesOnly'), 'error propagation does not select an alternate registry');
+assert.equal(production.reverse(toolsNarrow), toolsPristine);
+assert.equal(production.patchSource(toolsNarrow).next, toolsNarrow);
+const { makeHandler: nativeHandler } = await import('data:text/javascript;base64,' + Buffer.from(toolsNarrow).toString('base64'));
+assert.equal((await nativeHandler(async options => {
+  assert.equal(options.memoryEntriesOnly, undefined);
+  return { error: 'native read refused', found: false };
+})({key: 'k', namespace: 'ns'})).success, false);
 const run = (backend, input = { key: 'k', namespace: 'ns' }) => makeHandler(async () => backend)(input);
 
 // Successful reads are unchanged, including JSON decoding and metadata.
@@ -397,7 +407,7 @@ console.log('ruflo-memory-entries-only: descriptor discovery passed');
 
 // Withdrawn initialization changes are recognized only for exact rollback.
 {
-  const {captureCostEdits, legacySchemaCheck, descriptor: current} = await import('../lib/ruflo-memory-entries-only/patcher.mjs');
+  const {captureCostEdits, legacySchemaCheck, legacyDescriptor: current, descriptor: withdrawnDescriptor} = await import('../lib/ruflo-memory-entries-only/patcher.mjs');
   let source = pristineOf(specs[0], '\n');
   for (const [from] of captureCostEdits) if (!makeSurface(specs[0]).patch(source).next.includes(from)) source += '\n'+from;
   const original = makeSurface(specs[0]).patch(source).next;
@@ -417,4 +427,10 @@ console.log('ruflo-memory-entries-only: descriptor discovery passed');
   const drifted = oldRequirement.replace('vector_indexes table missing', 'unexpected schema drift');
   assert(current.patchSource(drifted).missing.length);
   assert.equal(current.patchSource(drifted).next, drifted);
+  assert(withdrawnDescriptor.isPatched(source));
+  assert(!withdrawnDescriptor.isPatched(original));
+  assert.equal(withdrawnDescriptor.patchSource(original).next, source);
+  assert.equal(withdrawnDescriptor.patchSource(oldRequirement).next, source);
+  assert.equal(withdrawnDescriptor.patchSource(source).next, source);
+  assert(withdrawnDescriptor.patchSource(drifted).missing.length);
 }

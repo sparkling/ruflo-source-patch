@@ -2,7 +2,16 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-31. Shared user memory uses the native authenticated
+**Updated**: 2026-11-02. Withdraw the downstream AgentDB vector-storage path policy:
+its forced shared companion caused concurrent-owner lock failures. Restore only
+exactly proven old source compositions; preserve all indexes and retain upstream
+storage defaults, including newer explicit-path implementations. This is a
+withdrawal of our incorrect policy, not a claim that upstream provides shared ANN ownership.
+The dependent capture/recall adapters and both HZ checkpoint overrides are withdrawn;
+full native registry initialization is restored. Retain only the independent
+retrieve-error propagation fix. Concurrent native owner/CLI store, exact readback
+and ordinary search passed on an isolated store before deployment.
+2026-10-31. Shared user memory uses the native authenticated
 loopback HTTP transport, one owner per host; project stores retain their own
 bindings. Concurrent HZ inventory, exact retrieval and search passed without
 sidecar manipulation. Per-process path identity does not coordinate exclusive

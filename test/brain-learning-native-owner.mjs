@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
-import { patchSource, reverseSource, isPatched } from '../lib/brain-learning-native-owner/patcher.mjs';
+import { patchSource, reverseSource, isPatched, descriptor } from '../lib/brain-learning-native-owner/patcher.mjs';
 
 const source = fs.readFileSync(new URL('./fixtures/brain-learning-native-owner/native-4.7.28.mjs', import.meta.url), 'utf8');
 const patched = patchSource(source);
@@ -59,3 +59,12 @@ assert.equal(withdrawn.calls.length, 0);
 assert.equal(source.slice(source.indexOf('export function parseDistillStatus')),
   patched.next.slice(patched.next.indexOf('export function parseDistillStatus')));
 console.log('brain-learning-native-owner: passed');
+// Production now withdraws this historical adapter, not reapply it.
+assert(descriptor.isPatched(source));
+assert.equal(descriptor.patchSource(patched.next).next, source);
+assert.equal(descriptor.patchSource(source).next, source);
+const checkpoint = "  const options = { db: store.db, env, bin, deadlineAt };\n  const stored = await rufloMemory(['store', '--key', key, '-n', store.namespace, '--value', value, '--no-upsert'], options);";
+const hz = descriptor.historicalPatchSource(checkpoint).next;
+assert.notEqual(hz, checkpoint);
+assert.equal(descriptor.patchSource(hz).next, checkpoint);
+assert(descriptor.patchSource(hz.replace("'--require-native'", "'--foreign-edit'")).missing.length);

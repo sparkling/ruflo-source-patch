@@ -26,6 +26,7 @@ const write = (file, bytes) => { fs.mkdirSync(path.dirname(file), { recursive: t
 const cli = await import('../lib/cwd/patch-library.mjs');
 const compose = await import('../lib/plugin-compose.mjs');
 const state = await import('../lib/cwd/state.mjs');
+const { checkDrift } = await import('../lib/cwd/monitor.mjs');
 const instruction = await import('../lib/ruflo-instruction-contract/patcher.mjs');
 const entry = cli.ENTRIES.find(candidate => candidate.id === 'init/no-skills-sh');
 const cliOnly = source => cli.composeCliContribution(source, [entry]).next;
@@ -106,9 +107,16 @@ try {
   for (const file of files) assert.equal(fs.readFileSync(backup(file), 'utf8'), updated);
 
   const external = combined(updated) + '// external change retained local markers\n';
+  const cleanStatus = compose.statusComposed([plugin])[plugin];
+  assert.equal(cleanStatus.patched, cleanStatus.files, 'known CLI/plugin composition remains healthy');
+  assert(!checkDrift().drifting.some(reason => reason.startsWith(plugin + ':')), 'monitor accepts proven composition');
   for (const file of files) write(file, external);
   const drift = cli.apply(['init']);
   assert(drift.incomplete, 'marker-preserving external edits need exact composition proof');
+  const driftStatus = compose.statusComposed([plugin])[plugin];
+  assert.equal(driftStatus.files - driftStatus.patched, files.length,
+    'read-only status must reject the same unrecognised marked compositions as install');
+  assert(checkDrift().drifting.some(reason => reason.startsWith(plugin + ':')), 'monitor reports unproved composition');
   expectFiles(external);
   for (const file of files) assert.equal(fs.readFileSync(backup(file), 'utf8'), updated, 'unproved marked edits cannot poison the vendor backup');
 

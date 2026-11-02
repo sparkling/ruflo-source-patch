@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-20. Suite execution defaults to four concurrent suites, with validated `RSP_TEST_JOBS=1..16`; sandboxing and complete failure aggregation remain unchanged. The existing native policy qualification can assess a new pristine artifact before its digest is admitted, without granting that artifact installation authority. Backup/graph tests retain native behavior and reject removed residual guards.
+**Updated**: 2026-11-02. A marker-preserving foreign edit must fail both shared-file installation and read-only monitor checks; known CLI/plugin compositions remain healthy and status never rewrites live bytes or backups.
+2026-10-20. Suite execution defaults to four concurrent suites, with validated `RSP_TEST_JOBS=1..16`; sandboxing and complete failure aggregation remain unchanged. The existing native policy qualification can assess a new pristine artifact before its digest is admitted, without granting that artifact installation authority. Backup/graph tests retain native behavior and reject removed residual guards.
 
 Historical 15 August qualification: Current-release tests now cover Ruflo 3.38.12's native daemon resolver,
 native #2878 writer-sharing baseline, residual permission/swarm/neural/helper cwd sites, runnable

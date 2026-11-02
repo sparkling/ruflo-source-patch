@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { nativeVectorStorageSatisfied, nativeVectorCoreSatisfied } from '../lib/cwd/native-vector-storage.mjs';
+import { nativeVectorStorageSatisfied, nativeVectorCoreSatisfied, WITHDRAWN_VECTOR_ENTRIES } from '../lib/cwd/native-vector-storage.mjs';
 import {
   REPO, findVendorRootWith, findVendorFile, pristineBytes,
 } from './fixtures.mjs';
@@ -124,6 +124,7 @@ function reset() {
 }
 
 reset();
+const upstreamAgent = Object.fromEntries(Object.keys(AGENT_REL).map(key => [key, readAgent(key)]));
 const installed = cli(['cwd', 'install']);
 if (installed.status !== 0) fail(`current cwd anchors did not install:\n${out(installed)}`);
 const status = cli(['cwd', 'status']);
@@ -142,21 +143,9 @@ for (const key of Object.keys(AGENT_REL)) {
 
 const agentCore = readAgent('core');
 const nativeCore = nativeVectorCoreSatisfied(agentCore);
-if (!nativeCore) for (const required of [
-  "const vectorStoragePath = dbPath === ':memory:'",
-  "? path.join(os.tmpdir(), `agentdb-ruvector-${process.pid}-${randomUUID()}.db`)",
-  ': `${path.resolve(dbPath)}.ruvector.db`;',
-  'storagePath: vectorStoragePath',
-]) {
-  if (!agentCore.includes(required)) fail(`AgentDB core still omits the derived RuVector path: ${required}`);
-}
 const agentBackend = readAgent('ruvector');
-if (!nativeVectorStorageSatisfied(agentBackend)) for (const required of [
-  'Never let RuVector select its cwd-relative ./ruvector.db default.',
-  'const storagePath = this.config.storagePath ?? path.join(',
-  'storagePath: storagePath,',
-]) {
-  if (!agentBackend.includes(required)) fail(`AgentDB RuVector backend still permits implicit cwd storage: ${required}`);
+for (const key of Object.keys(AGENT_REL)) {
+  if (readAgent(key) !== upstreamAgent[key]) fail(`AgentDB ${key} upstream storage behavior was changed`);
 }
 
 const hooks = read('hooks');
@@ -246,7 +235,7 @@ assert.equal(db.options.dimensions, 384);
 }
 
 
-// Execute both patched AgentDB layers with test doubles. This reproduces the
+// Execute both untouched upstream AgentDB layers with test doubles. This checks the
 // constructor boundary that created ./ruvector.db without creating a real native
 // database during the suite.
 const agentStubs = {
@@ -297,18 +286,19 @@ fs.writeFileSync(behaviorRunner, [
   `const configuredDb = ${JSON.stringify(path.join(project, '.swarm', 'agentdb-memory.db'))};`,
   "await new TestAgentDB({ dbPath: configuredDb, vectorBackend: 'ruvector' }).initialize();",
   "await new TestAgentDB({ dbPath: ':memory:', vectorBackend: 'ruvector' }).initialize();",
-  `assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, configuredDb + '${nativeCore ? '.ruvector' : '.ruvector.db'}');`,
+  nativeCore ? "assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, configuredDb + '.ruvector');"
+    : 'assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, undefined);',
   'const memoryPath = globalThis.__agentdbBackendConfigs[1].config.storagePath;',
-  nativeCore ? 'assert.equal(memoryPath, undefined);' : 'assert.equal(path.isAbsolute(memoryPath), true);',
-  nativeCore ? '' : 'assert.equal(memoryPath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
+  'assert.equal(memoryPath, undefined);',
   'const explicitPath = path.join(os.tmpdir(), `explicit-${process.pid}.db`);',
   "const explicit = new RuVectorBackend({ dimensions: 384, metric: 'cosine', storagePath: explicitPath });",
   'await explicit.initialize();',
-  'assert.equal(explicit.db.options.storagePath, explicitPath);',
+  nativeVectorStorageSatisfied(agentBackend) ? 'assert.equal(explicit.db.options.storagePath, explicitPath);'
+    : 'assert.equal(explicit.db.options.storagePath, undefined);',
   "const fallback = new RuVectorBackend({ dimensions: 384, metric: 'cosine' });",
   'await fallback.initialize();',
-  'assert.equal(path.isAbsolute(fallback.db.options.storagePath), true);',
-  'assert.equal(fallback.db.options.storagePath.startsWith(`${os.tmpdir()}${path.sep}`), true);',
+  nativeVectorStorageSatisfied(agentBackend) ? 'assert.equal(path.isAbsolute(fallback.db.options.storagePath), true);'
+    : 'assert.equal(fallback.db.options.storagePath, undefined);',
   "assert.notEqual(fallback.db.options.storagePath, path.join(process.cwd(), 'ruvector.db'));",
   "if (typeof fallback.resolveStoragePath === 'function') {",
   "  const another = new RuVectorBackend({ dimensions: 384, storagePath: ':memory:' });",
@@ -414,6 +404,40 @@ if (!neural.includes('requestedOutDir ? process.cwd() : __rufloResolveRoot(proce
   fail('neural export does not preserve invocation-relative semantics for an explicit --out-dir');
 }
 
+// Withdraw the invalid shared-index policy using exact executable proof only.
+// These source fixtures never open an index; their data sentinel must survive.
+{
+  const { composeCliContribution, ENTRIES } = await import('../lib/cwd/patch-library.mjs');
+  const sentinel = path.join(AGENTDB, 'retained-vector-data.db');
+  fs.writeFileSync(sentinel, 'existing vector data');
+  for (const entry of WITHDRAWN_VECTOR_ENTRIES) {
+    if (ENTRIES.some(active => active.id === entry.id)) fail('withdrawn vector entry remains active');
+    const key = entry.suffix.includes('core') ? 'core' : 'ruvector';
+    const file = path.join(AGENTDB, AGENT_REL[key]), backup = file + '.rsp-backup';
+    const pristine = entry.edits.map(edit => edit.find).join('\n');
+    const patched = composeCliContribution(pristine, [entry]);
+    if (patched.missing.length) fail('legacy withdrawal fixture does not compose');
+    for (const mode of ['exact', 'foreign', 'missing', 'poisoned']) {
+      const current = patched.next + (mode === 'foreign' ? '\n// foreign edit' : '');
+      fs.writeFileSync(file, current);
+      if (mode === 'missing') fs.rmSync(backup, { force: true });
+      else fs.writeFileSync(backup, mode === 'poisoned' ? current : pristine);
+      if (cli(['cwd', 'status']).status === 0) fail('withdrawn vector policy reported healthy');
+      const result = cli(['cwd', 'install']);
+      if (mode === 'exact') {
+        if (result.status !== 0 || readAgent(key) !== pristine) fail(`exact withdrawal failed: ${out(result)}`);
+        if (cli(['cwd', 'install']).status !== 0 || readAgent(key) !== pristine) fail('withdrawal was not idempotent');
+      } else {
+        if (result.status === 0 || readAgent(key) !== current) fail(`${mode} withdrawal overwrote unproved bytes`);
+        if (mode === 'missing' ? fs.existsSync(backup) : fs.readFileSync(backup, 'utf8') !== (mode === 'poisoned' ? current : pristine))
+          fail(`${mode} withdrawal changed its evidence`);
+      }
+      if (fs.readFileSync(sentinel, 'utf8') !== 'existing vector data') fail('withdrawal touched vector data');
+    }
+    fs.writeFileSync(file, upstreamAgent[key]); fs.rmSync(backup, { force: true });
+  }
+}
+
 // Mutation guard: replace-all is complete only when NO raw sibling remains. One
 // reverted permission call must fail both status surfaces even though the other
 // call still contains the replacement token.
@@ -437,4 +461,4 @@ if (cli(['init', 'status']).status === 0 || cli(['all', 'status']).status === 0)
   fail('zero-file tracked target passed init status or all status');
 }
 
-console.log('✔ current cwd coverage (permission/helpers execute at root; swarm/neural and RuVector storage are rooted; mutation and zero-file installs fail honest)');
+console.log('✔ current cwd coverage (permission/helpers execute at root; swarm/neural rooted; AgentDB storage remains upstream; mutation and zero-file installs fail honest)');

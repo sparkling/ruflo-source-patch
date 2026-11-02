@@ -50,128 +50,44 @@ It does not change that runtime, policy state or the timeout. Qualification:
 
 ## Learning capture ownership: 2 November 2026
 
-Version 4.46.93 removes the adapter's downstream requirement for a
-`vector_indexes` table. Fresh capture tests reproduced this refusal in
-semantic-learn and semantic-modelling on both hosts. Upstream bridge writes
-explicitly tolerate that table being absent on legacy stores; native
-`ensureBridgeSchema` remains responsible for the ordinary-entry schema. The
-repair neither creates a replacement index table nor changes database bindings.
-Exact legacy patch bytes remain reversible; unrecognised drift still refuses.
+Version 4.46.94 withdraws our AgentDB vector-path policy and the compensating
+capture/recall adapters. The patch system repairs upstream bugs; it must not
+introduce a different storage or initialization architecture to compensate for
+its own mistakes. Exact saved-pristine restoration preserves all existing
+SQLite stores, vector indexes, sidecars and unrelated patch contributions.
+Unknown or incomplete source provenance refuses restoration.
 
-`ruflo-memory-entries-only` incorporates the previously retained HZ capture
-patch into the released composition and monitor. This is a downstream adapter,
-not code shipped in Ruflo 3.66.0. It reuses the host-native SQLite library,
-EmbeddingService, ControllerRegistry adapter injection and existing bridge writes.
-`brain-learning-native-owner` selects that route for learning observation writes
-and exact readback; the retained patch also covers Brain turn capture. Writes require a native driver and
-retain strict insert, provenance, consent checks and exact-value verification.
-Distillation, store selection and Brain updates are unchanged. The patch composes
-with scratch preservation through the existing engine and monitor.
+The causal control reproduced the problem in our vector-path override. A second
+isolated integration control restored upstream AgentDB storage defaults and full
+ControllerRegistry initialization: a long-lived native bridge owner and a fresh
+CLI writer shared one synthetic SQLite store successfully, persisted a
+384-dimensional embedding, and retrieved/searched the new row in 821 ms. An
+actual turn capture with that restored code also passed exact readback. This is
+ordinary-memory integration evidence, not proof of shared ANN index semantics.
 
-The reproduced failure is a second CLI process opening the vector companion
-already held by MCP. The WAL fallback refusal is correct; removing sidecars or
-loosening that refusal would be unsafe. This is related to the ownership boundary
-in [Ruflo #4622](https://github.com/ruvnet/ruflo/issues/4622), whose error reporting
-is fixed upstream. The separate capture defect is tracked in
-[Ruflo #4666](https://github.com/ruvnet/ruflo/issues/4666). Retire this target when upstream learning
-capture uses an equivalent native route and passes concurrent-owner capture,
-failed-write, consent and exact-readback tests. Unknown anchors fail closed.
+`ruflo-memory-entries-only` retains its old name for rollback compatibility but
+no longer creates an alternate database/embedder adapter or disables controllers.
+Its only surviving runtime change propagates an existing `memory_retrieve`
+failure instead of returning a healthy absence. `brain-learning-native-owner`
+and `brain-recall-runtime` now restore native learning/checkpoint/recall code;
+their old transforms exist only for exact historical reconstruction. Both known
+HZ checkpoint modifications are removed, never reapplied. This also removes
+the scoped-to-full-registry re-entry inconsistency after embedded writes.
 
-The owner rejected the experimental startup optimizations on 2 November. They
-are withdrawn; compatibility recognizes those exact bytes only to restore the
-retained initialization path. No claim that Ruflo itself is broken follows from
-hook timing. Native installation setup and per-process runtime startup are
-separate boundaries and must be traced before further changes.
+The independently reproduced bounded ADR-envelope repair and native capture
+budget override remain; explicit operator timeout settings remain authoritative.
+WAL refusal, database identity, scratch preservation and exact-readback safeguards
+remain in place. No historical observations are replayed and no programme is
+resumed by this release.
 
-`brain-capture-budget` uses Brain's existing native timeout override only for
-Stop/PreCompact: 8.5 seconds inside their existing 9-second launcher and 10-second
-registration. The generic 4-second wrapper was cutting off successful writes
-before verification. SessionEnd remains unchanged ([Brain #513](https://github.com/stuinfla/ruvnet-brain/issues/513)).
-
-`brain-recall-runtime` extends Brain's existing bounded reader with the public
-Ruflo `searchEntries` function and the CLI's result projection. List, search and
-exact reads share its registry and the scoped native adapter, avoiding a second
-vector owner. It calls native initialization and embedding/scoring functions,
-with the controller differences noted below. Privacy checks, the 1.9-second
-total deadline and whole-session child retirement remain intact. Unsupported search
-capabilities retain the CLI fallback ([Brain #514](https://github.com/stuinfla/ruvnet-brain/issues/514)).
-
-Review correction: the scoped adapter changes controller initialization and
-disables the vector, reasoning, learning and other controllers. MutationGuard
-and AttestationLog are initially disabled but the subsequent native security
-wiring still attempts to activate them. Their implementation files are absent
-from the resolved AgentDB 3.0.0-alpha.20 on both hosts, and the installed registry
-returns null for these controllers; their absence is not established as a
-regression caused by this adapter. The scoped result reports whether guarding
-and attestation actually ran. This is not equivalent to unmodified native
-initialization. The original deadline and duplicate recall processes are present
-in pristine Brain 4.7.28.
-
-A subsequent isolated comparison establishes downstream causation at the vector
-provider boundary: two saved-pristine backend processes in different scratch
-working directories both open successfully, each creating its own `ruvector.db`.
-The same installed native provider with our patched backend and one explicit
-storage path opens the first caller but refuses the second with `Database already
-open. Cannot acquire lock.` This tests real backend/provider code and synthetic
-indexes, not managed memory. It is not a complete Ruflo/MCP integration control.
-Reverting the path patch would recreate separate indexes; it would not establish
-one correct shared owner. The capture adapter is a containment measure whose
-controller and indexing parity remain unproved, not an upstream-equivalent fix.
-Receipt: `.local/memory-recovery-20261102/review/vector-collision-control/receipt.json`.
-The upstream attribution in Ruflo #4666 has been corrected accordingly.
-
-Review verdict: **containment verified for the recorded operations; permanent
-ownership repair not approved**. An additional source trace finds that a
-successful embedding-bearing `storeEntry` calls `addToHNSWIndex`, which calls
-`bridgeAddEmbedding` and re-enters the full registry without the scoped mode.
-That can reopen the contested vector owner after the row has committed; the
-caller ignores the auxiliary failure. Exact readback therefore cannot prove
-that this second initialization was avoided. Despite its name, native
-`bridgeAddEmbedding` updates the SQL embedding row, not an HNSW index. Ordinary
-bridge search scores stored rows with cosine/BM25; neither successful recall nor
-this source trace proves ANN or controller parity. No new algorithm is needed.
-
-The corrective direction is to use the existing long-lived native owner for
-hook operations and preserve its normal initialization. Ruflo ships MCP
-transports, but the inspected Brain capture implementation launches CLI
-processes; an automatic hook-to-existing-owner route has not been verified.
-This is a proposed integration correction, not a claim of a shipped route.
-Do not remove WAL protection, fragment indexes again, or treat absent controller
-files as justification for a replacement security implementation. Review evidence
-and source hashes: `.local/memory-recovery-20261102/review/final-review.json`.
-
-Live success does not establish embedding/ranking parity. Negative
-probes found three downstream defects, corrected in 4.46.91: shared search now
-settles unavailable on request cancellation and ignores late results; absent optional
-capture helpers retain the native registry route instead of throwing ReferenceError;
-and explicit operator hook timeouts are preserved. Rejected searches and listener
-cleanup are tested. These corrections do not establish controller or ranking parity.
-
-Live qualification: the five `/data` project pairs passed native backups and
-exact MCP persistence/readback; learning observations passed in every project.
-Oxigraph's truncated original and recovery evidence remain preserved. Recovery
-cannot prove the contents of absent bytes; the separately approved candidate was
-activated only after all recovered rows matched it. No historical hook replay or
-programme restart was performed. The real Codex Stop launcher passed in all five
-projects and AI Strategy (2.31 to 2.66 seconds). Their ordinary recall passed in
-0.75 to 1.04 seconds. Separate ranked queries returned twelve matches and exact
-selected content in every `/data` project. Both hosts report all thirteen Brain
-hooks trusted. Private receipts are under `memory-recovery-20261102`: HZ
-`/data/programme-state/`, Mac `.local/`. The key files are
-`fleet-real-stop-hook-proof.json`, `fleet-recall-owner-proof.json`,
-`fleet-ranked-exact-recall.json` and `hook-trust-final-hz.json`.
-Native load shedding remains bounded and visible; this release does not promise
-unlimited observation capture or replay historical failures.
-
-The AgentDB storage mismatch was a native replacement: the new core already
-passes `<dbPath>.ruvector`, and its backend validates and resolves that path or
-creates a private temporary directory. Version 4.46.92 recognises only the exact
-artifacts exercised by the existing constructor tests, including explicit paths,
-private-path isolation, invalid-path refusal and cleanup. Older copies retain the
-legacy patch. This removes redundant injected properties without changing the
-existing selected path or migrating data. Unknown or mutated artifacts remain
-unqualified. Markdown checks exclude private `.local` qualification downloads.
-The separate HZ AI policy-runtime variant is recognised from 4.46.90.
+Monitor/status now use installation's exact shared-file composition check. An
+unknown edit retaining a patch marker must report drift, not green. ADR-001,
+ADR-006 and ADR-016 record these decisions. Ruflo issue
+[#4666](https://github.com/ruvnet/ruflo/issues/4666) carries the corrected downstream
+attribution. Private evidence is under `.local/memory-recovery-20261102/review/`,
+including `native-concurrent-capture.json`, `native-hook-before-deploy.json` and
+`final-review.json`. Previous containment receipts are historical evidence, not
+acceptance of this release.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 
@@ -1303,9 +1219,9 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
-| **`brain-recall-runtime`** | Shares the existing bounded native reader for list/search/get with scoped ordinary-store ownership. Preserves native search semantics and deadlines. | [#514 · open](https://github.com/stuinfla/ruvnet-brain/issues/514) |
-| **`ruflo-memory-entries-only`** | Retained downstream adapter for ordinary-entry operations beside an active vector owner. | [#4666 · open](https://github.com/ruvnet/ruflo/issues/4666) |
-| **`brain-learning-native-owner`** | Routes learning observations through that adapter with required-native writes and exact readback. | [#4666 · open](https://github.com/ruvnet/ruflo/issues/4666) |
+| **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · open](https://github.com/stuinfla/ruvnet-brain/issues/514) |
+| **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · open](https://github.com/ruvnet/ruflo/issues/4666) |
+| **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · open](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`verify-interface`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12 · closed](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48 · closed](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316 · closed](https://github.com/stuinfla/ruvnet-brain/issues/316) |
 | **`brain-codex-completion`** | **Completion-claim feature disabled by operator instruction.** Replaces the former Codex evidence/diagnostic workarounds with one exact upstream audit bypass. No completion-based blocking, automatic completion authority, correction ledger or replacement warning. Other Stop gates remain unchanged. Superseded parser and diagnostic implementations are deleted; old installations must first restore their recorded pristine source. Re-enable only after an explicitly reviewed upstream replacement. | [#425 · open](https://github.com/stuinfla/ruvnet-brain/issues/425), related [#423 · closed](https://github.com/stuinfla/ruvnet-brain/issues/423) |

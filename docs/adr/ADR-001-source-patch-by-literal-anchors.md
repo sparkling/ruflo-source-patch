@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-10-27. Brain 4.7.21 adopted-user-learning retirement now requires
+**Updated**: 2026-11-02. Read-only shared-file status now uses the same saved-pristine
+composition refusal as installation; retained markers cannot hide foreign edits.
+2026-10-27. Brain 4.7.21 adopted-user-learning retirement now requires
 exact native ownership and inert capture/readback behavior proof.
 The 2026-08-15 contract remains: A target is now satisfied only when every discovered entry is either
 locally patched or passes an explicit behavioral native-replacement predicate. Zero discovered
