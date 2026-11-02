@@ -180,6 +180,21 @@ preflights and monitors passed, with no pending native hook approvals. The full
 regression suite passed; all 278 packaged files matched the immutable release
 tag. Live receipts are `native-doctor-active-v499.json` in each recovery directory.
 
+The follow-up capture repair distinguishes a failed or unavailable exact read from
+readable conflicting content ([Brain #518](https://github.com/stuinfla/ruvnet-brain/issues/518)).
+One append-only attempt and strict exact-value readback remain unchanged. Missing
+one half of the ADR shim/decoder pair now makes preflight incomplete before edits.
+
+The new `brain-capture-launch` target addresses
+[Brain #519](https://github.com/stuinfla/ruvnet-brain/issues/519): failed child launches
+could consume both native observation slots and leave later healthy observations
+shed. Only proven pre-spawn failures release demonstrably owned admission. An
+exclusive ephemeral pending token distinguishes overlapping attempts; existing or
+ambiguous markers retain native expiry. Spawned children and uncertain writes are
+preserved. Native two-slot admission, shedding, consent, exact acknowledgement and
+no-replay behavior remain. Tests cover synchronous launch exceptions, real asynchronous
+ENOENT, both same-key overlap orders, replaced files and post-spawn errors.
+
 ## Ruflo 3.66 qualification: 31 October 2026
 
 Ruflo and `@claude-flow/cli` **3.66.0** are installed in all ten discovered
@@ -1331,6 +1346,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
+| **`brain-capture-launch`** | Release owned admission only after proven child launch failure; retain native shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
