@@ -91,10 +91,22 @@ capabilities retain the CLI fallback ([Brain #514](https://github.com/stuinfla/r
 Review correction: the scoped adapter changes controller initialization and
 disables controllers, including attestation. It preserves selected native calls;
 it is not equivalent to unmodified native initialization. The original deadline
-and duplicate recall processes are present in pristine Brain 4.7.28. Exclusive
-vector-owner attribution remains unproven without a pristine integration control;
-the existing path patches also affect vector companion locations. Live success
-does not exonerate those patches or establish embedding/ranking parity. Negative
+and duplicate recall processes are present in pristine Brain 4.7.28.
+
+A subsequent isolated comparison establishes downstream causation at the vector
+provider boundary: two saved-pristine backend processes in different scratch
+working directories both open successfully, each creating its own `ruvector.db`.
+The same installed native provider with our patched backend and one explicit
+storage path opens the first caller but refuses the second with `Database already
+open. Cannot acquire lock.` This tests real backend/provider code and synthetic
+indexes, not managed memory. It is not a complete Ruflo/MCP integration control.
+Reverting the path patch would recreate separate indexes; it would not establish
+one correct shared owner. The capture adapter is a containment measure whose
+controller and indexing parity remain unproved, not an upstream-equivalent fix.
+Receipt: `.local/memory-recovery-20261102/review/vector-collision-control/receipt.json`.
+The upstream attribution in Ruflo #4666 has been corrected accordingly.
+
+Live success does not establish embedding/ranking parity. Negative
 probes found three downstream defects, corrected in 4.46.91: shared search now
 settles unavailable on request cancellation and ignores late results; absent optional
 capture helpers retain the native registry route instead of throwing ReferenceError;
