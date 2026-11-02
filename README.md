@@ -128,10 +128,12 @@ puts the six-second capture budget inside Codex's four-second wrapper; it is
 not evidence that Ruflo needs a new initialization or a larger timeout.
 The exact altered baseline and live composition are archived before restoring
 the verified native route and its uninstall baseline. Unknown bytes refuse
-repair. Retained receipts subsequently identified the BA-origin inline-capture
-decision and Product repair process that maintained it in the shared descriptor;
-the initial writing process remains untraced. This recovery changes no timeouts,
-learning consent, admission limits, databases or update behavior.
+repair. Transcript evidence identifies the initial BA repair command at
+13:28:10 UTC on 2 November: it edited the installed shared descriptor and applied
+`detach: false` to four Brain surfaces, completing at 13:28:15. Product later
+restored that row at 13:39:53 under explicit BA delegation. This was an in-place
+package edit, not an evidenced Git change. The verified native route is restored;
+this recovery changes no timeouts, consent, admission limits, databases or updates.
 
 After 4.46.97 activation, the actual Codex PostToolUse entry point returned in
 174 ms in the affected HZ worktree, followed by detached acknowledgement and
@@ -194,6 +196,35 @@ ambiguous markers retain native expiry. Spawned children and uncertain writes ar
 preserved. Native two-slot admission, shedding, consent, exact acknowledgement and
 no-replay behavior remain. Tests cover synchronous launch exceptions, real asynchronous
 ENOENT, both same-key overlap orders, replaced files and post-spawn errors.
+
+The loaded-session follow-up verified all three local and nine HZ parent sessions:
+each returned a one-entry inventory and exact retrieval. HZ's native host refresh
+changed only an inert user-level Ruflo registration stamp, preserving project
+bindings. BA's existing connection moved from 3.65 to 3.66 and retrieved the original
+failed turn's full 1,876-byte value with the same digest as the native backup. Query's
+existing connection also reproduced its producer's exact 167-byte checkpoint.
+These are bounded read proofs, not replay or application-delivery acceptance.
+The runtime inventory is mixed: two local sessions and the home HZ Builder report
+3.71; the remaining one local and eight HZ sessions report 3.66. No uniform-upgrade
+claim is made. Private receipts are in `release-v4.46.100/` under the recovery directory.
+
+## Ruflo 3.71 qualification: 2 November 2026
+
+Published CLI 3.71 source passes the existing 42-file anchor preflight. Its new
+AgentDB dependencies, however, fail a pristine native concurrency test: process A
+can store and retrieve an ordinary row, but process B opening the same database
+cannot acquire its persistent RuVector index lock. Ordinary retrieval then fails.
+After A exits, a fresh process reads the same row successfully. The native SQLite
+schemas are unchanged; this is an ownership conflict, not demonstrated corruption.
+Disabling a vector controller does not skip AgentDB's earlier core initialization.
+No alternate backend, adapter, lock deletion or topology change was introduced.
+
+The exact resolved dependency versions, source analysis and disposable reproduction
+are recorded on [Ruflo #4654](https://github.com/ruvnet/ruflo/issues/4654#issuecomment-6583536255).
+The reusable private command is `node .local/memory-recovery-20261102/review/ruflo371/native-concurrency-check.mjs`.
+Further rollout is held pending a native resolution compatible with simultaneous
+MCP and hook/CLI access. Already-running versions are reported above; this repair
+does not claim that every existing 3.71 process was newly installed or fails.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 
