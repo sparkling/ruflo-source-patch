@@ -68,7 +68,8 @@ cli(['cwd', 'install']);
 const hookScript = path.join(STATE, 'lib', 'cwd', 'session-start.mjs');
 if (!fs.existsSync(hookScript)) fail('SS1 the SessionStart hook script is not in the stable copy — Claude Code would invoke nothing');
 
-const runHook = () => spawnSync(process.execPath, [hookScript], { env, encoding: 'utf8', input: '{}' });
+// The hook inspects cwd for stray state; keep that inspection inside its own sandbox.
+const runHook = () => spawnSync(process.execPath, [hookScript], { cwd: SB, env, encoding: 'utf8', input: '{}' });
 
 // SS1 — an unpatched vendor copy appears (npx fetched a new version mid-session). The hook must
 // re-apply to it. This is the whole reason the hook exists.
