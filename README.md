@@ -269,6 +269,34 @@ No historical turn was retried. These bounded probes do not resolve the separate
 Ruflo 3.71 ownership or automatic-recall investigations. Private receipts are under
 `release-v4.46.102/` in each host's recovery directory, including `activation.json`.
 
+## Recall owner reuse: 2 November 2026
+
+`brain-recall-owner-reuse` extends the existing Brain reader for
+[Brain #429](https://github.com/stuinfla/ruvnet-brain/issues/429). The native hook
+starts a reader and a separate semantic-search CLI; both initialize the native
+registry and embedding/vector runtime. The HTML-request incident reproduced
+search deadline misses both before result emission and during CLI retirement.
+Tracing itself increased latency, so untraced controls are retained separately.
+
+The patch secures curated exact reads first, then calls the same published
+`searchEntries` function through that reader for its exact store. Native
+initialization, database authority, embeddings, scoring, the 1,900 ms ceiling,
+search allocation and retirement reserve remain unchanged. Missing search
+capability and different-store requests retain the native CLI route. A timed-out
+shared search retires the whole owned process group; verified curated evidence
+remains available and unconfirmed retirement is reported as unavailable.
+
+This is not the withdrawn entries-only adapter: no controller, vector-path or
+backend policy is introduced. The three source files compose atomically with
+scratch preservation and retain exact reversal. Uninstall explicitly includes
+removed owners in provenance, with exact saved-to-live proof, so a surviving
+retired target cannot adopt removed edits as upstream source. Private qualification established
+identical four-row CLI/API results and a full-hook HTML recall in 1,235 ms with
+one confirmed-retired reader. These bounded checks do not guarantee that any
+finite deadline can succeed under arbitrary host load. Packaging and live
+activation evidence follow qualification; the candidate is not yet described as
+installed.
+
 ## Ruflo 3.71 qualification: 2 November 2026
 
 Published CLI 3.71 source passes the existing 42-file anchor preflight. Its new
@@ -1446,6 +1474,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-capture-launch`** | Release owned admission after proven child launch failure; coalesce fresh same-key contention without occupying a redundant slot. Retain native shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
 | **`brain-capture-idempotency`** | Verify an existing turn at its committed timestamp through the unchanged native constructor and complete byte comparison; retain original content and expose its committed identity. | [#520 · open](https://github.com/stuinfla/ruvnet-brain/issues/520) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
+| **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`verify-interface`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12 · closed](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48 · closed](https://github.com/stuinfla/ruvnet-brain/issues/48) |

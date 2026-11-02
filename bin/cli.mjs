@@ -166,6 +166,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-capture-diagnostics': action => runPluginCommand('brain-capture-diagnostics', action),
   'brain-capture-launch': action => runPluginCommand('brain-capture-launch', action),
   'brain-capture-idempotency': action => runPluginCommand('brain-capture-idempotency', action),
+  'brain-recall-owner-reuse': action => runPluginCommand('brain-recall-owner-reuse', action),
   'brain-learning-native-owner': action => runPluginCommand('brain-learning-native-owner', action),
   'brain-learning-receipts': action => runPluginCommand('brain-learning-receipts', action),
   'brain-scratch-preservation': action => runPluginCommand('brain-scratch-preservation', action),
@@ -252,6 +253,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-learning-receipts')}mark capture only after verified readback (#377)
   ${pad('ruflo-memory-entries-only')}withdraw capture adapter; retain retrieve failure reporting (#4666)
   ${pad('brain-recall-runtime')}withdraw recall adapter and restore native execution (#514)
+  ${pad('brain-recall-owner-reuse')}reuse native recall reader for search with confirmed retirement (#429)
   ${pad('brain-adr-envelope')}bounded complete JSON for ADR scope inspection (#515)
   ${pad('brain-capture-budget')}align Stop/PreCompact with existing native capture budget (#513)
   ${pad('brain-capture-diagnostics')}retain hashed failure scope and redacted terminal stderr (#518)

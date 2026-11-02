@@ -23,6 +23,22 @@ unchanged native constructor at the original committed timestamp. It retains the
 stored value and reports its committed identity; changed actions and read failures
 remain failures. Shared composition preserves capture diagnostics and exact reversal.
 
+The 2 November recall follow-up adds `brain-recall-owner-reuse` (#429) as a
+separate atomic three-file contribution. It extends the existing native reader
+with public `searchEntries` for the same store after curated reads, preserving
+full registry initialization and native scoring. Capability absence retains the
+CLI fallback. Shared search timeout retires the owned group, preserves curated
+evidence and refuses successful status when retirement cannot be confirmed.
+The withdrawn #514 adapter remains withdrawn; this contribution changes neither
+controller selection nor vector storage. Qualification and activation are recorded
+separately in README; a source patch is not proof of live session recovery.
+
+Uninstall reconciliation carries the explicitly removed targets as provenance
+for affected files while applying only surviving transforms. Exact saved-to-live
+composition proof must pass before restoration; a removed marker alone cannot
+justify replacing foreign edits. This prevents a surviving retired target from
+rebaselining the removed contribution as upstream source.
+
 Qualified current Brain doctors now use their native installed identity,
 host-convergence and verdict owners. The historical #77 equality overlay remains
 available only for legacy sources; exact shared composition withdraws it from
