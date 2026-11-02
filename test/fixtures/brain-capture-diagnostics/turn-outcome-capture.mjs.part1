@@ -1,0 +1,260 @@
+/**
+ * turn-outcome-capture.mjs — record what each turn CONCLUDED, and make it recallable knowledge.
+ *
+ * Called from session-snapshot-hook.mjs's hook entry, so it rides the capture boundary
+ * both hosts already register (Claude: hooks.json; Codex: codex-hooks.json via codex-hook-adapter,
+ * which sets RUVNET_HOOK_HOST=codex). Two jobs:
+ *
+ *   Stop                  → one AgentDB record per distinct turn outcome, namespace `turns`
+ *   SessionEnd/PreCompact → `ruflo memory distill run` on the same db (ruflo ADR-174: memory_entries
+ *                           is the RECORDING tier; distill mines it into episodes/reasoning_patterns/
+ *                           causal_edges, the KNOWLEDGE tier, which stays empty unless it is run)
+ *
+ * WHERE: only the canonical project's `.swarm/memory.db` (including linked worktrees).
+ * An absent store requires persisted opt-in; there is no automatic machine-wide fallback.
+ *
+ * WHAT (measured facts carried over from the owner's local Claude hook, 2026-09-29):
+ *   • The Brain's continuation gate continues most turns, so the turn's REAL final Stop carries
+ *     stop_hook_active=true. It is NOT skipped; exact repeats are dropped by a per-session
+ *     fingerprint of (finalText, files) instead.
+ *   • The transcript may not contain the closing message yet when Stop fires, so the payload's
+ *     `last_assistant_message` wins when present; only without it is the transcript waited on
+ *     (bounded) until it stops growing.
+ *   • Content = assistant outcome text, files changed, Bash descriptions. NEVER raw user text (a
+ *     2026-07-13 measurement: prompt echoes made 87% of a store noise). Trivial turns are skipped.
+ *
+ * CODEX: native response_item JSONL is normalized mechanically through native-turn-transcript.
+ * SessionEnd and PreCompact recover a closing outcome when Stop payload text is absent. Tool IDs
+ * correlate observable gate outcomes; opaque custom orchestration inputs remain unclassified.
+ *
+ * LATENCY AND FAILURE (owner ruling 2026-10-12): the turn is written DIRECTLY with one bounded
+ * `ruflo memory store` and proven by exact-key readback inside the hook's deadline (~0.5-1.3 s measured
+ * on a live-size store). There is no journal, outbox or replay worker. A refused or unverified write is
+ * recorded in the hook-failures ledger, which the next SessionStart summarizes. Only `memory distill run`
+ * (SessionEnd/PreCompact) is detached. Advisory always: nothing here throws to the caller.
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { nativeTurnLines } from './native-turn-transcript.mjs';
+import { resolveRuflo, rufloInvocation, rufloRunDir, rufloScratchRoot } from './ruflo-bin.mjs';
+import { redactText } from './continuity-events.mjs';
+import { resolveProjectStore, globalEnrollmentAllowed, storeEncryptedAtRest, ENCRYPTED_STORE_REASON } from './project-store-resolver.mjs';
+import { recordHookFailure } from './hook-failures.mjs';
+
+const digest = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
+function appendReceipt(file, row) {
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  try { if (fs.statSync(file).size > RECEIPTS_MAX_BYTES) fs.renameSync(file, `${file}.1`); } catch { /* absent */ } // bounded like hook-failures
+  fs.appendFileSync(file, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+}
+const flagValue = (args, flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
+import { contentPathExcludes, pathIsExcluded, privateTurn, maskExcludedPaths, captureFailureReason, firstTurnCaptureNotice } from './turn-capture-privacy.mjs';
+import { isDirectInvocation } from './entrypoint.mjs';
+
+export const TURN_NAMESPACE = 'turns';
+export const MIN_OUTCOME_CHARS = 200;
+const TRANSCRIPT_TAIL_BYTES = 2 * 1024 * 1024;
+const STEP_TIMEOUT_MS = 60_000;
+export const RECEIPTS_MAX_BYTES = 256 * 1024;
+export const TURN_STATUS_FRESH_MS /* ✓ only when the newest receipt is verified and younger */ = 24 * 3_600_000;
+const RUFLO_ENV = { RUFLO_DAEMON_AUTOSTART: '0', CLAUDE_FLOW_AUTO_UPDATE: 'false' };
+
+function textOf(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.filter((c) => c && c.type === 'text' && typeof c.text === 'string').map((c) => c.text).join('\n');
+}
+
+function patchFiles(patch) {
+  const out = new Set();
+  for (const line of String(patch || '').split(/\r?\n/)) {
+    const m = /^\*\*\* (?:Add|Update|Delete) File: (.+)$/.exec(line) || /^\*\*\* Move to: (.+)$/.exec(line);
+    if (m) out.add(m[1].trim());
+  }
+  return [...out];
+}
+
+/**
+ * The current turn of a Claude JSONL transcript = every record after the last genuine user message
+ * (a user record carrying text, not a tool_result). User text is used ONLY to find that boundary.
+ */
+export function claudeTurn(lines) {
+  const recs = [];
+  for (const l of lines) { try { recs.push(JSON.parse(l)); } catch { /* partial or foreign line */ } }
+  let start = 0;
+  recs.forEach((o, i) => {
+    const role = o?.message?.role || o?.role;
+    const c = o?.message?.content;
+    const isToolResult = Array.isArray(c) && c.some((x) => x && x.type === 'tool_result');
+    if (role === 'user' && !isToolResult && textOf(c).trim()) start = i + 1;
+  });
+  const texts = [];
+  const files = new Set();
+  const actions = [];
+  const resources = []; const resourceTexts = [];
+  for (const o of recs.slice(start)) {
+    if ((o?.message?.role || o?.role) !== 'assistant') continue;
+    const c = o.message?.content;
+    const t = textOf(c).trim();
+    if (t) texts.push(redactText(t));
+    if (!Array.isArray(c)) continue;
+    for (const u of c) {
+      if (!u || u.type !== 'tool_use') continue;
+      const inp = u.input || {};
+      const resource = inp.file_path || inp.notebook_path || inp.path; if (typeof resource === 'string' && resource) resources.push(resource);
+      if (u.name === 'Bash' && typeof inp.command === 'string') resourceTexts.push(inp.command);
+      if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(u.name)) {
+        const f = inp.file_path || inp.notebook_path;
+        if (typeof f === 'string' && f) files.add(f);
+      } else if (u.name === 'apply_patch') {
+        for (const f of patchFiles(typeof inp === 'string' ? inp : inp.command || inp.input)) files.add(f);
+      } else if (u.name === 'Bash' && typeof inp.description === 'string' && inp.description) {
+        actions.push(inp.description);
+      }
+    }
+  }
+  // The closing message usually carries the outcome; when it is short (a tool-heavy turn) the turn's
+  // other assistant text is kept too, newest last, so the record still says what happened.
+  const last = texts.length ? texts[texts.length - 1] : '';
+  const finalText = last.length >= MIN_OUTCOME_CHARS ? last : texts.join('\n').slice(-2500);
+  return { finalText, files: [...files], actions, resources, resourceTexts };
+}
+
+function readTail(file, bytes = TRANSCRIPT_TAIL_BYTES) {
+  const handle = fs.openSync(file, 'r');
+  try {
+    const stat = fs.fstatSync(handle);
+    if (!stat.isFile()) throw new Error('Transcript must be a regular file');
+    const size = stat.size;
+    const offset = Math.max(0, size - bytes);
+    const buf = Buffer.alloc(size - offset);
+    fs.readSync(handle, buf, 0, buf.length, offset);
+    const lines = buf.toString('utf8').split(/\r?\n/);
+    if (offset > 0) lines.shift(); // the first line of a tail is almost always cut mid-record
+    return lines;
+  } finally { fs.closeSync(handle); }
+}
+
+/** Wait (bounded) until the transcript stops growing, then return its tail lines. */
+export function readSettledTranscript(file, { stableMs = 400, maxMs = 2000, sleep } = {}) {
+  const pause = sleep || ((ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms));
+  const deadline = Date.now() + Math.max(0, maxMs);
+  let size = -1;
+  for (;;) {
+    const stat = fs.statSync(file);
+    if (!stat.isFile()) throw new Error('Transcript must be a regular file');
+    const now = stat.size;
+    if (now === size || Date.now() >= deadline) break;
+    size = now;
+    pause(Math.min(stableMs, Math.max(0, deadline - Date.now())));
+  }
+  return readTail(file);
+}
+
+export function buildTurnRecord({ turn, project, host, session, at = new Date() }) {
+  const parts = [`[turn ${at.toISOString()} project=${project} host=${host}]`,
+    `OUTCOME: ${redactText(turn.finalText).replace(/\s+/g, ' ').slice(0, 2500)}`];
+  if (turn.files.length) parts.push(`FILES CHANGED: ${turn.files.slice(0, 25).map(redactText).join(', ')}`);
+  if (turn.actions.length) parts.push(`ACTIONS: ${turn.actions.slice(-15).map(redactText).join(' • ')}`);
+  parts.push(`SESSION: ${session || '?'}`);
+  return redactText(parts.join('  ||  ')).slice(0, 4000);
+}
+
+/** Persisted per-canonical-project/per-path consent, reread at every boundary (no restart). */
+export function turnCapturePolicyFile(brainHome) {
+  return path.join(brainHome, 'turn-capture', 'policy.json');
+}
+
+const consentMap = (value) => value !== null && typeof value === 'object'
+  && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype
+  && Object.values(value).every((setting) => setting === 'on' || setting === 'off');
+
+export function resolveTurnDb({ projectDir, brainHome, requestedStorePath, gitTimeoutMs = 1000, unknownOriginalPath = false, deadlineAt = Infinity, signal, enrollmentRoots = {} } = {}) {
+  if (signal?.aborted || Date.now() >= deadlineAt) throw new Error('restore deadline exceeded');
+  const resolved = resolveProjectStore({ projectDir, requestedStorePath, gitTimeoutMs, deadlineAt });
+  if (signal?.aborted || Date.now() >= deadlineAt) throw new Error('restore deadline exceeded');
+  const capturePath = fs.realpathSync.native(projectDir);
+  let policy = {};
+  const file = brainHome && turnCapturePolicyFile(brainHome);
+  if (file && fs.existsSync(file)) {
+    try {
+      policy = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (policy?.schemaVersion !== 1 || !consentMap(policy.projects)
+        || (Object.hasOwn(policy, 'default') && !['on', 'off'].includes(policy.default))
+        || (Object.hasOwn(policy, 'paths') && !consentMap(policy.paths))) throw new Error('invalid policy');
+      contentPathExcludes(policy.contentPathExcludes);
+    } catch { return { skipped: 'turn capture policy unreadable or invalid', projectRoot: resolved.projectRoot }; }
+  }
+  // A path rule wins over a project rule, allowing a linked checkout/subdirectory to opt out.
+  const explicitSetting = policy.paths?.[capturePath] ?? policy.projects?.[resolved.projectRoot];
+  const setting = explicitSetting ?? policy.default;
+  if (setting !== undefined && !['on', 'off'].includes(setting)) return { skipped: 'invalid turn capture consent', projectRoot: resolved.projectRoot };
+  const db = resolved.canonicalAgentDbPath;
+  const exclusions = contentPathExcludes(policy.contentPathExcludes);
+  if ([db, capturePath].some((binding) => pathIsExcluded(binding, exclusions, capturePath))) return { skipped: 'content exclusion conflicts with canonical source/store binding', projectRoot: resolved.projectRoot };
+  if (unknownOriginalPath && Object.entries(policy.paths || {}).some(([origin, choice]) => choice === 'off'
+    && (origin === resolved.checkoutRoot || origin.startsWith(`${resolved.checkoutRoot}${path.sep}`)))) {
+    return { db, scope: 'project', capturePath, projectRoot: resolved.projectRoot, skipped: 'capture origin cannot be verified under path opt-out' };
+  }
+  assertTurnStoreFiles(db);
+  if (setting === 'off') return { db, scope: 'project', capturePath, projectRoot: resolved.projectRoot, skipped: 'persisted turn capture opt-out' };
+  let exists = false;
+  try { exists = fs.statSync(db).isFile(); } catch { /* absent */ }
+  if (!exists && setting === 'on' && explicitSetting !== 'on' && !globalEnrollmentAllowed({ resolution: resolved, brainHome, ...enrollmentRoots })) {
+    return { db, scope: 'project', capturePath, projectRoot: resolved.projectRoot, skipped: 'global capture consent requires a safe Git project root; explicit project/path opt-in required' };
+  }
+  if (!exists && setting !== 'on') return { db, scope: 'project', capturePath, projectRoot: resolved.projectRoot, skipped: 'no project memory db; persisted opt-in required' };
+  return { db, scope: 'project', capturePath, projectRoot: resolved.projectRoot, optedIn: setting === 'on',
+    contentPathExcludes: exclusions };
+}
+
+// Revalidation narrows the queue-to-launch window; it does not make SQLite's later open atomic.
+function assertTurnStoreFiles(db) {
+  const directory = path.dirname(db);
+  let stat;
+  try { stat = fs.lstatSync(directory); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (stat && (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync.native(directory) !== directory)) {
+    throw new Error('store directory is not a canonical regular directory');
+  }
+  for (const file of [db, `${db}-wal`, `${db}-shm`, `${db}-journal`]) {
+    let entry;
+    try { entry = fs.lstatSync(file); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (entry && (!entry.isFile() || entry.isSymbolicLink() || entry.nlink > 1)) {
+      throw new Error('store or SQLite side file is a symlink, hard link or non-regular file');
+    }
+  }
+}
+
+const projectName = (projectDir) => redactText(path.basename(path.resolve(projectDir))).replace(/[^A-Za-z0-9._-]/g, '_') || 'project';
+
+/** Detached worker launch: the hook returns immediately; the worker runs the steps in order. */
+export function launchDetached(steps, { receipts, brainHome, projectDir, env = process.env }) {
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), '--run-steps', JSON.stringify({ steps, receipts })], {
+    cwd: os.tmpdir(), detached: true, stdio: 'ignore', windowsHide: true, env: { ...env, ...RUFLO_ENV, ...(brainHome ? { RUVNET_BRAIN_HOME: brainHome } : {}), ...(projectDir ? { RUVNET_TURN_PROJECT_DIR: projectDir } : {}) },
+  });
+  child.unref();
+  return { launched: true, pid: child.pid };
+}
+
+const readTurnState = (stateFile) => { try { return JSON.parse(fs.readFileSync(stateFile, 'utf8')) || {}; } catch { return {}; } };
+
+/** The newest store receipt for this exact key, while the receipt tail still holds it. */
+const storeReceipt = (receipts, key) => { try { return readTail(receipts, 128 * 1024).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } }).findLast((r) => r.kind === 'store' && r.key === key) || null; } catch { return null; } };
+const verifiedReceipt = (r) => r?.status === 0 && r.verified === true;
+
+function sameTurnSeen(stateFile, sessionKey, fingerprint, receipts) {
+  const previous = readTurnState(stateFile)[sessionKey];
+  if (previous?.fingerprint !== fingerprint) return false;
+  const receipt = storeReceipt(receipts, previous.key);
+  // No receipt yet: an in-flight worker gets a bounded grace period; a killed/lost worker cannot consume the turn forever.
+  return receipt ? verifiedReceipt(receipt) : Date.now() - previous.at < 2 * STEP_TIMEOUT_MS + 10_000;
+}
+
+function markTurnQueued(stateFile, sessionKey, fingerprint, key) {
+  const last = readTurnState(stateFile);
+  const keys = Object.keys(last);
+  for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete last[k];

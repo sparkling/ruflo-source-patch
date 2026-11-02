@@ -1,0 +1,77 @@
+[
+  {
+    "relative": "scripts/hook-failures.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "hook-failures.mjs",
+    "sha256": "fbfe92e6849c25a37abb696203ac53f39df484ead294900b828a3574219a03f1",
+    "bytes": 8238,
+    "source": "Brain4.7.28/scripts/hook-failures.mjs",
+    "sourceKind": "native-executable"
+  },
+  {
+    "relative": "scripts/ruflo-memory-hooks.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "ruflo-memory-hooks.mjs",
+    "sha256": "099c66b1a72555bd62ebd78a1506fa1b0458b95e8af4fb22cdcfa261760b7722",
+    "bytes": 23611,
+    "source": "Brain4.7.28/scripts/ruflo-memory-hooks.mjs",
+    "sourceKind": "saved-pristine"
+  },
+  {
+    "relative": "scripts/session-snapshot-hook.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "session-snapshot-hook.mjs",
+    "sha256": "03cd6223c18f09cdc6a0ff41f07483578c556023dc24b712fa72de5c902d5a99",
+    "bytes": 8647,
+    "source": "Brain4.7.28/scripts/session-snapshot-hook.mjs",
+    "sourceKind": "native-executable"
+  },
+  {
+    "relative": "scripts/learn-capture.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "../brain-learning-receipts/native-4.7.28.mjs",
+    "sha256": "cf9fb218c5e51cdb29298801cb5634f864c9bb73b93926afac505624a4fd3edc",
+    "bytes": 11926,
+    "source": "Brain4.7.28/scripts/learn-capture.mjs",
+    "sourceKind": "native-executable"
+  },
+  {
+    "relative": "scripts/learning-store.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "../brain-user-learning-root/learning-store-native-4.7.21.mjs",
+    "sha256": "c0792188abea5e3a8d95a97ca08e5013c8b4d21c190a152ed5a3b2dbe80b9b16",
+    "bytes": 12874,
+    "source": "Brain4.7.28/scripts/learning-store.mjs",
+    "sourceKind": "saved-pristine"
+  },
+  {
+    "relative": "scripts/turn-outcome-capture.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": [
+      "turn-outcome-capture.mjs.part1",
+      "turn-outcome-capture.mjs.part2"
+    ],
+    "sha256": "e55c539a53fab2d9dc56be788c2af6df82b2083dd112fda74fb6631d720f2d34",
+    "bytes": 35031,
+    "source": "Brain4.7.28/scripts/turn-outcome-capture.mjs",
+    "sourceKind": "saved-pristine"
+  },
+  {
+    "relative": "scripts/turn-capture-privacy.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "../brain-native-4510/scripts/turn-capture-privacy.mjs",
+    "sha256": "d495620afc8396eeabf9f23dbcbf85705213e8c05f7ae364bd58618871daf3d4",
+    "bytes": 13143,
+    "source": "Brain4.7.28/scripts/turn-capture-privacy.mjs",
+    "sourceKind": "native-executable"
+  },
+  {
+    "relative": "scripts/continuity-events.mjs",
+    "upstreamVersion": "4.7.28",
+    "fixture": "continuity-events.mjs",
+    "sha256": "0035155828900f36acd477161c47222ddc304703b023ecc5ec532d2099a450e9",
+    "bytes": 24937,
+    "source": "Brain4.7.28/scripts/continuity-events.mjs",
+    "sourceKind": "native-executable"
+  }
+]

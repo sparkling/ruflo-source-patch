@@ -163,6 +163,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-recall-runtime': action => runPluginCommand('brain-recall-runtime', action),
   'brain-adr-envelope': action => runPluginCommand('brain-adr-envelope', action),
   'brain-capture-budget': action => runPluginCommand('brain-capture-budget', action),
+  'brain-capture-diagnostics': action => runPluginCommand('brain-capture-diagnostics', action),
   'brain-learning-native-owner': action => runPluginCommand('brain-learning-native-owner', action),
   'brain-learning-receipts': action => runPluginCommand('brain-learning-receipts', action),
   'brain-scratch-preservation': action => runPluginCommand('brain-scratch-preservation', action),
@@ -247,11 +248,12 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-policy-ledger')}durable segmented receipt history; explicit initial migration, complete audit (#3164)
   ${pad('brain-managed-cli-diagnostics')}retain error and signal evidence alongside command output (#386)
   ${pad('brain-learning-receipts')}mark capture only after verified readback (#377)
-  ${pad('ruflo-memory-entries-only')}scoped native SQLite capture adapter (#4666)
-  ${pad('brain-recall-runtime')}share native reader and search runtime (#514)
+  ${pad('ruflo-memory-entries-only')}withdraw capture adapter; retain retrieve failure reporting (#4666)
+  ${pad('brain-recall-runtime')}withdraw recall adapter and restore native execution (#514)
   ${pad('brain-adr-envelope')}bounded complete JSON for ADR scope inspection (#515)
   ${pad('brain-capture-budget')}align Stop/PreCompact with existing native capture budget (#513)
-  ${pad('brain-learning-native-owner')}capture without a competing vector owner (#4666)
+  ${pad('brain-capture-diagnostics')}retain hashed failure scope and redacted terminal stderr (#518)
+  ${pad('brain-learning-native-owner')}withdraw capture selection and restore native execution (#4666)
   ${pad('brain-user-learning-root')}keep the adopted user learner independent of parent Git roots (#377)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
   ${pad('brain-wrapper-ownership')}accept exact published older Codex wrappers during native updates (#420)

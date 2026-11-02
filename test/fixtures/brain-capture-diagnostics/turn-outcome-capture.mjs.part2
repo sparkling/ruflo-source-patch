@@ -1,0 +1,248 @@
+  try {
+    fs.mkdirSync(path.dirname(stateFile), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(stateFile, JSON.stringify({ ...last, [sessionKey]: { fingerprint, key, at: Date.now() } }), { mode: 0o600 });
+  } catch { /* dedupe is best effort; a duplicate record beats a lost one */ }
+}
+
+/**
+ * Capture this turn's outcome (Stop) and/or start distillation (SessionEnd, PreCompact). Returns a plain report:
+ * `queued` means a request, never proof the store committed; `skipped` / `distill.skipped` carry the reason.
+ */
+export function captureTurnOutcome({
+  projectDir, event, payload = {}, host = 'claude',
+  env = process.env, home = os.homedir(),
+  brainHome = env.RUVNET_BRAIN_HOME || path.join(home, '.cache', 'ruvnet-brain'),
+  ruflo = resolveRuflo({ env, home }),
+  launch = launchDetached,
+  readTranscript = readSettledTranscript,
+  settleMs = 2000,
+  now = () => new Date(),
+  deadlineAt,
+  run,
+  write = runSteps,
+} = {}) {
+  const report = { event, host, queued: false, recorded: false, distill: { queued: false } };
+  if (String(env.RUVNET_TURN_CAPTURE || '').toLowerCase() === 'off') {
+    return { ...report, skipped: 'RUVNET_TURN_CAPTURE=off', distill: { queued: false, skipped: 'RUVNET_TURN_CAPTURE=off' } };
+  }
+  // Review M1: a capture that cannot happen is LOUD (a ledger row with a fixed reason, never turn text).
+  const loud = (reason, store) => { recordHookFailure({ hook: 'turn-capture', event, error: reason.slice(0, 160), ...(store ? { store: digest(store).slice(0, 16) } : {}) }, { brainHome }); return reason; };
+  let target;
+  try { target = resolveTurnDb({ projectDir, brainHome, ...(deadlineAt ? { deadlineAt } : {}) }); } catch (error) { return { ...report, skipped: loud(`store resolution failed: ${redactText(error.message)}`) }; }
+  const { db, scope, projectRoot } = target;
+  Object.assign(report, { db, scope });
+  if (target.skipped) return { ...report, skipped: target.skipped, distill: { queued: false, skipped: target.skipped } };
+  const steps = [];
+  const rootStat = fs.statSync(projectRoot);
+  const binding = { projectRoot, projectDir: fs.realpathSync.native(projectDir), brainHome, rootIdentity: `${rootStat.dev}:${rootStat.ino}` };
+  let dedupe;
+  const project = projectName(projectRoot);
+  const receipts = path.join(brainHome, 'turn-capture', 'receipts.jsonl');
+
+  // ONE WRITER PER TURN (ADR-105 §7): the product is the only writer of project turn history. The
+  // former deferral to a user-level ~/.claude hook (ADR-100 §3) could never fire — its probe never
+  // reported a writer — and cost a git call on every Stop, so it was removed (ADR-106).
+  if (['Stop', 'SessionEnd', 'PreCompact'].includes(event)) {
+    const sessionKey = String(payload.session_id || payload.transcript_path || '');
+    const message = typeof payload.last_assistant_message === 'string' ? payload.last_assistant_message.trim() : '';
+    let turn = { finalText: '', files: [], actions: [] };
+    if (typeof payload.transcript_path === 'string' && payload.transcript_path) {
+      // With the closing message in hand, the transcript is read immediately (tool calls are already
+      // flushed); without it, wait for the closing message to land, bounded.
+      try { turn = claudeTurn(nativeTurnLines(readTranscript(payload.transcript_path, { maxMs: message || event !== 'Stop' ? 0 : settleMs }), host)); } catch { /* unreadable */ }
+    }
+    if (message && (message.length >= MIN_OUTCOME_CHARS || message.length >= turn.finalText.length)) turn.finalText = message;
+    turn = privateTurn(turn, target.contentPathExcludes, target.capturePath);
+    if (!sessionKey) report.skipped = 'no session identity in the host payload';
+    else if (turn.finalText.length < MIN_OUTCOME_CHARS && !turn.files.length) {
+      report.skipped = turn.excludedResource ? 'turn content withheld: explicitly excluded resource' : host === 'codex' && !message ? 'codex payload carried no last_assistant_message' : 'trivial turn';
+    } else if (storeEncryptedAtRest(db)) report.skipped = loud(`${ENCRYPTED_STORE_REASON}; turn not written (opt out: RUVNET_TURN_CAPTURE=off)`, db); // #439: no ruflo spawn that can only be refused
+    else {
+      const fingerprint = crypto.createHash('sha256').update(JSON.stringify([turn.finalText, turn.files])).digest('hex');
+      const stateFile = path.join(brainHome, 'turn-capture', 'last-turn.json');
+      const identity = crypto.createHash('sha256').update(`${host}:${db}:${sessionKey}`).digest('hex');
+      const key = `turn-${project}-${digest(`${identity}:${fingerprint}`).slice(0, 40)}`;
+      if (sameTurnSeen(stateFile, identity, fingerprint, receipts)) report.skipped = 'same turn outcome already queued or verified';
+      // Proven at Stop already: SessionEnd/PreCompact must not re-send it (2026-10-19/20: each re-send was an "append rejected" row).
+      else if (verifiedReceipt(storeReceipt(receipts, key))) report.skipped = 'turn key already verified at an earlier boundary';
+      else {
+        const at = now();
+        dedupe = { stateFile, identity, fingerprint, key };
+        const value = buildTurnRecord({ turn, project, host, session: payload.session_id, at });
+        steps.push({ ...binding, kind: 'store', ruflo, args: ['memory', 'store', '--key', key, '--value', value, '--namespace', TURN_NAMESPACE,
+          '--path', db, '--no-upsert', '--require-native', '--append-only', '--tags', `project=${project},host=${host}`, '--provenance', 'agent_output'] });
+        Object.assign(report, { queued: true, key, value });
+      }
+    }
+  } else report.skipped = `no turn outcome capture at ${event}`;
+
+  if (event === 'SessionEnd' || event === 'PreCompact') {
+    if (!fs.existsSync(db)) report.distill = { queued: false, skipped: 'no memory db to distill yet' };
+    else {
+      steps.push({ ...binding, kind: 'distill', ruflo, args: ['memory', 'distill', 'run', '--db', db, '--namespace', TURN_NAMESPACE, '--max-entries', '500'] });
+      report.distill = { queued: true, db };
+    }
+  }
+  if (!steps.length) return report;
+  if (!ruflo) return { ...report, queued: false, skipped: loud('ruflo not found', db), distill: { queued: false, skipped: 'ruflo not found' } };
+
+  try {
+    // Only explicit persisted consent permits creating a project store directory.
+    if (target.optedIn) fs.mkdirSync(path.dirname(db), { recursive: true, mode: 0o700 });
+    // The turn is written NOW, bounded by the hook's deadline, and proven by exact-key readback (owner
+    // ruling 2026-10-12: no outbox, no journal, no replay). A refusal is recorded by runSteps in the
+    // hook-failures ledger, so SessionStart reports it. Only distillation runs detached.
+    const store = steps.filter((item) => item.kind === 'store');
+    if (store.length) {
+      const [row] = write({ steps: store, receipts, event }, { env, home, projectDir: binding.projectDir, brainHome,
+        ...(deadlineAt ? { deadlineMs: deadlineAt } : {}), ...(run ? { run } : {}) });
+      Object.assign(report, { recorded: row?.verified === true, receipt: row });
+      if (row?.verified && dedupe) markTurnQueued(dedupe.stateFile, dedupe.identity, dedupe.fingerprint, dedupe.key);
+    }
+    const detached = steps.filter((item) => item.kind !== 'store');
+    if (detached.length) report.launch = launch(detached, { receipts, brainHome, projectDir: binding.projectDir, env });
+  } catch (error) {
+    const reason = loud(`launch failed: ${redactText(error.message)}`, db);
+    return { ...report, queued: false, recorded: false, distill: { queued: false, skipped: reason }, skipped: reason };
+  }
+  return report;
+}
+
+/** Exact (namespace, key, content) readback. Exit zero alone never proves capture. */
+function readBack({ ruflo, db, key, run, options }) {
+  const invocation = rufloInvocation(ruflo, ['memory', 'retrieve', '--key', key, '--namespace', TURN_NAMESPACE, '--value-only', '--path', db]);
+  const result = run(invocation.executable, invocation.args, options);
+  return result.status === 0 ? String(result.stdout || '').trim() : null;
+}
+
+/** The detached worker: bounded steps, safe error evidence, exact content readback. */
+export function runSteps({ steps = [], receipts, event = '' } = {}, { run: suppliedRun = spawnSync, read = readBack,
+  env = process.env, deadlineMs, home = os.homedir(),
+  projectDir = env.RUVNET_TURN_PROJECT_DIR || process.cwd(),
+  brainHome = env.RUVNET_BRAIN_HOME || path.join(home, '.cache', 'ruvnet-brain') } = {}) {
+  const run = (binary, args, options) => {
+    if (deadlineMs === undefined) return suppliedRun(binary, args, options);
+    const remaining = deadlineMs - Date.now();
+    if (remaining <= 0) return { status: 1, error: new Error('turn write deadline exhausted') };
+    return suppliedRun(binary, args, { ...options, timeout: Math.min(options.timeout, remaining) });
+  };
+  const results = [];
+  for (const queued of steps) {
+    let status = 1; let error = null; let skipped = null; let verified = false; let db = ''; let key; let privacyPatterns = []; let scratchRun = null;
+    const kind = queued.kind;
+    try {
+      if (String(env.RUVNET_TURN_CAPTURE || '').toLowerCase() === 'off') throw new Error('RUVNET_TURN_CAPTURE=off');
+      if (kind === 'store') { key = flagValue(queued.args, '--key'); db = flagValue(queued.args, '--path'); }
+      if ((!queued.projectRoot || !queued.projectDir || !queued.brainHome)) throw new Error('queued step has no canonical project binding');
+      const bound = deadlineMs === undefined ? {} : { deadlineAt: deadlineMs }; // review M4: git obeys the hook deadline
+      const target = resolveTurnDb({ projectDir, brainHome, gitTimeoutMs: 1000, ...bound });
+      if (target.skipped) throw new Error(target.skipped);
+      privacyPatterns = target.contentPathExcludes;
+      db = target.db;
+      let args; let value; let binding;
+      if (kind === 'store') {
+        const data = { key: flagValue(queued.args, '--key'), value: flagValue(queued.args, '--value'), db: flagValue(queued.args, '--path') };
+        if (typeof data.key !== 'string' || typeof data.value !== 'string') throw new Error('invalid turn store step');
+        if (data.db !== db) throw new Error('foreign turn store rejected');
+        if (storeEncryptedAtRest(db)) throw new Error(ENCRYPTED_STORE_REASON);
+        if (queued.brainHome !== brainHome) throw new Error('turn consent settings differ from trusted caller');
+        binding = queued;
+        key = data.key; value = maskExcludedPaths(redactText(data.value), target.contentPathExcludes, target.capturePath);
+        if (value !== redactText(data.value)) throw new Error('content exclusions changed; turn not written');
+        args = ['memory', 'store', '--key', key, '--value', value, '--namespace', TURN_NAMESPACE, '--path', db, '--no-upsert', '--require-native', '--append-only', '--provenance', 'agent_output'];
+      } else if (kind === 'distill') {
+        if (queued.brainHome !== brainHome) throw new Error('queued consent settings differ from trusted caller');
+        const recipe = queued.args;
+        if (!Array.isArray(recipe) || recipe.slice(0, 3).join(' ') !== 'memory distill run') throw new Error('invalid turn distill operation');
+        const seen = new Set();
+        for (let i = 3; i < recipe.length; i += 2) {
+          const flag = recipe[i]; const value = recipe[i + 1];
+          if (seen.has(flag) || !['--db', '--namespace', '--max-entries'].includes(flag) || typeof value !== 'string') throw new Error('invalid turn distill flags');
+          seen.add(flag);
+          if (flag === '--db' && value !== db || flag === '--namespace' && value !== TURN_NAMESPACE || flag === '--max-entries' && value !== '500') throw new Error('invalid turn distill scope');
+        }
+        if (!seen.has('--db')) throw new Error('missing turn distill database');
+        binding = queued;
+        args = ['memory', 'distill', 'run', '--db', db, '--namespace', TURN_NAMESPACE, '--max-entries', '500'];
+      } else throw new Error('invalid turn worker operation');
+      if (!binding.projectRoot || !binding.projectDir) throw new Error('queued step has no canonical project binding');
+      const rootStat = fs.statSync(target.projectRoot);
+      if (binding.rootIdentity && binding.rootIdentity !== `${rootStat.dev}:${rootStat.ino}`) throw new Error('queued canonical project identity changed');
+      if (binding.projectRoot !== target.projectRoot) throw new Error('queued canonical project/store identity changed');
+      const origin = resolveTurnDb({ projectDir: binding.projectDir, brainHome, requestedStorePath: db, gitTimeoutMs: 1000, ...bound });
+      if (origin.skipped) throw new Error(origin.skipped);
+      if (origin.projectRoot !== target.projectRoot || origin.db !== db) throw new Error('queued canonical capture origin changed');
+      const ruflo = resolveRuflo({ env, home });
+      if (!ruflo) throw new Error('ruflo not found');
+      const invocation = rufloInvocation(ruflo, args);
+      const remaining = deadlineMs === undefined ? STEP_TIMEOUT_MS : deadlineMs - Date.now();
+      if (remaining <= 0) throw new Error('turn write deadline exhausted');
+      // Measured 2026-10-10 with global Ruflo 3.56.3: cwd=<project>/.swarm litters ruvector.db/.claude-flow there, and
+      // CLAUDE_FLOW_MEMORY_PATH=<.swarm> makes Ruflo create a second agentdb-memory.db beside the canonical store.
+      // The explicit --path already binds the store, so run from private scratch with neither. One fresh run-* directory
+      // per call, removed after it (ruflo-bin rufloRunDir): the shared project scratch dir used here before kept ruflo's
+      // ruvector.db/.swarm/.claude-flow copies between turns, which --doctor counted as cruft after every turn (2026-10-30).
+      scratchRun = rufloRunDir(db, { root: rufloScratchRoot({ ...env, RUVNET_BRAIN_HOME: brainHome }) });
+      const options = { encoding: 'utf8', timeout: Math.min(STEP_TIMEOUT_MS, remaining), windowsHide: true,
+        cwd: scratchRun,
+        maxBuffer: 1024 * 1024, env: { ...env, ...RUFLO_ENV } };
+      delete options.env.CLAUDE_FLOW_MEMORY_PATH;
+      const r = run(invocation.executable, invocation.args, options);
+      status = Number.isInteger(r.status) ? r.status : 1;
+      const duplicate = kind === 'store' && status !== 0 && /already exists/i.test(captureFailureReason(r, status)); // append-only refusal
+      if (kind === 'store' && (status === 0 || duplicate)) { verified = read({ ruflo, db, key, run, options }) === value; if (verified) status = 0; } // identical bytes = success
+      if (kind === 'distill' && status === 0) {
+        const match = /(?:^|\n)\s*skipped:\s*([^\n]+)/i.exec(String(r.stdout || '').replace(/\x1b\[[0-9;]*m/g, ''));
+        if (match) skipped = redactText(match[1]).slice(0, 300);
+      }
+      if (!verified && duplicate) error = 'duplicate turn key holds different content';
+      else if (!verified && (r.error || status !== 0)) error = captureFailureReason(r, status);
+      else if (kind === 'store' && !verified) { status = 1; error = 'exact turn key/content readback failed'; }
+    } catch (e) { status = 1; error = redactText(e.message).slice(0, 300); }
+    if (scratchRun) { try { fs.rmSync(scratchRun, { recursive: true, force: true }); } catch { /* a stale run-* is swept by the next rufloRunDir */ } }
+    if (error) error = maskExcludedPaths(error, privacyPatterns, projectDir);
+    const row = { at: new Date().toISOString(), kind, db: redactText(db), storeIdentity: digest(db), key, status, error,
+      ...(kind === 'store' ? { verified } : {}), ...(skipped ? { skipped } : {}) };
+    results.push(row);
+    if (receipts) { try { appendReceipt(receipts, row); } catch { /* the ledger row below still reports a failure */ } }
+    if (error || (kind === 'store' && !verified)) {
+      recordHookFailure({ hook: kind === 'store' ? 'turn-capture' : 'turn-distill', event, error: String(error || 'exact turn key/content readback failed').slice(0, 160), ...(db ? { store: digest(db).slice(0, 16) } : {}) }, { brainHome });
+    }
+  }
+  return results;
+}
+
+/** Bounded recent evidence, isolated by canonical db. A continuity success cannot mask turn failures. */
+export function turnRecordingStatus({ projectDir = process.cwd(), env = process.env, home = os.homedir(), now = Date.now(), noticeOnFirstUse = false } = {}) {
+  const brainHome = env.RUVNET_BRAIN_HOME || path.join(home, '.cache', 'ruvnet-brain');
+  let target;
+  try { target = resolveTurnDb({ projectDir, brainHome }); } catch { return { state: 'unknown', line: 'turn recording unavailable: canonical store resolution failed' }; }
+  if (String(env.RUVNET_TURN_CAPTURE || '').toLowerCase() === 'off' || target.skipped) return { state: 'unknown', line: `turn recording n/a — ${target.skipped || 'RUVNET_TURN_CAPTURE=off'}` };
+  if (storeEncryptedAtRest(target.db)) return { state: 'warn', line: `turn recording off for this store — ${ENCRYPTED_STORE_REASON}. Keep this project's store unencrypted, or set RUVNET_TURN_CAPTURE=off to stop trying` };
+  const notice = noticeOnFirstUse ? firstTurnCaptureNotice({ target, brainHome, policyFile: turnCapturePolicyFile(brainHome), env }) : null;
+  const status = (value) => ({ ...value, ...(notice ? { notice } : {}) });
+  let rows = [];
+  try {
+    rows = readTail(path.join(brainHome, 'turn-capture', 'receipts.jsonl'), 128 * 1024).flatMap((line) => {
+      try { return [JSON.parse(line)]; } catch { return []; }
+    }).filter((r) => r.kind === 'store' && (r.storeIdentity === crypto.createHash('sha256').update(target.db).digest('hex') || r.db === target.db) && now - Date.parse(r.at) < 7 * 86_400_000).slice(-20);
+  } catch { /* first run */ }
+  rows = [...new Map(rows.map((row) => [row.key || row.at, row])).values()];
+  const historical = rows.filter((r) => r.status === 0 && r.verified === undefined);
+  const failed = rows.filter((r) => r.status !== 0 || r.verified === false);
+  if (failed.length) return status({ state: 'warn', line: `turn recording failing ${failed.length}/${rows.length} — ${redactText(failed.at(-1).error || 'write has no exact readback evidence').slice(0, 300)}` });
+  if (historical.length) return status({ state: 'unknown', line: `turn recording unverified historical (${historical.length} receipts without exact readback evidence)` });
+  // Review M1: ✓ needs the NEWEST receipt verified, < TURN_STATUS_FRESH_MS old, and no later turn-capture ledger row.
+  const newest = rows.at(-1); const id = digest(target.db).slice(0, 16); let laterFailure = null;
+  try { laterFailure = readTail(path.join(brainHome, 'hook-failures.jsonl'), 64 * 1024).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } })
+    .findLast((r) => r.hook === 'turn-capture' && (!r.store || r.store === id) && (!newest || Date.parse(r.at) > Date.parse(newest.at))); } catch { /* no ledger */ }
+  if (laterFailure) return status({ state: 'warn', line: `turn recording failing — ${redactText(String(laterFailure.error || 'capture skipped')).slice(0, 200)} (since ${laterFailure.at})` });
+  if (newest && now - Date.parse(newest.at) >= TURN_STATUS_FRESH_MS) return status({ state: 'unknown', line: `turn recording not proven recently — newest exact readback ${newest.at}` });
+  return status(rows.length ? { state: 'ok', line: `turn recording ✓ (${rows.length}/${rows.length} exact readbacks)` }
+    : { state: 'unknown', line: 'turn recording not yet proven — no exact readback receipt' });
+}
+
+if (isDirectInvocation(import.meta.url) && process.argv[2] === '--run-steps') {
+  try { runSteps(JSON.parse(process.argv[3] || '{}')); } catch { /* a detached worker has no one to report to */ }
+  process.exit(0);
+}

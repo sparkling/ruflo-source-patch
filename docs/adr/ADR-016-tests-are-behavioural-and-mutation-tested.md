@@ -60,6 +60,13 @@ happened, repeatedly, and every instance was caught only by deliberately breakin
 
 ## Consequences
 
+Brain #518 regression tests execute native logger and capture functions with
+inert memory-driver seams. They reproduce cross-store aggregation before repair,
+then prove scope retention, native stderr redaction, cancellation/timeout
+precedence, and unchanged two-slot shedding without a new child or memory write.
+All dependent source members must qualify together; source reversal and unknown
+anchor refusal remain separately tested.
+
 ### Positive
 
 - Six vacuous tests were found and fixed, each by mutation.
