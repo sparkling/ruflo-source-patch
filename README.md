@@ -197,7 +197,7 @@ preserved. Native two-slot admission, shedding, consent, exact acknowledgement a
 no-replay behavior remain. Tests cover synchronous launch exceptions, real asynchronous
 ENOENT, both same-key overlap orders, replaced files and post-spawn errors.
 
-The `brain-capture-idempotency` target addresses
+Version 4.46.101 adds `brain-capture-idempotency` for
 [Brain #520](https://github.com/stuinfla/ruvnet-brain/issues/520). The native turn key
 excludes capture time, while its value includes the current timestamp. A retry of
 the unchanged transcript can therefore conflict with its own earlier committed
