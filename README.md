@@ -171,6 +171,12 @@ their issue-specific repair. No updater, KB, host-state or version data changes.
 Version 4.46.98 activation passed on Mac and HZ: both monitors reported no drift
 and native hook trust had no pending approvals. Doctor qualification remains
 separate from live host activation and does not reload long-lived MCP sessions.
+Version 4.46.99 activation then removed the equality overlay from all three
+current Brain installers on each host, preserving the Console sibling repair.
+HZ's separate legacy installer retains its original repair. Both installed
+preflights and monitors passed, with no pending native hook approvals. The full
+regression suite passed; all 278 packaged files matched the immutable release
+tag. Live receipts are `native-doctor-active-v499.json` in each recovery directory.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 
