@@ -41,6 +41,13 @@ one pristine backup. Exact legacy boundary-only backups are recovered by inverse
 and forward composition proof, with their old bytes retained. Regression tests
 cover reapplication, drift refusal and independent removal of either patch.
 
+The separate HZ AI policy-runtime mismatch was an existing local lock-wait
+change from 5 to 30 seconds, otherwise byte-identical to a previously qualified
+native artifact. Version 4.46.90 recognises only its exact SHA-256 after the
+existing 5,000-receipt conversion, full audit, append/prune and lock tests passed.
+It does not change that runtime, policy state or the timeout. Qualification:
+`/data/programme-state/memory-recovery-20261102/policy-qualification/result.log`.
+
 ## Learning capture ownership: 2 November 2026
 
 `ruflo-memory-entries-only` incorporates the previously retained HZ capture
