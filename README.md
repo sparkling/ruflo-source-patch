@@ -95,9 +95,11 @@ and duplicate recall processes are present in pristine Brain 4.7.28. Exclusive
 vector-owner attribution remains unproven without a pristine integration control;
 the existing path patches also affect vector companion locations. Live success
 does not exonerate those patches or establish embedding/ranking parity. Negative
-probes also found that the shared search can return success after a request abort,
-and its bridge edits depend on the capture adapter without enforcing that
-installation dependency. These remain open review findings, not qualified fixes.
+probes found three downstream defects, corrected in 4.46.91: shared search now
+settles unavailable on request cancellation and ignores late results; absent optional
+capture helpers retain the native registry route instead of throwing ReferenceError;
+and explicit operator hook timeouts are preserved. Rejected searches and listener
+cleanup are tested. These corrections do not establish controller or ranking parity.
 
 Live qualification: the five `/data` project pairs passed native backups and
 exact MCP persistence/readback; learning observations passed in every project.
@@ -116,8 +118,9 @@ Native load shedding remains bounded and visible; this release does not promise
 unlimited observation capture or replay historical failures.
 
 The broader suite also exposes an unchanged AgentDB project-root anchor mismatch
-and formatting failures in ignored working artefacts. HZ retains policy-patch
-drift in a separate AI migration runtime. These are not claimed clean.
+and formatting failures in ignored working artefacts. Those suite failures remain
+disclosed. The separate HZ AI policy-runtime variant passed the existing native
+qualification and is recognised from 4.46.90; installed patch reapplication passes.
 
 ## Ruflo 3.66 qualification: 31 October 2026
 

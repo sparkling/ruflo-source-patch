@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { SPECS, patchSource, reverseSource, isPatched } from '../lib/brain-recall-runtime/patcher.mjs';
+import { getEventListeners } from 'node:events';
+import { SPECS, patchSource, reverseSource, isPatched, descriptor } from '../lib/brain-recall-runtime/patcher.mjs';
 for (const spec of SPECS) {
   const source = spec.edits.map(([, from]) => from).join('\n');
   const patched = patchSource(source);
@@ -39,6 +40,22 @@ assert.equal((await context.searchOnce({ ...request, session: { ...session, sear
 assert.equal((await context.searchOnce({ ...request, session: { ...session, search: async () => ({ state: 'timed out' }) } })).state, 'timed out');
 assert.equal((await context.searchOnce({ ...request, session: { ...session, storePath: '/another.db' } })).state, 'cli-fallback');
 assert.equal((await context.searchOnce({ ...request, session, signal: { aborted: true } })).state, 'unavailable');
+// A per-request abort settles promptly without closing the shared owner or leaking listeners.
+const abort = new AbortController();
+let finishSearch;
+const pending = context.searchOnce({ ...request, signal: abort.signal,
+  session: { ...session, search: () => new Promise(resolve => { finishSearch = resolve; }) } });
+await Promise.resolve();
+abort.abort();
+assert.equal((await pending).state, 'unavailable');
+assert.equal(getEventListeners(abort.signal, 'abort').length, 0);
+finishSearch({ state: 'ok', rows: [{ key: 'late-result' }] });
+await Promise.resolve();
+assert.equal((await pending).rows.length, 0);
+const rejected = new AbortController();
+assert.equal((await context.searchOnce({ ...request, signal: rejected.signal,
+  session: { ...session, search: async () => { throw Error('reader failed'); } } })).state, 'unavailable');
+assert.equal(getEventListeners(rejected.signal, 'abort').length, 0);
 assert(SPECS[1].edits.find(([id]) => id === 'reader-owner')[2].includes("RUFLO_BRIDGE_MEMORY_ENTRIES_ONLY: '1'"));
 for (const [, , replacement] of SPECS.at(-1).edits) {
   let mode;
@@ -47,5 +64,8 @@ for (const [, , replacement] of SPECS.at(-1).edits) {
     memoryEntriesOnlyRequested: (options, eligible) => eligible,
     getRegistry: async (db, value) => { assert.equal(db, '/owned/memory.db'); mode = value; } });
   assert.equal(mode.memoryEntriesOnly, true);
+  await vm.runInNewContext(`(async()=>{${prefix}})()`, { options: { dbPath: '/owned/memory.db' },
+    getRegistry: async (db, value) => { mode = value; } });
+  assert.equal(mode.memoryEntriesOnly, false, 'absent optional adapter preserves the native registry route');
 }
 console.log('brain-recall-runtime: passed');
