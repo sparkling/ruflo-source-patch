@@ -170,6 +170,15 @@ check('BMB11 the managed-store boundary stays on when Brain retrieval is off',
   JSON.parse(runGate(`sqlite3 "${db}"`, { RUVNET_BRAIN_OFF: '1' }).stdout)
     .hookSpecificOutput.permissionDecision === 'deny');
 check('BMB12 non-Bash hook events are silent', runGate(`sqlite3 "${db}"`, {}, 'Write').stdout === '');
+const nativeDb = path.join(project, '.swarm', 'agentdb-memory.db');
+for (const host of ['claude', 'codex']) for (const off of ['0', '1']) {
+  const nativeDenial = runGate(`sqlite3 -readonly "${nativeDb}" "SELECT 1"`, {
+    RUVNET_HOOK_HOST: host, RUVNET_BRAIN_OFF: off,
+  });
+  check(`BMB12a native controller store refused for ${host}, Brain off=${off}`,
+    nativeDenial.status === 0 && JSON.parse(nativeDenial.stdout).hookSpecificOutput.permissionDecision === 'deny');
+}
+check('BMB12b native refusal never creates or opens the target store', !fs.existsSync(nativeDb));
 
 const hijack = path.join(ACTIVE, 'scripts', 'hijack-ruvnet.sh');
 const runHijack = (command, extra = {}) => spawnSync('bash', [hijack], {
@@ -198,10 +207,26 @@ check('BMB18 exact project and user stores classify outside the current cwd; loo
   policy.managedStore(otherProjectDb, { cwd: project, env: process.env })?.kind === 'project-memory'
     && policy.managedStore(path.join(HOME, '.claude-flow', 'user-memory.db'), { cwd: project, env: process.env })?.kind === 'user-memory'
     && !policy.managedStore(path.join(project, '.swarm', 'other.db'), { cwd: project, env: process.env }));
+const nativeAlias = path.join(SB, 'project-alias');
+fs.symlinkSync(project, nativeAlias, 'dir');
+for (const candidate of [nativeDb, path.join(nativeAlias, '.swarm', 'agentdb-memory.db'),
+  pathToFileURL(nativeDb).href + '?mode=ro', '.swarm/agentdb-memory.db']) {
+  check('BMB18a native managed identity includes paths, aliases and file URIs: ' + candidate,
+    policy.managedStore(candidate, { cwd: project, env: process.env })?.kind === 'project-agentdb-memory');
+}
+check('BMB18b native name outside .swarm and adjacent lookalikes stay unrelated',
+  ['agentdb-memory.db', '.swarm/agentdb-memory.db.bak', '.swarm/agentdb.db'].every(name =>
+    !policy.managedStore(path.join(SB, name), { cwd: project, env: process.env })));
 
 console.log('\nAudited diagnostic exception');
 const diagnosticPath = path.join(ACTIVE, 'mcp', 'managed-memory-diagnostic.mjs');
 const diagnostic = await import(`${pathToFileURL(diagnosticPath).href}?test=${Date.now()}`);
+const nativeDiagnostic = await diagnostic.callManagedMemoryDiagnostic({
+  path: nativeDb, namespace: 'patterns', key: 'wanted', reason: 'verify native refusal without widening the exception',
+}, { ...process.env, RUVNET_BRAIN_PROJECT_DIR: project });
+check('BMB18c native recognition does not expand the historical ordinary-store diagnostic exception',
+  nativeDiagnostic.isError && /native controller stores require Ruflo memory MCP tools/.test(nativeDiagnostic.content[0].text)
+    && !fs.existsSync(nativeDb));
 const canonicalDb = fs.realpathSync(db);
 const beforeDb = hash(db);
 const valid = await diagnostic.callManagedMemoryDiagnostic({
