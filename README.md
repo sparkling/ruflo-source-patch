@@ -50,12 +50,14 @@ It does not change that runtime, policy state or the timeout. Qualification:
 
 ## Learning capture ownership: 2 November 2026
 
-Version 4.46.94 withdraws our AgentDB vector-path policy and the compensating
+Version 4.46.95 withdraws our AgentDB vector-path policy and the compensating
 capture/recall adapters. The patch system repairs upstream bugs; it must not
 introduce a different storage or initialization architecture to compensate for
 its own mistakes. Exact saved-pristine restoration preserves all existing
 SQLite stores, vector indexes, sidecars and unrelated patch contributions.
 Unknown or incomplete source provenance refuses restoration.
+The 4.46.95 follow-up distinguishes a sibling capture edit from the old recall
+rendition when proving the existing shared bridge before restoration.
 
 The causal control reproduced the problem in our vector-path override. A second
 isolated integration control restored upstream AgentDB storage defaults and full

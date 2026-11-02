@@ -15,6 +15,13 @@ for (const spec of SPECS) {
   assert.equal(descriptor.patchSource(patched.next).next, source);
 }
 const body = SPECS[0].edits[1][2].split("    if (op === 'list') {")[0];
+// A sibling's old-looking mode must not misidentify this target's revision.
+const bridgeSource = SPECS.at(-1).edits.map(([, from]) => from).join('\n');
+const bridgeCurrent = patchSource(bridgeSource).next + '\n        memoryEntriesOnly: memoryEntriesOnlyRequested(options, true),\n';
+assert.equal(descriptor.historicalPatchSource(bridgeSource, bridgeCurrent).next,
+  patchSource(bridgeSource).next);
+const bridgeLegacy = patchSource(bridgeSource).next.replaceAll("typeof memoryEntriesOnlyRequested === 'function' && ", '');
+assert.equal(descriptor.historicalPatchSource(bridgeSource, bridgeLegacy).next, bridgeLegacy);
 const args = { op: 'search', namespace: 'project', query: 'repair evidence', limit: 12 };
 async function reader(mod, request = args) {
   const context = vm.createContext({ mod, dbPath: '/owned/memory.db', request });
