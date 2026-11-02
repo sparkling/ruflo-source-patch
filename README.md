@@ -293,9 +293,16 @@ removed owners in provenance, with exact saved-to-live proof, so a surviving
 retired target cannot adopt removed edits as upstream source. Private qualification established
 identical four-row CLI/API results and a full-hook HTML recall in 1,235 ms with
 one confirmed-retired reader. These bounded checks do not guarantee that any
-finite deadline can succeed under arbitrary host load. Packaging and live
-activation evidence follow qualification; the candidate is not yet described as
-installed.
+finite deadline can succeed under arbitrary host load.
+
+Version 4.46.103 was installed on both hosts. The exact HTML request passed through
+the installed HZ hook in 1,153 ms; a separate structured call passed in 1,055 ms,
+with one reader and confirmed process-group retirement. Local checks also passed.
+The monitor then exposed a retired #514 health check that did not recognize the
+new exact sibling composition. Version 4.46.104 adds that composition proof in the
+shared owner, preserving the retired adapter's markers and historical reversal.
+It does not change installed recall runtime bytes. Final activation evidence is
+recorded after the corrected monitor checks.
 
 ## Ruflo 3.71 qualification: 2 November 2026
 

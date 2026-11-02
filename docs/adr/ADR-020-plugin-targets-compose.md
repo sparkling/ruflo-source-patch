@@ -30,7 +30,9 @@ full registry initialization and native scoring. Capability absence retains the
 CLI fallback. Shared search timeout retires the owned group, preserves curated
 evidence and refuses successful status when retirement cannot be confirmed.
 The withdrawn #514 adapter remains withdrawn; this contribution changes neither
-controller selection nor vector storage. Qualification and activation are recorded
+controller selection nor vector storage. Its native health check recognizes only
+the exact #429 sibling composition after reverse/native-health/forward equality
+proof; old adapter markers remain rejected. Qualification and activation are recorded
 separately in README; a source patch is not proof of live session recovery.
 
 Uninstall reconciliation carries the explicitly removed targets as provenance

@@ -209,6 +209,21 @@ try {
   assert.equal(installed.errors, 0, installed.log.join('\n'));
   assert.equal(installed.incomplete, 0, installed.log.join('\n'));
   assert.deepEqual(compose.statusComposed([NAME])[NAME], { files: 6, patched: 6 });
+  assert.deepEqual(compose.statusComposed(owners), {
+    [withdrawn.NAME]: { files: 6, patched: 6 }, [NAME]: { files: 6, patched: 6 },
+  }, 'retired #514 health recognizes the exact new native owner composition');
+  for (const file of files) {
+    const current = fs.readFileSync(file, 'utf8');
+    assert(withdrawn.descriptor.isPatched(current));
+    assert.deepEqual(withdrawn.descriptor.patchSource(current), { next: current, applied: [], missing: [] });
+    const stale = withdrawn.patchSource(fixture.sources[path.basename(file)].source).next;
+    assert(!withdrawn.descriptor.isPatched(stale), 'new-owner compatibility never accepts stale #514');
+  }
+  const alteredReader = fs.readFileSync(files[0], 'utf8').replace('search: typeof mod.searchEntries', 'search: false && typeof mod.searchEntries');
+  assert(!isPatched(alteredReader));
+  assert(!withdrawn.descriptor.isPatched(alteredReader));
+  assert(withdrawn.descriptor.patchSource(alteredReader).missing.length > 0,
+    'a modified new owner is not accepted as an exact native composition');
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
     fs.unlinkSync(file);
