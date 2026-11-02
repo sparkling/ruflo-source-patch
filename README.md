@@ -255,6 +255,7 @@ Version 4.46.102 is published and activated on Mac and HZ. All 280 packaged file
 match the immutable tag, and all four discovered capture surfaces on each host
 pass exact patch recognition. Both monitors pass, with no pending native hook
 approvals, including HZ Semantic AI. Brain remains on its native 4.7.28 generation.
+The release passed all 108 regression suites and Markdown validation of 57 files.
 One fresh diagnostic PostToolUse observation passed detached acknowledgement and
 exact readback from the consented user store on each host: Mac's source-patch
 checkout returned in 172 ms (1,767 ms overall); HZ Semantic AI returned in 224 ms
@@ -287,6 +288,11 @@ MCP and hook/CLI access. Already-running versions are reported above; this repai
 does not claim that every existing 3.71 process was newly installed or fails.
 
 ## Ruflo 3.66 qualification: 31 October 2026
+
+This section retains the 31 October qualification and its later owner-preservation
+note. The 2 November loaded-session proof above supersedes its deferred activation
+status, and the 4.46.102 test result supersedes its historical Markdown failure.
+The current loaded inventory is mixed; these earlier counts are not a current fleet census.
 
 Ruflo and `@claude-flow/cli` **3.66.0** are installed in all ten discovered
 launcher locations across Mac and HZ, including the dedicated HZ AI Strategy

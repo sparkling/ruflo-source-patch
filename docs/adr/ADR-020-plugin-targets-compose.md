@@ -2,13 +2,26 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-02. Version 4.46.99 preserves native capture, recall,
+**Updated**: 2026-11-02. Version 4.46.102 preserves native capture, recall,
 ControllerRegistry initialization and vector-path selection after the compensating
 adapters were withdrawn in 4.46.95. Their historical transforms prove exact removal
 only. The surviving `ruflo-memory-entries-only` contribution propagates a failed
 retrieve instead of reporting healthy absence; its retained name does not authorize
 an alternate store or controller policy. Native capture diagnostics and the bounded
 capture budget are separate issue-backed contributions.
+
+Brain #519/#521 share `brain-capture-launch`: proven child launch failure releases
+only owned admission, and fresh same-key contention releases its redundant slot
+without acknowledging persistence. Native two-slot shedding, consent, child execution
+and uncertain writes remain. The previous #519 composition remains exactly
+reconstructible for upgrade and removal. Distinct bursts and simultaneous stale-marker
+renewals remain outside the bounded contention repair.
+
+Brain #520's separate `brain-capture-idempotency` contribution accepts a duplicate
+only after one successful exact read and complete byte comparison through the
+unchanged native constructor at the original committed timestamp. It retains the
+stored value and reports its committed identity; changed actions and read failures
+remain failures. Shared composition preserves capture diagnostics and exact reversal.
 
 Qualified current Brain doctors now use their native installed identity,
 host-convergence and verdict owners. The historical #77 equality overlay remains
