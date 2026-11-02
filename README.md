@@ -128,8 +128,10 @@ puts the six-second capture budget inside Codex's four-second wrapper; it is
 not evidence that Ruflo needs a new initialization or a larger timeout.
 The exact altered baseline and live composition are archived before restoring
 the verified native route and its uninstall baseline. Unknown bytes refuse
-repair. The originating writer remains unidentified. This recovery changes no
-timeouts, learning consent, admission limits, databases or update behavior.
+repair. Retained receipts subsequently identified the BA-origin inline-capture
+decision and Product repair process that maintained it in the shared descriptor;
+the initial writing process remains untraced. This recovery changes no timeouts,
+learning consent, admission limits, databases or update behavior.
 
 After 4.46.97 activation, the actual Codex PostToolUse entry point returned in
 174 ms in the affected HZ worktree, followed by detached acknowledgement and
@@ -204,8 +206,9 @@ are recorded separately. All four loaded local Codex project sessions report
 HZ's loaded project sessions remain on their previous runtime. Its app-server
 refused scoped project writes with `configLayerReadonly`; a broad reconnect was
 not attempted because the protected old Builder owner retains deleted stores
-whose full recovery is unproven. That process remains alive. Updated files and
-successful patch installation are not presented as fresh loaded-module proof.
+whose full recovery is unproven. On 2 November that historical process was found
+absent; its exit time and cause remain unknown. Updated files and successful patch
+installation are not presented as fresh loaded-module proof.
 Archived project dependency trees are not counted as active launcher locations.
 
 Every code regression suite passed against the updated installation. The overall
@@ -284,7 +287,8 @@ that primary receipt without replaying the write or claiming a new index guarant
 Implicit controller defaults and the intentional two-store design remain unchanged.
 Tests execute installed native function bodies and patch composition with isolated
 driver doubles; they do not claim a refreshed live MCP or a complete retrieval benchmark.
-The old HZ recovery owner remains open until its deleted-store preservation gaps are resolved.
+The historical HZ owner was found absent on 2 November; deleted-store preservation
+gaps remain unresolved despite the ordinary-record preservation described below.
 
 ## Native host proof: 30 October 2026
 
@@ -324,8 +328,22 @@ saved **75 ordinary entries** from all nine cached stores; seven fresh-path nati
 SQLite backups exposed 19 entries, all verified by exact reads, including 14 additional
 source-scoped entries. These preservation sets therefore represent **89 source-scoped
 ordinary records**. They do not prove preservation of deleted-store controller tables
-or RuVector data. Do not reconnect the old owner while those gaps remain unresolved.
-The original `RECOVERY_REQUIRED` transaction and KB candidate remain untouched.
+or RuVector data. Those were the 30 October findings, not current owner status.
+
+The 2 November native verification found the historical owner absent. Ten native-only
+backups and 30 exact derived-copy reads preserved all 19 historical snapshot values
+and three additional identities: **92 source-scoped ordinary records** are now
+represented. All ten source files retained their metadata. No live import or restore
+was performed. Seven historical deleted identities still lack qualified all-table
+snapshots, and complete RuVector recovery is unproved. Preserved exports, snapshots
+and receipts remain intact; no missing records are inferred from absent pathnames.
+The private final receipt is
+`.local/memory-recovery-20261102/hz-recovery-final-20261102.json`.
+
+The old KB transaction had already reached native `DISPOSED` on 1 November, with
+`operator-kept-live` and its candidate retained under `.kb.recovered`. Two later
+native transactions committed successfully. This resolves that transaction blocker;
+it does not resolve the independent deleted-store recovery gaps.
 
 ## Capture and lock recovery: 30 October 2026
 
@@ -386,14 +404,16 @@ pre-cleanup hashes; one live KB remains and the native footprint check passes.
 This cleared the copy blocker, not the stale corpus: a successful subsequent native
 lifecycle refresh is not yet verified. No manual update or promotion was performed.
 
-HZ remains blocked by a retained `RECOVERY_REQUIRED` transaction with no supported
-native disposition. Its whole-footprint cleanup was withheld: nine paths classified
+At the 30 October inspection, HZ was blocked by a retained `RECOVERY_REQUIRED`
+transaction. Native disposition subsequently resolved it as documented above.
+Whole-footprint cleanup was withheld: nine paths classified
 as scratch contain real memory entries (60 in the later bounded read above), and ten
 RuVector files remain unclassified.
 The native cleanup has no per-copy selector. The evidence and requested safe recovery
 route are recorded in [Brain #335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6523577872).
-No HZ cleanup was performed; its memory stores, KB candidate and transaction
-receipts remain preserved.
+No HZ cleanup was performed by that operation. The later recovery section records
+current preservation evidence and limits; the historical inventory is not proof
+that every original store remains available.
 
 ## Previous compatibility review: 27 October 2026
 
