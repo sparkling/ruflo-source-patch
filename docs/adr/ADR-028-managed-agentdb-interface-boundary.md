@@ -2,7 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-08-03
-**Updated**: 2026-08-15. Published Brain 4.0.36 contains #102's structural invocation detector and
+**Updated**: 2026-11-02. Version 4.46.98 closes the omitted native controller-store
+identity: `.swarm/agentdb-memory.db` receives the same host-native raw-SQL refusal
+as `.swarm/memory.db`, including Brain-off operation. The finite historical
+`memory_entries` diagnostic does not extend to controller stores; those require
+Ruflo's managed memory interface. This is a command boundary, not a storage adapter,
+database migration, vector-path override or controller-initialization change.
+
+**Earlier qualification, 2026-08-15**: Published Brain 4.0.36 contains #102's structural invocation detector and
 #103's opt-in `managedMemoryBoundary` setting. The maintainer's final #103 measurement explicitly says
 host non-execution is asserted but unproved. The default remains `advise`, and the finite audited
 diagnostic plus truthful doctor/Console state did not land. The patch preserves the native detector and
@@ -35,12 +42,16 @@ Add the `brain-managed-memory-boundary` target, backed by
   Category 4 payload regex. Leave native Categories 1, 2, and 3 unchanged.
 - Parse the actual `sqlite3` executable and its documented flag arities before classifying the database
   operand. Unknown/dynamic operands do not become guessed denials.
-- Deny only exact managed stores: `~/.claude-flow/user-memory.db` and `.swarm/memory.db`. Enforcement
-  remains active when optional Brain retrieval and advisory guidance are off.
+- Deny only exact managed stores: `~/.claude-flow/user-memory.db`, `.swarm/memory.db`
+  and `.swarm/agentdb-memory.db`. Recognize canonical aliases, relative operands and
+  file URIs without classifying nearby lookalike names. Enforcement remains active
+  when optional Brain retrieval and advisory guidance are off.
 - Emit each host's native PreToolUse deny envelope. An unconditional allow remains empty stdout.
 - Add the MCP-only `agentdb_diagnostic_read` escape hatch. It accepts a canonical managed path plus an
   exact namespace/key and a reason, generates fixed read-only SQL itself, returns only a row count, and
-  never accepts SQL or returns memory content.
+  never accepts SQL or returns memory content. This existing exception is limited
+  to the ordinary project/user stores. Native controller stores are refused before
+  any diagnostic open, even when their path is a recognized managed identity.
 - Open a checkpointed WAL-mode image through SQLite's read-only immutable URI only when no WAL/SHM
   sidecars exist. Refuse live sidecars without opening or deleting them, then compare file identity,
   ctime, mtime, and size before and after the query.
@@ -62,6 +73,15 @@ checkpointed WAL-mode diagnostics, live-sidecar refusal, content-free private re
 anchor refusal, rollback, idempotency, exact uninstall, and a native `active.json` generation flip. A
 second fixture uses the published 4.0.36 #102/#103 source shape to prove the upstream structural detector
 remains in place while the local boundary adds its missing default enforcement and diagnostic behavior.
+The 4.46.98 regression also proves controller-store denial on both hosts with Brain
+on and off, canonical path aliases and file URIs, no store creation, lookalike
+exclusion and refusal to broaden the diagnostic exception.
+
+Current Brain 4.7.28 native block mode recognizes managed controller access, but
+its shim still gives the hijack hook `offBehavior: 'silence'`. That native path
+does not satisfy the owner's requirement to enforce this boundary with Brain off.
+Upstream's advisory default alone is not classified as an upstream defect; the
+explicitly installed mandatory boundary is the owner policy recorded here.
 
 ## Limits
 

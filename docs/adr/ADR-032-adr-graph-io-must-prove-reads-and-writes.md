@@ -1,8 +1,12 @@
 # ADR-032: ADR graph I/O must prove reads and writes before success
 
-**Status**: Accepted
+**Status**: Implemented
 **Date**: 2026-08-31
-**Updated**: 2026-10-15. Native 0.5.8 verifier normalization preserves unknownStatusIds while retaining the existing complete managed-I/O bundle boundary.
+**Updated**: 2026-11-02. Version 4.46.98 preserves modern upstream CLI resolution
+and fail-closed verification. Native 0.5.4/0.5.8 helper calls are no longer rewritten
+through the historical local resolver or list verifier. Residual exact store identity,
+edge-value verification, fresh readback and purge-first refusal remain. The earlier
+normalization survives only to prove exact historical composition and restoration.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo-adr, agentdb, verification, import, reindex, atomicity
 
@@ -48,12 +52,17 @@ All runtime operations separate scan scope from store identity. A canonical proj
 from an explicit project marker unless `ADR_DB_PATH` or `ADR_DB_ROOT` supplies authority. Ruflo's existing
 managed path variables/configuration remain supported. Every managed call receives the same absolute
 `--path`; an existing database must be a regular non-symlink file. Calls use the installed `ruflo`
-executable so verification and writes share the host's live native driver. An optional `RUFLO_ADR_CLI`
-override must be absolute and resolve to a regular file. Absence is fatal; there is no npx fallback.
+owner so verification and writes share the host's native driver. Modern scripts retain
+upstream `resolveRufloCli` and `spawnCliSync`; the residual guard refuses a missing
+resolved owner before native dispatch can fall back to npx. Native resolver policy
+and supported overrides stay native-owned. Legacy scripts retain the historical
+resolver, whose optional `RUFLO_ADR_CLI` override must be absolute and resolve to a
+regular file. Neither path permits a missing installed owner to silently switch
+to a fetched CLI.
 
 Verifier reads are discriminated and complete-or-failed. Each namespace request has a bounded timeout,
 buffer, and explicit cap-plus-one. The whole stdout must parse as one JSON array; every row must have a
-nonempty string key and the expected namespace. Spawn error, signal, timeout, nonzero exit, malformed or
+nonempty string key and no conflicting namespace. Spawn error, signal, timeout, nonzero exit, malformed or
 non-array JSON, cap overflow, or malformed edge key prevents graph-health computation and exits nonzero.
 A successfully read empty graph remains valid.
 
@@ -61,8 +70,10 @@ The shared record helper emits the deterministic memory-safe `relation:FROM:TO` 
 shared MCP/CLI key validation (#3570) rejects the former arrow separator; this patch does not weaken
 that guard. Reads accept existing arrow/timestamp keys and unambiguous historical
 `relation-ADR-NNN-to-ADR-NNN` keys and native 0.5.4 `relation:FROM__TO` keys without rewriting
-the database. Exact 0.5.4 `spawnCliSync` source forms normalize into this same managed owner;
-the verifier and importer retain no npx fallback. The verifier retrieves every
+the database. Current native `spawnCliSync` calls and verifier validation remain
+in place, with only the explicit store path and store-root cwd bound at the call.
+Native 0.5.8 `unknownStatusIds`, the 10,000-row limit, timeout and discriminated
+read failures are preserved; no duplicate list verifier is injected. The verifier retrieves every
 full edge value through the managed CLI and requires its relation and endpoints to match the key.
 Missing, malformed or conflicting values fail verification. Native retirement must prove these
 identity contracts as well as the existing I/O guarantees. This is graph verification, not a
@@ -85,6 +96,13 @@ opens a real AgentDB. It checks malformed/incomplete reads, corruption after row
 receipt-without-readback writes, exact path propagation, bounded process startup, and an atomic non-purge
 reindex route whose final fake-store key set exactly matches the source corpus. A marker-free no-op cannot
 retire the patch; marker or issue state alone is likewise insufficient.
+
+The modern regression executes the exact shipped 0.5.8 CLI helper against the
+existing isolated fake CLI. It proves missing-owner refusal before npx, spawn,
+signal, timeout, malformed and over-limit read failures, exact store propagation,
+readback and final-key failures, edge identity, and zero-call purge-first refusal.
+Old and current compositions both preserve exact vendor restoration. These are
+source and sandbox proofs, not direct reads of a managed database.
 
 ## Consequences
 

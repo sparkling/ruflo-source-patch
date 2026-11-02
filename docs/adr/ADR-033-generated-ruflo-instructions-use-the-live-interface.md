@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-09-01
-**Last updated**: 2026-09-03
+**Last updated**: 2026-11-02. Version 4.46.98 removes generated worktree and
+separate-release-gate mandates. Workspace isolation and release authorization,
+including standing authorization, belong to the caller and repository. Exact
+previous generated revisions remain available only for composition and restoration.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, init, instructions, mcp, codex, claude-code, migration
 
@@ -23,8 +26,11 @@ diagnostics, and explicitly chosen process administration. On Hetzner, the insta
 `ruflo` 3.38.21 while `claude-flow` is absent. The Brain bridge accepts both executable names, so generic
 guidance caused an agent to choose `claude-flow` and fail with `ENOENT`. The live MCP memory schemas also
 have no explicit database-path or user-scope argument, while `ruflo memory search --path ...` does. Thus
-project memory remains MCP-first and a separately configured user database remains one narrow CLI-only
-scope until MCP exposes it. Upstream issue
+project memory remained MCP-first and a separately configured user database was
+then one narrow CLI-only scope until MCP exposed it. Current dedicated user-memory
+MCP connections provide that scope without changing a project connection's database
+through a namespace. Discover the registered connection and report an unavailable
+source rather than reverting to the historical workaround. Upstream issue
 [#3153](https://github.com/ruvnet/ruflo/issues/3153) records the source locations, reproduction, proposed
 shared renderer, and all-template acceptance criteria. Open issue
 [#2638](https://github.com/ruvnet/ruflo/issues/2638) separately tracks Claude/Codex source divergence.
@@ -50,6 +56,8 @@ contract governs root output, the platform skill, and task skills:
   `executable: "ruflo"` for both calls instead of guessing the absent legacy binary;
 - reserves direct shell for bootstrap, first MCP registration/start, doctor, and deliberate daemon work;
 - distinguishes native executors from Ruflo-tracked agents;
+- defers workspace isolation and publication to caller/repository instructions,
+  preserves standing release authorization, and assigns non-overlapping writer ownership;
 - replaces stale tool names/schemas and removes nonexistent commands;
 - labels enterprise governance, compliance, SLA, retention, backup, and monitoring text as unconfigured
   scaffolding rather than implemented controls.
@@ -88,6 +96,9 @@ from repository evidence; it does not mutate, truncate, or replace the provenanc
 
 ## Implementation proof
 
+The following fleet counts record the September rollout and revalidation. They
+are historical evidence, not an inventory of currently installed surfaces.
+
 - macOS: 60/60 installed sources are tracked: ten Claude generators, five platform-skill generators,
   eight Codex generators, and 37 packaged task skills. This includes direct standalone Codex packages.
 - Hetzner Linux: 54/54 installed sources are tracked: seven Claude generators, six platform-skill
@@ -107,6 +118,12 @@ from repository evidence; it does not mutate, truncate, or replace the provenanc
   poisoned.
 - A second exact-block migration reports zero changes on both fleets. No migration operation starts or
   stops a process or reads, repairs, checkpoints, replaces, deletes, or renames a database or sidecar.
+
+The 2 November generator/migration regressions preserve the caller's workspace
+and release authority in every affected generated surface. Exact previous
+worktree and release-gate renditions remain reconstructible for shared-pristine
+migration; unknown edits remain a refusal. This does not rewrite customized
+project instructions, create worktrees or introduce a new approval flow.
 
 ## Consequences
 

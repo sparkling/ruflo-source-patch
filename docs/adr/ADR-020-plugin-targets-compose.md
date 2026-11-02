@@ -2,23 +2,47 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-02. Brain #515 repairs the observed ADR failure by retaining
+**Updated**: 2026-11-02. Version 4.46.99 preserves native capture, recall,
+ControllerRegistry initialization and vector-path selection after the compensating
+adapters were withdrawn in 4.46.95. Their historical transforms prove exact removal
+only. The surviving `ruflo-memory-entries-only` contribution propagates a failed
+retrieve instead of reporting healthy absence; its retained name does not authorize
+an alternate store or controller policy. Native capture diagnostics and the bounded
+capture budget are separate issue-backed contributions.
+
+Qualified current Brain doctors now use their native installed identity,
+host-convergence and verdict owners. The historical #77 equality overlay remains
+available only for legacy sources; exact shared composition withdraws it from
+qualified modern sources without changing the Console sibling or vendor pristine.
+Modern ADR scripts preserve upstream CLI resolution and read verification, and
+generated instructions defer workspace and release authority to the caller.
+The managed-memory refusal covers both native project store names without expanding
+the historical diagnostic exception (ADR-028, ADR-032 and ADR-033).
+
+Brain #515's shim and decision decoder are a required pair. Discovery counts both
+expected paths even when one is absent; the existing bundle preflight checks regular,
+contained files and exact member anchors before writing either. Missing members
+remain visible in status and protect the shared shim, sibling edits and pristine
+backups. This follow-up does not change transport size or ADR policy.
+
+**Earlier 2 November review history**: Brain #515 repairs the observed ADR failure by retaining
 complete decision envelopes up to the existing 1 MiB child I/O ceiling. The real
 owning-checkout inspection and stale refusal were verified; policy bypass,
 publisher changes and report acceptance are outside this repair.
-Review correction: scoped controller initialization differs from upstream;
-vector-conflict attribution and parity are not yet proven. Request cancellation
-and capture-adapter dependency findings remain open. Whole-session bounds remain.
-The memory-entries-only target retains the HZ downstream
-capture adapter; learning-native-owner selects it for observation capture. Both
-compose with scratch preservation and require native writes (Ruflo #4666).
+Before 4.46.95, review found that scoped controller initialization differed from
+upstream and vector-conflict attribution and parity were unproved. The retained HZ
+capture adapter and its dependencies were then withdrawn, rather than accepted as
+the native architecture. Whole-session bounds remained a separate issue.
+At that point the memory-entries-only target retained the HZ downstream capture
+adapter and learning-native-owner selected it for observation capture. Both
+composed with scratch preservation and required native writes (Ruflo #4666).
 Consent, exact readback, source paths and the native update plane remain unchanged.
 Experimental capture startup changes were withdrawn by the owner on 2 November;
 retained compatibility can only reverse them. Brain #513 aligns only the native
-Stop/PreCompact budget; #514 reuses the native recall reader for search and the
-same scoped ordinary-store adapter. Real Stop and recall pass across the five
-`/data` projects and AI Strategy. Selected native initialization calls, SessionEnd, exact
-readback, bounded ownership and all preserved recovery evidence remain intact.
+Stop/PreCompact budget; the subsequently withdrawn #514 contribution reused the
+native recall reader with that scoped adapter. The earlier Stop/recall results
+across five `/data` projects and AI Strategy remain historical evidence, not proof
+of native initialization parity. Exact readback and preserved recovery evidence remain.
 2026-10-31. Ruflo 3.66 qualification preserves upstream learning
 changes and requires native-binding plus live-read proof after npm installation;
 HZ protected-owner activation remains explicitly deferred.
@@ -170,14 +194,16 @@ its pristine backup remains true vendor source. Removing either target preserves
 sibling. Retirement requires marker-free
 protocol behavior proving manifest/path refusal, promotion, successful-help binding and exact
 argument preservation. No update identity, updater asset, KB or managed database is changed.
-`brain-grounding-code` narrows the #46 recency scan to added JS/Python
+The historical `brain-grounding-code` contribution narrowed the #46 recency scan to added JS/Python
 code, excluding comments and standalone Python docstrings in complete Write/Codex Add payloads.
 Partial Edit/Update fragments retain their conservative requirement. Herdr exposed an unrelated application
 backup refused solely for its warning against touching AgentDB. The exact vendor anchor composes
 from pristine; real executable strings, imports, paths, uncertain syntax and unsupported languages
 retain grounding requirements. Parser failure retains the original scan. The substance detector,
-managed-memory guard, stamps and update plane remain unchanged. Retire after marker-free upstream
-passes the same prose/import/expiry/dependency-failure replay; anchor drift is incomplete, not proof.
+managed-memory guard, stamps and update plane remain unchanged. The target is now retired:
+Brain 4.7.28's native projection and shared entrypoint pass the 44-case isolated
+behavior matrix. Missing or changed dependencies refuse qualification; the newer
+helper hash was accepted only after reviewing its entrypoint change and replaying behavior.
 
 Brain #316's `brain-grounding-evidence` composes two atomic exact edits in
 the native active generation's `grounding-stamp.sh` and matching host copies. Successful search
@@ -204,14 +230,20 @@ Git HEAD object and preserves the file's executable mode across atomic replaceme
 Codex skill targets remain outside composition: additive files use exact ownership. Brain #76's former
 single-file edit now retires after executing the immutable installed workflow and a missing-notes
 mutation. Brain #77's
-`brain-release-lockstep` guard joins composition as an atomic eight-edit descriptor over installed
+`brain-release-lockstep` guard originally joined composition as an atomic eight-edit descriptor over installed
 npm/npx and persistent Console-runtime `bin/install.mjs` copies. It changes only read-only version
 reporting and doctor health; the native updater, Stable Spine, caches, hooks, MCP, and learning plane
 remain untouched. It also exposes an exact reverse transform so a later target revision can prove and
 recover the vendor baseline instead of adopting the earlier target's output as “new upstream” bytes.
-Published 4.0.36 repairs the release rail but not that doctor boundary: all eight current literal
-anchors still compose exactly, and the target remains live until component-by-component executable
-mutation proves the native doctor fails on a split or pending generation.
+Published 4.0.36 repaired the release rail but retained that doctor defect, so the
+legacy transform remains reconstructible. Version 4.46.99 qualifies the current
+structured doctor against upstream ADR-089/098: coherent ahead versions and
+advisory currency are valid; missing, damaged or stale installed identity and
+unproved host convergence still fail. The proof executes exact native classifiers,
+the check adapter, complete identity/convergence calls and verdict reducer through
+46 assertions. Always-successful adapters and advisory integrity mutations fail.
+Unknown current helpers or wiring refuse qualification instead of receiving the
+legacy equality gate. Exact historical withdrawal preserves the remaining owners.
 Brain #79's `brain-console-lifecycle` target composes beside #77 on `bin/install.mjs`. Brain 4.0.12's
 native whole-runtime launcher is recognized as ready and preserved; only the missing live-doctor
 comparison remains an edit on current bytes. Owned older copies remain discoverable for exact restoration
@@ -304,8 +336,9 @@ for exact restoration because no sibling target claims it.
   other survives from the same pristine.
 - Overlap is first-class, not avoided: adr-create/SKILL.md gets BOTH its status fix and its tool-ref rewrite.
 - The plugin side now shares the CLI side's proven composition discipline instead of a weaker parallel one.
-- The #77 guard cannot conceal a split release by relabelling or copying caches: it reports all
-  resolved product versions and makes doctor fail until upstream artifacts genuinely converge.
+- The legacy #77 guard reports the original split-release defect without relabelling or copying
+  caches. Qualified current doctors retain native integrity failures and accepted advisory currency;
+  a local version difference alone is no longer asserted to prove an upstream publication failure.
 - The #79 target can share the installer with #77 without either patch adopting the other's output as a
   vendor baseline. Native launcher bytes remain untouched while the read-only doctor delta stays live.
 - Multiple superseded composed targets reconcile in one removal set; retirement order cannot cause a
