@@ -3,12 +3,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { MEMORY_NATIVE_BACKUP_ENTRIES, BACKUP_IMPORT, BACKUP_FAILURE, BACKUP_SUCCESS,
-  BACKUP_OPTION, BACKUP_FORWARD } from '../lib/cwd/memory-native-backup.mjs';
+  BACKUP_OPTION, BACKUP_FORWARD, BACKUP_FORWARD_FIXED, BACKUP_FORWARD_PREVIOUS } from '../lib/cwd/memory-native-backup.mjs';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-backup-proof-'));
 process.env.RUFLO_SOURCE_PATCH_HOME = root;
 process.env.RUFLO_NPX_ROOT = path.join(root, 'npx');
 process.env.RUFLO_GLOBAL_ROOT = path.join(root, 'global');
-const { composeCliContribution, apply } = await import('../lib/cwd/patch-library.mjs');
+const { composeCliContribution, historicalCliContribution, cliClaimApplied, apply } = await import('../lib/cwd/patch-library.mjs');
+const { findVendorRootWith, pristineBytes } = await import('./fixtures.mjs');
+const parserRoot = findVendorRootWith('dist/src/parser.js', ['export class CommandParser']);
+const parserSource = pristineBytes(path.join(parserRoot, '@claude-flow/cli/dist/src/parser.js')).toString();
+const { CommandParser } = await import('data:text/javascript;base64,' + Buffer.from(parserSource).toString('base64'));
 const service = `export async function backupMemoryDb(opts = {}) {
 ${BACKUP_IMPORT}
     } catch { return {backedUp:false}; }
@@ -55,14 +59,30 @@ try {
   assert.deepEqual(cli.missing,[]);
   const tool=await new AsyncFunction(cli.next.replace('export const','const')+'\nreturn backupCommand;')();
   assert(tool.options.some(option=>option.name==='native-only'));
-  assert.equal((await tool.action({flags:{'native-only':true}})).nativeOnly,true);
-  assert.equal((await tool.action({flags:{}})).nativeOnly,false);
+  const parser = new CommandParser();
+  parser.registerCommand({ name: 'memory', subcommands: [{ name: 'backup', options: tool.options }] });
+  const parsed = parser.parse(['memory', 'backup', '--native-only']);
+  assert.equal(parsed.flags.nativeOnly, true);
+  assert.equal((await tool.action(parsed)).nativeOnly, true, 'real native parser preserves the explicit requirement');
+  assert.equal((await tool.action(parser.parse(['memory', 'backup']))).nativeOnly, false);
+  const previous = cli.next.replace(BACKUP_FORWARD_FIXED, BACKUP_FORWARD_PREVIOUS);
+  const oldTool = await new AsyncFunction(previous.replace('export const', 'const') + '\nreturn backupCommand;')();
+  assert.equal((await oldTool.action(parsed)).nativeOnly, false, 'released forwarding loses native parser intent');
+  assert.equal(cliClaimApplied(previous, [MEMORY_NATIVE_BACKUP_ENTRIES[1]]), true);
+  assert.equal(historicalCliContribution(command, previous, [MEMORY_NATIVE_BACKUP_ENTRIES[1]]).next, previous);
+  assert.notEqual(historicalCliContribution(command, previous + '\n// foreign', [MEMORY_NATIVE_BACKUP_ENTRIES[1]]).next, previous + '\n// foreign');
   const files=[service,command].map((source,index)=>{
     const file=path.join(process.env.RUFLO_GLOBAL_ROOT,...MEMORY_NATIVE_BACKUP_ENTRIES[index].suffix);
     fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,source);return file;
   });
   const first=apply(['memory']);assert.equal(first.errors,0);assert.equal(first.incomplete,0);assert.equal(first.patched,2);
-  assert.equal(apply(['memory']).patched,0);apply([]);
+  assert.equal(apply(['memory']).patched,0);
+  fs.writeFileSync(files[1], previous);
+  const upgraded = apply(['memory']);
+  assert.equal(upgraded.errors, 0); assert.equal(upgraded.incomplete, 0);
+  assert.equal(fs.readFileSync(files[1], 'utf8'), cli.next);
+  assert.equal(fs.readFileSync(files[1] + '.rsp-backup', 'utf8'), command);
+  apply([]);
   assert.equal(fs.readFileSync(files[0],'utf8'),service);assert.equal(fs.readFileSync(files[1],'utf8'),command);
   // Execute the exact published 3.59.1 function with fault-injected I/O only.
   const modern=fs.readFileSync(new URL('./fixtures/memory-backup-3.59.1.js',import.meta.url),'utf8');

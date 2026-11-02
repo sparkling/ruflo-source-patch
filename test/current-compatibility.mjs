@@ -11,7 +11,7 @@ const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-current-'
 process.env.RUFLO_SOURCE_PATCH_HOME = path.join(dir, 'home');
 process.env.RUFLO_NPX_ROOT = path.join(dir, 'npx');
 process.env.RUFLO_GLOBAL_ROOT = path.join(dir, 'global');
-const { composeCliContribution, historicalCliContribution, cliClaimApplied, apply, ENTRIES } = await import('../lib/cwd/patch-library.mjs');
+const { composeCliContribution, historicalCliContribution, cliClaimApplied, apply, ENTRIES, FRAGMENTS, ROOT_RESOLVER_PREVIOUS, INTEGRITY_GATE_PREVIOUS } = await import('../lib/cwd/patch-library.mjs');
 const entries = LEARNING_STATS_ENTRIES.filter(e => e.suffix.at(-1) === 'intelligence.js');
 const file = path.join(dir, 'stats.json');
 const pristine = `${COUNTER_IMPORT_NATIVE}
@@ -87,5 +87,72 @@ try {
     assert.deepEqual((await import(pathToFileURL(claimFile))).claim(), [path.join(dir,'.claude-flow/claims.json'),path.join(dir,'claude-flow.claims.json')]);
     assert.equal((await import(pathToFileURL(neuralFile))).getDataDir(), path.join(dir,'.claude-flow/neural'));
   } finally { process.chdir(cwd); }
-  console.log('Current compatibility: native pending deltas, late load, stale writers, retry, statistics degradation, prior composition and nested project roots passed.');
+  // Real cwd changes must produce distinct cache identities for the same relative argument.
+  const sibling = path.join(dir, 'second-project'); fs.mkdirSync(sibling); fs.mkdirSync(path.join(sibling, '.git'));
+  for (const [label, resolver] of [['released', ROOT_RESOLVER_PREVIOUS], ['fixed', FRAGMENTS.resolveRoot.src]]) {
+    const runner = path.join(dir, label + '-root.mjs');
+    fs.writeFileSync(runner, FRAGMENTS.req.src + '\n' + resolver + '\nexport { __rufloResolveRoot };');
+    const { __rufloResolveRoot: resolveRoot } = await import(pathToFileURL(runner));
+    try {
+      process.chdir(dir); assert.equal(resolveRoot('.'), dir);
+      process.chdir(sibling);
+      assert.equal(resolveRoot('.'), label === 'released' ? dir : sibling, 'same relative argument after chdir');
+    } finally { process.chdir(cwd); }
+  }
+  // Prior fragment composition must be recognized exactly, never adopted as vendor bytes.
+  for (const [entry, prior, current] of [
+    [cwdEntries[0], ROOT_RESOLVER_PREVIOUS, FRAGMENTS.resolveRoot.src],
+    [ENTRIES.find(e => e.id === 'memory/wal-sidecar-refusal'), INTEGRITY_GATE_PREVIOUS, FRAGMENTS.integrityGate.src],
+  ]) {
+    const vendor = entry.edits.map(e => e.find).join('\n');
+    const next = composeCliContribution(vendor, [entry]).next;
+    const old = next.replace(current, prior);
+    assert.notEqual(old, next);
+    assert.equal(historicalCliContribution(vendor, old, [entry]).next, old);
+    assert.notEqual(historicalCliContribution(vendor, old + '\n// foreign', [entry]).next, old + '\n// foreign');
+  }
+  // Execute native vault and fs-secure functions on isolated synthetic files only.
+  const { findVendorRootWith, pristineBytes } = await import('./fixtures.mjs');
+  const vendorRoot = findVendorRootWith('dist/src/fs-secure.js', ['export function writeDbImagePreservingFormat']);
+  const nativeRoot = path.join(vendorRoot, '@claude-flow/cli/dist/src');
+  const fsSource = pristineBytes(path.join(nativeRoot, 'fs-secure.js')).toString();
+  const vaultSource = pristineBytes(path.join(nativeRoot, 'encryption/vault.js')).toString();
+  const nativeDir = path.join(dir, 'encrypted'); fs.mkdirSync(path.join(nativeDir, 'encryption'), { recursive: true });
+  fs.writeFileSync(path.join(nativeDir, 'package.json'), '{"type":"module"}');
+  fs.writeFileSync(path.join(nativeDir, 'encryption/vault.js'), vaultSource);
+  const patched = composeCliContribution(fsSource, [ENTRIES.find(e => e.id === 'memory/wal-sidecar-refusal')]);
+  assert.deepEqual(patched.missing, []);
+  for (const [label, bytes] of [['native', fsSource], ['released', patched.next.replace(FRAGMENTS.integrityGate.src, INTEGRITY_GATE_PREVIOUS)], ['fixed', patched.next]])
+    fs.writeFileSync(path.join(nativeDir, label + '.js'), bytes);
+  const vault = await import(pathToFileURL(path.join(nativeDir, 'encryption/vault.js')));
+  const native = await import(pathToFileURL(path.join(nativeDir, 'native.js')));
+  const released = await import(pathToFileURL(path.join(nativeDir, 'released.js')));
+  const fixed = await import(pathToFileURL(path.join(nativeDir, 'fixed.js')));
+  const key = Buffer.alloc(32, 42), blob = vault.encryptBuffer(Buffer.from('old synthetic payload'), key);
+  const testDb = path.join(nativeDir, 'synthetic.db');
+  const priorKey = process.env.CLAUDE_FLOW_ENCRYPTION_KEY, priorFlag = process.env.CLAUDE_FLOW_ENCRYPT_AT_REST;
+  try {
+    process.env.CLAUDE_FLOW_ENCRYPTION_KEY = key.toString('hex'); process.env.CLAUDE_FLOW_ENCRYPT_AT_REST = '1';
+    for (const owner of [native, fixed]) {
+      fs.writeFileSync(testDb, blob); owner.writeDbImagePreservingFormat(testDb, Buffer.from('updated synthetic payload'));
+      assert(vault.isEncryptedBlob(fs.readFileSync(testDb)));
+      assert.equal(owner.readFileMaybeEncrypted(testDb), 'updated synthetic payload');
+    }
+    fs.writeFileSync(testDb, blob);
+    assert.throws(() => released.writeDbImagePreservingFormat(testDb, Buffer.from('replacement')), { code: 'RSP_UNSAFE_DB_IMAGE' });
+    assert.deepEqual(fs.readFileSync(testDb), blob);
+    fs.writeFileSync(testDb + '-wal', Buffer.alloc(0));
+    assert.throws(() => fixed.writeDbImagePreservingFormat(testDb, Buffer.from('replacement')), { code: 'RSP_UNSAFE_WAL_SIDECARS' });
+    assert.deepEqual(fs.readFileSync(testDb), blob); assert(fs.existsSync(testDb + '-wal'));
+    fs.unlinkSync(testDb + '-wal');
+    const damaged = Buffer.from(blob); damaged[damaged.length - 1] ^= 1; fs.writeFileSync(testDb, damaged);
+    assert.throws(() => fixed.readFileMaybeEncrypted(testDb), /authenticate|auth/);
+    const corruptPlain = Buffer.alloc(200); fs.writeFileSync(testDb, corruptPlain);
+    assert.throws(() => fixed.writeDbImagePreservingFormat(testDb, Buffer.from('replacement')), { code: 'RSP_UNSAFE_DB_IMAGE' });
+    assert.deepEqual(fs.readFileSync(testDb), corruptPlain);
+  } finally {
+    if (priorKey === undefined) delete process.env.CLAUDE_FLOW_ENCRYPTION_KEY; else process.env.CLAUDE_FLOW_ENCRYPTION_KEY = priorKey;
+    if (priorFlag === undefined) delete process.env.CLAUDE_FLOW_ENCRYPT_AT_REST; else process.env.CLAUDE_FLOW_ENCRYPT_AT_REST = priorFlag;
+  }
+  console.log('Current compatibility: native counters, root cache across chdir, exact historical ownership, native encrypted writes/authentication, WAL and corrupt-plain refusal passed.');
 } finally { fs.rmSync(dir, { recursive: true, force: true }); }
