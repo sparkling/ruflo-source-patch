@@ -301,8 +301,19 @@ with one reader and confirmed process-group retirement. Local checks also passed
 The monitor then exposed a retired #514 health check that did not recognize the
 new exact sibling composition. Version 4.46.104 adds that composition proof in the
 shared owner, preserving the retired adapter's markers and historical reversal.
-It does not change installed recall runtime bytes. Final activation evidence is
-recorded after the corrected monitor checks.
+Both hosts now run 4.46.104 from the immutable tag, with all 281 packaged files
+verified against it. All 12 recall files per host remain byte-identical to the
+qualified 4.46.103 runtime. Both monitor checks pass with no drift, and native
+hook trust has no pending approvals. A fresh HZ call with the exact HTML prompt
+passed in 980 ms without a search warning. Credentials, active-generation
+selection and unrelated settings matched their pre-activation snapshots.
+
+The initial full test run exposed the new uninstall regression; after repair,
+all 37 affected composition suites and the focused lifecycle, withdrawal and
+combined-health checks passed. Private activation evidence is in
+`release-v4.46.104/activation.json` in each host's recovery directory; the
+byte-identical runtime's structured one-reader proof remains in the 4.46.103
+receipt. No historical observations were replayed.
 
 ## Ruflo 3.71 qualification: 2 November 2026
 
