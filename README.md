@@ -180,7 +180,7 @@ preflights and monitors passed, with no pending native hook approvals. The full
 regression suite passed; all 278 packaged files matched the immutable release
 tag. Live receipts are `native-doctor-active-v499.json` in each recovery directory.
 
-The follow-up capture repair distinguishes a failed or unavailable exact read from
+Version 4.46.100 distinguishes a failed or unavailable exact read from
 readable conflicting content ([Brain #518](https://github.com/stuinfla/ruvnet-brain/issues/518)).
 One append-only attempt and strict exact-value readback remain unchanged. Missing
 one half of the ADR shim/decoder pair now makes preflight incomplete before edits.
