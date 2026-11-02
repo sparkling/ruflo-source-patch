@@ -251,6 +251,23 @@ it does not eliminate every simultaneous stale-renewal race or shedding during
 bursts of distinct observations. Private receipts are `capture-coalescing-race.json`
 and `capture-coalescing-parallel.json` under the recovery review directory.
 
+Version 4.46.102 is published and activated on Mac and HZ. All 280 packaged files
+match the immutable tag, and all four discovered capture surfaces on each host
+pass exact patch recognition. Both monitors pass, with no pending native hook
+approvals, including HZ Semantic AI. Brain remains on its native 4.7.28 generation.
+One fresh diagnostic PostToolUse observation passed detached acknowledgement and
+exact readback from the consented user store on each host: Mac's source-patch
+checkout returned in 172 ms (1,767 ms overall); HZ Semantic AI returned in 224 ms
+(4,039 ms overall). The initial HZ source-patch probe stopped before hook execution
+because learning consent was disabled; that consent was preserved.
+
+Credential files, active-generation selection and unrelated Codex settings matched
+their pre-activation evidence. The local model catalog cache refreshed during the
+observation window; its writer was not attributed, and no model selection changed.
+No historical turn was retried. These bounded probes do not resolve the separate
+Ruflo 3.71 ownership or automatic-recall investigations. Private receipts are under
+`release-v4.46.102/` in each host's recovery directory, including `activation.json`.
+
 ## Ruflo 3.71 qualification: 2 November 2026
 
 Published CLI 3.71 source passes the existing 42-file anchor preflight. Its new
