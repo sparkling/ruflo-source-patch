@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
-import { CONTEXT_OLD, CONTEXT_351, CONTEXT_PREVIOUS, CONTEXT_NEW, contextWithLease } from '../lib/ruflo-context-contract/patcher.mjs';
+import { CONTEXT_OLD, CONTEXT_351, CONTEXT_PREVIOUS, CONTEXT_RELEASED, CONTEXT_NEW, contextWithLease } from '../lib/ruflo-context-contract/patcher.mjs';
 
 const argv = process.argv.slice(2);
 const usage = 'Usage: node test/ruflo-context-contract.mjs [<absolute scratch directory>] [--native-cli <absolute CLI package.json>]';
@@ -305,11 +305,12 @@ try {
   reset();
   mod.setRegistry(registryFor([]));
   result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, true);
+  assert.equal(result.success, false);
   assert.equal(result.status, 'no-memories');
-  assert.equal(result.synthesis.summary, 'No relevant memories found.');
+  assert.equal(result.reason, 'no-memories');
+  assert.equal(Object.hasOwn(result, 'synthesis'), false);
   assertCounts(result, 0, 0, 0);
-  assert.equal(calls, 1, 'native empty-result contract is retained');
+  assert.equal(calls, 0, 'native empty recall must not invoke synthesis');
 
   for (const badParams of [null, undefined, {}, { query: '' }, { query: 1 },
     Object.create({ query: 'inherited' }), { query: 'x'.repeat(10_001) },
@@ -406,6 +407,15 @@ function withBridgeOperation() { throw new Error('test holds its native lease');
   assert.equal(apply(['ruflo-context-contract']).incomplete, 0, '3.51 native source supported');
   const native351 = await import(pathToFileURL(file).href + '?native351');
   await mappingProof(native351);
+  for (const real of [false, true]) for (const candidate of [currentNative, mod, native351]) {
+    reset();
+    candidate.setRegistry(registryFor([], { real }));
+    const empty = await candidate.bridgeContextSynthesize({ query: 'empty' });
+    assert.deepEqual(Object.fromEntries(['success', 'reason', 'error', 'recalled', 'eligible', 'skipped'].map(key => [key, empty[key]])),
+      { success: false, reason: 'no-memories', error: 'No memories matched the query', recalled: 0, eligible: 0, skipped: 0 });
+    assert.equal(calls, 0, 'both patched recall forms preserve native refusal before synthesis');
+    assert.equal(Object.hasOwn(empty, 'synthesis'), false);
+  }
   native351.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
   assert.equal((await native351.bridgeContextSynthesize({ query: 'conflict' })).success, false);
   native351.setRegistry(registryFor([{ value: duplicateJson }]));
@@ -421,6 +431,8 @@ function withBridgeOperation() { throw new Error('test holds its native lease');
 
   for (const [vendor, previous, expected, label] of [
     [pristine, CONTEXT_PREVIOUS, CONTEXT_NEW, 'unleased'],
+    [pristine, CONTEXT_RELEASED, CONTEXT_NEW, 'unleased'],
+    [nativePristine, contextWithLease(CONTEXT_RELEASED), contextWithLease(CONTEXT_NEW), 'leased'],
     [nativePristine, contextWithLease(CONTEXT_PREVIOUS), contextWithLease(CONTEXT_NEW), 'leased'],
   ]) for (const shared of [false, true]) {
     const targets = shared ? ['cwd', 'ruflo-context-contract'] : ['ruflo-context-contract'];
@@ -433,6 +445,10 @@ function withBridgeOperation() { throw new Error('test holds its native lease');
     fs.writeFileSync(file, historical);
     assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor,
       label + ': complete prior composition retains the real saved pristine');
+    assert.equal(apply([]).incomplete, 0, 'direct historical uninstall succeeds');
+    assert.equal(fs.readFileSync(file, 'utf8'), vendor, 'direct historical uninstall restores exact vendor');
+    assert.equal(apply(targets).incomplete, 0);
+    fs.writeFileSync(file, historical);
     const upgraded = apply(targets);
     assert.equal(upgraded.incomplete, 0, JSON.stringify(upgraded));
     const current = fs.readFileSync(file, 'utf8');
