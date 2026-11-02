@@ -2,7 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-02. The memory-entries-only target retains the HZ downstream
+**Updated**: 2026-11-02. Brain #515 repairs the observed ADR failure by retaining
+complete decision envelopes up to the existing 1 MiB child I/O ceiling. The real
+owning-checkout inspection and stale refusal were verified; policy bypass,
+publisher changes and report acceptance are outside this repair.
+Review correction: scoped controller initialization differs from upstream;
+vector-conflict attribution and parity are not yet proven. Request cancellation
+and capture-adapter dependency findings remain open. Whole-session bounds remain.
+The memory-entries-only target retains the HZ downstream
 capture adapter; learning-native-owner selects it for observation capture. Both
 compose with scratch preservation and require native writes (Ruflo #4666).
 Consent, exact readback, source paths and the native update plane remain unchanged.
@@ -10,7 +17,7 @@ Experimental capture startup changes were withdrawn by the owner on 2 November;
 retained compatibility can only reverse them. Brain #513 aligns only the native
 Stop/PreCompact budget; #514 reuses the native recall reader for search and the
 same scoped ordinary-store adapter. Real Stop and recall pass across the five
-`/data` projects and AI Strategy. Native initialization, SessionEnd, exact
+`/data` projects and AI Strategy. Selected native initialization calls, SessionEnd, exact
 readback, bounded ownership and all preserved recovery evidence remain intact.
 2026-10-31. Ruflo 3.66 qualification preserves upstream learning
 changes and requires native-binding plus live-read proof after npm installation;

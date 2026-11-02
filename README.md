@@ -15,6 +15,26 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## ADR envelope repair: 2 November 2026
+
+`brain-adr-envelope` repairs the reproduced HZ semantic-ai inspection failure
+([Brain #515](https://github.com/stuinfla/ruvnet-brain/issues/515)). The native
+shim cut a 112,446-byte edit envelope at 65,536 bytes. ADR's JSON parser then
+reported owning-checkout inspection unavailable. The decision transport now
+accepts complete envelopes up to 1 MiB, matching the existing child I/O ceiling.
+This is a bounded compatibility repair, not arbitrary-size transport support.
+Individual shell policies retain their independent content limits; this does not
+claim complete security inspection of large edit bodies.
+
+The same large event changed from an ADR skipped-policy warning to code 0.
+The owning worktree resolves correctly, its actual `package.json` inspection
+returns no stale governors, and an injected stale-governor case still refuses.
+The H&M report is a documentation path, which upstream intentionally excludes
+from this edit gate. This is not acceptance of the report or its 313 inputs.
+Receipts on HZ: `/data/programme-state/memory-recovery-20261102/adr-envelope-before.json`,
+`adr-envelope-after.json`, `adr-owning-checkout-verification.json` and
+`adr-envelope-trust-hz.json`. Publication workers and project files were untouched.
+
 ## Learning capture ownership: 2 November 2026
 
 `ruflo-memory-entries-only` incorporates the previously retained HZ capture
@@ -50,9 +70,21 @@ before verification. SessionEnd remains unchanged ([Brain #513](https://github.c
 `brain-recall-runtime` extends Brain's existing bounded reader with the public
 Ruflo `searchEntries` function and the CLI's result projection. List, search and
 exact reads share its registry and the scoped native adapter, avoiding a second
-vector owner. Native initialization, embedding/scoring, privacy checks, the
-1.9-second total deadline and child retirement remain intact. Unsupported search
+vector owner. It calls native initialization and embedding/scoring functions,
+with the controller differences noted below. Privacy checks, the 1.9-second
+total deadline and whole-session child retirement remain intact. Unsupported search
 capabilities retain the CLI fallback ([Brain #514](https://github.com/stuinfla/ruvnet-brain/issues/514)).
+
+Review correction: the scoped adapter changes controller initialization and
+disables controllers, including attestation. It preserves selected native calls;
+it is not equivalent to unmodified native initialization. The original deadline
+and duplicate recall processes are present in pristine Brain 4.7.28. Exclusive
+vector-owner attribution remains unproven without a pristine integration control;
+the existing path patches also affect vector companion locations. Live success
+does not exonerate those patches or establish embedding/ranking parity. Negative
+probes also found that the shared search can return success after a request abort,
+and its bridge edits depend on the capture adapter without enforcing that
+installation dependency. These remain open review findings, not qualified fixes.
 
 Live qualification: the five `/data` project pairs passed native backups and
 exact MCP persistence/readback; learning observations passed in every project.
