@@ -83,6 +83,13 @@ const binSource = [
   "  }",
   "  return fs.mkdtempSync(path.join(projectScratch, 'run-'));",
   "}",
+  "",
+  "// Real 4.7.21+ public surface: the active Brain resolves its native Ruflo CLI binary",
+  "// (env override wins) so callers can locate @claude-flow/cli without spawning anything.",
+  "export function resolveRuflo({ env = process.env, home = os.homedir() } = {}) {",
+  "  if (env.RUFLO_BIN) return env.RUFLO_BIN;",
+  "  return null;",
+  "}",
 ].join('\n');
 const hooksSource = [
   "import { resolveRuflo, rufloInvocationOrPlain, rufloRunDir, rufloScratchRoot } from './ruflo-bin.mjs';",
@@ -322,6 +329,7 @@ try {
   const surface = (root, version = '4.7.21') => {
     for (const spec of VENDOR_SPECS) write(path.join(root, spec.relative), 'fixture discovery member');
     write(path.join(root, 'scripts/hook-input.mjs'), 'fixture');
+    write(path.join(root, 'scripts/turn-outcome-capture.mjs'), 'fixture turn outcome capture');
     write(path.join(root, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'ruvnet-brain', version }));
     mod.SPECS.forEach((spec, i) => write(path.join(root, spec.relative), originals[i])); return root;
   };
@@ -349,6 +357,16 @@ try {
   fs.unlinkSync(consoleMember);
   assert(mod.surfaces().some(s => s.root === consoleRoot)); assert.equal(mod.preflight().ok, false);
   write(consoleMember, originals.at(-1));
+  // ruflo-memory-entries-only discovery (reached via fileMap(ORDER) because this target is a
+  // transaction owner) real-paths the active Brain's resolveRuflo binary and probes a fake
+  // @claude-flow/cli package plus every full surface's turn-outcome capture. The fake binary is
+  // only real-pathed and require-resolved; it is never executed, offline, disposable.
+  const fakeCli = path.join(process.env.RUFLO_GLOBAL_ROOT, 'node_modules/@claude-flow/cli');
+  write(path.join(fakeCli, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '4.7.21' }));
+  write(path.join(fakeCli, 'dist/src/memory/memory-bridge.js'), 'fixture memory bridge');
+  write(path.join(fakeCli, 'dist/src/mcp-tools/memory-tools.js'), 'fixture memory tools');
+  process.env.RUFLO_BIN = path.join(process.env.RUFLO_GLOBAL_ROOT, 'bin', 'ruflo');
+  write(process.env.RUFLO_BIN, 'fixture native ruflo binary: resolved, never executed');
   const compose = await import('../lib/plugin-compose.mjs'); assert(compose.COMPOSE_TARGETS.includes(mod.NAME));
   for (const expected of [mod.SPECS.length * roots.length, 0]) {
     const result = compose.applyComposed([mod.NAME]);
