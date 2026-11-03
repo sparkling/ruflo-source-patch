@@ -434,7 +434,7 @@ ten native namespace inventory checksums match their pre-refresh values. All six
 former index files remain present and nonempty; zero withdrawn-path descriptors
 remain among 53 inspectable Ruflo MCP processes. One independently owned HZ
 container process denies descriptor inspection and is outside this verification.
-No managed data file, index or sidecar was deleted or rewritten by the repair.
+No direct database/index access, sidecar manipulation or historical replay was used.
 The initial Product health probe used its former unauthenticated route and received
 401; authenticated health passed without another restart. Expired source references
 were re-established through the facade's normal search/read contract.
@@ -444,7 +444,12 @@ Private evidence: `.local/ruflo-upgrade-20261103/attribution/matrix.json`,
 upgrade directory. The matched result and its qualifications are also recorded in
 [Ruflo #4654](https://github.com/ruvnet/ruflo/issues/4654#issuecomment-6583536255).
 This closes the confirmed stale-policy activation defect; it does not qualify the
-still-failing 3.71 upgrade or prove arbitrary cross-backend index consistency.
+still-failing 3.71 upgrade or prove arbitrary cross-backend index consistency. The
+independent follow-up found no verified narrow patch enabling unchanged native
+MCP and Brain CLI callers to share the persistent owner. The existing native HTTP
+proof works, but explicit CLI/Brain owner selection and lossless immutable-write
+semantics remain an integration gap. Alternate fallback files or bypassed vector
+initialization are not qualified fixes.
 
 ## Ruflo 3.71 qualification: 2 November 2026
 
