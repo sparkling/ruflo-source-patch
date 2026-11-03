@@ -337,6 +337,18 @@ capability and different-store requests retain the native CLI route. A timed-out
 shared search retires the whole owned process group; verified curated evidence
 remains available and unconfirmed retirement is reported as unavailable.
 
+The 3 November follow-up adds private lifecycle diagnostics for intermittent
+`Search unavailable child retirement` warnings. Receipts record invocation and
+hashed project/store/session identity, reader PID/process group, phase timings,
+operation deadlines, exit/close events, termination attempts and the retirement
+check's observed result. They contain no prompts, queries, keys, memory values,
+raw stderr or environment. Storage is bounded to 64 failure slots plus one latest
+success under `~/.ruflo-source-patch/hook-failures/recall`, with private permissions
+and bounded events/bytes. Diagnostics do not enter the shared warning ledger or
+change the recall deadline, search allocation, retry policy or retirement verdict.
+A warning records an unconfirmed deadline-bound check, not proof of a surviving
+reader. Deterministic refusal and delayed-close tests must retain that distinction.
+
 This is not the withdrawn entries-only adapter: no controller, vector-path or
 backend policy is introduced. The three source files compose atomically with
 scratch preservation and retain exact reversal. Uninstall explicitly includes
@@ -454,10 +466,54 @@ upgrade directory. The matched result and its qualifications are also recorded i
 This closes the confirmed stale-policy activation defect; it does not qualify the
 still-failing 3.71 upgrade or prove arbitrary cross-backend index consistency. The
 independent follow-up found no verified narrow patch enabling unchanged native
-MCP and Brain CLI callers to share the persistent owner. The existing native HTTP
-proof works, but explicit CLI/Brain owner selection and lossless immutable-write
-semantics remain an integration gap. Alternate fallback files or bypassed vector
-initialization are not qualified fixes.
+MCP and Brain CLI callers to share the persistent owner. That review identified explicit CLI/Brain owner selection and lossless immutable-write
+semantics as the remaining integration gap. The following native-owner qualification
+addresses that gap; alternate fallback files or bypassed vector initialization remain
+unqualified.
+
+### Native owner routing qualification: 3 November
+
+The new issue-backed `ruflo-memory-owner` target uses Ruflo's authenticated native
+HTTP MCP transport and SDK client to give each project one persistent controller
+owner. It does not replace storage, algorithms, indexes or Brain hooks. Explicit
+ordinary and retained-graph store bindings remain distinct from implicit project
+controllers. Public memory functions also route through that owner, including
+Brain batch recall and native daemon trajectory embeddings. Existing daemon workers
+and their configured lifetime remain unchanged.
+
+Routing is operator-configured in `~/.config/ruflo/memory-owners.json` (or the explicit
+`RUFLO_MEMORY_OWNER_CONFIG` path). Version 1 declares `owners` keyed by identity,
+`contexts` mapping exact cwd/pin pairs, and `stores` mapping exact database paths.
+Each owner declares absolute `cwd`, nullable `pin`, literal loopback `url`, private
+`tokenFile` and optional `requestTimeoutMs` (180,000 ms default). No configuration
+means unchanged native behavior. With configuration, missing or ambiguous bindings,
+identity mismatch, unavailable owner and uncertain writes fail without local fallback
+or automatic replay. Server mode is process-local; child CLI invocations stay clients.
+
+Fresh real-process Mac and HZ checks pass: CLI immutable store/exact raw readback;
+two stdio clients sharing live records; separate retained graph roles with no result
+leakage; healthy implicit AgentDB; smart search, HNSW rebuild, stats, deletion and
+purge. The final Mac proof also exercises public list/get/search from an unmapped
+Brain-style scratch directory, preserved canonical options, and the actual native
+daemon trajectory and enabled harness worker with concurrent writes on both hosts. The worker
+opens no managed database or vector index; native embedding values and backend
+metadata are preserved.
+Native `memory init` deliberately refuses routed execution before creating storage;
+it remains an exclusive administrative operation. These checks use disposable stores,
+not production data. Private evidence is under `.local/ruflo-upgrade-20261103/` in
+`linux-six-surface-bootstrap.log` and `linux-six-surface-contract.log`; Mac
+receipts are under `.local/memory-recovery-20261102/review/ruflo371/`: the
+`owner-bootstrap-data-kxrCx0`, `native-http-owner-data-XIRzYY` and
+`daemon-owner-client-data-q2Nn99` directories.
+
+The source surfaces have exact-anchor preflight, idempotent composition and
+byte-for-byte reversal, including composition with the existing memory write guards.
+Client forwarding occurs outside those guards so the client never holds a local
+write lock while waiting for the owner. Retire this target when upstream provides
+equivalent owner routing with immutable public/CLI contracts, graph-role isolation
+and enabled daemon workload proof. Release installation, owner provisioning,
+controlled reconnection and live fleet verification remain pending. **The production
+Ruflo upgrade is not yet activated.**
 
 ## Ruflo 3.71 qualification: 2 November 2026
 
@@ -1654,6 +1710,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-capture-idempotency`** | Verify an existing turn at its committed timestamp through the unchanged native constructor and complete byte comparison; retain original content and expose its committed identity. | [#520 · open](https://github.com/stuinfla/ruvnet-brain/issues/520) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
+| **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`verify-interface`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12 · closed](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48 · closed](https://github.com/stuinfla/ruvnet-brain/issues/48) |
