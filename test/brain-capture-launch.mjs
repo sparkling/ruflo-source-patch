@@ -6,7 +6,8 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { spawn, spawnSync } from 'node:child_process';
-import { EDITS, PREVIOUS_EDITS, patchSource, reverseSource, isPatched } from '../lib/brain-capture-launch/patcher.mjs';
+import { EDITS, PREVIOUS_EDITS, patchSource, reverseSource, isPatched } from '../lib/brain-capture-launch/legacy.mjs';
+import { patchSource as currentPatch } from '../lib/brain-capture-launch/patcher.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource, COMPOSE_TARGETS } from '../lib/plugin-compose.mjs';
 import { PLUGIN_TARGETS, PLUGIN_INFO } from '../lib/plugin-registry.mjs';
@@ -34,9 +35,9 @@ assert.equal(undiagnose(reverseSource(diagnose(fixed.next).next)), native, 'both
 assert.equal(reverseSource(undiagnose(diagnose(fixed.next).next)), native);
 assert(COMPOSE_TARGETS.includes('brain-capture-launch') && PLUGIN_TARGETS.includes('brain-capture-launch'));
 assert(PLUGIN_INFO['brain-capture-launch'].includes('#519'));
-assert.equal(composeSource(native, ['brain-capture-diagnostics', 'brain-capture-launch']), diagnose(fixed.next).next);
-assert.equal(composeSource(diagnose(native).next, ['brain-capture-launch']), diagnose(fixed.next).next, 'existing diagnostics gain only the launch fix');
-assert.equal(composeSource(diagnose(previous).next, ['brain-capture-launch']), diagnose(fixed.next).next, 'released composition upgrades exactly');
+assert.equal(composeSource(native, ['brain-capture-diagnostics', 'brain-capture-launch']), diagnose(currentPatch(native).next).next);
+assert.equal(composeSource(diagnose(native).next, ['brain-capture-launch']), diagnose(currentPatch(native).next).next, 'existing diagnostics gain only the launch fix');
+assert.equal(composeSource(diagnose(previous).next, ['brain-capture-launch']), diagnose(currentPatch(native).next).next, 'released composition upgrades exactly');
 for (const [, from, to] of EDITS) {
   assert(patchSource(native.replace(from, '// unknown source')).missing.length);
   assert(patchSource(native + '\n' + from).missing.length);
@@ -162,12 +163,15 @@ try {
   assert.equal(afterSpawnCall.names('slots').length, 1);
   assert.equal(afterSpawnCall.names('recent').length, 1, 'an exception after spawn returned is not proof that no write ran');
 
-  // A delayed launch error must not delete replacement admission files.
+  // Retained #519 protects a replacement only when its filesystem identity changed.
+  // Same-inode/coarse-timestamp replacement was a real legacy weakness (Linux qualification);
+  // current admission-token safety is tested separately in brain-capture-launch-ownership.mjs.
   const replaced = harness(fixed.next, () => child(undefined));
   assert.equal(replaced.capture('replaced'), true);
   const ownPending = replaced.names('recent')[0], ownSlot = replaced.names('slots')[0];
   fs.unlinkSync(ownPending); fs.writeFileSync(ownPending, 'foreign pending');
   fs.writeFileSync(ownSlot, JSON.stringify({ pid: process.pid, at: Date.now() + 1, foreign: true }));
+  fs.utimesSync(ownSlot, new Date(0), new Date(0)); // deliberately different identity, independent of filesystem clock granularity
   replaced.child.emit('error', Object.assign(Error('not started'), { code: 'EAGAIN' }));
   replaced.child.emit('error', Error('repeated error'));
   assert.equal(fs.readFileSync(ownPending, 'utf8'), 'foreign pending');

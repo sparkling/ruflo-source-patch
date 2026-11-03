@@ -269,6 +269,44 @@ No historical turn was retried. These bounded probes do not resolve the separate
 Ruflo 3.71 ownership or automatic-recall investigations. Private receipts are under
 `release-v4.46.102/` in each host's recovery directory, including `activation.json`.
 
+## Capture ownership: 3 November 2026
+
+The `brain-capture-launch` extension for
+[Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521) addresses three
+independently reproduced races in native 4.7.28: stale pending renewal could
+admit the same observation twice, stale slot takeover could replace a fresh
+owner, and acknowledgement pruning could delete a renewed pending marker.
+These findings do not establish that a particular historical warning lost data.
+
+One capture-private gate serializes metadata changes. It uses populated-directory
+publication and exclusive takeover claims adapted from native ownership code,
+without importing or changing the updater. Reclamation requires a proven dead
+owner; time alone cannot evict a live or unknown owner. Admission tokens protect
+pending records, slot handoff and cleanup. Detached children must adopt the
+matching token before writing. The gate is released before spawn and persistence;
+contended or unverified ownership fails visibly within a bounded attempt.
+
+The two slots bound authorized observation work. A parent-death race can briefly
+leave an unadopted child process alive, but a replaced token cannot authorize its
+write. Native consent, fixed observation vocabulary, immutable writes and exact
+readback remain unchanged. Distinct observations can still be refused at capacity.
+There is no queue, replay, capacity increase or change to Brain's update plane.
+
+The earlier #519 and #521 transforms remain available solely to reconstruct and
+upgrade or remove their exact released compositions. Unknown edits remain refused.
+Activation requires old capture executables to drain naturally; patch installation
+alone does not prove that every process is using the new ownership protocol.
+
+Version 4.46.105 qualification passed 111 regression suites and an independent
+review of the three original real-process races. Focused checks also cover killed
+reclaimers, delayed handoff, lost tokens, consent withdrawal and partial metadata
+writes without truncating the previous owner. The current repair passed its
+lifecycle and real-process suites on both Mac and HZ. Linux exposed a timestamp
+assumption in the retained legacy test; that fixture now deliberately changes
+identity, while a new current-version regression freezes inode/timestamp observations
+and proves that token ownership still preserves a replacement. Historical patch
+bytes remain unchanged. These tests qualify the repair, not production throughput.
+
 ## Recall owner reuse: 2 November 2026
 
 `brain-recall-owner-reuse` extends the existing Brain reader for
@@ -1489,7 +1527,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
-| **`brain-capture-launch`** | Release owned admission after proven child launch failure; coalesce fresh same-key contention without occupying a redundant slot. Retain native shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
+| **`brain-capture-launch`** | Serialize capture metadata across admission, dead-owner reclamation, handoff, pruning and token-matched cleanup. Preserve two authorized observations, visible shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
 | **`brain-capture-idempotency`** | Verify an existing turn at its committed timestamp through the unchanged native constructor and complete byte comparison; retain original content and expose its committed identity. | [#520 · open](https://github.com/stuinfla/ruvnet-brain/issues/520) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |

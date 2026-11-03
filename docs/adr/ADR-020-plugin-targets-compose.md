@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-02. Version 4.46.102 preserves native capture, recall,
+**Updated**: 2026-11-03. Capture admission now serializes metadata ownership,
+including stale renewal, takeover, handoff, release and pruning. Persistence,
+consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
 ControllerRegistry initialization and vector-path selection after the compensating
 adapters were withdrawn in 4.46.95. Their historical transforms prove exact removal
 only. The surviving `ruflo-memory-entries-only` contribution propagates a failed
@@ -13,9 +15,24 @@ capture budget are separate issue-backed contributions.
 Brain #519/#521 share `brain-capture-launch`: proven child launch failure releases
 only owned admission, and fresh same-key contention releases its redundant slot
 without acknowledging persistence. Native two-slot shedding, consent, child execution
-and uncertain writes remain. The previous #519 composition remains exactly
-reconstructible for upgrade and removal. Distinct bursts and simultaneous stale-marker
-renewals remain outside the bounded contention repair.
+and uncertain writes remain. Both released #519 and fresh-contention #521
+compositions remain exactly reconstructible for upgrade and removal.
+
+The 3 November extension uses one capture-private metadata gate, adapted from
+native populated-directory publication and exclusive takeover claims. Only proven
+dead owners may be reclaimed; age alone cannot displace a live or unknown owner.
+Slot and pending tokens follow parent-to-child handoff and every cleanup path.
+Children must adopt their matching admission before persistence. Pruning uses the
+same gate, so an old observation cannot delete a renewed pending marker. Gate
+contention is bounded and reported, never an unlocked fallback or a persistence
+acknowledgement. The gate is released before child execution and database work.
+
+The two-slot bound applies to authorized observation work. A child whose parent
+died before handoff can briefly exist without admission, but must refuse storage
+if its token has been replaced. Old executable processes must drain naturally
+before activation is qualified: they do not participate in the new protocol.
+Distinct bursts can still be shed under the native capacity policy. No queue,
+historical replay, capacity increase or updater change is introduced.
 
 Brain #520's separate `brain-capture-idempotency` contribution accepts a duplicate
 only after one successful exact read and complete byte comparison through the
