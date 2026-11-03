@@ -479,6 +479,35 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.108 adds bounded client-session retirement for
+[Ruflo #4674](https://github.com/ruvnet/ruflo/issues/4674). Native HTTP 3.1.5 retains
+short-lived SDK clients after close and can exhaust its 100-session capacity.
+Completed clients now nominate their opaque UUID identity for native retirement
+at the next valid initialization. Persistent and uncertain in-flight clients remain;
+unknown writes are never replayed. Cleanup failure cannot replace an acknowledged
+write result. A closing connection refuses queued handshake waiters before dispatch.
+This uses native `getSessions()` and `terminateSession()` and preserves capacity and
+expiry. It does not claim request isolation; upstream
+[PR #3268](https://github.com/ruvnet/ruflo/pull/3268) addresses that broader responsibility.
+Explicit tool allowlists must include `memory_owner_release` as well as identity.
+
+Both hosts passed 105 unpaced short-lived clients with concurrent persistent calls,
+ending with only the persistent client and final observer. Tests cover retirement
+handover, invalid initialization, pooled handshake races, uncertain writes and
+acknowledged results despite cleanup failure. Full repository tests passed; native
+CLI/public/stdio/graph bootstrap passed on Mac and Linux with the existing core guards.
+The shared authenticated loopback services use native bounded rate configuration:
+`--rate-limit-per-ip 600 --rate-limit-per-session 500 --rate-limit-global-burst 1000`.
+This accommodates the shared workload; it does not raise session capacity or expiry.
+Private evidence is `session-release-full-suite.log`, `session-release-linux.log`,
+`session-release-shared-profile-mac.log` and `native-session-stress-profile-mac.log`
+under `.local/ruflo-upgrade-20261103/`.
+
+Global Ruflo 3.71 and configured native owners are active on both hosts. Fleet
+convergence is still in progress: active project dependencies, retained loaded callers
+and the original failed checkpoint/capture receipts require separate verification.
+A successful fresh probe does not clear an earlier uncertain write.
+
 The new issue-backed `ruflo-memory-owner` target uses Ruflo's authenticated native
 HTTP MCP transport and SDK client to give each project one persistent controller
 owner. It does not replace storage, algorithms, indexes or Brain hooks. Explicit
@@ -517,11 +546,10 @@ byte-for-byte reversal, including composition with the existing memory write gua
 Client forwarding occurs outside those guards so the client never holds a local
 write lock while waiting for the owner. Retire this target when upstream provides
 equivalent owner routing with immutable public/CLI contracts, graph-role isolation
-and enabled daemon workload proof. Release installation, owner provisioning,
-controlled reconnection and live fleet verification remain pending. **The production
-Ruflo upgrade is not yet activated.**
+and enabled daemon workload proof. Initial owner provisioning and supported host
+reconnections are active; full fleet and incident verification remain incomplete.
 
-## Ruflo 3.71 qualification: 2 November 2026
+## Historical Ruflo 3.71 qualification: 2 November 2026
 
 Rechecked on **3 November** for the requested Mac-then-HZ upgrade: the public
 registry still names Ruflo and CLI 3.71.0 as latest. All seven qualified CLI/native

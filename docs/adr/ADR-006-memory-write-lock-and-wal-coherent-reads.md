@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Reject conflicting explicit MCP paths before dispatch;
+**Updated**: 2026-11-03. Native owner routing is active on both hosts; full fleet
+convergence remains incomplete. Release 4.46.108 adds native completed-client
+session retirement for Ruflo #4674, with Mac/Linux 105-client concurrent proof.
+Uncertain writes and unrelated sessions remain untouched; capacity and expiry stay native.
+2026-11-03. Reject conflicting explicit MCP paths before dispatch;
 the former downstream binding silently substituted its configured store. Matching
 and omitted paths retain their authority, and historical overlays upgrade from
 their preserved pristine source. This correction does not resolve #4654.
@@ -105,7 +109,10 @@ while the native owner writes. Actual daemon trajectory and enabled harness test
 prove no managed database/index opens in the worker. Both hosts passed disposable
 real CLI/stdio/HTTP tests including distinct graph roles and final public-boundary
 composition;
-production rollout is pending. Retire on equivalent upstream behavioral proof, not
+production rollout is in progress. Completed SDK sessions use explicit UUID-bound
+retirement at the next valid native initialization (#4674); native session capacity,
+expiry and uncertain in-flight execution remain unchanged. This is not the broader
+request-local authority repair proposed by upstream PR #3268. Retire on equivalent upstream behavioral proof, not
 on a diagnostic change or issue closure alone. See Ruflo #4654 and the README's
 3 November qualification for evidence and deployment status.
 
