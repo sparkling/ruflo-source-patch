@@ -233,6 +233,10 @@ a durable duplicate. Fresh observations may incur one extra read; short inline
 budgets skip that optimization. Waiting metadata contains no observation payload,
 and there is no durable queue or uncertain-write replay.
 
+Version 4.46.120 additionally recognizes the exact read-first composition in the
+retired learning-adapter health check. Unknown edits remain drift, and the retired
+adapter is never reinstalled. This follow-up changes no capture executable bytes.
+
 Version 4.46.101 is published and activated on both hosts; all 280 packaged files
 matched its immutable tag. The actual failed BA turn then passed the installed
 shared writer in 1,736 ms: one append-only duplicate refusal, one exact read,

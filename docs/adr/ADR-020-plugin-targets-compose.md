@@ -89,6 +89,10 @@ original store/read budgets still fit. Complete duplicate bytes skip the write;
 other outcomes retain strict insertion and exact readback. Fresh observations
 can therefore cost an extra read. No persistent payload queue is introduced.
 
+The 4.46.120 health follow-up recognizes that exact read-first sibling only after
+inverse/native-health/forward byte equality. Retired adapters remain withdrawn;
+unknown compositions remain unhealthy. Capture executable bytes are unchanged.
+
 Brain #520's separate `brain-capture-idempotency` contribution accepts a duplicate
 only after one successful exact read and complete byte comparison through the
 unchanged native constructor at the original committed timestamp. It retains the
