@@ -366,9 +366,57 @@ combined-health checks passed. Private activation evidence is in
 byte-identical runtime's structured one-reader proof remains in the 4.46.103
 receipt. No historical observations were replayed.
 
+## Patch review: 3 November 2026
+
+The fresh review covers all 10 CLI and 60 plugin targets. It classifies all 75
+current CLI contributions: 54 apply, nine are
+native-satisfied and 12 are inactive historical variants. Two withdrawn entries
+are tracked separately. All 44 composed files parse. The Brain matrix covers 39
+targets: 25 retired, nine still needed, one native-qualified compatibility target,
+two owner-policy exceptions and two restoration-only targets. Fourteen active
+Brain targets pass on both hosts. No new upstream fix justified another retirement.
+Native satisfaction of one contribution does not retire a multi-contribution target.
+
+Version 4.46.106 repairs two stale verification assumptions. Native hook-schema
+proof accepts the current nine-handler event/command structure, while the old
+invalid-header transformation still requires its exact seven-handler shape.
+The isolated hook proof waits a bounded interval for detached telemetry. Codex
+plugin discovery retains its deadline and JSON validation but permits up to
+16 MiB of output: the measured current registry is 4,643,961 bytes, exceeding the
+previous 4 MiB bound. These changes do not alter native hooks or reopen retired
+targets. All 113 regression suites pass; the two new suites and actual native
+retirement proofs also pass on HZ. All 259 executable source files parse.
+An inactive historical `ruflo-agent/0.3.4` copy still lacks pristine
+provenance for a fresh MCP-prefix proof; it was neither deleted nor reactivated.
+
+Private review matrices are retained in
+`.local/memory-recovery-20261102/review/ruflo371/cli-patch-review-20261103.json`
+plus `.local/memory-recovery-20261103/review/patch-audit-brain.json` and
+`.local/memory-recovery-20261102/review/ruflo371/patch-audit-plugins-current.json`.
+The registry-to-review coverage check is `.local/ruflo-upgrade-20261103/review-coverage.json`.
+Source compatibility and patch health are separate from the blocked Ruflo upgrade
+below.
+
 ## Ruflo 3.71 qualification: 2 November 2026
 
-Published CLI 3.71 source passes the existing 42-file anchor preflight. Its new
+Rechecked on **3 November** for the requested Mac-then-HZ upgrade: the public
+registry still names Ruflo and CLI 3.71.0 as latest. All seven qualified CLI/native
+dependency integrities and the Ruflo, AgentDB and RuVector source heads are unchanged.
+Issue #4654 remains open; related PR #4667 remains unmerged and changes health
+reporting, not store ownership.
+
+The existing disposable concurrency test was rerun against source bytes verified
+identical to the published package. Its owner stored and retrieved the expected
+value; the concurrent process failed with `Database already open. Cannot acquire lock.`;
+a fresh process after owner exit retrieved the same row and value. The test opens
+only newly created disposable data. No existing managed store or sidecar was altered.
+The checked user-global launchers on both hosts, and the current Mac mise global
+prefix, remain on 3.66.0. Existing loaded sessions were not reconnected or downgraded.
+The requested production upgrade has therefore **not been activated**. Patch
+4.46.105 remains active on both hosts, and both monitor checks pass without drift.
+Fresh qualification evidence is retained under `.local/ruflo-upgrade-20261103/`.
+
+Published CLI 3.71 source passes the fresh 44-file composition/parse review. Its new
 AgentDB dependencies, however, fail a pristine native concurrency test: process A
 can store and retrieve an ordinary row, but process B opening the same database
 cannot acquire its persistent RuVector index lock. Ordinary retrieval then fails.

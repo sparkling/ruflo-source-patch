@@ -2,7 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-02. Withdraw the downstream AgentDB vector-storage path policy:
+**Updated**: 2026-11-03. Requalified published Ruflo 3.71.0 without downstream
+patches: a persistent native RuVector owner still prevents a second process from
+opening the same store. The first owner and a later fresh process read the exact
+record successfully; the concurrent contender fails. This is the separate native
+ownership defect tracked by Ruflo #4654, not evidence to restore our withdrawn
+vector-path policy. Production upgrade remains held until a compatible native
+owner/client path is qualified. Current working runtimes and managed data are preserved.
+2026-11-02. Withdraw the downstream AgentDB vector-storage path policy:
 its forced shared companion caused concurrent-owner lock failures. Restore only
 exactly proven old source compositions; preserve all indexes and retain upstream
 storage defaults, including newer explicit-path implementations. This is a

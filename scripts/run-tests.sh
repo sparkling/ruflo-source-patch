@@ -88,6 +88,7 @@ SUITES+=(adr-edge-contract)
 SUITES+=(tiered-memory-coherence)
 SUITES+=(package-maintenance)
 SUITES+=(cwd-session-current)
+SUITES+=(ruflo-hooks-schema codex-skills-registry)
 # Bound suite fan-out: each suite may itself launch native child processes.
 jobs=${RSP_TEST_JOBS:-4}
 if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || [ "$jobs" -gt 16 ]; then
