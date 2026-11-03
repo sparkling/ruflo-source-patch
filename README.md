@@ -409,6 +409,14 @@ below.
 
 ### Causal review and withdrawal activation: 3 November
 
+The follow-up also corrects our own MCP binding overlay: a caller's explicit
+`dbPath` that conflicts with `CLAUDE_FLOW_DB_PATH` must fail before dispatch,
+instead of silently returning or changing the configured store. Matching normalized
+paths and omitted paths retain their existing behavior. The regression covers all
+six bound operations, initialization status, both released overlay migrations,
+pristine preservation and repeat installation. This is a downstream authority fix,
+not a resolution of the separate native concurrent-owner failure in #4654.
+
 A matched eight-run control separates our earlier defect from the pending upgrade.
 CLI 3.66 / memory 3.1.0 / AgentDB 3.0.0-alpha.20 and CLI 3.71 / memory 3.2.2 /
 AgentDB 3.3.0 were each tested with pristine npm package source and current CLI

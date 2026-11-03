@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { MCP_PATH_ANCHOR, MCP_PATH_PREVIOUS, MCP_PATH_REPLACEMENT, MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT,
+import { MCP_PATH_ANCHOR, MCP_PATH_PREVIOUS, MCP_PATH_RELEASED, MCP_PATH_REPLACEMENT, MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT,
   CONTROLLER_PATH_ANCHOR, CONTROLLER_PATH_PREVIOUS, CONTROLLER_PATH_REPLACEMENT, nativeControllerPathSatisfied } from '../lib/cwd/memory-mcp-path.mjs';
 
 const controllerPath = (source, env, fallback = '/project/.swarm/memory.db') =>
@@ -28,8 +28,8 @@ assert.equal(controllerPath(CONTROLLER_PATH_ANCHOR,
 const operations = ['storeEntry', 'searchEntries', 'listEntries', 'getEntry',
   'deleteEntry', 'initializeMemoryDatabase'];
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-async function make(source, configured) {
-  const capture = (options) => options;
+async function make(source, configured, calls = []) {
+  const capture = (options) => { calls.push(options); return options; };
   const body = source.replaceAll(
     "await import('../memory/memory-initializer.js')", 'initializer');
   return new AsyncFunction('process', 'initializer', ...operations,
@@ -51,15 +51,27 @@ for (const configured of [undefined, '', '   ', user]) {
     assert.deepEqual(result, expected);
     assert.equal(options.dbPath, undefined, 'must not mutate the request');
   }
-  assert.equal(await api.checkMemoryInitialization('/caller.db'), configured === user ? user : '/caller.db');
+  assert.equal(await api.checkMemoryInitialization(configured === user ? user : '/caller.db'), configured === user ? user : '/caller.db');
   let migrations = 0;
   new Function('process', 'hasLegacyStore', 'migrate',
     MCP_LEGACY_REPLACEMENT + ' migrate(); }')(
     { env: { CLAUDE_FLOW_DB_PATH: configured } }, () => true, () => migrations++);
   assert.equal(migrations, configured === user ? 0 : 1);
 }
-const api = await make(MCP_PATH_REPLACEMENT, user);
-assert.equal((await api.getEntry({ dbPath: '/wrong/project.db' })).dbPath, user);
+const calls = [];
+const api = await make(MCP_PATH_REPLACEMENT, user, calls);
+for (const name of operations) {
+  const options = { dbPath: '/wrong/project.db', key: 'same-key', migrate: true };
+  const before = calls.length;
+  await assert.rejects(api[name](options), /Explicit database path conflicts with configured MCP store/);
+  assert.equal(calls.length, before, `${name} refuses before native dispatch`);
+  assert.equal(options.dbPath, '/wrong/project.db', 'refused request remains unchanged');
+  assert.equal((await api[name]({dbPath: '/configured/../configured/user-memory.db'})).dbPath, user);
+}
+const beforeCheck = calls.length;
+await assert.rejects(api.checkMemoryInitialization('/wrong/project.db'), /Explicit database path conflicts/);
+assert.equal(calls.length, beforeCheck, 'initialization check refuses before native dispatch');
+assert.equal(await api.checkMemoryInitialization(), user);
 assert.equal((await api.initializeMemoryDatabase()).dbPath, user);
 assert.equal((await api.initializeMemoryDatabase({migrate:true})).migrate, false);
 
@@ -99,6 +111,13 @@ try {
   assert(fs.readFileSync(file, 'utf8').includes(MCP_PATH_REPLACEMENT));
   assert.equal(fs.existsSync(bridgeFile + '.rsp-backup'), false, 'withdrawn controller overlay leaves native source');
   assert.equal(apply(['memory']).patched, 0, 'monitor cannot reinstall the old one-store default');
+  fs.writeFileSync(file, source.replace(MCP_PATH_ANCHOR, MCP_PATH_RELEASED).replace(MCP_LEGACY_ANCHOR, MCP_LEGACY_REPLACEMENT));
+  const releasedUpgrade = apply(['memory']);
+  assert.equal(releasedUpgrade.errors, 0, JSON.stringify(releasedUpgrade));
+  assert.equal(releasedUpgrade.incomplete, 0, JSON.stringify(releasedUpgrade));
+  assert(fs.readFileSync(file, 'utf8').includes(MCP_PATH_REPLACEMENT));
+  assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), source, 'released overlay retains pristine authority');
+  assert.equal(apply(['memory']).patched, 0, 'released upgrade is idempotent');
   fs.writeFileSync(bridgeFile, CONTROLLER_PATH_REPLACEMENT);
   fs.writeFileSync(bridgeFile + '.rsp-backup', CONTROLLER_PATH_ANCHOR);
   assert.equal(apply(['memory']).incomplete, 0, 'withdraw intermediate explicit-full-file overlay too');

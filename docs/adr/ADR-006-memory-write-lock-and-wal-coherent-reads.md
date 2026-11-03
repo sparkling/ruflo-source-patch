@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Matched pristine/current-patch and same/different-directory
+**Updated**: 2026-11-03. Reject conflicting explicit MCP paths before dispatch;
+the former downstream binding silently substituted its configured store. Matching
+and omitted paths retain their authority, and historical overlays upgrade from
+their preserved pristine source. This correction does not resolve #4654.
+2026-11-03. Matched pristine/current-patch and same/different-directory
 controls distinguish the 3.71 native failure from our withdrawn vector-path policy.
 That older policy remained loaded in five processes despite clean installed source;
 native owner refreshes now retire those handles, with exact record/inventory checks
@@ -87,13 +91,15 @@ quality failure.
 The `memory/mcp-configured-store` entry binds the existing MCP memory API functions to
 `resolveDbPath(CLAUDE_FLOW_DB_PATH)` when that environment setting is nonempty. Without it,
 project behavior is unchanged. The same path reaches initialization, list, retrieval, search,
-store and delete; callers cannot override a configured connection's store. No new database
+store and delete; callers cannot override a configured connection's store. An explicit
+conflicting path now refuses before native dispatch instead of silently selecting another
+store. Matching normalized paths and omitted paths retain the configured identity. No new database
 driver is introduced. Initialization status uses the same explicit path. Explicit-store
 connections disable legacy migration so project entries cannot leak into shared memory.
 Existing bridge, locking and WAL refusal remain authoritative.
 
 Retire this entry only when the native MCP handlers pass the configured identity through all
-six operations and a two-store test proves that project and user results stay separate.
+six operations, refuses a conflicting explicit caller path, and a two-store test proves that project and user results stay separate.
 `test/memory-mcp-path.mjs` checks that handoff and the pristine missing-path failure.
 
 ### Key native bridge state by canonical database identity
