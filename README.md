@@ -479,6 +479,20 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.109 corrects downstream adapter overhead and originating-caller
+policy handling. Owner identity and completed-client release use authenticated
+native protocol extensions; 4.46.108 clients remain compatible. Concurrent owner
+memory reads share a bounded native policy transaction, while each request keeps
+its own authorization decision and receipt. Originating MCP authorization and
+result screening execute before and after forwarding respectively. No hook deadline,
+policy rule, memory algorithm or stored history is relaxed.
+
+An isolated 43 MB native policy-history fixture passed unchanged Brain recall
+(1.19 and 1.66 seconds within 1.9 seconds), checkpoint and turn capture, exact readback,
+and full ledger audit. Native allow, denial, budget and approval equivalence passed.
+Historical failed-record reconstruction and application acceptance are separate
+incident work, not prerequisites for releasing this compatible upgrade.
+
 Release 4.46.108 adds bounded client-session retirement for
 [Ruflo #4674](https://github.com/ruvnet/ruflo/issues/4674). Native HTTP 3.1.5 retains
 short-lived SDK clients after close and can exhaust its 100-session capacity.

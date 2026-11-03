@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { nativePolicyRuntimeSatisfied } from '../lib/policy-native-proof.mjs';
+import { composeSource } from '../lib/plugin-compose.mjs';
 import { canonicalEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
 import { ENTRIES, composeCliContribution } from '../lib/cwd/patch-library.mjs';
@@ -61,7 +63,7 @@ try {
   await api.enterServerMode(cwd);
   assert.equal(api.configured(), false, 'server role changes only this runtime instance');
   const live = new Map(); let sequence = 0, current;
-  const server = { getSessions: () => [...live.values()],
+  const server = { handleNotification: async () => {}, getSessions: () => [...live.values()],
     terminateSession(id) { live.delete(id); if (current?.id === id) current = undefined; },
     async handleInitialize(request) {
       if (!request.params) return { error: 'invalid params' };
@@ -71,7 +73,9 @@ try {
   api.attachServer(server);
   const a = 'ruflo-native-owner-client:00000000-0000-4000-8000-000000000001';
   const b = 'ruflo-native-owner-client:00000000-0000-4000-8000-000000000002';
-  await server.handleInitialize({ params: { clientInfo: { name: a } } });
+  const initialized = await server.handleInitialize({ params: { clientInfo: { name: a } } });
+  assert.deepEqual(initialized.result.capabilities.experimental['ruflo/native-memory-owner'], {
+    protocol:1,cwd,pin:store,releaseNotification:'notifications/ruflo/memory-owner-release'});
   await server.handleInitialize({ params: { clientInfo: { name: b } } });
   assert.deepEqual(api.releaseSession(b), { scheduled: 1 });
   assert.equal(live.size, 2, 'release does not clear the current initialized session');
@@ -79,10 +83,46 @@ try {
   for (let i = 0; i < 120; i++) {
     const next = server.handleInitialize({ params: { clientInfo: { name: b } } });
     assert(current && current.clientInfo.name === b, 'handover is synchronous before yielding');
-    await next; assert.equal(live.size, 2); api.releaseSession(b);
+    await next; assert.equal(live.size, 2);
+    if(i%2)await server.handleNotification({method:'notifications/ruflo/memory-owner-release',params:{clientId:b}});
+    else api.releaseSession(b);
   }
   assert([...live.values()].some(row => row.clientInfo.name === a), 'unrelated persistent client survives');
   assert.throws(() => api.releaseSession('foreign-session'), /Invalid/);
+
+  fs.mkdirSync(path.join(temporary,'services'));
+  fs.writeFileSync(path.join(temporary,'services/policy-runtime.js'), `
+export const state={transactions:[],committed:[],gate:null,fail:false};
+export async function withPolicyTransaction(root,operation){
+ const requests=[];state.transactions.push({root,requests});
+ const result=await operation({evaluate(request){requests.push(request);if(request.throw)throw Error('evaluation failed');return {allowed:!request.deny,id:request.id};}});
+ if(state.gate)await state.gate;if(state.fail)throw Error('commit failed');
+ state.committed.push(...requests);return result;
+}`);
+  const {state:policyState}=await import(pathToFileURL(path.join(temporary,'services/policy-runtime.js')));
+  assert.equal(api.policyEvaluator({transport:'stdio'},'memory_list'),undefined);
+  assert.equal(api.policyEvaluator({transport:'http'},'memory_store'),undefined);
+  const evaluate=api.policyEvaluator({transport:'http'},'memory_list');
+  let commit;policyState.gate=new Promise(resolve=>{commit=resolve;});let delivered=false;
+  const pending=Promise.all([evaluate({id:0},cwd),evaluate({id:1,deny:true},cwd)]).then(value=>{delivered=true;return value;});
+  while(!policyState.transactions.length)await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(delivered,false,'no authorization escapes before native durable commit');
+  assert.equal(policyState.committed.length,0);commit();
+  assert.deepEqual(await pending,[{allowed:true,id:0},{allowed:false,id:1}]);
+  assert.equal(policyState.committed.length,2,'denied calls retain individual receipt evaluation');
+  policyState.gate=null;policyState.transactions=[];policyState.committed=[];
+  const many=await Promise.all(Array.from({length:33},(_,id)=>evaluate({id},cwd)));
+  assert.deepEqual(many.map(x=>x.id),Array.from({length:33},(_,i)=>i));
+  assert.deepEqual(policyState.transactions.map(x=>x.requests.length),[32,1]);
+  policyState.transactions=[];
+  await Promise.all([evaluate({id:'a'},cwd),evaluate({id:'b'},temporary)]);
+  assert.equal(policyState.transactions.length,2,'distinct policy roots never share a transaction');
+  for(const fault of ['evaluation','commit']){
+    policyState.committed=[];policyState.fail=fault==='commit';
+    const failed=await Promise.allSettled([evaluate({id:0},cwd),evaluate({id:1,throw:fault==='evaluation'},cwd)]);
+    assert(failed.every(x=>x.status==='rejected'));assert.equal(policyState.committed.length,0);
+  }
+  policyState.fail=false;
 
   const child = await createMemoryOwnerClient(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
   assert.equal(child.configured(), true, 'fresh client still inherits the explicit binding');
@@ -98,8 +138,10 @@ try {
   const sdkFile = path.join(temporary, 'sdk.mjs');
   fs.writeFileSync(sdkFile, `
 export const state = { calls: [], mode: 'ok' };
-export class StreamableHTTPClientTransport {}
+export class StreamableHTTPClientTransport { constructor(_url,options){state.fetch=options.fetch;} }
 export class Client {
+  getServerCapabilities() { return state.capabilities; }
+  async notification({method}) { state.calls.push(method); if(state.mode==='cleanup-fails')throw Error('cleanup unavailable'); if(state.mode==='hang')return state.fetch('http://127.0.0.1:19872/mcp',{}); }
   async connect() { if (state.block) await new Promise(resolve => { state.resume = resolve; }); }
   async listTools() { return { tools: ['memory_owner_identity','memory_owner_release','memory_store'].map(name => ({name,inputSchema:{properties:{}}})) }; }
   async callTool({name}) {
@@ -149,6 +191,36 @@ export class Client {
   finally { console.error = diagnostic; }
   assert.equal(warnings.length, 1, 'cleanup failure is diagnostic, not a retryable write failure');
   await acknowledged.close();
+  const protocol = { ...state.identity, releaseNotification:'notifications/ruflo/memory-owner-release' };
+  state.capabilities = {experimental:{'ruflo/native-memory-owner':protocol}};
+  state.calls = []; state.mode = 'ok';
+  const modern = await isolatedFactory(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
+  assert.deepEqual(await modern.call('memory_store'), {success:true});
+  assert.deepEqual(state.calls, ['memory_store', 'notifications/ruflo/memory-owner-release'],
+    'protocol controls add no policy-authorized tool calls');
+  await modern.close();
+  for (const advertised of [{...protocol,cwd:temporary},{...protocol,pin:temporary},{...protocol,releaseNotification:'wrong'},null]) {
+    state.capabilities = {experimental:{'ruflo/native-memory-owner':advertised}};state.calls=[];
+    const bad = await isolatedFactory(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
+    await assert.rejects(bad.call('memory_store'), /identity does not match|Invalid native owner protocol/);
+    assert(!state.calls.includes('memory_store'));assert(!state.calls.includes('memory_owner_identity'),
+      'malformed/misbound protocol never downgrades to legacy controls');await bad.close();
+  }
+  state.capabilities = {experimental:{'ruflo/native-memory-owner':protocol}};
+  state.calls=[];state.mode='unknown';
+  const modernUnknown=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+  await assert.rejects(modernUnknown.call('memory_store'), /response lost/);await modernUnknown.close();
+  assert.deepEqual(state.calls,['memory_store'],'uncertain protocol write is neither retried nor released');
+  state.calls=[];state.mode='hang';const savedFetch=globalThis.fetch;const savedError=console.error;let abortedFetch=false;
+  globalThis.fetch=(_url,{signal})=>new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>{abortedFetch=true;reject(signal.reason);},{once:true}));
+  console.error=()=>{};const started=Date.now();
+  try {
+    const hung=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+    assert.deepEqual(await hung.call('memory_store'),{success:true});await hung.close();
+    assert(abortedFetch,'cleanup deadline must cancel the actual HTTP fetch');
+    assert(Date.now()-started>=4900 && Date.now()-started<15000,'bounded cleanup without changing native operation deadlines');
+  } finally {globalThis.fetch=savedFetch;console.error=savedError;}
+
   const canonicalHelper = canonicalEdits[0][1].replace('export const memoryTools = [', 'return rspCanonicalMemoryOptions;');
   const canonicalOptions = new Function(canonicalHelper)();
   const original = { nativeResult: true, key: 'immutable', value: 'raw', encryptWrites: false,
@@ -162,12 +234,42 @@ export class Client {
   assert.equal(Object.hasOwn(mapped, 'upsert'), false, 'do not inject presentation defaults');
   const native = process.env.RSP_OWNER_NATIVE_SRC;
   if (native) for (const file of ['mcp-client.js', 'mcp-server.js', 'mcp-tools/memory-tools.js', 'mcp-tools/agentdb-tools.js',
-    'memory/memory-initializer.js', 'commands/memory.js']) {
+    'memory/memory-initializer.js', 'commands/memory.js', 'services/policy-runtime.js']) {
     const source = fs.readFileSync(path.join(native, file), 'utf8');
     const result = patchSource(source);
     assert.deepEqual(result.missing, [], file);
     assert.equal(reverse(result.next), source, file + ' exact restoration');
     assert.equal(isPatched(result.next), true, file + ' idempotency');
+    if(file==='mcp-client.js') for(const version of ['4.46.107','4.46.108']) {
+      const prior=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-'+version+'.json',import.meta.url),'utf8'));
+      const current='// ruflo-source-patch (ruflo#4654): native owner forwarding\n'+createMemoryOwnerClient.toString()+'\nexport const rspMemoryOwner = await createMemoryOwnerClient(import.meta.url);\n';
+      const old=source.replace('/**\n * V3 CLI MCP Client',prior.runtime+'/**\n * V3 CLI MCP Client').replace('export async function callMCPTool(toolName, input = {}, context) {','export async function callMCPTool(toolName, input = {}, context) {\n    if (rspMemoryOwner.configured()) return rspMemoryOwner.call(toolName, input, context);');assert.notEqual(old,result.next);
+      assert.equal(patchSource(old).next,result.next,'exact published '+version+' migration');
+      assert.equal(reverse(old),source,'exact published '+version+' restoration');
+    }
+    if(file==='services/policy-runtime.js') {
+      const targets=['ruflo-policy-serialization','ruflo-policy-ledger','ruflo-memory-owner'];
+      assert.equal(nativePolicyRuntimeSatisfied(source),true);
+      assert.equal(nativePolicyRuntimeSatisfied(result.next),true,'exact sibling keeps qualified native ledger retired');
+      assert.equal(nativePolicyRuntimeSatisfied(result.next+'\n'),false,'unknown modification is not native proof');
+      assert.equal(composeSource(source,targets),result.next);
+      assert.equal(composeSource(result.next,targets),result.next,'all active policy owners reinstall without old overlays');
+      assert.equal(reverse(result.next),source);
+    }
+    if(file==='mcp-client.js') {
+      const start=result.next.indexOf('export async function callMCPTool(');
+      const fn=result.next.slice(start,result.next.indexOf('\n}\n',start)+2).replace('export async function','return async function');
+      const events=[];let allow=true;const context={approvalIds:['approval'],evidence:[{proof:'native'}],serverId:'caller-server',environment:'test'};
+      const input={namespace:'scope',key:'exact'};
+      const call=new Function('TOOL_REGISTRY','MCPClientError','authorizeMcpTool','classifyMcpTool','rspMemoryOwner','applyContentBoundaryGuardrail',fn)(
+        new Map([['memory_retrieve',{handler:async()=>{throw Error('local handler must not run');}}]]),Error,
+        async(name,args,ctx)=>{assert.equal(args,input);assert.equal(ctx,context);events.push('caller-policy');return{enforcedOutcome:allow?'allowed':'denied',reason:'fixture',receiptId:'native-receipt'};},
+        ()=>({actionType:'memory.read'}),{configured:()=>true,policyEvaluator:()=>undefined,call:async()=>{events.push('owner-dispatch');return{found:true};}},
+        (_name,value)=>{events.push('native-result-screen');return value;});
+      allow=false;await assert.rejects(call('memory_retrieve',input,context),/policy-denied/);assert.deepEqual(events,['caller-policy']);
+      allow=true;events.length=0;assert.deepEqual(await call('memory_retrieve',input,context),{found:true});
+      assert.deepEqual(events,['caller-policy','owner-dispatch','native-result-screen']);
+    }
     if (file === 'memory/memory-initializer.js') {
       const core = composeCliContribution(source, ENTRIES.filter(entry =>
         ['cwd', 'memory'].includes(entry.target) && entry.suffix.slice(-2).join('/') === file));

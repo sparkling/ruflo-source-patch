@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Native owner routing is active on both hosts; full fleet
+**Updated**: 2026-11-03. Release 4.46.109 preserves originating caller policy and
+batches concurrent read authorization with individual native receipts; negotiated
+protocol controls remove downstream overhead without changing hook deadlines.
+Historical incident reconstruction is not a release gate.
+2026-11-03. Native owner routing is active on both hosts; full fleet
 convergence remains incomplete. Release 4.46.108 adds native completed-client
 session retirement for Ruflo #4674, with Mac/Linux 105-client concurrent proof.
 Uncertain writes and unrelated sessions remain untouched; capacity and expiry stay native.
