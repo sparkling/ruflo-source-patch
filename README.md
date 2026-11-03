@@ -394,6 +394,16 @@ Private review matrices are retained in
 plus `.local/memory-recovery-20261103/review/patch-audit-brain.json` and
 `.local/memory-recovery-20261102/review/ruflo371/patch-audit-plugins-current.json`.
 The registry-to-review coverage check is `.local/ruflo-upgrade-20261103/review-coverage.json`.
+Release 4.46.106 is installed and activated on Mac and HZ. All 284 packaged files
+per host match immutable tag `v4.46.106`; both monitors report no drift, and the
+actual installed-plugin retirement proofs pass. Activation preserved the existing
+native executable composition (501 local and 558 HZ files already correct).
+Existing MCP processes were not restarted; stale loaded sessions reported by the
+monitor remain a separate controlled-reconnect task. Credentials, Brain active
+selection and unrelated configuration were unchanged. The local Codex model
+catalog cache changed concurrently; its writer was not attributed.
+The activation receipt is `.local/ruflo-upgrade-20261103/release-v4.46.106/activation.json`,
+mirrored under `/data/programme-state/ruflo-upgrade-20261103/release-v4.46.106/` on HZ.
 Source compatibility and patch health are separate from the blocked Ruflo upgrade
 below.
 
@@ -413,7 +423,7 @@ only newly created disposable data. No existing managed store or sidecar was alt
 The checked user-global launchers on both hosts, and the current Mac mise global
 prefix, remain on 3.66.0. Existing loaded sessions were not reconnected or downgraded.
 The requested production upgrade has therefore **not been activated**. Patch
-4.46.105 remains active on both hosts, and both monitor checks pass without drift.
+4.46.106 is now active on both hosts, and both monitor checks pass without drift.
 Fresh qualification evidence is retained under `.local/ruflo-upgrade-20261103/`.
 
 Published CLI 3.71 source passes the fresh 44-file composition/parse review. Its new
