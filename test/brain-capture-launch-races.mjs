@@ -104,6 +104,8 @@ if (process.argv[2] === '--worker') {
   vm.runInContext(keyDeclaration.replace('export ', ''), ctx);
   vm.runInContext(source.slice(source.indexOf('// LOAD BOUNDS'), source.indexOf('\nconst isMain ='))
     .replace(/\bexport /g, '').replace('fileURLToPath(import.meta.url)', "'/inert/learn-capture.mjs'"), ctx);
+  // Preserve the independently reproduced primitive races; waiting has its own process suite.
+  if (ctx.captureWaitAdmit) ctx.captureWaitAdmit = (home, key) => ctx.captureAdmit(home, key);
   process.on('message', message => {
     try {
       let value;

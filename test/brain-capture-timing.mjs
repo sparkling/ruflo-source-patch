@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { patchSource, reverseSource, isPatched, historicalPatchSource } from '../lib/brain-capture-launch/patcher.mjs';
 import { TIMING_EDITS, undoTiming } from '../lib/brain-capture-launch/diagnostics.mjs';
+import { undoWait } from '../lib/brain-capture-launch/backpressure.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 
@@ -36,6 +37,8 @@ function harness({ write, facade = fs, sameBucket = false, enabled = true } = {}
   const composed = diagnose(candidate.next).next;
   vm.runInContext(composed.slice(composed.indexOf('// LOAD BOUNDS'), composed.indexOf('\nconst isMain ='))
     .replace(/\bexport /g, '').replace('fileURLToPath(import.meta.url)', "'/inert/capture.mjs'"), context);
+  // This suite isolates timing; real bounded admission waits have their own process tests.
+  context.captureWaitAdmit = (home, key) => context.captureAdmit(home, key);
   const input = session => ({ hook_event_name: 'PostToolUse', tool_name: 'Bash',
     tool_input: { command: 'git status private-command-secret' }, session_id: session, cwd: '/private/project' });
   return { home, log, env, context, launched, failures, input,
@@ -62,7 +65,7 @@ if (process.argv[2] === '--fifo') {
   assert.equal(h.capture('fifo-secret', false), true); assert.equal(h.writes, 1);
   assert(fs.lstatSync(file).isFIFO()); console.log('FIFO diagnostics refused; native success unchanged');
 } else try {
-  const uninstrumented = undoTiming(candidate.next);
+  const uninstrumented = undoTiming(undoWait(candidate.next));
   assert(isPatched(candidate.next)); assert.equal(reverseSource(candidate.next), native);
   assert.equal(patchSource(uninstrumented).next, candidate.next);
   assert.equal(historicalPatchSource(native, uninstrumented).next, uninstrumented);
@@ -72,8 +75,8 @@ if (process.argv[2] === '--fifo') {
   assert.equal(undiagnose(reverseSource(diagnose(candidate.next).next)), native);
   assert.equal(patchSource(diagnose(native).next).next, diagnose(candidate.next).next);
   for (const [, , to] of TIMING_EDITS) {
-    const changed = candidate.next.replace(to, '// foreign change');
-    assert.notEqual(changed, candidate.next); assert(!isPatched(changed));
+    const timed = undoWait(candidate.next), changed = timed.replace(to, '// foreign change');
+    assert.notEqual(changed, timed); assert(!isPatched(changed));
     assert(patchSource(changed).missing.length); assert.equal(reverseSource(changed), changed);
   }
   assert.equal(spawnSync(process.execPath, ['--input-type=module', '--check'], { input: candidate.next }).status, 0);

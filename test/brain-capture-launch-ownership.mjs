@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import * as patch from '../lib/brain-capture-launch/patcher.mjs';
 import * as legacy from '../lib/brain-capture-launch/legacy.mjs';
 import { undoTiming } from '../lib/brain-capture-launch/diagnostics.mjs';
+import { undoWait } from '../lib/brain-capture-launch/backpressure.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 const native = fs.readFileSync(new URL('./fixtures/brain-learning-receipts/native-4.7.28.mjs', import.meta.url), 'utf8');
@@ -29,7 +30,7 @@ assert.equal(diagnose(current.next).next, patch.patchSource(diagnose(native).nex
 for (const [, from, to] of patch.OWNERSHIP_EDITS) {
   const unknown = v521.replace(from, '// external mutation');
   assert(patch.patchSource(unknown).missing.length);
-  const changed = undoTiming(current.next).replace(to, '// external mutation');
+  const changed = undoTiming(undoWait(current.next)).replace(to, '// external mutation');
   assert(!patch.isPatched(changed)); assert(patch.patchSource(changed).missing.length);
   assert.equal(patch.reverseSource(changed), changed);
 }
@@ -52,6 +53,8 @@ function harness({ source = current.next, launch, write } = {}) {
   });
   vm.runInContext(source.slice(source.indexOf('// LOAD BOUNDS'), source.indexOf('\nconst isMain ='))
     .replace(/\bexport /g, '').replace('fileURLToPath(import.meta.url)', "'/inert/learn-capture.mjs'"), ctx);
+  // This suite isolates native ownership; real bounded waiting is tested separately.
+  if (ctx.captureWaitAdmit) ctx.captureWaitAdmit = (home, key) => ctx.captureAdmit(home, key);
   const names = sub => { const dir = path.join(home, 'learn-capture', sub); return fs.existsSync(dir) ? fs.readdirSync(dir) : []; };
   return { home, ctx, failures, launched, names,
     capture: session => ctx.captureLearning({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'git status' }, session_id: session }, { brainHome: home, detach: true }),
