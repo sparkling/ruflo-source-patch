@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Release 4.46.114 reuses fully authenticated anchor bytes
+**Updated**: 2026-11-03. Release 4.46.115 adds negotiated one-call lifecycle
+retirement on native handler completion, plus bounded abandoned-handshake expiry.
+Persistent callers, in-flight operations and unknown-write outcomes remain intact.
+The reviewed HZ 20-second recall profile is retained in the shared patch target;
+Codex SessionEnd limits remain native. Actual killed-client and lost-response tests
+extend the prior happy-path session qualification.
+2026-11-03. Release 4.46.114 reuses fully authenticated anchor bytes
 within the native locked transaction, verifying a single-use SHA-256 digest before
 atomic publication. Full initial authentication, native format/fallback, receipts
 and uncertain-write recovery remain intact. Admission scans now retry normal

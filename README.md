@@ -479,6 +479,25 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.115 closes abandoned short-lived owner sessions after native request
+completion, even when the caller timed out or was killed. Each one-call client
+negotiates an opaque disposal token; persistent clients keep their existing reuse.
+Never-dispatched handshakes expire after 30 seconds. Retirement uses native session
+APIs before the next initialization; in-flight requests remain protected and
+uncertain writes are never replayed. Capability discovery now precedes tools/list,
+so a failed tool-list handshake can also retire its allocated session.
+
+Isolated native HTTP/SDK tests cover actual killed clients during reads/writes,
+105 lost responses with one execution each, abandoned handshakes, invalid/late
+identities and persistent clients. The existing 100-session cap remains unchanged.
+These tests improve the earlier happy-path-only session qualification.
+
+The release also preserves the reviewed HZ timeout repair in the shared target:
+20-second recall, 40-second outer prompt/Stop/PreCompact handlers and Claude's
+SessionEnd registration. Codex SessionEnd remains capped at 3 seconds; the native
+Claude host budget remains separately authoritative. Exact previous profiles
+upgrade reversibly. This does not increase the separate learning subprocess cap.
+
 Release 4.46.114 adds `ruflo-policy-anchor-copy` for the remaining history cost
 in [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164). Native code still
 authenticates every existing anchor under the policy lock. Its single-use

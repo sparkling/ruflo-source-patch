@@ -197,3 +197,32 @@ setting. This is a known best-effort capacity limit, not evidence of stuck slots
 
 Upstream policy finding updated at
 <https://github.com/ruvnet/ruflo/issues/3164#issuecomment-6610173872>.
+
+## Session-cap recurrence investigation
+
+At 17:02 UTC all 15 configured HZ owners reported 1 to 4 active sessions and zero
+failed requests since their 16:49 activation. The cap is per service. Strategy,
+BA and Oxigraph had the greatest request counts, not excessive current sessions.
+The newest shared cap failure was BA at 15:49:05 UTC. Builder had read that foreign
+row from the shared machine log; it was not proof of Builder session exhaustion.
+
+The lifecycle gap is reproduced: initialized short-lived clients killed or timed
+out before retirement can accumulate for native 30-minute expiry. Successful calls
+retire, but earlier tests covered only that path. Release 4.46.115 adds negotiated
+one-call identity and server-side completion retirement. A handshake-only lease
+expires at 30 seconds; executing operations and persistent clients are preserved.
+The client still reports uncertain writes as errors and never replays them.
+
+The apparently new Builder binding refusal at 17:00:50/17:01:01 belongs to
+`/home/claude/.local/share/opda-working-group-inbox/repo`, absent from the owner
+registry. Its existing two stores were explicitly enrolled through the established
+provisioner, with prior configuration preserved; both native list reads passed.
+Builder's three timeout-status failures are historical, with later exact captures
+verified. Strategy's 17:06 refusal came from a repair child's historical-record
+resubmission, not a fresh delivery turn. Its full refusal body was truncated and
+is not reconstructed as a proven duplicate error. No central replay was performed.
+
+Receipts: `.local/mcp-session-cap-20261103/` and HZ
+`/data/programme-state/mcp-session-cap-20261103/`; including live metrics,
+transcript attribution, `builder-opda-strategy-attribution.json` and the OPDA
+configuration preservation, enrollment and native readback receipts.
