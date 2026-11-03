@@ -462,3 +462,13 @@ checkpoint/distillation success or unlimited-load delivery. Receipts:
 `ba-lifecycle/native-lifecycle-final-{mac,hz}.json` and
 `ba-lifecycle/native-lifecycle-control-pressure-mac.json` under the existing private
 upgrade directory. Final release activation is recorded separately below.
+
+Activation completed as immutable `v4.46.120`, commit `4f22132`, on both hosts.
+All 307 installed package files match the artifact and all three active capture
+source hashes match qualification. Both monitors report no drift; all 10 Mac/16 HZ
+native owners remain healthy without restart. Installed hook-entry tests returned
+SessionEnd in 73/103 ms under controlled response pressure and later proved exact
+turn content. The original BA record still matches its 2,021-byte value hash through
+one native read (813 ms), without replay. Full tests and independent reviews passed.
+Final private proof: `release-v4.46.120/release-proof.json`.
+[Brain #513 follow-up](https://github.com/stuinfla/ruvnet-brain/issues/513#issuecomment-6615446798).

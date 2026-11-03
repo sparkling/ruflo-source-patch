@@ -93,6 +93,10 @@ The 4.46.120 health follow-up recognizes that exact read-first sibling only afte
 inverse/native-health/forward byte equality. Retired adapters remain withdrawn;
 unknown compositions remain unhealthy. Capture executable bytes are unchanged.
 
+Release 4.46.120 is activated on Mac/HZ with exact artifact/runtime hashes and
+clear monitors. Installed native hook-entry pressure tests verify turn receipts;
+original BA readback remains exact. No owner restart or incident replay occurred.
+
 Brain #520's separate `brain-capture-idempotency` contribution accepts a duplicate
 only after one successful exact read and complete byte comparison through the
 unchanged native constructor at the original committed timestamp. It retains the

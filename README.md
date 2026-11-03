@@ -237,6 +237,13 @@ Version 4.46.120 additionally recognizes the exact read-first composition in the
 retired learning-adapter health check. Unknown edits remain drift, and the retired
 adapter is never reinstalled. This follow-up changes no capture executable bytes.
 
+Activation on 3 November: immutable `v4.46.120`, commit `4f22132`, is live on
+Mac/HZ. All 307 installed package files match the release artifact; both monitors
+report no drift and all 10/16 owners remain healthy without restart. Actual installed
+SessionEnd entrypoints returned in 73/103 ms under controlled 350 ms response
+pressure, followed by exact turn receipts. The original BA value remains unchanged.
+Full tests and independent reviews passed. [Upstream evidence](https://github.com/stuinfla/ruvnet-brain/issues/513#issuecomment-6615446798).
+
 Version 4.46.101 is published and activated on both hosts; all 280 packaged files
 matched its immutable tag. The actual failed BA turn then passed the installed
 shared writer in 1,736 ms: one append-only duplicate refusal, one exact read,
