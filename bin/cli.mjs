@@ -161,6 +161,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-user-learning-root': brainUserLearningRootCommand,
   'ruflo-memory-entries-only': action => runPluginCommand('ruflo-memory-entries-only', action),
   'ruflo-memory-owner': action => runPluginCommand('ruflo-memory-owner', action),
+  'ruflo-policy-anchor-copy': action => runPluginCommand('ruflo-policy-anchor-copy', action),
   'brain-recall-runtime': action => runPluginCommand('brain-recall-runtime', action),
   'brain-adr-envelope': action => runPluginCommand('brain-adr-envelope', action),
   'brain-capture-budget': action => runPluginCommand('brain-capture-budget', action),
@@ -255,6 +256,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-learning-receipts')}mark capture only after verified readback (#377)
   ${pad('ruflo-memory-entries-only')}withdraw capture adapter; retain retrieve failure reporting (#4666)
   ${pad('ruflo-memory-owner')}route configured clients through authenticated native owners (#4654)
+  ${pad('ruflo-policy-anchor-copy')}reuse authenticated history with exact byte-digest publication proof (#3164)
   ${pad('brain-recall-runtime')}withdraw recall adapter and restore native execution (#514)
   ${pad('brain-recall-owner-reuse')}reuse native recall reader for search with confirmed retirement (#429)
   ${pad('brain-adr-envelope')}bounded complete JSON for ADR scope inspection (#515)

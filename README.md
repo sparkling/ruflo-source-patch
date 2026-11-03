@@ -479,6 +479,27 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.114 adds `ruflo-policy-anchor-copy` for the remaining history cost
+in [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164). Native code still
+authenticates every existing anchor under the policy lock. Its single-use
+assessment now binds the source bytes with SHA-256; publication streams those
+bytes and verifies the digest before the existing atomic writer can commit.
+This avoids a second parse/authenticate/serialize traversal without changing
+the file format, per-request decisions, mirror checks or receipt history.
+Noncanonical layouts retain the native fallback. Tampering, truncation, append
+and crash tests preserve refusal and native recovery. A disposable 105,000-anchor
+benchmark improved median transaction time from 364.6 to 229.8 ms; this is not
+a production latency claim. First verification still grows with history.
+
+The same release fixes our capture-admission race: normal owner retirement
+could remove `admission.lock` just before our claims scan, outside its existing
+ENOENT retry. The scan now participates in that bounded retry. Ownership checks,
+the 100 ms admission deadline and native two-slot shedding remain unchanged.
+
+After 4.46.113 activation, 19 Mac and 31 HZ native store reads passed. Fresh Stop
+and exact checkpoint readback passed for Strategy, BA, Product, Query and Fabric.
+Historical uncertain writes remain separate from fresh operation verification.
+
 Release 4.46.113 adds the operator-requested temporary timeout mitigation:
 `brain-hook-timeouts` gives recall 10 seconds and capture/checkpoint work
 30 seconds, with matching 20/40-second outer hook registrations. Codex's native
@@ -1791,6 +1812,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
+| **`ruflo-policy-anchor-copy`** | Reuse fully authenticated history only with a single-use exact-byte digest checked during atomic publication; preserve native fallback and all receipts. | [#3164](https://github.com/ruvnet/ruflo/issues/3164) |
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-hook-timeouts`** | Operator-requested temporary 10s recall / 30s capture budgets with matching outer limits; preserves native checks and SessionEnd host cap. Remove after latency repair qualifies upstream defaults. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |

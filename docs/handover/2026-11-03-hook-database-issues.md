@@ -6,16 +6,31 @@ worker resumes, database resets or uncertain-write replays are authorized by thi
 
 ## Shared failures and current evidence
 
+The strongest common factor is deadline pressure from native policy history. Each
+authorization authenticates the full anchor history, then publication traverses
+and serializes it again under the same project lock. Originating CLI calls and
+the native owner each preserve their authorization boundary. Our omitted
+non-memory authorization queue compounded this contention.
+
+This directly explains observed lock waits and delayed writes/readbacks. Longer
+capture occupancy can also exhaust the native two-slot limit. The forwarding
+client deliberately retains sessions for uncertain operations until native expiry;
+repeated deadline failures can therefore add session pressure. These latter links
+are source-supported mechanisms, not a reconstruction of every historical warning.
+The admission-directory race is a separately reproduced downstream defect. WAL
+refusals and stale bindings remain distinct safety/activation issues, not evidence
+of corruption caused by policy latency.
+
 | Issue | Affected evidence | Current finding and next proof |
 |---|---|---|
-| Policy-state lock timeouts | AI-BA, BA; Fabric attribution pending | Live locks belong to active native MCP owners, migration-runtime MCP clients and CLI hooks. Our owner queue covered memory but omitted hook authorization; corrected in 4.46.112. Private bounded phase logging added. Activation and mixed live-hook qualification still required. |
+| Policy-state lock timeouts | AI-BA, BA; Fabric attribution pending | Live locks belong to active native MCP owners, migration-runtime MCP clients and CLI hooks. Our owner queue covered memory but omitted hook authorization; corrected in 4.46.112. Private bounded phase logging added. Activated on 10 Mac and 15 HZ owners; fresh Stop/checkpoint verification passes in all five reported HZ projects. History-dependent transaction cost remains. |
 | Turn/checkpoint store timeout and readback failure | AI-BA, BA, Query, Fabric report | A timeout can precede successful persistence. Read original keys; do not replay. Preserve retrieval error/timing instead of treating null as content mismatch. |
 | Prompt recall deadline | AI-BA, Product/PLM | Native 1.9s budget expires during enumeration or later exact/search phases. Reader startup was tens of milliseconds. Temporary larger finite budgets requested; provider/policy phase timings still needed. |
 | Learning shedding | Query, BA; Fabric attribution pending | Native two-slot admission can drop observations. More time does not create capacity and can prolong occupied slots. Separate admission diagnosis and original-record reconciliation required. |
-| Admission-lock ENOENT | Query | Missing directory during admission scan; retain original error. Not a database corruption verdict. Reproduce native race separately. |
+| Admission-lock ENOENT | Query | Reproduced downstream ownership race: normal owner retirement removes the directory before our claims scan, outside its ENOENT retry. Narrow correction and historical migration tests pass; deployment pending. |
 | MCP session exhaustion/retirement | Query historical reports | Earlier 105-client retirement qualification exists. Correlate failure timestamps to loaded release; do not conflate session capacity with model quotas or claim later reads recover original failed writes. |
 | WAL/whole-image refusal | AI-BA and Query historical reports | Safety refusal is not corruption. AI-BA original MCP exact retrieval succeeded on 3 November; broader original-operation recovery remains separately qualified. |
-| AutoMemory package resolution/readback | AI-BA ST01/ST03 worktrees | Resolver repaired through native package-path record. ST01 import reports seven entries. Helper's JSON backend is separate from Ruflo MCP SQLite memory; no verified public exact-value export yet. Do not substitute a different store as proof. |
+| AutoMemory package resolution/readback | AI-BA ST01/ST03 worktrees | Resolved through native createDatabase(provider:json).getByKey: ST01 and ST03 each have 7/7 exact matches to current retained Markdown. No replay or writes; this is the actual helper backend, not a substitute SQLite store. |
 | Older RVF SDK/native dependencies | Registered Mac/HZ projects and runtimes | AgentDB 3.3.0 requests SDK `^0.2.3`; other consumers require different ranges. Synthetic tests on both hosts prove new readers open old data, but old readers reject new-version writes with `InvalidChecksum`. Production upgrade requires coordinated reader replacement before new writers; no production dependency or memory changes made. |
 
 ## Original-record evidence
@@ -67,9 +82,10 @@ Successful ordinary MCP writes alone are insufficient qualification.
 Release 4.46.113 is committed and pushed (`68e168c`), installed on Mac and HZ.
 The full regression suite and both installation monitors pass. Native hook trust
 reports all 13 enabled Brain hooks trusted on each host; unrelated settings were
-unchanged. Existing long-running memory owners have not been restarted, so their
-in-memory queue/diagnostic code must not be described as upgraded. A controlled
-handoff awaits the owner's decision under the no-interruption instruction.
+unchanged. After the owner instructed “fix it all”, 10 Mac and 15 HZ memory services were
+refreshed through native graceful shutdown. All health checks passed; app servers,
+user terminals and delivery workers were untouched. Native list reads passed for
+19/19 Mac and 31/31 HZ configured stores.
 
 Fresh native checks after installation:
 
@@ -103,3 +119,26 @@ Receipts: `.local/rvf-upgrade-20261103/audit-summary.json`,
 `mac-compat-smoke.json`, `hz-compat-smoke.json`; HZ copies under
 `/data/programme-state/rvf-upgrade-20261103`. Tests used disposable synthetic files,
 not managed memory. The broader production upgrade remains unfinished.
+
+### Verification after service activation
+
+Strategy recall now returned `ok-with-results` in 6851 ms. Fresh actual native Stop
+recording and checkpoint helper calls each verified exact readback for Strategy,
+BA, Product, Query and Fabric. Strategy still needed 13.3s for Stop and 11.6s for
+checkpoint; other tested projects needed 2 to 4.4s per operation. This is recovery
+under the temporary profile, not proof of upstream-default latency.
+
+Strategy and Query original root MCP connections retrieved their respective
+original Fable/Query checkpoints, `found:true`, through native bridge reads at
+16:34 UTC. No write replay or host connection reset. Receipts:
+`original-connections-activated.json`, `lifecycle-activated.json`,
+`strategy-recall-activated.json`, `activation-hz.json` and `activation-local.json`
+under the release directory above.
+
+AutoMemory readback uses installed `@claude-flow/memory@3.2.2` factory API with
+Node filesystem writes denied. Both worktrees contain seven exact content matches
+and no duplicate keys. ST01 import timestamps are 12:52:36 UTC; ST03 is already
+imported at 15:46:05 UTC. Expected inputs are current retained Markdown, not an
+import-time snapshot. No `shutdown()` was called because this backend persists on
+shutdown. Private receipt: `.local/auto-memory-readback-20261103/native-readback.json`;
+HZ counterpart `/data/programme-state/auto-memory-readback-20261103/native-readback.json`.

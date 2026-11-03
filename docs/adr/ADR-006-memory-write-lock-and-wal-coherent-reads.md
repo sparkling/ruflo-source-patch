@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Owner requested temporary larger finite budgets while
+**Updated**: 2026-11-03. Release 4.46.114 reuses fully authenticated anchor bytes
+within the native locked transaction, verifying a single-use SHA-256 digest before
+atomic publication. Full initial authentication, native format/fallback, receipts
+and uncertain-write recovery remain intact. Admission scans now retry normal
+owner-retirement ENOENT within their existing bound. All 10 Mac and 15 HZ native
+owners activated 4.46.113; reported-project fresh Stop/checkpoint checks pass.
+2026-11-03. Owner requested temporary larger finite budgets while
 latency is diagnosed: recall 10s, capture 30s, policy-lock acquisition 15s;
 native checks and SessionEnd host caps remain authoritative (release 4.46.113).
 2026-11-03. Release 4.46.112 adds bounded private phase/lock-owner

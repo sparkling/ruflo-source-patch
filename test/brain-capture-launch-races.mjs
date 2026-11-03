@@ -7,8 +7,9 @@ import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { fork, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { patchSource } from '../lib/brain-capture-launch/patcher.mjs';
-import { patchSource as diagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { patchSource, reverseSource, historicalPatchSource } from '../lib/brain-capture-launch/patcher.mjs';
+import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { composeSource } from '../lib/plugin-compose.mjs';
 
 const self = fileURLToPath(import.meta.url), hash = text => crypto.createHash('sha256').update(text).digest('hex');
 const native = fs.readFileSync(new URL('./fixtures/brain-learning-receipts/native-4.7.28.mjs', import.meta.url), 'utf8');
@@ -16,6 +17,55 @@ const native = fs.readFileSync(new URL('./fixtures/brain-learning-receipts/nativ
 const keyDeclaration = "export const observationKey = ({ session = '', tool, action }) => 'workflow-' + createHash('sha256').update(JSON.stringify([String(session), tool, action])).digest('hex');";
 const keyOf = vm.runInNewContext(keyDeclaration.replace('export ', '') + '\nobservationKey', { createHash: crypto.createHash });
 const keyFor = session => keyOf({ session, tool: 'Bash', action: 'git status' });
+
+function releasedGateRace(source, temp) {
+  const before = `      if (observed) {
+        captureGateClaims(directory);
+        try { if (captureOwnerDead(observed.owner) && captureReclaimGate(directory, observed, owner, path.join(staged, 'owner.json'))) continue; }`;
+  const after = `      if (observed) {
+        try {
+          captureGateClaims(directory);
+          if (captureOwnerDead(observed.owner) && captureReclaimGate(directory, observed, owner, path.join(staged, 'owner.json'))) continue;
+        }`;
+  assert.equal(source.split(after).length, 2);
+  assert(source.includes('const deadline = Date.now() + 100;'));
+  for (const [revision, body] of [['released', source.replace(after, before)], ['fixed', source]]) {
+    for (const phase of ['scandir', 'claim-read', 'live-owner', 'foreign-content']) {
+      const home = path.join(temp, revision, phase), gate = path.join(home, 'learn-capture/admission.lock');
+      fs.mkdirSync(gate, { recursive: true });
+      const owner = JSON.stringify({ pid: process.pid, start: null, token: crypto.randomUUID() });
+      fs.writeFileSync(path.join(gate, 'owner.json'), owner);
+      if (phase === 'claim-read') fs.writeFileSync(path.join(gate, 'claim-0.json'), owner);
+      if (phase === 'foreign-content') fs.writeFileSync(path.join(gate, 'foreign'), 'preserve');
+      let released = false, entered = 0, tick = 0;
+      // Deterministically interleave the owner's normal rename/remove with the contender's read.
+      const retire = () => { released = true; fs.renameSync(gate, gate + '.released-fixture'); fs.rmSync(gate + '.released-fixture', { recursive: true }); };
+      const facade = { ...fs,
+        readdirSync(file, ...args) { if (phase === 'scandir' && file === gate && !released) retire(); return fs.readdirSync(file, ...args); },
+        lstatSync(file, ...args) { if (phase === 'claim-read' && file === path.join(gate, 'claim-0.json') && !released) retire(); return fs.lstatSync(file, ...args); },
+      };
+      // Logical clock proves the existing 100 ms deadline without a scheduler-dependent timing assertion.
+      const ctx = vm.createContext({ fs: facade, os, path, process, randomUUID: crypto.randomUUID,
+        Date: class extends Date { static now() { return tick += 10; } }, Atomics: { wait() {} },
+      });
+      vm.runInContext(body.slice(body.indexOf('// LOAD BOUNDS'), body.indexOf('\nconst isMain ='))
+        .replace(/\bexport /g, '').replace('fileURLToPath(import.meta.url)', "'/inert/learn-capture.mjs'"), ctx);
+      const attempt = () => ctx.withCaptureGate(home, () => { entered++; });
+      if (phase === 'scandir' || phase === 'claim-read') {
+        if (revision === 'released') assert.throws(attempt, error => error.code === 'ENOENT');
+        else assert.doesNotThrow(attempt);
+        assert(released); assert.equal(entered, revision === 'fixed' ? 1 : 0);
+        assert(!fs.existsSync(gate));
+        assert.deepEqual(fs.readdirSync(path.dirname(gate)), [], 'owned staging and retired gate are cleaned');
+      } else {
+        assert.throws(attempt, new RegExp(phase === 'live-owner' ? 'capture admission contended' : 'capture admission recovery contents unknown'));
+        assert.equal(entered, 0); assert.equal(fs.readFileSync(path.join(gate, 'owner.json'), 'utf8'), owner);
+        if (phase === 'live-owner') assert.equal(tick, 110, '100 ms from initial deadline creation');
+        else assert.equal(fs.readFileSync(path.join(gate, 'foreign'), 'utf8'), 'preserve');
+      }
+    }
+  }
+}
 
 if (process.argv[2] === '--worker') {
   const cfg = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
@@ -67,12 +117,25 @@ if (process.argv[2] === '--worker') {
 } else {
   assert.equal(hash(native), 'cf9fb218c5e51cdb29298801cb5634f864c9bb73b93926afac505624a4fd3edc');
   const fixed = patchSource(native); assert.deepEqual(fixed.missing, []);
+  const previous = historicalPatchSource(native, fixed.next);
+  assert.deepEqual(previous.missing, []);
+  // Independently matched git 43fabfa918a4773b85c4281e110010b3971fc50a's ownership source.
+  assert.equal(hash(previous.next), 'f6f747ecee573e508c8594530baa72c3546e8b69abe03c26506d77df34f46284');
+  for (const source of [previous.next, diagnose(previous.next).next]) {
+    const expected = source === previous.next ? fixed.next : diagnose(fixed.next).next;
+    assert.equal(patchSource(source).next, expected);
+    assert.equal(undiagnose(reverseSource(source)), native);
+    assert.equal(composeSource(source, ['brain-capture-launch', 'brain-capture-diagnostics']), diagnose(fixed.next).next);
+    const unknown = source.replace('const deadline = Date.now() + 100;', 'const deadline = Date.now() + 101;');
+    assert(patchSource(unknown).missing.length); assert.equal(reverseSource(unknown), unknown);
+  }
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-independent-capture-'));
   const rows = [];
   let seq = 0;
   const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
   const put = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, value); };
   try {
+    releasedGateRace(fixed.next, temp);
     for (const [name, source] of [['ownership-candidate', diagnose(fixed.next).next]]) {
       const sourceFile = path.join(temp, name + '.source'); put(sourceFile, source);
       for (const kind of ['stale-pending', 'stale-slot', 'prune-renewed', 'live-slots-control', 'prune-live-control', 'crashed-reclaimer']) {
@@ -184,6 +247,6 @@ if (process.argv[2] === '--worker') {
       }
     }
     assert.equal(rows.length, 6);
-    console.log('Capture ownership: three real-process races, live/coalescing controls and interrupted reclaimer recovery PASS');
+    console.log('Capture ownership: released-gate ENOENT regression, 100 ms bound, three real-process races, live/coalescing controls and interrupted reclaimer recovery PASS');
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 }
