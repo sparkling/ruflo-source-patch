@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { patchSource, reverseSource, isPatched, descriptor } from '../lib/brain-learning-native-owner/patcher.mjs';
+import { patchRead } from '../lib/brain-capture-launch/learning-read-first.mjs';
+import { patchSource as diagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 
 const source = fs.readFileSync(new URL('./fixtures/brain-learning-native-owner/native-4.7.28.mjs', import.meta.url), 'utf8');
 const patched = patchSource(source);
@@ -68,3 +70,20 @@ const hz = descriptor.historicalPatchSource(checkpoint).next;
 assert.notEqual(hz, checkpoint);
 assert.equal(descriptor.patchSource(hz).next, checkpoint);
 assert(descriptor.patchSource(hz.replace("'--require-native'", "'--foreign-edit'")).missing.length);
+// The capture read-first sibling changes adjacency, not native driver ownership.
+for (const original of [source, diagnose(source).next]) {
+  const readFirst = patchRead(original); assert.deepEqual(readFirst.missing, []);
+  assert(descriptor.isPatched(readFirst.next));
+  assert.equal(descriptor.patchSource(readFirst.next).next, readFirst.next);
+  assert.deepEqual(descriptor.patchSource(readFirst.next).applied, []);
+  for (const unknown of [
+    readFirst.next.replace('Math.min(1000,', 'Math.min(1001,'),
+    readFirst.next.replace("'--no-upsert', '--provenance'", "'--no-upsert', '--require-native', '--provenance'"),
+    readFirst.next + '\n// ruflo-source-patch (ruflo#4622 learning-native-owner)',
+  ]) {
+    assert(!descriptor.isPatched(unknown));
+    assert(descriptor.patchSource(unknown).missing.length);
+    assert.equal(descriptor.patchSource(unknown).next, unknown);
+  }
+}
+console.log('brain-learning-native-owner: exact read-first sibling healthy; unknown edits/adapters remain refused');
