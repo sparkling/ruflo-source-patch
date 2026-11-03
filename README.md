@@ -347,7 +347,13 @@ success under `~/.ruflo-source-patch/hook-failures/recall`, with private permiss
 and bounded events/bytes. Diagnostics do not enter the shared warning ledger or
 change the recall deadline, search allocation, retry policy or retirement verdict.
 A warning records an unconfirmed deadline-bound check, not proof of a surviving
-reader. Deterministic refusal and delayed-close tests must retain that distinction.
+reader. Deterministic refusal and delayed-close tests must retain that distinction. Release **4.46.107**
+is installed on Mac and HZ with both monitor checks passing. Actual Strategy hook
+runs completed in 998 ms and 1,105 ms with observed reader closure and absent
+process groups. Private proof is in `release-v4.46.107/activation.json` and
+`recall-diagnostics/strategy-live-receipt.json` under the 3 November upgrade
+directory. The intermittent historical cause remains unproven; these receipts
+verify instrumentation and successful current calls, not a root-cause repair.
 
 This is not the withdrawn entries-only adapter: no controller, vector-path or
 backend policy is introduced. The three source files compose atomically with
