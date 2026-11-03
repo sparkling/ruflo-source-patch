@@ -8,6 +8,7 @@ import { nativePolicyRuntimeSatisfied } from '../lib/policy-native-proof.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 import { canonicalEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
+import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
 import { ENTRIES, composeCliContribution, entryApplied } from '../lib/cwd/patch-library.mjs';
 import { patchSource, reverse, isPatched } from '../lib/ruflo-memory-owner/patcher.mjs';
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-owner-test-'));
@@ -171,7 +172,7 @@ export class Client {
 }`);
   const sdkUrl = pathToFileURL(sdkFile).href;
   const factoryFile = path.join(temporary, 'factory.mjs');
-  fs.writeFileSync(factoryFile, 'export ' + createMemoryOwnerClient.toString()
+  fs.writeFileSync(factoryFile, createOwnerPolicyProtocol.toString() + '\nexport ' + createMemoryOwnerClient.toString()
     .replace("'@modelcontextprotocol/sdk/client/index.js'", JSON.stringify(sdkUrl))
     .replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'", JSON.stringify(sdkUrl)));
   const { createMemoryOwnerClient: isolatedFactory } = await import(pathToFileURL(factoryFile));
@@ -359,12 +360,14 @@ export class Client {
       assert.equal(reverse(result.next),source);
     }
     if(file==='mcp-client.js') {
-      const previous=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.116.json',import.meta.url),'utf8')).runtime;
+      for (const version of ['4.46.116', '4.46.117']) {
+      const previous=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-'+version+'.json',import.meta.url),'utf8')).runtime;
       const liveRuntime=result.next.slice(0,result.next.indexOf('/**\n * V3 CLI MCP Client'));
-      const prior=result.next.replace(liveRuntime,previous);
+      const prior=result.next.replace(liveRuntime,previous).replace('        context = rspMemoryOwner.policyContext(context);\n        const forwarded = await rspMemoryOwner.tryForward(toolName, input, context);\n        if (forwarded.forwarded) return applyContentBoundaryGuardrail(toolName, forwarded.result);\n', '');
       assert.notEqual(prior,result.next,'reproduces previous multiline refusal decoder');
       assert.equal(reverse(prior),source,'prior released source restores exactly');
       assert.equal(patchSource(prior).next,result.next,'released decoder upgrades without overwriting unknown bytes');
+      }
       const start=result.next.indexOf('export async function callMCPTool(');
       const fn=result.next.slice(start,result.next.indexOf('\n}\n',start)+2).replace('export async function','return async function');
       const events=[];let allow=true;const context={approvalIds:['approval'],evidence:[{proof:'native'}],serverId:'caller-server',environment:'test'};
@@ -372,7 +375,7 @@ export class Client {
       const call=new Function('TOOL_REGISTRY','MCPClientError','authorizeMcpTool','classifyMcpTool','rspMemoryOwner','applyContentBoundaryGuardrail',fn)(
         new Map([['memory_retrieve',{handler:async()=>{throw Error('local handler must not run');}}]]),Error,
         async(name,args,ctx)=>{assert.equal(args,input);assert.equal(ctx,context);events.push('caller-policy');return{enforcedOutcome:allow?'allowed':'denied',reason:'fixture',receiptId:'native-receipt'};},
-        ()=>({actionType:'memory.read'}),{configured:()=>true,policyEvaluator:()=>undefined,call:async()=>{events.push('owner-dispatch');return{found:true};}},
+        ()=>({actionType:'memory.read'}),{configured:()=>true,policyContext:c=>c,tryForward:async()=>({forwarded:false}),policyEvaluator:()=>undefined,call:async()=>{events.push('owner-dispatch');return{found:true};}},
         (_name,value)=>{events.push('native-result-screen');return value;});
       allow=false;await assert.rejects(call('memory_retrieve',input,context),/policy-denied/);assert.deepEqual(events,['caller-policy']);
       allow=true;events.length=0;assert.deepEqual(await call('memory_retrieve',input,context),{found:true});

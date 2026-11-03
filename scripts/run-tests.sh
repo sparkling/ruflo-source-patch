@@ -90,7 +90,7 @@ SUITES+=(tiered-memory-coherence)
 SUITES+=(package-maintenance)
 SUITES+=(cwd-session-current)
 SUITES+=(ruflo-hooks-schema codex-skills-registry)
-SUITES+=(ruflo-memory-owner ruflo-memory-owner-retirement ruflo-policy-anchor-copy)
+SUITES+=(ruflo-memory-owner ruflo-memory-owner-retirement ruflo-owner-policy ruflo-policy-anchor-copy brain-capture-timing)
 # Bound suite fan-out: each suite may itself launch native child processes.
 jobs=${RSP_TEST_JOBS:-4}
 if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || [ "$jobs" -gt 16 ]; then

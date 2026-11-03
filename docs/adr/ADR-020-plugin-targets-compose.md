@@ -2,7 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-03. Capture admission now serializes metadata ownership,
+**Updated**: 2026-11-03. Native owner policy equivalence and bounded contention
+diagnostics extend the implemented composition. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
 ControllerRegistry initialization and vector-path selection after the compensating
@@ -11,6 +12,24 @@ only. The surviving `ruflo-memory-entries-only` contribution propagates a failed
 retrieve instead of reporting healthy absence; its retained name does not authorize
 an alternate store or controller policy. Native capture diagnostics and the bounded
 capture budget are separate issue-backed contributions.
+
+The 3 November policy correction qualifies one native decision for same-authority
+MCP forwarding. `ruflo-memory-owner` reuses native request construction, checks
+canonical cwd/pin/policy/trust equivalence, and compares the owner reconstruction
+before accounting. Only default legacy identity and native server/environment are
+eligible. Approval IDs and evidence reach the native verifier; metadata is never
+authority. Unsupported owner capabilities refuse before evaluation or dispatch.
+Constrained and semantically different routes retain their prior authorization
+path and remain outside this correction. Full anchor verification and audit are
+unchanged; anchor history still scales linearly. Exact 4.46.117/earlier migration
+and pristine reversal preserve the canonical failure decoder.
+
+The same slice adds bounded policy queue timings and capture admission timings.
+Capture snapshots observe existing metadata ownership and child results without
+adding admission, storage, acknowledgement or replay behavior. Private overwrite
+slots bound diagnostics; they are samples, not complete loss accounting. Native
+HTTP tests exercise single-use approval, concurrent request isolation, forged
+metadata/evidence, budget refusal and full audit before activation.
 
 Brain #519/#521 share `brain-capture-launch`: proven child launch failure releases
 only owned admission, and fresh same-key contention releases its redundant slot

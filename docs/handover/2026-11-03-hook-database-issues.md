@@ -340,6 +340,31 @@ reach the authority before accounting can safely happen once. The proposal and
 qualified reproduction are `policy-scalability/attribution-summary.json` and
 `route-attribution-result.json`; no authorization change has been deployed.
 
+### Policy forwarding correction qualification
+
+The 4.46.118 candidate fixes our duplicate evaluation only when native caller and
+owner authority are equivalent: canonical cwd, pin, policy/trust root, default
+legacy identity and default server/environment. It projects through the native
+request constructor, compares independently at the owner, and then evaluates
+once. Approval/evidence remain native inputs, not authorization claims. Missing
+owner capability refuses before accounting/dispatch; unknown outcomes never replay.
+Constrained identity/envelope and different-root/context/provenance paths retain
+previous behavior and remain a limitation. Public CLI already has one owner check.
+
+Actual native HTTP/SDK qualification passes one durable decision, single-use
+approval once then denial, concurrent approval/digest isolation, forged metadata
+rejection before accounting, native signed-evidence and missing-budget-meter
+refusals, old-peer refusal and full audit. Final storage handlers are disposable
+doubles; this is not a production database test. `test/ruflo-owner-policy.mjs`
+records the boundary. Earlier results above are retained as the causal baseline.
+Native O(anchor-history) work and the temporary timeouts are unchanged.
+
+Capture timing snapshots observe native admission and exact/duplicate outcomes in
+128 private overwrite slots, at most 32 events/16 KiB each. They contain no payload,
+add no queue or capacity, and cannot count overwritten or killed invocations.
+Policy snapshots add route and bounded queue wait. Activation and measured results
+are recorded after the combined release qualifies.
+
 ### Capture capacity
 
 The separate Astra High review recommends retaining the native two-slot limit.

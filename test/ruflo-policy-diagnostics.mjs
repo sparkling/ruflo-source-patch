@@ -14,7 +14,7 @@ const make = new Function(...names, `return ${policyDiagnostic.toString()}`)(...
 const dir = path.join(home,'.ruflo-source-patch','policy-diagnostics');
 try {
   delete process.env.RSP_POLICY_DIAGNOSTICS;
-  const note = make('/private/project','/private/lock',{tool:'memory_retrieve',inputDigest:'sha256:'+'a'.repeat(64),value:'NEVER_LOG_VALUE'});
+  const note = make('/private/project','/private/lock',{tool:'memory_retrieve',inputDigest:'sha256:'+'a'.repeat(64),value:'NEVER_LOG_VALUE',route:'owner-coalesced',queueWaitMs:42});
   note('waiting'); note('acquired'); note('failed',new Error('policy-state-lock-timeout: NEVER_LOG_SECRET'));
   const files=fs.readdirSync(dir);
   assert.equal(files.length,1);
@@ -24,6 +24,8 @@ try {
   assert.equal(r.phases[0].lockOwnerPid,4321);
   assert.equal(r.phases[2].error,'policy-state-lock-timeout');
   assert.equal(r.operations[0].tool,'memory_retrieve');
+  assert.equal(r.operations[0].route,'owner-coalesced');
+  assert.equal(r.operations[0].queueWaitMs,42);
   assert.equal(fs.statSync(path.join(dir,files[0])).mode&0o777,0o600);
   for(let i=0;i<150;i++)make('/project','/lock')('waiting');
   assert.ok(fs.readdirSync(dir).length<=128);

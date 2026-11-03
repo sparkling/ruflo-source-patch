@@ -479,6 +479,36 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.118 corrects duplicate policy evaluation in eligible MCP forwarding.
+The caller uses native request construction without consuming an approval; the
+owner independently reconstructs and compares that request before its one native
+policy decision. Eligibility requires the same canonical working directory,
+database pin and native policy/trust roots, the default legacy principal, and
+native default server/environment. Metadata supplies consistency evidence and
+approval/evidence inputs to native verifiers; it cannot grant identity or select
+a different policy environment. An old or incompatible owner refuses before
+accounting or operation dispatch. Refresh owners before persistent clients.
+
+Constrained identities/envelopes, distinct roots, nondefault environments and
+provenance alias normalization retain the prior authorization path; their double
+evaluation is not claimed fixed. Ordinary public-memory CLI calls already have
+one owner decision. Native receipt retention, full anchor authentication, audit,
+unknown-outcome handling and temporary timeouts remain unchanged. Retire this
+correction only when native forwarding passes the same authority-equivalence,
+single-decision and adversarial audit proofs. The native
+monetary/token budget refusal for missing meters remains; no cost is invented.
+Qualified HTTP/SDK tests cover single-use approval, concurrent context isolation,
+forged authority/evidence, policy denials, old-peer refusal and full ledger audit.
+
+Policy diagnostic snapshots now distinguish `owner` and `owner-coalesced` and
+report bounded `queueWaitMs`. Capture admission adds bounded private timing
+snapshots in `~/.ruflo-source-patch/capture-diagnostics`: 128 overwrite slots,
+at most 32 events and 16 KiB per snapshot. `RSP_CAPTURE_DIAGNOSTICS=off` disables
+emission. Timings cover existing admission waiting/holding, adoption, pruning,
+slot operations and native exact/duplicate outcomes. They do not add a queue or
+change native two-slot capacity; overwritten samples and killed invocations
+cannot establish loss counts. Logging is observational and contains no payload.
+
 Release 4.46.117 corrects our owner client's failure decoding. Native public-memory
 `{success:false,error:"…"}` results now reach their callers unchanged instead of
 becoming a pretty-printed exception whose first line hides the reason. This lets
