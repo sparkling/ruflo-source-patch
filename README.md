@@ -210,7 +210,7 @@ changed rendered actions or other fields still fail. No queue or history replay 
 added. Constructor mutation, failed reads, altered content, overlapping attempts,
 composition and exact restoration have regression coverage.
 
-The lifecycle correction for [Brain #513](https://github.com/stuinfla/ruvnet-brain/issues/513)
+Release 4.46.119 adds the lifecycle correction for [Brain #513](https://github.com/stuinfla/ruvnet-brain/issues/513)
 reuses one bounded process for the native store and exact readback, preserving
 both authorization decisions, all append controls and full readback bytes. It
 retains terminal read errors and phase timings. With less than 2.6 seconds left,
