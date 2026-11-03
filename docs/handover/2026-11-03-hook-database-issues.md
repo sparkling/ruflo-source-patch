@@ -279,6 +279,17 @@ coverage includes malformed JSON, echoed private values, conflicting success fla
 one-dispatch behavior and exact upgrade/reversal of the prior installed runtime.
 Historical generic refusals remain unattributed unless their own records prove more.
 
+Activation: commit `6c35ab2`, immutable tag `v4.46.117`, deployed on Mac and HZ.
+The full suite and pristine 3.71 source composition/reversal tests pass. Actual
+native capture and deliberate duplicate readback pass on HZ (2359/2274 ms) and
+Mac (836/707 ms). The Mac's initial deployment used npm's mise prefix while its
+active launcher retained 4.46.116; installing into the active `.npm-global` prefix
+corrected this. The failed diagnostic receipt and later exact recovery of that
+same acknowledged test record are both preserved. Both installation monitors
+report no drift. No service, user terminal or application worker was restarted.
+Receipts are in the existing local `release-v4.46.117/` directory and HZ's matching
+`/data/programme-state/ruflo-upgrade-20261103/release-v4.46.117/` directory.
+
 ### Policy history
 
 The 3 November review confirms that the bounded receipt ledger and the anchor
