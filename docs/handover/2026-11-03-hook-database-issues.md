@@ -121,6 +121,13 @@ Receipts: `.local/rvf-upgrade-20261103/audit-summary.json`,
 `/data/programme-state/rvf-upgrade-20261103`. Tests used disposable synthetic files,
 not managed memory. The broader production upgrade remains unfinished.
 
+The owner subsequently authorized controlled pauses of affected projects.
+[ADR-037](../adr/ADR-037-coordinated-rvf-upgrade.md) is the accepted execution
+plan: native preservation and restore proof, coordinated reader replacement,
+new-writer qualification, then restoration of only previously active work.
+The audit's earlier non-interruption restriction is historical; its compatibility
+findings remain valid. No production RVF cutover or pause has been performed.
+
 ### Verification after service activation
 
 Strategy recall now returned `ok-with-results` in 6851 ms. Fresh actual native Stop
