@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import './ruflo-policy-diagnostics.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -101,7 +102,8 @@ export async function withPolicyTransaction(root,operation){
 }`);
   const {state:policyState}=await import(pathToFileURL(path.join(temporary,'services/policy-runtime.js')));
   assert.equal(api.policyEvaluator({transport:'stdio'},'memory_list'),undefined);
-  assert.equal(api.policyEvaluator({transport:'http'},'hooks_route'),undefined);
+  const evaluateHook=api.policyEvaluator({transport:'http'},'hooks_post-command');
+  assert.equal(typeof evaluateHook,'function','hook authorization must share the same owner policy queue');
   const evaluateWrite=api.policyEvaluator({transport:'http'},'memory_store');
   assert.equal(typeof evaluateWrite,'function');
   const evaluate=api.policyEvaluator({transport:'http'},'memory_list');
@@ -117,12 +119,12 @@ export async function withPolicyTransaction(root,operation){
   policyState.gate=new Promise(resolve=>{releaseActive=resolve;});
   const heldDecision=evaluate({id:'held'},cwd);
   while(!policyState.transactions.length)await new Promise(resolve=>setImmediate(resolve));
-  const queued=Array.from({length:33},(_,id)=>(id%2?evaluateWrite:evaluate)({id},cwd));
+  const queued=Array.from({length:33},(_,id)=>[evaluate,evaluateWrite,evaluateHook][id%3]({id},cwd));
   await new Promise(resolve=>setTimeout(resolve,20));
   assert.equal(policyState.transactions.length,1,'queued batches must not contend with their own active policy lock');
   releaseActive();await heldDecision;await Promise.all(queued);
   assert.deepEqual(policyState.transactions.map(x=>x.requests.length),[1,32,1]);
-  assert.equal(policyState.committed.length,34,'mixed reads and writes each retain their native decision');
+  assert.equal(policyState.committed.length,34,'mixed reads, writes and hooks each retain their native decision');
   policyState.gate=null;policyState.transactions=[];policyState.committed=[];
   const many=await Promise.all(Array.from({length:33},(_,id)=>evaluate({id},cwd)));
   assert.deepEqual(many.map(x=>x.id),Array.from({length:33},(_,i)=>i));

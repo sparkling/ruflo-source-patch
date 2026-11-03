@@ -479,6 +479,19 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.112 adds private native-policy transaction diagnostics after live
+AI-BA and BA lock contention recurred. It also corrects our incomplete queue:
+HTTP hook and other tool authorizations now share the same per-root queue as
+memory calls. Previously `hooks_post-command` could contend with the owner's
+own active memory authorization. Every native decision remains distinct; caller
+authorization is unchanged. The fixed 128-slot ring at
+`~/.ruflo-source-patch/policy-diagnostics/` records process/project identity,
+lock-owner PID, elapsed time and transaction phases, including failures and
+incomplete transactions. It excludes input values and credentials; malformed or
+unsafe logging destinations cannot change authorization. Set
+`RSP_POLICY_DIAGNOSTICS=off` to disable these observations. This is diagnostic
+coverage, not a claim that mature-history latency or hook timeouts are resolved.
+
 Release 4.46.111 reduces the measured anchor-parser hot spot using native
 `JSON.parse` for complete bounded entry lines. Other representations retain the
 original streaming parser; every entry still receives native hash-chain checks.
