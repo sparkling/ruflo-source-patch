@@ -479,6 +479,14 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.111 reduces the measured anchor-parser hot spot using native
+`JSON.parse` for complete bounded entry lines. Other representations retain the
+original streaming parser; every entry still receives native hash-chain checks.
+On one 169,033-entry history, parsing plus identical-output hashing fell from
+916 ms to 524 ms. This is a parsing improvement, not bounded-history storage.
+Queued authorization batches yield between transactions so HTTP work can run.
+Exact composition inspection also recognizes the retained retrieve-error fix.
+
 Release 4.46.110 fixes downstream policy-lock self-contention: native owner
 memory authorization now drains one FIFO queue per policy root, in batches of
 at most 32 individual native decisions. Writes join reads instead of competing
@@ -3287,7 +3295,7 @@ above includes the older repairs and their issue mappings too.
 |-------|-------------------|-----------------------------------|
 | [Ruflo #3693](https://github.com/ruvnet/ruflo/issues/3693) | `ruflo-sqlite-owner` | One native dependency owner across graph/repair and registry paths; no competing library or closed borrowed handle. |
 | [Ruflo #3691](https://github.com/ruvnet/ruflo/issues/3691) | `ruflo-pattern-receipt` | Successful native store plus exact namespace/key/content readback; failed persistence must remain a failure in both MCP and bridge handlers. |
-| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization`, `ruflo-policy-ledger` | Serialization alone leaves growth unresolved. The independent segmented-ledger target preserves complete audit/export and requires an explicit first migration; installation is not proof of live qualification. PR #3892 remains a separate upstream proposal. |
+| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization`, `ruflo-policy-ledger`, `ruflo-memory-owner` | Qualified native 3.71 receipt retention supersedes the older local ledger overlays. Its separate anchor history still incurs full traversal and rewriting. Owner-side queuing and bounded native JSON parsing reduce that cost without changing history, authentication or the native ledger format. |
 | [Ruflo #3229](https://github.com/ruvnet/ruflo/issues/3229) | `ruflo-flywheel-evidence` | Residual 3.52.0 evidence encoding; retirement requires native nested-fraction signing and strict tamper refusal. No historical migration or gate weakening. |
 | [Ruflo #2579, source context](https://github.com/ruvnet/ruflo/issues/2579) | `ruflo-champion-authority` | Reproduced 3.52.0 startup conflict with ADR-322A promotion authority; no defect-specific upstream issue found. Retirement requires unpatched native authority/lock behavior, normal framework updates, and preservation of foreign locks. |
 | [Ruflo #3688](https://github.com/ruvnet/ruflo/issues/3688) | `ruflo-swarm-codex-hooks` | Declared command hooks must reach a strict Codex manifest without changing Claude modules or granting hook trust. |

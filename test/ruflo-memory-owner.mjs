@@ -245,9 +245,42 @@ export class Client {
   delete expected.nativeResult; delete expected.provenance_type;
   assert.deepEqual(mapped, expected);
   assert.equal(Object.hasOwn(mapped, 'upsert'), false, 'do not inject presentation defaults');
+  const anchorSource=fs.readFileSync(new URL('./fixtures/ruflo-memory-owner/policy-anchor-log-3.71.0.js',import.meta.url),'utf8');
+  const anchorPatched=patchSource(anchorSource);
+  assert.deepEqual(anchorPatched.missing,[]);
+  assert.equal(reverse(anchorPatched.next),anchorSource);
+  assert.equal(patchSource(anchorPatched.next).next,anchorPatched.next);
+  fs.writeFileSync(path.join(temporary,'anchor-original.js'),anchorSource);
+  fs.writeFileSync(path.join(temporary,'anchor-patched.js'),anchorPatched.next);
+  const parsers=await Promise.all(['original','patched'].map(name=>import(pathToFileURL(path.join(temporary,'anchor-'+name+'.js')))));
+  const entry={seq:0,hash:'hash',by:'escaped " quote \\ newline\n braces } ] 😀'};
+  const documents=[
+    JSON.stringify({version:1,entries:[entry,{...entry,seq:1}]},null,2),
+    '{"version":1,"entries":[\n'+JSON.stringify(entry)+',\n'+JSON.stringify({...entry,seq:1})+'\n]}',
+    JSON.stringify({entries:[{...entry,by:'😀'.repeat(20000)},entry],version:1}),
+    '{"version":1,"entries":[\n'+JSON.stringify(entry)+',\n]}',
+    '{"version":1,"entries":[\n'+JSON.stringify(entry)+'\n',
+    '{"version":1,"version":1,"entries":[]}',
+    '{"version":2,"entries":[\n'+JSON.stringify(entry)+'\n]}',
+    '{"version":1,"entries":[\n{"by":"literal\nnewline"}\n]}',
+    '{"version":1,"entries":[]} trailing',
+  ];
+  for(const [index,document] of documents.entries()){
+    const file=path.join(temporary,'anchor-case.json');fs.writeFileSync(file,document);
+    const outcomes=parsers.map(parser=>{try{return{entries:[...parser.anchorEntries(file)]};}catch(error){return{error:error.message};}});
+    assert.deepEqual(outcomes[1],outcomes[0],'native parser equivalence case '+index);
+  }
+  for(const parser of parsers){
+    const file=path.join(temporary,'anchor-write.json');let validations=0;
+    const fd=fs.openSync(file,'w');
+    try{parser.appendedAnchorLog(undefined,entry,()=>{validations++;return false;})[parser.ATOMIC_JSON_WRITER](fd);assert.fail('invalid anchor accepted');}
+    catch(error){assert.match(error.message,/policy-anchor-log-corrupt/);}
+    finally{fs.closeSync(fd);}
+    assert.equal(validations,1,'writer retains native authentication');
+  }
   const native = process.env.RSP_OWNER_NATIVE_SRC;
   if (native) for (const file of ['mcp-client.js', 'mcp-server.js', 'mcp-tools/memory-tools.js', 'mcp-tools/agentdb-tools.js',
-    'memory/memory-initializer.js', 'commands/memory.js', 'services/policy-runtime.js']) {
+    'memory/memory-initializer.js', 'commands/memory.js', 'services/policy-runtime.js', 'services/policy-anchor-log.js']) {
     const source = fs.readFileSync(path.join(native, file), 'utf8');
     const result = patchSource(source);
     assert.deepEqual(result.missing, [], file);
