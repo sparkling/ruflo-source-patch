@@ -210,6 +210,29 @@ changed rendered actions or other fields still fail. No queue or history replay 
 added. Constructor mutation, failed reads, altered content, overlapping attempts,
 composition and exact restoration have regression coverage.
 
+The lifecycle correction for [Brain #513](https://github.com/stuinfla/ruvnet-brain/issues/513)
+reuses one bounded process for the native store and exact readback, preserving
+both authorization decisions, all append controls and full readback bytes. It
+retains terminal read errors and phase timings. With less than 2.6 seconds left,
+a fresh first attempt uses one of two independent metadata-only worker leases,
+stdin handoff and an absolute 30-second deadline. The parent reports pending;
+only the child's exact receipt proves persistence. Native consent, canonical root,
+privacy and encryption checks run again before dispatch. Prior attempts
+with retained receipts or same-turn state are reconciled by reading only. Fresh
+synchronous writes publish pending metadata before dispatch. Native evidence is
+bounded, and concurrent first attempts retain native append-only collision checks. Capacity
+exhaustion and unavailable evidence still fail explicitly. This addresses the
+Claude SessionEnd 1.2-second budget without increasing that host deadline.
+
+The accompanying [Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521)
+repair retains two observation workers while at most eight existing hooks wait
+for admission. Seven seconds is the upper bound; native Codex and inherited
+budgets, process age and cleanup reserve can shorten it. Actual overload remains
+an explicit refusal. A budget-qualified native exact read now skips the store for
+a durable duplicate. Fresh observations may incur one extra read; short inline
+budgets skip that optimization. Waiting metadata contains no observation payload,
+and there is no durable queue or uncertain-write replay.
+
 Version 4.46.101 is published and activated on both hosts; all 280 packaged files
 matched its immutable tag. The actual failed BA turn then passed the installed
 shared writer in 1,736 ms: one append-only duplicate refusal, one exact read,
@@ -1898,7 +1921,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-hook-timeouts`** | Operator-requested temporary 10s recall / 30s capture budgets with matching outer limits; preserves native checks and SessionEnd host cap. Remove after latency repair qualifies upstream defaults. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
 | **`brain-capture-launch`** | Serialize capture metadata across admission, dead-owner reclamation, handoff, pruning and token-matched cleanup. Preserve two authorized observations, visible shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
-| **`brain-capture-idempotency`** | Verify an existing turn at its committed timestamp through the unchanged native constructor and complete byte comparison; retain original content and expose its committed identity. | [#520 · open](https://github.com/stuinfla/ruvnet-brain/issues/520) |
+| **`brain-capture-idempotency`** | Native store/read process reuse, bounded fresh lifecycle handoff and read-only reconciliation through the unchanged complete turn constructor. | [#520](https://github.com/stuinfla/ruvnet-brain/issues/520), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
 | **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |

@@ -5,6 +5,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
+import { HANDOFF_HELPER, HANDOFF_EDITS } from '../lib/brain-capture-idempotency/handoff.mjs';
+import { NATIVE_PAIR_EDITS } from '../lib/brain-capture-idempotency/native-pair.mjs';
 import { EDITS, patchSource, reverseSource, isPatched } from '../lib/brain-capture-idempotency/patcher.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose, isPatched as diagnosed } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource, COMPOSE_TARGETS } from '../lib/plugin-compose.mjs';
@@ -18,6 +20,9 @@ const patched = patchSource(native);
 assert.deepEqual(patched.missing, []); assert(isPatched(patched.next));
 assert.equal(patchSource(patched.next).next, patched.next);
 assert.equal(reverseSource(patched.next), native);
+const released = EDITS.reduce((source, [, from, to]) => source.replace(from, () => to), native);
+assert.equal(patchSource(released).next, patched.next, 'exact4.46.118 migration');
+assert.equal(reverseSource(released), native, 'prior release remains reversible');
 const composed = diagnose(patched.next).next;
 assert.equal(composed, patchSource(diagnose(native).next).next);
 assert(diagnosed(composed) && isPatched(composed), 'each owner still recognizes exact composition');
@@ -35,7 +40,14 @@ for (const source of [native, patched.next, composed]) {
 for (const [, from, to] of EDITS) {
   assert(patchSource(native.replace(from, '// unknown upstream')).missing.length);
   assert(patchSource(native + '\n' + from).missing.length);
+  if (!patched.next.includes(to)) continue; // Later exact layer owns this boundary.
   const changed = patched.next.replace(to, '// unknown local edit');
+  assert(!isPatched(changed)); assert(patchSource(changed).missing.length);
+  assert.equal(reverseSource(changed), changed);
+}
+for (const [, , to] of [...NATIVE_PAIR_EDITS, ...HANDOFF_EDITS]) {
+  if (!patched.next.includes(to)) continue;
+  const changed = patched.next.replace(to, '// unknown pair edit');
   assert(!isPatched(changed)); assert(patchSource(changed).missing.length);
   assert.equal(reverseSource(changed), changed);
 }
@@ -57,15 +69,16 @@ function harness(source) {
   fs.mkdirSync(home, { recursive: true });
   const db = path.join(project, 'inert-memory.db'), values = new Map(), failures = [], calls = [];
   let readUnavailable = false, readTerminal = {}, transformRead = value => value, mutateStep = step => step, beforeStore;
-  const ctx = vm.createContext({ fs, os, path, crypto, Buffer, process, Date,
+  const ctx = vm.createContext({ fs, os, path, crypto, Buffer, process, Date, spawnSync,
     resolveTurnDb: () => ({ projectRoot: project, db, scope: 'project', contentPathExcludes: [], capturePath: project }),
     storeEncryptedAtRest: () => false, resolveRuflo: () => '/inert/ruflo',
     rufloInvocation: (binary, args) => ({ executable: binary, args }),
     rufloRunDir: () => fs.mkdtempSync(path.join(project, 'scratch-')), rufloScratchRoot: () => project,
-    nativeTurnLines: lines => lines, privateTurn: turn => turn,
+    nativeTurnLines: lines => lines, privateTurn: turn => turn, turnWorkerProcessStart: () => null,
     maskExcludedPaths: text => text, recordHookFailure: row => failures.push(row),
     failureScope: () => ({}), validFailureScope: () => ({}),
   });
+  vm.runInContext(HANDOFF_HELPER.replaceAll('import.meta.url', "'/inert/turn-outcome-capture.mjs'"), ctx, { timeout: 1000 });
   vm.runInContext(plain(section(fixture('continuity-events.mjs'), 'function canonicalize(', '/** Redact, then')), ctx, { timeout: 1000 });
   const privacy = fs.readFileSync(new URL('./fixtures/brain-native-4510/scripts/turn-capture-privacy.mjs', import.meta.url), 'utf8');
   vm.runInContext(plain(section(privacy, 'export function captureFailureReason(', '/** One notice')), ctx, { timeout: 1000 });
@@ -119,11 +132,11 @@ try {
     assert.equal(h.values.get(first.key), committed, 'immutable original is never overwritten');
     assert.equal(retry.receipt.alreadyRecorded, true); assert.equal(retry.receipt.committedAt, atFirst);
     assert.equal(retry.receipt.committedValueSha256, hash(committed));
-    assert.deepEqual(h.calls, ['store', 'retrieve', 'store', 'retrieve'], 'one append and one read per boundary; no replay');
+    assert.deepEqual(h.calls, ['store', 'retrieve', 'retrieve'], 'initial append/read then read-only reconciliation; no replay');
     const receiptText = fs.readFileSync(path.join(h.home, 'turn-capture', 'receipts.jsonl'), 'utf8');
     assert(!receiptText.includes(outcome), 'receipts expose value identity, not another durable payload');
     assert.equal(h.capture({ at: atRetry }).skipped, 'same turn outcome already queued or verified');
-    assert.equal(h.calls.length, 4, 'native dedup continues after exact existing-record proof');
+    assert.equal(h.calls.length, 3, 'native dedup continues after exact existing-record proof');
   }
 
   const fresh = harness(composed), first = fresh.capture();
@@ -132,7 +145,7 @@ try {
   const exact = harness(composed); exact.unavailable = true; exact.capture(); exact.unavailable = false;
   const equal = exact.capture(); assert.equal(equal.recorded, true); assert.equal(equal.alreadyRecorded, true);
   assert.equal(equal.receipt.committedAt, atFirst); assert.equal(equal.receipt.committedValueSha256, hash(equal.value));
-  assert.deepEqual(exact.calls, ['store', 'retrieve', 'store', 'retrieve']);
+  assert.deepEqual(exact.calls, ['store', 'retrieve', 'retrieve']);
 
   for (const mutate of [step => { delete step.turnRecord; return step; },
     step => ({ ...step, turnRecord: { ...step.turnRecord, project: 'spoofed' } }),
@@ -155,17 +168,50 @@ try {
       value => value + '\n', value => ' ' + value]) {
       const h = harness(source); h.unavailable = true; h.capture(); h.unavailable = false; h.transform = transform;
       const retry = h.capture({ at: atRetry }); assert.equal(retry.recorded, false); assert.equal(retry.alreadyRecorded, undefined);
-      assert.deepEqual(h.calls, ['store', 'retrieve', 'store', 'retrieve']);
+      assert.deepEqual(h.calls, ['store', 'retrieve', 'retrieve']);
     }
     for (const terminal of [{ status: 1 }, { status: null }, { error: Object.assign(new Error('failed read'), { code: 'EIO' }) }, { signal: 'SIGTERM' }]) {
       const h = harness(source); h.unavailable = true; h.capture(); h.unavailable = false; h.terminal = terminal;
       const retry = h.capture({ at: atRetry }); assert.equal(retry.recorded, false); assert.equal(retry.alreadyRecorded, undefined);
-      assert.deepEqual(h.calls, ['store', 'retrieve', 'store', 'retrieve']);
+      assert.deepEqual(h.calls, ['store', 'retrieve', 'retrieve']);
     }
   }
   const missing = harness(composed); missing.unavailable = true; missing.capture();
-  assert.equal(missing.capture({ at: atRetry }).receipt.error, 'duplicate turn key could not be read back');
-  assert.deepEqual(missing.calls, ['store', 'retrieve', 'store', 'retrieve']);
+  assert.equal(missing.capture({ at: atRetry }).receipt.error, 'exact turn readback failed: inert read unavailable');
+  assert.deepEqual(missing.calls, ['store', 'retrieve', 'retrieve']);
+
+  const intent = harness(composed);
+  intent.before = () => {
+    const row = JSON.parse(fs.readFileSync(path.join(intent.home, 'turn-capture/receipts.jsonl'), 'utf8').trim().split('\n').at(-1));
+    assert.equal(row.pending, true); assert.equal(row.verified, false);
+  };
+  intent.unavailable = true; intent.capture(); intent.unavailable = false;
+  // Native receipts are bounded. Retained same-turn state also prevents an
+  // uncertain write being reissued after its receipt rotates out of the tail.
+  fs.unlinkSync(path.join(intent.home, 'turn-capture/receipts.jsonl'));
+  const stateFile = path.join(intent.home, 'turn-capture/last-turn.json');
+  const state = JSON.parse(fs.readFileSync(stateFile));
+  for (const row of Object.values(state)) row.at = Date.now() - 200_000;
+  fs.writeFileSync(stateFile, JSON.stringify(state));
+  assert.equal(intent.capture({ at: atRetry }).recorded, true);
+  assert.deepEqual(intent.calls, ['store', 'retrieve', 'retrieve']);
+  const noIntent = harness(composed);
+  fs.writeFileSync(path.join(noIntent.home, 'turn-capture'), 'inert blocked receipt directory');
+  assert.equal(noIntent.capture().recorded, false);
+  assert.deepEqual(noIntent.calls, [], 'missing attempt receipt refuses before dispatch');
+  for (const change of ['consent', 'root', 'inode', 'privacy', 'encryption']) {
+    const h = harness(composed);
+    h.mutate = step => {
+      if (change === 'consent') h.ctx.resolveTurnDb = () => ({ skipped: 'persisted turn capture opt-out' });
+      if (change === 'root') step.projectRoot += '-changed';
+      if (change === 'inode') step.rootIdentity = 'changed';
+      if (change === 'privacy') h.ctx.maskExcludedPaths = () => 'new exclusion changed content';
+      if (change === 'encryption') { h.ctx.storeEncryptedAtRest = () => true; h.ctx.ENCRYPTED_STORE_REASON = 'encrypted store'; }
+      return step;
+    };
+    assert.equal(h.capture().recorded, false, change + ' revalidated after planning');
+    assert.deepEqual(h.calls, [], change + ' refuses before native dispatch');
+  }
 
   // A concurrent writer wins after planning but before append. Only an identical full record qualifies.
   for (const conflicting of [false, true]) {

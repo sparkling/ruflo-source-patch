@@ -430,3 +430,35 @@ These costs must not be described as zero, although individual historical shed
 events are not thereby attributed. Exact source composition/reversal and upstream
 history are retained in `recall-diagnostics/capture-history-astra-review.json`,
 `capture-history-upstream-evidence.json` and `capture-history-composition-proof.json`.
+
+
+### BA lifecycle timeout correction, 3 November
+
+The original BA SessionEnd record was committed at 15:50:04.280Z before readback
+failed at 15:50:07.236Z and the caller timed out at 15:50:09.029Z. Its complete
+value was already verified; this repair never replays that operation. Historical
+phase occupancy and the original caller's inherited budget remain unavailable.
+Current native Claude SessionEnd defaults leave 1.2 seconds for capture. A read-only
+comparison on that exact BA record took a median 1,688 ms for two fresh CLI reads
+versus 1,190 ms in one native module process. Bootstrap reduction alone is insufficient.
+
+The shared `brain-capture-idempotency` target now reuses one bounded stdin process
+for canonical native store/read calls and preserves read terminal errors/timings.
+A fresh first attempt with less than 2.6 seconds remaining may enter one of two
+independent turn-worker leases with a 30-second absolute deadline. Pending metadata
+precedes every store; it is never a success receipt. The worker repeats native
+consent, root, privacy and encryption checks. Retained receipt or same-turn state
+makes a subsequent boundary read-only. Both evidence stores remain bounded;
+concurrent first attempts retain native append-only collision semantics.
+
+The prior release reproduced a committed-but-unverified SessionEnd under 350 ms
+of deliberate native HTTP response pressure (1,205 ms parent duration). The new
+exact source passed actual Stop/PreCompact/SessionEnd hook entries on disposable
+native stores on both hosts; SessionEnd returned in 63/64 ms, with later exact turn
+readback. Two concurrent distinct turns succeeded. Killing the pair child or the
+parent after commit then reconciling produced precisely store/read/read, never a
+second store. All owned fixture children quiesced. This proves turn capture, not
+checkpoint/distillation success or unlimited-load delivery. Receipts:
+`ba-lifecycle/native-lifecycle-final-{mac,hz}.json` and
+`ba-lifecycle/native-lifecycle-control-pressure-mac.json` under the existing private
+upgrade directory. Final release activation is recorded separately below.

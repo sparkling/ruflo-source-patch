@@ -2,8 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-03. Native owner policy equivalence and bounded contention
-diagnostics extend the implemented composition. Capture admission serializes metadata ownership,
+**Updated**: 2026-11-03. Bounded fresh lifecycle handoff and native store/read
+process reuse extend the implemented composition. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
 ControllerRegistry initialization and vector-path selection after the compensating
@@ -58,6 +58,36 @@ if its token has been replaced. Old executable processes must drain naturally
 before activation is qualified: they do not participate in the new protocol.
 Distinct bursts can still be shed under the native capacity policy. No queue,
 historical replay, capacity increase or updater change is introduced.
+
+The lifecycle follow-up to Brain #513/#520 keeps the native turn constructor,
+consent/root/privacy checks and canonical memory-owner calls. A store and exact
+read share one bounded stdin child, retaining separate native authorization and
+one-call session retirement. Scanner-enabled or unconfigured-owner routes keep
+the legacy CLI; missing owner capability and invalid configured binding refuse.
+Terminal readback errors and phase timings survive into native receipts.
+
+When less than 2.6 seconds remain, only a fresh first attempt may use one of two
+independent turn-worker leases and a 30-second absolute deadline. The existing
+capture ownership implementation supplies the metadata gate; no turn payload is
+written to disk or process arguments. A pending receipt is not persistence proof.
+The child repeats native consent/root/privacy checks and writes an exact receipt.
+A later boundary with a retained receipt or same-turn state performs read-only
+reconciliation. Fresh synchronous attempts also publish pending metadata before
+dispatch; unavailable receipt publication refuses the write. Both native evidence
+stores remain bounded; simultaneous first-attempt races retain native append-only
+collision semantics, not a new exactly-once delivery guarantee. Capacity, malformed ownership, oversized input
+and unavailable readback remain explicit failures. This is bounded recovery, not
+a guarantee against arbitrary saturation or process/hardware failure. Exact
+4.46.118 migration and pristine reversal retain all sibling contributions.
+
+The accompanying #521 change retains two observation workers and admits up to
+eight waiting existing hook processes using payload-free ownership metadata.
+Waiting is at most seven seconds and is further clamped by native Codex/inherited
+budgets, process age and cleanup reserve. Saturation still refuses explicitly.
+The native learning CLI may read first for at most one second only when both
+original store/read budgets still fit. Complete duplicate bytes skip the write;
+other outcomes retain strict insertion and exact readback. Fresh observations
+can therefore cost an extra read. No persistent payload queue is introduced.
 
 Brain #520's separate `brain-capture-idempotency` contribution accepts a duplicate
 only after one successful exact read and complete byte comparison through the
