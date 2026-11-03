@@ -86,6 +86,29 @@ quality failure.
 
 ## Decision
 
+### Route concurrent callers through the native owner
+
+Ruflo 3.71's native persistent RuVector index permits one process owner. The
+issue-backed `ruflo-memory-owner` target routes explicitly configured CLI and stdio
+clients through the native authenticated HTTP server and SDK. It preserves the
+existing project controller registry, ordinary store paths, retained-graph roles,
+immutable write predicates and canonical public/CLI output. Native daemon trajectory
+embeddings use the same public boundary; workers and their configured lifetime remain
+unchanged. No database migration, new
+storage adapter, Brain hook replacement or alternate vector path is introduced.
+
+Owner identity is checked before dispatch. Bindings, private credentials and literal
+loopback endpoints are validated; missing authority and uncertain write outcomes
+refuse without fallback or replay. Routed initialization is an explicit administrative
+refusal. Public forwarding wraps existing export guards, avoiding a client-held lock
+while the native owner writes. Actual daemon trajectory and enabled harness tests
+prove no managed database/index opens in the worker. Both hosts passed disposable
+real CLI/stdio/HTTP tests including distinct graph roles and final public-boundary
+composition;
+production rollout is pending. Retire on equivalent upstream behavioral proof, not
+on a diagnostic change or issue closure alone. See Ruflo #4654 and the README's
+3 November qualification for evidence and deployment status.
+
 ### Preserve the configured MCP store
 
 The `memory/mcp-configured-store` entry binds the existing MCP memory API functions to
