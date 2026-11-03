@@ -2,7 +2,9 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Release 4.46.115 adds negotiated one-call lifecycle
+**Updated**: 2026-11-03. Release 4.46.116 proves the exact historical timeout
+composition during installation; unknown edits still refuse.
+2026-11-03. Release 4.46.115 adds negotiated one-call lifecycle
 retirement on native handler completion, plus bounded abandoned-handshake expiry.
 Persistent callers, in-flight operations and unknown-write outcomes remain intact.
 The reviewed HZ 20-second recall profile is retained in the shared patch target;

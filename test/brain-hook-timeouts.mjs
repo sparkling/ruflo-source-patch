@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { patchSource, reverseSource, isPatched } from '../lib/brain-hook-timeouts/patcher.mjs';
+import { patchSource, reverseSource, isPatched, historicalPatchSource } from '../lib/brain-hook-timeouts/patcher.mjs';
 import { patchSource as captureBudget, isPatched as captureBudgetApplied } from '../lib/brain-capture-budget/patcher.mjs';
 const cmd=(id,ms=9000)=>`node -e "spawn({env:process.env,timeout:Number(process.argv[1])})" ${ms} ${id}`;
 const row=(command,timeout=10)=>[{hooks:[{type:'command',command,timeout}]}];
@@ -33,6 +33,7 @@ for(const codex of [true,false]) {
   oldManifest.hooks.UserPromptSubmit[0].hooks[0].timeout=20;
   if(!codex)oldManifest.hooks.SessionEnd[0].hooks[0].timeout=10;
   const old=JSON.stringify(oldManifest,null,2)+'\n';
+  assert.equal(historicalPatchSource(source).next,old,'composition engine can prove exact historical bytes');
   assert.equal(patchSource(old).next,result.next,'exact prior timeout profile upgrades without losing other handlers');
   assert(patchSource(source.replace('"timeout": 10','"timeout": 99')).missing.length);
 }

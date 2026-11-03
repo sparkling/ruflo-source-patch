@@ -479,6 +479,10 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.116 completes exact historical timeout-composition migration on Mac;
+it retains the 4.46.115 session repair described below. Unknown source bytes still
+refuse installation.
+
 Release 4.46.115 closes abandoned short-lived owner sessions after native request
 completion, even when the caller timed out or was killed. Each one-call client
 negotiates an opaque disposal token; persistent clients keep their existing reuse.
