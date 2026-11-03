@@ -53,7 +53,7 @@ worker resumes, database resets or uncertain-write replays are authorized by thi
 ## Temporary mitigation and removal condition
 
 Owner requested longer finite timeouts while the underlying latency is repaired.
-Planned release 4.46.113: recall 10s, capture/checkpoint 30s, native policy-lock
+Installed release 4.46.113: recall 10s, capture/checkpoint 30s, native policy-lock
 acquisition 15s; matching outer hook budgets. SessionEnd host caps, native consent,
 authorization, cancellation and exact readback remain intact. No historical replay.
 
@@ -61,6 +61,34 @@ This reduces deadline failures; it does not fix admission shedding, missing
 executables, wrong stores, stale clients or actual content mismatches. Remove the
 temporary profile after actual lifecycle calls qualify under upstream defaults.
 Successful ordinary MCP writes alone are insufficient qualification.
+
+### Deployment verification
+
+Release 4.46.113 is committed and pushed (`68e168c`), installed on Mac and HZ.
+The full regression suite and both installation monitors pass. Native hook trust
+reports all 13 enabled Brain hooks trusted on each host; unrelated settings were
+unchanged. Existing long-running memory owners have not been restarted, so their
+in-memory queue/diagnostic code must not be described as upgraded. A controlled
+handoff awaits the owner's decision under the no-interruption instruction.
+
+Fresh native checks after installation:
+
+- Mac recall: `ok-with-results`, 709 ms.
+- HZ Product recall: `ok-with-results`, 2069 ms; diagnostic prompt, not a replay
+  of the original failed invocation.
+- HZ Strategy recall: `timed-out`, 9679 ms, one retained result. Larger budgets
+  alone have not resolved this loaded path.
+- HZ Strategy native checkpoint helper: `stored:true`, `verified:true`, 3459 ms,
+  new key `project-state-auto-1793722133112-e341f1e5`. This qualifies the helper's
+  fresh store/readback, not a complete registered lifecycle or historical replay.
+
+Fresh CLI processes emit the new policy diagnostics. An observed Strategy
+transaction waited 2043 ms, then spent 566 ms verifying anchors and 693 ms
+publishing state; its policy operation itself took 1 ms. This isolates a material
+policy-history cost and contention, without claiming it explains every recall
+phase. Snapshot: HZ release receipt `policy-phase-snapshot.json` (38 transactions).
+All release receipts live under `.local/ruflo-upgrade-20261103/release-v4.46.113`
+on Mac and `/data/programme-state/ruflo-upgrade-20261103/release-v4.46.113` on HZ.
 
 ## RVF dependency investigation
 
