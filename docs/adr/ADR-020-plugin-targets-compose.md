@@ -31,6 +31,12 @@ slots bound diagnostics; they are samples, not complete loss accounting. Native
 HTTP tests exercise single-use approval, concurrent request isolation, forged
 metadata/evidence, budget refusal and full audit before activation.
 
+Release 4.46.118 (commit `7c86823`) is activated on Mac/HZ after independent review
+and native HTTP qualification. One fresh native read per host proves the eligible
+route; existing stdio clients retain loaded code until normal host refresh.
+Capture measurements separate millisecond metadata gates from second-scale native
+readback and retain an observed two-slot refusal with unknown durability.
+
 Brain #519/#521 share `brain-capture-launch`: proven child launch failure releases
 only owned admission, and fresh same-key contention releases its redundant slot
 without acknowledging persistence. Native two-slot shedding, consent, child execution

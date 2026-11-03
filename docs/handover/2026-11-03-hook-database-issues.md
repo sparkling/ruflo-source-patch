@@ -365,6 +365,31 @@ add no queue or capacity, and cannot count overwritten or killed invocations.
 Policy snapshots add route and bounded queue wait. Activation and measured results
 are recorded after the combined release qualifies.
 
+Activation completed as commit `7c86823`, immutable `v4.46.118`, after independent
+authorization review, full suite and native HTTP tests on Mac/HZ. Exact active
+client/policy/capture hashes match across hosts; all 10 Mac/16 HZ owner PIDs changed
+and passed health. Native graceful shutdown was used; HZ waited for native exit
+before service start without systemd's forced-stop escalation. Both monitors
+report no drift. Fresh native memory-list calls each emitted one completed
+`owner-coalesced` operation (287/871 ms); loaded stdio clients still need their
+normal host refresh. Private release evidence: `release-v4.46.118/release-proof.json`.
+
+The isolated 100,000-anchor HTTP comparison used three warm samples per concurrency:
+one request 311→171 ms; eight 1,403→176 ms; sixteen 2,671→176 ms. Sixteen requests
+used 17 to 19 transactions before correction and 1 or 2 afterward, preserving one native receipt per corrected call and
+full audit. Same test event loop/dependencies and disposable storage doubles limit
+these results; they do not establish production throughput. Detailed receipts are
+`policy-scalability/http-contention-{117,candidate}.json`.
+
+Capture telemetry now runs on both hosts. HZ's owned runtime parent was tightened
+0775→0700 after the logger correctly refused the unsafe directory. A subsequent
+60-second window recorded 38 snapshots, 20 gates (wait max 3.330 ms, hold max
+4.049 ms), three native exact-duplicate paths taking 1.406 to 2.511 seconds, and one
+actual two-slot refusal. That shed key has no matching exact result in the window;
+its durability remains unknown. No replay or capture-capacity change was made.
+Upstream updates: [owner forwarding](https://github.com/ruvnet/ruflo/issues/4654#issuecomment-6613980564)
+and [residual anchor scaling](https://github.com/ruvnet/ruflo/issues/3164#issuecomment-6613997483).
+
 ### Capture capacity
 
 The separate Astra High review recommends retaining the native two-slot limit.

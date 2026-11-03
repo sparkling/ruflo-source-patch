@@ -509,6 +509,25 @@ slot operations and native exact/duplicate outcomes. They do not add a queue or
 change native two-slot capacity; overwritten samples and killed invocations
 cannot establish loss counts. Logging is observational and contains no payload.
 
+Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
+All 10/16 owners respectively passed health after native graceful refresh, and
+both monitors reported no drift. Fresh native reads each produced one completed
+`owner-coalesced` operation (287/871 ms, individual observations). Already-loaded
+stdio clients retain their previous sender until normal host refresh.
+
+At 100,000 synthetic anchors, three warm native HTTP samples gave median times
+of 311→171 ms for one call and 2,671→176 ms for 16 concurrent calls. The latter
+used 17 to 19 transactions before correction and 1 or 2 afterward and retained one native receipt per corrected call.
+Both sides share one test process/event loop; these are not production throughput
+guarantees. Full audit passed; native anchor complexity remains unchanged.
+
+Passive HZ capture measurements after refresh recorded 20 gates with waits up
+to 3.330 ms and holds up to 4.049 ms, while three native exact-duplicate paths
+spent 1.406 to 2.511 seconds in storage/readback. One two-slot refusal remains, with
+unknown durability. No historical capture was replayed. The HZ runtime parent
+was tightened from 0775 to 0700 to satisfy private logging; unsafe directories
+suppress emission. The remaining capacity issue is distinct from gate contention.
+
 Release 4.46.117 corrects our owner client's failure decoding. Native public-memory
 `{success:false,error:"…"}` results now reach their callers unchanged instead of
 becoming a pretty-printed exception whose first line hides the reason. This lets
