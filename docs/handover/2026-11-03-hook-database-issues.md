@@ -255,3 +255,71 @@ diagnostic keys, not replays or proof of every historical failure.
 Final receipts: HZ `metrics-after.json`, `lifecycle-116.json`,
 `store-health-116.json`, `activation-116.json`, `monitor-116.log` under the existing
 session-cap directory; Mac counterparts under `release-v4.46.116/`.
+
+## Focused Astra High investigations
+
+### Policy history
+
+The 3 November review confirms that the bounded receipt ledger and the anchor
+history are different structures. The native receipt improvements do not bound
+anchor authentication or publication. Current upstream still walks the complete
+anchor chain, and the deployed copy optimization still reads that history twice
+and writes it once per transaction. Do not restore a retired receipt-ledger patch
+as a claimed fix for anchor growth.
+
+Disposable Mac tests at 1,000, 10,000 and 100,000 synthetic anchors reproduced
+linear cost. At 100,000 anchors, one actual native transaction read 60,977,710
+anchor bytes and wrote 30,489,161 bytes. Interior tamper, valid-prefix rollback
+and mutation after assessment were rejected; native full audits passed. This is
+an isolated warm test, not a production latency or hook-deadline guarantee.
+
+An additional single comparison of 32 native decisions took about 4,974 ms in
+32 separate transactions versus 144 ms in one transaction; both retained all
+33 receipts including the initial receipt. This demonstrates the existing native
+batching capability, not an unimplemented universal speedup: the deployed owner
+already batches same-project authorizations, including non-memory tools, and
+sequential arrivals cannot be combined retrospectively. Any remaining opportunity must preserve caller
+identity, per-decision receipts, ordering and exact outcomes.
+
+A truly bounded history path needs an upstream authenticated history/checkpoint
+contract. Moving full verification out of each call changes when historical
+tampering is detected; no local cache or new trust format is approved by this
+finding. Keep temporary budgets while measuring actual lifecycle latency.
+No additional policy patch or timeout change was made by this investigation.
+Reproducible benchmark, source hashes and implementation proposal:
+`.local/ruflo-upgrade-20261103/policy-scalability/benchmark.mjs`, `result.json`
+and `proposal.json`. The proposal specifies segmented history, external checkpoint
+authority, migration/crash ordering and the explicit change to historical-tamper
+detection timing. This remains an upstream design proposal, not a deployed fix.
+Existing upstream tracking: [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164)
+and [accepted ADR-475](https://github.com/ruvnet/ruflo/blob/main/v3/docs/adr/ADR-475-policy-ledger-anchor.md).
+
+### Capture capacity
+
+The separate Astra High review recommends retaining the native two-slot limit.
+This is intentional best-effort admission across a shared Brain home, with no
+retained queue for excess observations. Keys identify coarse deterministic
+session/tool/action facts. A shed attempt does not establish a unique missing
+record, and an admitted or pending-coalesced return is not persistence proof.
+
+An actual installed-source synthetic burst admitted 2 of 32 distinct requests
+and shed 30. Completing the two inert children freed both slots and launched no
+additional work. Spawn and persistence were inert test seams, so this proves
+admission semantics rather than production throughput. Ownership and real-process
+race regressions passed. No new admission defect or capture patch was found.
+
+Brain [PR #443](https://github.com/stuinfla/ruvnet-brain/pull/443) removed the old
+queue/outbox/worker after excessive growth. The historical outbox patch is not
+a reusable live ingress. Keep [Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521)
+as the existing upstream issue. Reduce writer occupancy and measure distinct
+shed keys before considering more concurrency. Distinguish already durable,
+later acknowledged, confirmed absent and unknown through original target/value
+evidence; do not replay uncertain operations.
+
+If lossless delivery becomes required, the proposed solution is upstream bounded
+durable ingress owned by the native memory service, with explicit durable
+acceptance, exact verification, duplicate and capacity-refusal outcomes. It is
+not available in the inspected capture path and is not installed here. A finite
+queue cannot guarantee acceptance under unlimited arrivals. Evidence, source
+hash, consultation and recommendation:
+`.local/ruflo-upgrade-20261103/recall-diagnostics/capture-capacity-astra-review.json`.
