@@ -226,3 +226,25 @@ Receipts: `.local/mcp-session-cap-20261103/` and HZ
 `/data/programme-state/mcp-session-cap-20261103/`; including live metrics,
 transcript attribution, `builder-opda-strategy-attribution.json` and the OPDA
 configuration preservation, enrollment and native readback receipts.
+
+### Session cleanup activation complete
+
+Release 4.46.116 is committed, tagged, pushed and active on 10 Mac/16 HZ owners.
+The full 4.46.115 regression suite passed; the 4.46.116 migration correction passed
+its timeout, actual installed composition and cross-engine regression tests.
+Both installation monitors pass; both hook-trust reviews report no pending hooks.
+The Mac installer initially preserved four unrecognized old recall compositions;
+4.46.116 added exact historical provenance and completed installation with zero
+skips or incomplete surfaces. No unverified overwrite was used.
+
+Graceful service replacement cleared the old native session tables without
+restarting user terminals or app servers. Post-activation metrics show 1 to 2 HZ
+sessions per owner and zero failed requests at the observation. Native store
+reads passed for 19 Mac and 33 HZ bindings. Fresh actual Stop/checkpoint readback
+passed for Builder (2248/1365 ms), Strategy (2869/2056 ms) and OPDA inbox
+(1350/844 ms). Builder recall returned results in 1759 ms. These are fresh
+diagnostic keys, not replays or proof of every historical failure.
+
+Final receipts: HZ `metrics-after.json`, `lifecycle-116.json`,
+`store-health-116.json`, `activation-116.json`, `monitor-116.log` under the existing
+session-cap directory; Mac counterparts under `release-v4.46.116/`.
