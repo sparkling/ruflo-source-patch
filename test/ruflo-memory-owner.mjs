@@ -7,7 +7,7 @@ import { nativePolicyRuntimeSatisfied } from '../lib/policy-native-proof.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 import { canonicalEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
-import { ENTRIES, composeCliContribution } from '../lib/cwd/patch-library.mjs';
+import { ENTRIES, composeCliContribution, entryApplied } from '../lib/cwd/patch-library.mjs';
 import { patchSource, reverse, isPatched } from '../lib/ruflo-memory-owner/patcher.mjs';
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-owner-test-'));
 const before = { config: process.env.RUFLO_MEMORY_OWNER_CONFIG, pin: process.env.CLAUDE_FLOW_DB_PATH, home: process.env.HOME };
@@ -101,7 +101,9 @@ export async function withPolicyTransaction(root,operation){
 }`);
   const {state:policyState}=await import(pathToFileURL(path.join(temporary,'services/policy-runtime.js')));
   assert.equal(api.policyEvaluator({transport:'stdio'},'memory_list'),undefined);
-  assert.equal(api.policyEvaluator({transport:'http'},'memory_store'),undefined);
+  assert.equal(api.policyEvaluator({transport:'http'},'hooks_route'),undefined);
+  const evaluateWrite=api.policyEvaluator({transport:'http'},'memory_store');
+  assert.equal(typeof evaluateWrite,'function');
   const evaluate=api.policyEvaluator({transport:'http'},'memory_list');
   let commit;policyState.gate=new Promise(resolve=>{commit=resolve;});let delivered=false;
   const pending=Promise.all([evaluate({id:0},cwd),evaluate({id:1,deny:true},cwd)]).then(value=>{delivered=true;return value;});
@@ -110,6 +112,17 @@ export async function withPolicyTransaction(root,operation){
   assert.equal(policyState.committed.length,0);commit();
   assert.deepEqual(await pending,[{allowed:true,id:0},{allowed:false,id:1}]);
   assert.equal(policyState.committed.length,2,'denied calls retain individual receipt evaluation');
+  policyState.gate=null;policyState.transactions=[];policyState.committed=[];
+  let releaseActive;
+  policyState.gate=new Promise(resolve=>{releaseActive=resolve;});
+  const heldDecision=evaluate({id:'held'},cwd);
+  while(!policyState.transactions.length)await new Promise(resolve=>setImmediate(resolve));
+  const queued=Array.from({length:33},(_,id)=>(id%2?evaluateWrite:evaluate)({id},cwd));
+  await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(policyState.transactions.length,1,'queued batches must not contend with their own active policy lock');
+  releaseActive();await heldDecision;await Promise.all(queued);
+  assert.deepEqual(policyState.transactions.map(x=>x.requests.length),[1,32,1]);
+  assert.equal(policyState.committed.length,34,'mixed reads and writes each retain their native decision');
   policyState.gate=null;policyState.transactions=[];policyState.committed=[];
   const many=await Promise.all(Array.from({length:33},(_,id)=>evaluate({id},cwd)));
   assert.deepEqual(many.map(x=>x.id),Array.from({length:33},(_,i)=>i));
@@ -278,6 +291,9 @@ export class Client {
       assert.deepEqual(composed.missing, []);
       assert.equal(reverse(composed.next), core.next, 'restore preserves the existing core guards');
       assert.equal(isPatched(composed.next), true);
+      const lock=ENTRIES.find(entry=>entry.id==='memory/write-lock');
+      assert.equal(entryApplied(composed.next,lock),true,'monitor accepts exact owner/lock composition');
+      assert.equal(entryApplied(composed.next.replace('storeEntry = __rufloGuard(storeEntry)', 'storeEntry = storeEntry'),lock),false,'missing guard still fails');
       assert.ok(composed.next.lastIndexOf("storeEntry = forward(storeEntry") >
         composed.next.lastIndexOf('storeEntry = __rufloGuard(storeEntry)'), 'forward before local locking');
     }

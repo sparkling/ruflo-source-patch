@@ -2,7 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Release 4.46.109 preserves originating caller policy and
+**Updated**: 2026-11-03. Release 4.46.110 serializes native owner memory
+authorization per policy root, including writes, to prevent overlapping batches
+from contending with their own policy lock. Each native decision and receipt is
+retained. Monitor inspection verifies the exact composed write guard.
+2026-11-03. Release 4.46.109 preserves originating caller policy and
 batches concurrent read authorization with individual native receipts; negotiated
 protocol controls remove downstream overhead without changing hook deadlines.
 Historical incident reconstruction is not a release gate.

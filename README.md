@@ -479,6 +479,13 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.110 fixes downstream policy-lock self-contention: native owner
+memory authorization now drains one FIFO queue per policy root, in batches of
+at most 32 individual native decisions. Writes join reads instead of competing
+with their policy lock. No decision is returned before durable native commit;
+budgets, approvals, denials and caller authorization remain intact. The monitor
+also recognizes the exact owner/write-lock composition without relaxing any guard.
+
 Release 4.46.109 corrects downstream adapter overhead and originating-caller
 policy handling. Owner identity and completed-client release use authenticated
 native protocol extensions; 4.46.108 clients remain compatible. Concurrent owner
