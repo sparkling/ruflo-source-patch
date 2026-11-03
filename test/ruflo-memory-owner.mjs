@@ -296,6 +296,15 @@ export class Client {
       assert.equal(reverse(old),source,'exact published '+version+' restoration');
     }
     if(file==='services/policy-runtime.js') {
+      const old=source.replace('export async function authorizeMcpTool(toolName, input, context = {}, attributes = {}) {',
+        '// ruflo-source-patch (ruflo#4654): native owner forwarding: preserve native request construction and individual decisions.\nexport async function authorizeMcpTool(toolName, input, context = {}, attributes = {}, evaluate = evaluatePolicyRequest) {')
+        .replace('    return evaluatePolicyRequest({\n        identity: resolveMcpCallerIdentity(),','    return evaluate({\n        identity: resolveMcpCallerIdentity(),');
+      assert.equal(nativePolicyRuntimeSatisfied(old),true,'installed prior owner rendition remains a proven native ledger before upgrade');
+      assert.equal(patchSource(old).next,result.next,'prior policy rendition upgrades exactly');
+      const release112=result.next.replace('// ruflo-source-patch (ruflo#4654): native owner forwarding: owner-authorized temporary contention budget; mutual exclusion unchanged.\nconst LOCK_WAIT_MS = 15_000;', 'const LOCK_WAIT_MS = 5_000;');
+      assert.notEqual(release112,result.next);
+      assert.equal(nativePolicyRuntimeSatisfied(release112),true,'112 diagnostics retain native ledger proof');
+      assert.equal(patchSource(release112).next,result.next,'112 diagnostics upgrade without losing native proof');
       const targets=['ruflo-policy-serialization','ruflo-policy-ledger','ruflo-memory-owner'];
       assert.equal(nativePolicyRuntimeSatisfied(source),true);
       assert.equal(nativePolicyRuntimeSatisfied(result.next),true,'exact sibling keeps qualified native ledger retired');

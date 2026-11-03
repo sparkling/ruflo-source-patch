@@ -164,6 +164,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-recall-runtime': action => runPluginCommand('brain-recall-runtime', action),
   'brain-adr-envelope': action => runPluginCommand('brain-adr-envelope', action),
   'brain-capture-budget': action => runPluginCommand('brain-capture-budget', action),
+  'brain-hook-timeouts': action => runPluginCommand('brain-hook-timeouts', action),
   'brain-capture-diagnostics': action => runPluginCommand('brain-capture-diagnostics', action),
   'brain-capture-launch': action => runPluginCommand('brain-capture-launch', action),
   'brain-capture-idempotency': action => runPluginCommand('brain-capture-idempotency', action),
@@ -258,6 +259,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-recall-owner-reuse')}reuse native recall reader for search with confirmed retirement (#429)
   ${pad('brain-adr-envelope')}bounded complete JSON for ADR scope inspection (#515)
   ${pad('brain-capture-budget')}align Stop/PreCompact with existing native capture budget (#513)
+  ${pad('brain-hook-timeouts')}temporary bounded recall/capture timeout mitigation (#429/#513)
   ${pad('brain-capture-diagnostics')}retain hashed failure scope and redacted terminal stderr (#518)
   ${pad('brain-capture-launch')}release admission after failed child spawn; retain two-slot shedding (#519)
   ${pad('brain-capture-idempotency')} verify immutable turn retries using the original committed capture time (#520)

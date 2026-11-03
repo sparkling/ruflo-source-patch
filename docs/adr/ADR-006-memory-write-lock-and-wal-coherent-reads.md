@@ -2,7 +2,10 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Release 4.46.112 adds bounded private phase/lock-owner
+**Updated**: 2026-11-03. Owner requested temporary larger finite budgets while
+latency is diagnosed: recall 10s, capture 30s, policy-lock acquisition 15s;
+native checks and SessionEnd host caps remain authoritative (release 4.46.113).
+2026-11-03. Release 4.46.112 adds bounded private phase/lock-owner
 diagnostics to native policy transactions; authorization, deadlines and storage
 remain unchanged. All owner HTTP tool authorizations now share its per-root
 queue; previously non-memory hooks bypassed it and could contend with memory

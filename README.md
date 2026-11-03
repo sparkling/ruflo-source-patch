@@ -479,6 +479,17 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.113 adds the operator-requested temporary timeout mitigation:
+`brain-hook-timeouts` gives recall 10 seconds and capture/checkpoint work
+30 seconds, with matching 20/40-second outer hook registrations. Codex's native
+SessionEnd cap remains unchanged; its existing detached checkpoint receives the
+longer budget. Native policy-lock acquisition may wait 15 seconds instead of five.
+These are finite budgets, not disabled checks or proof of a latency fix. Exact
+readback, cancellation and native policy decisions remain required. The target
+must be removed when the underlying latency qualifies at upstream defaults.
+The prior installed policy composition is also recognized during upgrade;
+4.46.112's preflight incorrectly rejected that exact older rendition.
+
 Release 4.46.112 adds private native-policy transaction diagnostics after live
 AI-BA and BA lock contention recurred. It also corrects our incomplete queue:
 HTTP hook and other tool authorizations now share the same per-root queue as
@@ -1781,6 +1792,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
+| **`brain-hook-timeouts`** | Operator-requested temporary 10s recall / 30s capture budgets with matching outer limits; preserves native checks and SessionEnd host cap. Remove after latency repair qualifies upstream defaults. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
 | **`brain-capture-launch`** | Serialize capture metadata across admission, dead-owner reclamation, handoff, pruning and token-matched cleanup. Preserve two authorized observations, visible shedding, exact acknowledgement and uncertain writes. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
 | **`brain-capture-idempotency`** | Verify an existing turn at its committed timestamp through the unchanged native constructor and complete byte comparison; retain original content and expose its committed identity. | [#520 · open](https://github.com/stuinfla/ruvnet-brain/issues/520) |
