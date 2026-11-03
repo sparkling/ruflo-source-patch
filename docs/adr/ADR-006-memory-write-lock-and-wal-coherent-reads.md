@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Requalified published Ruflo 3.71.0 without downstream
+**Updated**: 2026-11-03. Matched pristine/current-patch and same/different-directory
+controls distinguish the 3.71 native failure from our withdrawn vector-path policy.
+That older policy remained loaded in five processes despite clean installed source;
+native owner refreshes now retire those handles, with exact record/inventory checks
+and all former index files preserved. The old 3.66 shared-directory success uses
+native RVF fallback and is not shared RuVector ownership proof. Upgrade remains held.
+2026-11-03. Requalified published Ruflo 3.71.0 without downstream
 patches: a persistent native RuVector owner still prevents a second process from
 opening the same store. The first owner and a later fresh process read the exact
 record successfully; the concurrent contender fails. This is the separate native

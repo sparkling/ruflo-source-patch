@@ -407,6 +407,45 @@ mirrored under `/data/programme-state/ruflo-upgrade-20261103/release-v4.46.106/`
 Source compatibility and patch health are separate from the blocked Ruflo upgrade
 below.
 
+### Causal review and withdrawal activation: 3 November
+
+A matched eight-run control separates our earlier defect from the pending upgrade.
+CLI 3.66 / memory 3.1.0 / AgentDB 3.0.0-alpha.20 and CLI 3.71 / memory 3.2.2 /
+AgentDB 3.3.0 were each tested with pristine npm package source and current CLI
+patch contributions, using both shared and separate caller working directories.
+Both 3.66 compositions retrieved the exact record; its shared-directory contender
+used native RVF fallback, so this is not shared RuVector-index ownership proof.
+Both 3.71 compositions refused the concurrent contender; each first owner and
+post-exit reader retrieved the same value. Current CLI patches did not flip that
+result. The former backend-only control used separate working directories and
+therefore proved separate native indexes, not concurrent ownership of one index.
+
+Our withdrawn vector-path policy nevertheless remained loaded in five processes.
+Installed source was clean, but their open descriptors retained its exact
+`.db.ruvector.db` companions. This was an incomplete activation of our withdrawal.
+The Mac and HZ user-memory services, Mac OPDA Browser transport and HZ Product
+knowledge owner were refreshed through their native owners. User-memory HTTP
+clients required native host reconnection after `Server not initialized`; only
+transport-generation metadata changed. OPDA Browser's project configuration was
+restored byte-for-byte. Product's parent drained before its native children exited.
+
+Exact user/project records remained unchanged. Product's exact evidence and all
+ten native namespace inventory checksums match their pre-refresh values. All six
+former index files remain present and nonempty; zero withdrawn-path descriptors
+remain among 53 inspectable Ruflo MCP processes. One independently owned HZ
+container process denies descriptor inspection and is outside this verification.
+No managed data file, index or sidecar was deleted or rewritten by the repair.
+The initial Product health probe used its former unauthenticated route and received
+401; authenticated health passed without another restart. Expired source references
+were re-established through the facade's normal search/read contract.
+
+Private evidence: `.local/ruflo-upgrade-20261103/attribution/matrix.json`,
+`causal-vector-refresh-final.json` and `reconnect/product-proof.json` under the same
+upgrade directory. The matched result and its qualifications are also recorded in
+[Ruflo #4654](https://github.com/ruvnet/ruflo/issues/4654#issuecomment-6583536255).
+This closes the confirmed stale-policy activation defect; it does not qualify the
+still-failing 3.71 upgrade or prove arbitrary cross-backend index consistency.
+
 ## Ruflo 3.71 qualification: 2 November 2026
 
 Rechecked on **3 November** for the requested Mac-then-HZ upgrade: the public
