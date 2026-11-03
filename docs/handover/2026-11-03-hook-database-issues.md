@@ -112,8 +112,9 @@ Astra High inspected 46 Mac and 71 HZ dependency-resolution rows. Latest tested
 SDK/native versions are 0.4.1/0.3.1. These are different package version sequences;
 native 0.2.3 and SDK 0.2.3 must not be conflated. Upstream confirms the incompatible
 format transition in [RuVector #1276](https://github.com/ruvnet/RuVector/issues/1276#issuecomment-6478722717).
-The no-interruption instruction prevents replacing the currently loaded old readers
-during this repair. Installing new writers alongside them would be unsafe.
+Production reader replacement has not been performed. The memory-service refresh
+above does not itself replace every loaded RVF consumer. Installing new writers
+alongside old readers would be unsafe.
 
 Receipts: `.local/rvf-upgrade-20261103/audit-summary.json`,
 `mac-compat-smoke.json`, `hz-compat-smoke.json`; HZ copies under
@@ -179,3 +180,20 @@ The admission-directory race is repaired, but native two-slot backpressure remai
 an open capacity problem. These events are not proof of a failed policy repair
 or database corruption. Historical shared summaries also do not establish a
 current failure in the project that happens to display them.
+
+Final bounded verification: 19/19 Mac and 31/31 HZ configured stores passed native
+list reads. The retained post-activation policy snapshot contains 118 transactions
+and no failed phase. The shared HZ failure log has four new shedding rows and no
+other failure type in the inspected window starting 16:49:50 UTC.
+
+All four shed keys subsequently gained native acknowledgement markers between
+16:50:32 and 16:51:49 UTC. Native `markCaptured` follows successful exact store and
+readback. This supports later native recovery, but retained markers omit original
+store/content, so independent current exact-value proof was not attempted. No
+occupied slots were observed in the subsequent 15-second passive sample.
+Receipt: `.local/ruflo-upgrade-20261103/recall-diagnostics/capture-capacity-four-acks-20261103.json`.
+Native two-slot drop-and-count semantics remain; there is no supported concurrency
+setting. This is a known best-effort capacity limit, not evidence of stuck slots.
+
+Upstream policy finding updated at
+<https://github.com/ruvnet/ruflo/issues/3164#issuecomment-6610173872>.
