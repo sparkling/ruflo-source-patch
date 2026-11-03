@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import dc from 'node:diagnostics_channel';
+import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/brain-recall-native-4.7.28.json', import.meta.url), 'utf8'));
@@ -100,9 +101,14 @@ let owned = [];
 const observe = ({ process: child }) => child.once('spawn', () => owned.push(child.pid));
 dc.subscribe('child_process', observe);
 const nativeKill = process.kill;
-const modes = ['ok', 'timeout', 'native-false', 'throws', 'malformed', 'oversized', 'capability-absent', 'abort-during-search', 'already-aborted', 'unconfirmed', 'learning-consented'];
+fs.mkdirSync(process.env.RUFLO_SOURCE_PATCH_HOME, { recursive: true, mode: 0o700 });
+const diagnosticRoot = path.join(process.env.RUFLO_SOURCE_PATCH_HOME, '.ruflo-source-patch/hook-failures/recall');
+const scopeHash = value => hash(value).slice(0, 16);
+const modes = ['ok', 'timeout', 'native-false', 'throws', 'malformed', 'oversized', 'capability-absent', 'abort-during-search', 'already-aborted', 'unconfirmed', 'learning-consented', 'diagnostic-refused'];
 try {
   for (const mode of modes) {
+    fs.rmSync(diagnosticRoot, { recursive: true, force: true });
+    if (mode === 'diagnostic-refused') { fs.mkdirSync(diagnosticRoot, { recursive: true }); fs.chmodSync(diagnosticRoot, 0o755); }
     const late = path.join(base, mode + '.late');
     const search = mode === 'capability-absent' ? 'undefined' : `async ({query,namespace,limit,dbPath,...rest})=>{
       check(dbPath);
@@ -127,12 +133,13 @@ try {
     try {
       result = await recall({ prompt: 'I want HTML versions of the research results, hosted on local tailscale', projectDir: root,
         ruflo: bin, deadlineMs: 600, signal: abort.signal, scratch: () => base,
+        diagnosticSessionId: 'fixture-session-secret',
         env: { ...process.env, TEST_LEARNING_ENABLED: mode === 'learning-consented' ? '1' : '0' } });
     } finally { clearTimeout(abortTimer); process.kill = nativeKill; }
     if (mode === 'already-aborted') {
       assert.equal(owned.length, 0);
       assert.equal(result.outcome, 'unavailable');
-    } else if (['ok', 'capability-absent', 'learning-consented'].includes(mode)) {
+    } else if (['ok', 'capability-absent', 'learning-consented', 'diagnostic-refused'].includes(mode)) {
       assert.equal(result.outcome, 'ok-with-results', JSON.stringify(result));
       assert(result.picks.some(row => row.key === 'research-html-result'));
     } else {
@@ -142,10 +149,89 @@ try {
       assert(result.block.includes(mode === 'timeout' ? 'Search timed out' : 'Search unavailable'));
       if (mode === 'unconfirmed') assert.equal(result.receipt.outcome, 'unavailable');
     }
+    if (!['already-aborted', 'capability-absent', 'diagnostic-refused'].includes(mode)) {
+      assert(fs.existsSync(diagnosticRoot), mode + ': diagnostic directory absent; ' + JSON.stringify(result));
+      const files = fs.readdirSync(diagnosticRoot);
+      assert.equal(files.length, 1, mode);
+      const file = path.join(diagnosticRoot, files[0]);
+      const bytes = fs.readFileSync(file, 'utf8'), diagnostic = JSON.parse(bytes);
+      assert(Buffer.byteLength(bytes) <= 16384);
+      assert.equal(fs.statSync(diagnosticRoot).mode & 0o777, 0o700);
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+      assert.equal(diagnostic.project, scopeHash(root));
+      assert.equal(diagnostic.store, scopeHash(store));
+      assert.equal(diagnostic.session, scopeHash('fixture-session-secret'));
+      for (const privateText of [root, store, checkpoint, 'fixture-session-secret', checkpointValue,
+        'html versions research results hosted local tailscale', 'Research HTML delivery evidence']) assert(!bytes.includes(privateText));
+      assert.equal(diagnostic.retirementResult, mode === 'unconfirmed' ? 'unconfirmed' : 'confirmed');
+      assert(diagnostic.events.some(row => row.phase === 'child-spawn' && row.pid > 0 && row.pgid === row.pid));
+      assert(diagnostic.events.some(row => row.phase === 'termination-attempt' && row.signal === 'SIGKILL' && row.target < 0));
+      assert(diagnostic.events.some(row => row.phase === 'operation-start' && row.op === 'search') || mode === 'abort-during-search');
+      assert(diagnostic['child-close']);
+      assert.equal(diagnostic.lastRetirementCheck.groupAlive, mode === 'unconfirmed');
+      if (mode === 'unconfirmed') {
+        assert(diagnostic.lastRetirementCheck.remainingMs <= 0);
+        assert(diagnostic.lastRetirementCheck.childClosed);
+        assert(diagnostic.retirementChecks > 1);
+      }
+      if (['ok', 'learning-consented'].includes(mode)) assert.equal(files[0], 'success.json');
+      if (mode === 'timeout') assert(diagnostic.events.some(row => row.phase === 'operation-finish' && row.state === 'timed out'));
+    }
+    if (mode === 'diagnostic-refused') assert.deepEqual(fs.readdirSync(diagnosticRoot), []);
     if (mode === 'capability-absent') await new Promise(resolve => setTimeout(resolve, 30));
     for (const pid of owned) assert.throws(() => nativeKill(-pid, 0), error => error.code === 'ESRCH', `owned child remains: ${mode}`);
     assert(!fs.existsSync(late), 'late query survived retirement');
   }
+  // Fixed retention and late-close observations are bounded independently of a
+  // long retirement polling loop. Logging cannot follow a substituted directory.
+  fs.rmSync(diagnosticRoot, { recursive: true, force: true });
+  const { diagnosticsSource } = await import('../lib/brain-recall-owner-reuse/diagnostics.mjs');
+  let slot = 0;
+  const logger = vm.runInNewContext('(' + diagnosticsSource + ')', {
+    fs, path, os, process, Buffer, crypto: { ...crypto, randomInt: () => slot++ % 64 },
+  });
+  let last;
+  for (let i = 0; i < 70; i++) {
+    const d = logger({ env: process.env, storePath: store, diagnostics: { project: root, session: 'fixture-session-secret', deadline: 1 } });
+    for (let j = 0; j < 120; j++) d.note('operation-start', { id: j, op: 'get' });
+    for (let j = 0; j < 400; j++) d.note('retirement-check', { childClosed: false, groupAlive: true, remainingMs: -j });
+    d.retired('unconfirmed');
+    last = d;
+  }
+  assert.equal(fs.readdirSync(diagnosticRoot).length, 64);
+  last.closed(null, 'SIGKILL');
+  const finalDiagnostic = JSON.parse(fs.readFileSync(path.join(diagnosticRoot, 'failure-05.json')));
+  assert.equal(finalDiagnostic.retirementResult, 'unconfirmed', 'late close cannot rewrite the original warning');
+  assert.equal(finalDiagnostic['child-close'].signal, 'SIGKILL');
+  assert.equal(finalDiagnostic.retirementChecks, 400);
+  assert.equal(finalDiagnostic.events.length, 96);
+  assert(finalDiagnostic.droppedEvents > 0);
+  for (const file of fs.readdirSync(diagnosticRoot)) assert(fs.statSync(path.join(diagnosticRoot, file)).size <= 16384);
+  fs.rmSync(diagnosticRoot, { recursive: true });
+  const outside = path.join(base, 'outside-diagnostics'); fs.mkdirSync(outside);
+  fs.symlinkSync(outside, diagnosticRoot);
+  assert.doesNotThrow(() => logger({ env: process.env, storePath: store, diagnostics: {} }).retired('unconfirmed'));
+  assert.deepEqual(fs.readdirSync(outside), []);
+  fs.unlinkSync(diagnosticRoot);
+  // Exercise the real stdin main path: explicit host session identity overrides
+  // an unrelated inherited environment and never enters the native binding.
+  const binHelper = fs.readFileSync(path.join(scripts, 'ruflo-bin.mjs'), 'utf8');
+  write('ruflo-bin.mjs', binHelper.replace('resolveRuflo=()=>null', 'resolveRuflo=()=>'+JSON.stringify(bin)));
+  write('entrypoint.mjs', 'export const isDirectInvocation=()=>true;');
+  const inputHelper = fs.readFileSync(path.join(scripts, 'hook-input.mjs'), 'utf8');
+  write('hook-input.mjs', "import fs from 'node:fs'; export const isHarnessGenerated=()=>false; export const readStdinBounded=async()=>fs.readFileSync(0);");
+  for (const field of ['session_id', 'sessionId']) {
+    execFileSync(process.execPath, [path.join(scripts, 'agentdb-recall.mjs')], {
+      input: JSON.stringify({ prompt: 'I want HTML versions of the research results, hosted on local tailscale', cwd: root, [field]: 'stdin-session-'+field }),
+      env: { ...process.env, CLAUDE_SESSION_ID: 'unrelated-inherited-session' }, timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const diagnostic = JSON.parse(fs.readFileSync(path.join(diagnosticRoot, 'success.json')));
+    assert.equal(diagnostic.session, scopeHash('stdin-session-'+field));
+    assert.equal(diagnostic.project, scopeHash(root));
+  }
+  write('entrypoint.mjs', 'export const isDirectInvocation=()=>false;');
+  write('ruflo-bin.mjs', binHelper);
+  write('hook-input.mjs', inputHelper);
   // The same-owner route must never search one store while labeling another.
   const route = SPECS[2].edits.find(([id]) => id === 'same-store-native-search')[2].slice('...await ('.length, -1);
   for (const sameStore of [true, false]) {
@@ -195,6 +281,20 @@ try {
     assert.equal(compose.statusComposed([NAME])[NAME].patched, 0);
     put(file, source);
   }
+  // An installed pre-diagnostics owner is an exact historical composition,
+  // so upgrading never re-baselines or loses the pristine bytes.
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    put(file + '.rsp-backup', source);
+    put(file, patcher.historicalPatchSource(source).next);
+  }
+  const previousUpgrade = compose.applyComposed([withdrawn.NAME, NAME]);
+  assert.equal(previousUpgrade.incomplete, 0, previousUpgrade.log.join('\n'));
+  for (const file of files) {
+    assert(isPatched(fs.readFileSync(file, 'utf8')));
+    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), fixture.sources[path.basename(file)].source);
+  }
+  assert.equal(compose.reconcile([], [NAME]).incomplete, 0);
   // Upgrade from the exact withdrawn composition is qualified before preflight
   // and still reconstructed by the shared pristine owner, never re-baselined.
   for (const file of files) {
