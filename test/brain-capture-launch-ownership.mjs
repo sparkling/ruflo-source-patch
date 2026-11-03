@@ -8,6 +8,7 @@ import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import * as patch from '../lib/brain-capture-launch/patcher.mjs';
 import * as legacy from '../lib/brain-capture-launch/legacy.mjs';
+import { undoTiming } from '../lib/brain-capture-launch/diagnostics.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 const native = fs.readFileSync(new URL('./fixtures/brain-learning-receipts/native-4.7.28.mjs', import.meta.url), 'utf8');
@@ -28,7 +29,7 @@ assert.equal(diagnose(current.next).next, patch.patchSource(diagnose(native).nex
 for (const [, from, to] of patch.OWNERSHIP_EDITS) {
   const unknown = v521.replace(from, '// external mutation');
   assert(patch.patchSource(unknown).missing.length);
-  const changed = current.next.replace(to, '// external mutation');
+  const changed = undoTiming(current.next).replace(to, '// external mutation');
   assert(!patch.isPatched(changed)); assert(patch.patchSource(changed).missing.length);
   assert.equal(patch.reverseSource(changed), changed);
 }

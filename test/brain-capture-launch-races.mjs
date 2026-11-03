@@ -87,7 +87,9 @@ if (process.argv[2] === '--worker') {
     readFileSync(file, ...args) { const value = fs.readFileSync(file, ...args); pause(file, 'readFileSync'); return value; },
     linkSync(from, to) { fs.linkSync(from, to); pause(to, 'linkSync'); },
   };
-  const ctx = vm.createContext({ fs: facade, os, path, Date, process, createHash: crypto.createHash, randomUUID: crypto.randomUUID,
+  const ctx = vm.createContext({ fs: facade, os, path, Date,
+    process: { ...process, env: { ...process.env, RUFLO_SOURCE_PATCH_HOME: cfg.home } },
+    captureTimingHash: crypto.createHash, createHash: crypto.createHash, randomUUID: crypto.randomUUID,
     learningContext: () => ({ enabled: true, scope: 'project' }), resolveRuflo: () => '/inert/ruflo',
     recordLearningObservation: () => { throw Error('database operation forbidden in review'); },
     distillObservations: () => { throw Error('database operation forbidden in review'); },
