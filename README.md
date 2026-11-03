@@ -307,6 +307,19 @@ identity, while a new current-version regression freezes inode/timestamp observa
 and proves that token ownership still preserves a replacement. Historical patch
 bytes remain unchanged. These tests qualify the repair, not production throughput.
 
+Release 4.46.105 is activated on Mac and HZ. All 284 packaged files per host
+match the immutable tag; all four discovered capture surfaces per host match the
+independently reviewed source. No old hook/capture processes remained at the
+post-install drain check. Fresh native captures returned in 5 ms locally and
+4 ms on HZ, acknowledged in 1,216 ms and 2,008 ms respectively; exact MCP reads
+then verified both complete values from their configured learning stores.
+Both monitor checks passed and native hook trust had no pending approvals.
+Credentials, active Brain selection and unrelated configuration were unchanged.
+The local Codex model catalog cache changed during the observation window; its
+writer was not attributed. No historical observation was replayed or existing
+coordinator/MCP transport stopped. Private proof is in
+`release-v4.46.105/activation.json` under the 3 November recovery directory.
+
 ## Recall owner reuse: 2 November 2026
 
 `brain-recall-owner-reuse` extends the existing Brain reader for
