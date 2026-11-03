@@ -158,11 +158,12 @@ export class Client {
   getServerCapabilities() { return state.capabilities; }
   async notification({method}) { state.calls.push(method); if(state.mode==='cleanup-fails')throw Error('cleanup unavailable'); if(state.mode==='hang')return state.fetch('http://127.0.0.1:19872/mcp',{}); }
   async connect() { if (state.block) await new Promise(resolve => { state.resume = resolve; }); }
-  async listTools() { return { tools: ['memory_owner_identity','memory_owner_release','memory_store'].map(name => ({name,inputSchema:{properties:{}}})) }; }
+  async listTools() { return { tools: ['memory_owner_identity','memory_owner_release','memory_store'].map(name => ({name,inputSchema:{properties:{nativeResult:{},requireNative:{},appendOnly:{},appendConditions:{},generateEmbeddingFlag:{}}}})) }; }
   async callTool({name}) {
     state.calls.push(name);
     if (name === 'memory_owner_identity') return {structuredContent:state.identity};
     if (name === 'memory_store' && state.mode === 'unknown') throw new Error('response lost');
+    if (name === 'memory_store' && state.response) return state.response;
     if (name === 'memory_owner_release' && state.mode === 'cleanup-fails') throw new Error('cleanup unavailable');
     return {structuredContent:{success:true}};
   }
@@ -214,6 +215,50 @@ export class Client {
   assert.deepEqual(state.calls, ['memory_store', 'notifications/ruflo/memory-owner-release'],
     'protocol controls add no policy-authorized tool calls');
   await modern.close();
+  // Native MCP marks canonical operation failures isError and pretty-prints them.
+  // Public-memory callers need the original result, including append-only refusal,
+  // so Brain can perform its existing exact readback instead of losing the cause.
+  const failure = {success:false,id:'',error:'Key already exists: qualification-only'};
+  for (const response of [
+    {isError:true,content:[{type:'text',text:JSON.stringify(failure,null,2)}]},
+    {isError:true,structuredContent:failure},
+  ]) {
+    state.response=response; state.calls=[];
+    const failed=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+    assert.deepEqual(await failed.call('memory_store',{}, {},true),failure,'canonical false remains false with its original reason');
+    assert.equal(state.calls.filter(name=>name==='memory_store').length,1,'no error replay');
+    assert(state.calls.includes('notifications/ruflo/memory-owner-release'),'completed refusal retires normally');
+    await failed.close();
+    const presented=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+    await assert.rejects(presented.call('memory_store'),{message:'Native memory owner refused: Key already exists: qualification-only'});
+    await presented.close();
+  }
+  for (const result of [
+    {success:false,error:{code:'DENIED',message:'policy denied'},value:'PRIVATE_PAYLOAD already exists'},
+    {success:true,value:'PRIVATE_PAYLOAD already exists'},
+    {success:false,error:null,value:'PRIVATE_PAYLOAD already exists'},
+    {success:false,error:'   ',value:'PRIVATE_PAYLOAD already exists'},
+  ]) {
+    state.response={isError:true,content:[{type:'text',text:JSON.stringify(result,null,2)}]};
+    const refused=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+    await assert.rejects(refused.call('memory_store',{}, {},true),error=>{
+      assert(!error.message.includes('PRIVATE_PAYLOAD')&&!error.message.includes('already exists'));
+      assert(!error.message.includes('\n')); return true;
+    });
+    await refused.close();
+  }
+  for (const isError of [true,false]) {
+    state.response={isError,content:[{type:'text',text:'{"value":"PRIVATE_PAYLOAD already exists", BROKEN'}]};
+    const malformed=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+    await assert.rejects(malformed.call('memory_store',{}, {},true),error=>
+      !error.message.includes('PRIVATE_PAYLOAD')&&!error.message.includes('already exists'));
+    await malformed.close();
+  }
+  state.response={isError:true,structuredContent:{error:{message:'policy denied\n'+ 'x'.repeat(2000)}}};
+  const detailed=await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+  await assert.rejects(detailed.call('memory_store'),error=>error.message.startsWith('Native memory owner refused: policy denied ')
+    && !error.message.includes('\n') && error.message.length<=1053);
+  await detailed.close(); delete state.response;
   for (const advertised of [{...protocol,cwd:temporary},{...protocol,pin:temporary},{...protocol,releaseNotification:'wrong'},null]) {
     state.capabilities = {experimental:{'ruflo/native-memory-owner':advertised}};state.calls=[];
     const bad = await isolatedFactory(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
@@ -314,6 +359,12 @@ export class Client {
       assert.equal(reverse(result.next),source);
     }
     if(file==='mcp-client.js') {
+      const previous=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.116.json',import.meta.url),'utf8')).runtime;
+      const liveRuntime=result.next.slice(0,result.next.indexOf('/**\n * V3 CLI MCP Client'));
+      const prior=result.next.replace(liveRuntime,previous);
+      assert.notEqual(prior,result.next,'reproduces previous multiline refusal decoder');
+      assert.equal(reverse(prior),source,'prior released source restores exactly');
+      assert.equal(patchSource(prior).next,result.next,'released decoder upgrades without overwriting unknown bytes');
       const start=result.next.indexOf('export async function callMCPTool(');
       const fn=result.next.slice(start,result.next.indexOf('\n}\n',start)+2).replace('export async function','return async function');
       const events=[];let allow=true;const context={approvalIds:['approval'],evidence:[{proof:'native'}],serverId:'caller-server',environment:'test'};

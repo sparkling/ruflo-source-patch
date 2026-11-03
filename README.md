@@ -479,6 +479,15 @@ unqualified.
 
 ### Native owner routing qualification: 3 November
 
+Release 4.46.117 corrects our owner client's failure decoding. Native public-memory
+`{success:false,error:"…"}` results now reach their callers unchanged instead of
+becoming a pretty-printed exception whose first line hides the reason. This lets
+Brain's existing append-only duplicate/readback handling run. Other MCP refusals
+retain only their diagnostic error field, on one bounded line; malformed payloads
+cannot leak echoed values through JSON parser errors. No failure becomes success,
+no write is replayed, and no timeout or database binding changes. Fresh hook CLI
+processes load the correction; persistent clients need their normal host refresh.
+
 Release 4.46.116 completes exact historical timeout-composition migration on Mac;
 it retains the 4.46.115 session repair described below. Unknown source bytes still
 refuse installation.

@@ -258,6 +258,27 @@ session-cap directory; Mac counterparts under `release-v4.46.116/`.
 
 ## Focused Astra High investigations
 
+### Strategy turn readback and owner diagnostics
+
+At 18:22 UTC, the original turn ending `b624fbb195e7f28a8dd5f7312f0b7eb87fbc2798`
+was retrieved through the native owner from the producer's explicit `memory.db`.
+Its complete content matched the original reconstruction (SHA256
+`227d9c486088da50d8ee1baed4480c31d9b8fc2b5b51d59f50d3ebe1a086774e`). The
+default MCP binding and explicit AgentDB sibling both returned `found:false`.
+This resolves that record's apparent absence, not every historical capture failure.
+Private evidence is in HZ's existing `ai-ba-analysis/turn-refusal-exact-read-1812.json`
+and the project's `foundation-review-capture-recovery-20261103.json` handoff.
+There was no replay, database change, console message or session interruption.
+
+The refusal-detail loss is downstream: our owner decoder threw pretty JSON for
+native canonical failures. Brain's line-based diagnostic retained the opening
+line and could not recognize an append-only duplicate. Release 4.46.117 preserves
+the native failure object and extracts bounded diagnostic fields for noncanonical
+refusals. Exact duplicate verification stays in the existing native hook. Regression
+coverage includes malformed JSON, echoed private values, conflicting success flags,
+one-dispatch behavior and exact upgrade/reversal of the prior installed runtime.
+Historical generic refusals remain unattributed unless their own records prove more.
+
 ### Policy history
 
 The 3 November review confirms that the bounded receipt ledger and the anchor
@@ -294,6 +315,20 @@ detection timing. This remains an upstream design proposal, not a deployed fix.
 Existing upstream tracking: [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164)
 and [accepted ADR-475](https://github.com/ruvnet/ruflo/blob/main/v3/docs/adr/ADR-475-policy-ledger-anchor.md).
 
+Follow-up attribution used the published pristine 3.71.0 CLI against the same
+installed dependency tree. At 100,000 anchors its median transaction was 388 ms
+versus 157 ms patched; both performed the same whole-history I/O. The `already-fixed`
+label on #3164 concerns receipt retention and does not prove anchor growth fixed.
+Our routing nevertheless adds policy work: ordinary public CLI operations gain
+one owner evaluation, while forwarded MCP calls typically evaluate at caller and
+owner. A disposable enforce-mode reproduction consumed a single-use approval at
+the caller, then failed at the owner because approval context was not forwarded.
+This is a downstream compatibility defect, not proof of the historical timeouts.
+Do not remove the caller check: authenticated identity/envelope/evidence must
+reach the authority before accounting can safely happen once. The proposal and
+qualified reproduction are `policy-scalability/attribution-summary.json` and
+`route-attribution-result.json`; no authorization change has been deployed.
+
 ### Capture capacity
 
 The separate Astra High review recommends retaining the native two-slot limit.
@@ -323,3 +358,14 @@ not available in the inspected capture path and is not installed here. A finite
 queue cannot guarantee acceptance under unlimited arrivals. Evidence, source
 hash, consultation and recommendation:
 `.local/ruflo-upgrade-20261103/recall-diagnostics/capture-capacity-astra-review.json`.
+
+The upstream history distinguishes queue removal in 4.7.0 / PR #443 from the
+later two-slot shedding in 4.7.17 / [PR #485](https://github.com/stuinfla/ruvnet-brain/pull/485).
+The latter addressed hundreds of unbounded children; native tests deliberately
+expect two admissions and two refusals. Our ownership patch adds up to 100 ms
+admission waiting, stricter uncertain-owner refusal and serialized pruning. Its
+earlier admission-directory ENOENT race was downstream and fixed in 4.46.114.
+These costs must not be described as zero, although individual historical shed
+events are not thereby attributed. Exact source composition/reversal and upstream
+history are retained in `recall-diagnostics/capture-history-astra-review.json`,
+`capture-history-upstream-evidence.json` and `capture-history-composition-proof.json`.
