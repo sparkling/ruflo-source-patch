@@ -27,7 +27,7 @@ of corruption caused by policy latency.
 | Turn/checkpoint store timeout and readback failure | AI-BA, BA, Query, Fabric report | A timeout can precede successful persistence. Read original keys; do not replay. Preserve retrieval error/timing instead of treating null as content mismatch. |
 | Prompt recall deadline | AI-BA, Product/PLM | Native 1.9s budget expires during enumeration or later exact/search phases. Reader startup was tens of milliseconds. Temporary larger finite budgets requested; provider/policy phase timings still needed. |
 | Learning shedding | Query, BA; Fabric attribution pending | Native two-slot admission can drop observations. More time does not create capacity and can prolong occupied slots. Separate admission diagnosis and original-record reconciliation required. |
-| Admission-lock ENOENT | Query | Reproduced downstream ownership race: normal owner retirement removes the directory before our claims scan, outside its ENOENT retry. Narrow correction and historical migration tests pass; deployment pending. |
+| Admission-lock ENOENT | Query | Reproduced downstream ownership race: normal owner retirement removes the directory before our claims scan, outside its ENOENT retry. Narrow correction and historical migration tests pass; deployed and activated in 4.46.114 on both hosts. |
 | MCP session exhaustion/retirement | Query historical reports | Earlier 105-client retirement qualification exists. Correlate failure timestamps to loaded release; do not conflate session capacity with model quotas or claim later reads recover original failed writes. |
 | WAL/whole-image refusal | AI-BA and Query historical reports | Safety refusal is not corruption. AI-BA original MCP exact retrieval succeeded on 3 November; broader original-operation recovery remains separately qualified. |
 | AutoMemory package resolution/readback | AI-BA ST01/ST03 worktrees | Resolved through native createDatabase(provider:json).getByKey: ST01 and ST03 each have 7/7 exact matches to current retained Markdown. No replay or writes; this is the actual helper backend, not a substitute SQLite store. |
@@ -142,3 +142,40 @@ imported at 15:46:05 UTC. Expected inputs are current retained Markdown, not an
 import-time snapshot. No `shutdown()` was called because this backend persists on
 shutdown. Private receipt: `.local/auto-memory-readback-20261103/native-readback.json`;
 HZ counterpart `/data/programme-state/auto-memory-readback-20261103/native-readback.json`.
+
+### Policy latency repair activated (4.46.114)
+
+Commit `a7735d0`, tag `v4.46.114`, is pushed and installed on both hosts. All
+10 Mac and 15 HZ native owners were gracefully refreshed; health checks and both
+patch monitors passed. Hook approval review found no pending approvals.
+
+The new policy-anchor-copy target preserves full initial history authentication,
+then authenticates exact source bytes while copying them into native atomic
+publication. It avoids a second full parse/serialization, rejects source mutation,
+and preserves native crash recovery. Actual installed-source tamper, SIGKILL,
+recovery and full-audit tests passed. Code regression suites passed; the aggregate
+test command initially failed Markdown lint, which was corrected and passed.
+
+Fresh native Stop recording and checkpoint helper exact readbacks passed for all
+five affected HZ projects. Stop/checkpoint elapsed times in milliseconds:
+
+| Project | Stop | Checkpoint |
+|---|---:|---:|
+| Strategy | 2904 | 3438 |
+| BA | 3051 | 2332 |
+| Product | 1448 | 1589 |
+| Query | 2447 | 1666 |
+| Fabric | 1716 | 1541 |
+
+Strategy recall returned `ok-with-results` in 4082 ms. These fresh sequential
+checks use the temporary finite budgets; they are not a controlled production
+benchmark, a full PreCompact replay, or recovery of every historical failure.
+Receipts: release-v4.46.114 `lifecycle.json`, `lifecycle-recall.json`,
+`activation.json` on HZ; `activation-local.json` on Mac, under the existing
+release receipt roots.
+
+New native `shed observation (load)` rows remain at 16:50:18 through 16:50:19 UTC.
+The admission-directory race is repaired, but native two-slot backpressure remains
+an open capacity problem. These events are not proof of a failed policy repair
+or database corruption. Historical shared summaries also do not establish a
+current failure in the project that happens to display them.
