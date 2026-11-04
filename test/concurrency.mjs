@@ -198,6 +198,25 @@ if (malformed.status === 0 || !/timed out|refusing/.test(out(malformed))) {
 fs.writeFileSync(path.join(STATE, 'state.json.mutation.lock'), `${JSON.stringify({
   pid: process.pid, token: 'live-owner', startedAt: new Date().toISOString(),
 })}\n`);
+// Waiting is read-only: repeated O_EXCL attempts must not fsync a doomed candidate
+// every 10ms while a known live owner is still doing the expensive composition.
+const quietWait = spawnSync(process.execPath, ['--input-type=module', '--eval', `
+  import fs from 'node:fs';
+  const original = fs.openSync; let candidates = 0;
+  fs.openSync = function(file, ...args) {
+    if (String(file).includes('state.json.mutation.lock.candidate-')) candidates++;
+    return original.call(this, file, ...args);
+  };
+  const state = await import(${JSON.stringify(`file://${path.join(REPO, 'lib', 'cwd', 'state.mjs')}`)});
+  let refused = false;
+  try { state.acquirePatchMutationLock()(); }
+  catch (error) { refused = /timed out waiting for another patch mutation/.test(error.message); }
+  process.stdout.write(JSON.stringify({candidates, refused}));
+`], { env: { ...env, RSP_PATCH_LOCK_TIMEOUT_MS: '1000' }, encoding: 'utf8' });
+const quiet = quietWait.status === 0 && JSON.parse(quietWait.stdout);
+if (!quiet?.refused || quiet.candidates !== 0) {
+  fail(`CC1 waiting for a live mutation owner published unnecessary candidates:\n${out(quietWait)}`);
+}
 const hook = spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'session-start.mjs')], {
   env: { ...env, RSP_PATCH_LOCK_TIMEOUT_MS: '1000' }, encoding: 'utf8',
 });
