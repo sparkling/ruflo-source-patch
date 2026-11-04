@@ -8,7 +8,11 @@ import { acquireLock } from '../scripts/hourly-regression-lock.mjs';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-hourly-test-'));
 const success = { code: 0, signal: null, stopped: null, bytes: 7, tail: 'fixture passed' };
+const liveSuccess = { ...success, tail: JSON.stringify({ status: 'verified', targets: [{ target: 'fixture', status: 'verified' }] }) };
 try {
+  const liveTests = spawnSync('python3', [new URL('./hourly-regression-live.py', import.meta.url).pathname],
+    { encoding: 'utf8', timeout: 5000 });
+  assert.equal(liveTests.status, 0, liveTests.stderr);
   const rendered = plist({ codex: '/native/codex', state: root, envPath: '/a&b' });
   assert(rendered.includes('<integer>3600</integer>'));
   assert(rendered.includes('/a&amp;b'));
@@ -19,6 +23,11 @@ try {
   const execute = async (command, args, options) => {
     count++;
     if (command === 'git') return { ...success, tail: 'fixture-revision' };
+    if (command === 'python3') {
+      assert.equal(options.timeoutMs, 45000);
+      assert(args[0].endsWith('/scripts/hourly-regression-live.py'));
+      return liveSuccess;
+    }
     if (command === '/bin/bash') {
       assert.equal(options.env.RSP_TEST_JOBS, '1');
       assert(options.env.TMPDIR.startsWith('/tmp/rsp-hr-'));
@@ -39,25 +48,28 @@ try {
     assert(!args.some(arg => /ignore-user-config|bypass|openrouter/.test(arg)));
     assert(options.input.includes('Test exit: 1'));
     assert(options.input.includes('never proof of current database/MCP health'));
+    assert(options.input.includes('Live read-only result:'));
     assert.equal(options.timeoutMs, 180000);
     assert.notEqual(options.cwd, process.cwd());
     return success;
   };
   assert.equal(await run({ state: root, codex: '/native/codex', execute }), 1);
-  assert.equal(count, 3);
+  assert.equal(count, 4);
   assert(!fs.existsSync(path.join(root, 'running.lock')));
   const receiptFile = fs.readdirSync(root).find(f => f.startsWith('run-') && f.endsWith('.json'));
   const receipt = JSON.parse(fs.readFileSync(path.join(root, receiptFile)));
   assert.equal(receipt.ok, false);
   assert.equal(receipt.tests.code, 1);
-  assert.equal(receipt.coverage, 'fixture-only; live probes not performed');
+  assert.equal(receipt.live.report.status, 'verified');
   for (const file of fs.readdirSync(root)) assert.equal(fs.statSync(path.join(root, file)).mode & 0o777, 0o600);
   assert.equal(fs.statSync(root).mode & 0o777, 0o700);
   // Reviewer errors must remain failures even when fixtures pass.
   let call = 0;
-  const failingReview = async () => (++call === 3 ? { ...success, code: null, stopped: 'timeout' } : success);
+  const failingReview = async command => (++call === 4 ? { ...success, code: null, stopped: 'timeout' } : command === 'python3' ? liveSuccess : success);
   assert.equal(await run({ state: root, execute: failingReview }), 1);
-  assert.equal(await run({ state: path.join(root, 'healthy'), execute: async () => success }), 0);
+  assert.equal(await run({ state: path.join(root, 'healthy'), execute: async command => command === 'python3' ? liveSuccess : success }), 0);
+  assert.equal(await run({ state: path.join(root, 'unverified-live'), execute: async command => command === 'python3'
+    ? { ...success, tail: JSON.stringify({ status: 'not-verified', error: 'native-error' }) } : success }), 1);
   let interruptedCalls = 0;
   assert.equal(await run({ state: path.join(root, 'interrupted'), execute: async () => {
     interruptedCalls++;
