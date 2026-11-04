@@ -34,6 +34,18 @@ packaging omission and tests actual CLI install, status and uninstall. It also
 recognizes the exact published 3.71.1 wrapper and verifies its
 new missing-installation refusal while leaving that upstream wrapper unchanged.
 
+Release 4.46.126 is installed on Mac and HZ, with matching package artifacts and
+both monitors passing. The affected HZ AI BA owner was gracefully refreshed; other
+long-running owners are not claimed to have reloaded this query correction.
+Its live late-page read fell from 4.02 to 1.05 seconds. Concurrent original R5/R7/R1
+source requests completed in 34/59/89 seconds including queue time, each with all
+69 namespaces accounted for and no coverage gaps. The hourly Sol medium check
+also passed its source and four memory checks. Its cold source call took 81 seconds;
+a separate request joined that in-flight result, so its shorter wait is not a
+second cold-search benchmark. Full-request serialization and cold exports still
+cost time; these results do not establish unrestricted concurrency or recovery of
+historical hook failures.
+
 ## Explicit-store inventory policy: 4 November 2026
 
 Version 4.46.124 corrects duplicate authorization work in our native-owner forwarding
