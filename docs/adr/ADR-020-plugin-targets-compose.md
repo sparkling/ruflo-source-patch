@@ -332,10 +332,11 @@ Partial Edit/Update fragments retain their conservative requirement. Herdr expos
 backup refused solely for its warning against touching AgentDB. The exact vendor anchor composes
 from pristine; real executable strings, imports, paths, uncertain syntax and unsupported languages
 retain grounding requirements. Parser failure retains the original scan. The substance detector,
-managed-memory guard, stamps and update plane remain unchanged. Brain 4.7.28 passed the earlier
-44-case single-file matrix, but the 4 November multi-file reproduction invalidated complete
-retirement. Its Codex adapter checks each touched path with the full patch; the native projector
-rejects multiple operations and scans sibling JSON as code. The shared target now selects the
+managed-memory guard, stamps and update plane remain unchanged. Brain 4.7.28 passed the
+44-case single-file matrix; that target's terminal retirement record remains preserved. The
+separate `brain-grounding-multifile` target addresses the 4 November recurrence: the Codex adapter
+checks each touched path with the full patch, and the native projector rejects multiple operations
+and scans sibling JSON as code. The new shared target selects the
 unique guarded Add File from a fully validated all-Add patch before reusing native projection.
 Unknown, duplicate, truncated, move or partial-edit input retains the original scan. The expanded
 45-case native matrix and full adapter-chain replay accept sibling metadata while still rejecting
