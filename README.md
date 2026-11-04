@@ -26,6 +26,12 @@ suite passes, including exact rollback and corrected-upstream retirement checks.
 Source compatibility covers CLI 3.71.0 and 3.71.1; installation and live host
 activation remain separate checks. See the target description below for scope.
 
+Version 4.46.132 completes its public CLI registration, which was missing from
+4.46.131. The added regression exercises named install/status/uninstall and
+actual `all install` adoption, including installed bytes and tracking state.
+Use 4.46.132 or later to activate this target; the earlier composition tests
+alone did not establish CLI installation.
+
 ## Native HTTP session identity: 4 November 2026
 
 Version 4.46.130 adds `ruflo-http-sessions` for [Ruflo #3294](https://github.com/ruvnet/ruflo/issues/3294)
