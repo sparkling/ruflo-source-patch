@@ -134,9 +134,16 @@ authoring inputs. Runtime files, secrets and generated outputs are deliberately
 excluded. Private originals and other file formats require their existing
 source-owned reader; do not assume that a memory summary replaces them. In
 particular, AI-BA's existing private management-book projection retains 144 page
-originals from a recorded source cut, with page 1 unavailable. Its compatibility
-route remains available; exposure through the new document methods is a separate
-coverage gap being repaired. Preserve the original hash, cut and extraction gap.
+originals from a recorded source cut, with page 1 unavailable. The new document
+methods now reuse that projection alongside live tracked originals. An actual
+configured Mac MCP consumer read all 144 exposed pages (391,597 UTF-8 bytes),
+matching every page hash. Preserve the original hash, cut and extraction gap;
+this is not verification of the PDF's images, layout or missing page.
+
+Product's existing retained projection also contains attributed memory and
+learning records alongside original files. The document methods must identify
+those record kinds and historical cuts; returning their exact text does not turn
+them into underlying originals. Tool descriptions must explain that distinction.
 
 The implementation must report source scope, exclusions and historical cuts
 honestly. Neither advertising a controller nor succeeding on one known key proves
