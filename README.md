@@ -15,6 +15,45 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Native alignment and backend readiness: 4 November 2026
+
+Version 4.46.133 withdraws custom behaviour that exceeds bug repair. Qualified CLI 3.71.1 already preserves genuine context outcomes and awaits
+both recall interfaces, so `ruflo-context-contract` restores that native function.
+`ruflo-tier-consolidation` restores native explicit unsupported consolidation.
+The two restorations compose together: the removed local context algorithm had
+called the removed tier-copy extension. Historical rows, copies and patterns stay
+intact; native synthesis may count separately recalled historical copies separately.
+There is no data migration, replay or new deduplication algorithm.
+
+`ruflo-selective-learning` is narrowed to
+[#4693](https://github.com/ruvnet/ruflo/issues/4693): the native schema advertises
+`trajectoryIds`, but the handler ignores it and runs global learning. A supplied
+selection now refuses before mutation; omitted selection keeps native SONA
+behaviour. The former ReasoningBank retention algorithm is withdrawn. Known
+released overlays remain reversible; unknown sources refuse rather than claiming
+native qualification. The guidance-only correction below remains separate.
+
+The npm 12 installation failure matches open
+[#2639](https://github.com/ruvnet/ruflo/issues/2639#issuecomment-6636055319).
+With npm 12.2.1, a successful install left AgentDB's resolved `better-sqlite3`
+without its native binary. AgentDB then failed initialization and attempted
+fallbacks; a responding MCP did not establish the intended backend was working.
+The scoped global-prefix recovery was:
+
+```sh
+npm rebuild --global --prefix <affected-prefix> --allow-scripts=better-sqlite3 better-sqlite3
+```
+
+Verify the dependency resolved from its actual owner with an isolated in-memory
+native open, then gracefully refresh the owner and verify native health plus the
+original operation. This is a global-install command, not blanket script approval
+or a project-install policy. No permanent npm setting or database/sidecar changes
+were needed. Other optional native features remain separately qualified.
+The existing hourly check now rejects initialization errors, unavailable AgentDB
+and local ReasoningBank fallback before list/exact reads. Native durable SQLite
+tier composition and optional disabled controllers remain valid; SQLite itself
+is not a failure. A degraded path is never evidence of equivalent completeness.
+
 ## Research synthesis guidance: 4 November 2026
 
 Version 4.46.131 adds `ruflo-context-guidance` for
@@ -87,8 +126,8 @@ closure and source compatibility are separate from live activation.
   respawn. All eight owner-patched source files pass exact composition,
   restoration and reapplication checks against pristine CLI 3.71.1.
 - The 3.71.1 same-ReasoningBank substring search is retained as native behavior.
-  Pattern receipts, validated context episodes, selective learning and explicit
-  withdrawal still have separate contracts. The entries-only adapter remains
+  Pattern receipts and guidance remain distinct from the native context and
+  consolidation restoration and the selected-learning refusal described above. The entries-only adapter remains
   withdrawn. The published wrapper is already accepted unchanged after its
   executable incomplete-installation refusal passes.
 - [Brain #391](https://github.com/stuinfla/ruvnet-brain/issues/391) remains retired
@@ -1325,30 +1364,12 @@ not a system-wide lock on every possible npm caller. Every actual removal and
 failure is recorded under the existing stable-runtime directory. No MCP is killed,
 no database or sidecar is opened, and no new daemon or updater schedule is added.
 
-Release **4.46.70** added `ruflo-selective-learning`: explicit completed,
-evaluated trajectory IDs retain only those exact native patterns. The selected
-path preserves failures and idempotence, refuses missing or changed sources, and
-does not fall through to global buffered learning or EWC. Omitted IDs retain the
-separately requested historical global operation. Installation never replays old
-trajectories or runs learning.
-
-Release 4.46.69 prevents context synthesis from counting a verified semantic
-consolidation copy as another experience when its episodic source is also recalled.
-The existing native owner's read-only dry-run proves the source and retained copy
-identities; independent episodes with identical text remain distinct. Both stored
-records are preserved, and failed lineage reads remain failures. This extends
-`ruflo-context-contract` ([#3314](https://github.com/ruvnet/ruflo/issues/3314))
-for the scoped consolidation path below.
-
-Release 4.46.68 adds `ruflo-tier-consolidation` for scoped tier preservation
-under [Ruflo#2977](https://github.com/ruvnet/ruflo/issues/2977). It extends the
-existing native tier owner: select 1..32 explicit evaluated episodic keys,
-review the default dry-run, then apply with each returned source hash.
-Semantic copies preserve exact values, failure outcomes and temporal fields;
-original rows remain intact. Capacity and destination conflicts refuse the
-operation, and a failed apply rolls back. This does not generate summaries,
-prune entries or establish an improvement in quality. Install with
-`npx github:sparkling/ruflo-source-patch ruflo-tier-consolidation install`.
+Historical releases 4.46.68 through 4.46.70 introduced a custom tier-copy path,
+verified-copy context counting and selected-trajectory ReasoningBank retention.
+The 4 November upstream-intent review withdraws those algorithms. Their original
+receipts and stored copies/patterns remain preserved; the current contracts are
+native context synthesis, native unsupported consolidation, and explicit refusal
+of unsupported selected learning. Installation never replays old trajectories.
 
 Release 4.46.67 adds `brain-user-learning-root` for the remaining user-store
 adoption gap in [Brain#377](https://github.com/stuinfla/ruvnet-brain/issues/377).
@@ -1755,38 +1776,25 @@ load the rollback; the installer and monitor do not kill them.
 
 ## Context synthesis contract
 
-`ruflo-context-contract` fixes [Ruflo #3314](https://github.com/ruvnet/ruflo/issues/3314).
-The adapter must pass the real `task`, `success`, `reward` and optional critique to
-AgentDB's existing synthesizer. Previously it discarded these fields and invented
-`reward:1` for every recalled fact. The patch accepts validated outcome-bearing
-records, reports excluded inputs, and refuses to fabricate episodes from prose.
-JSON episode payloads are bounded to 64 KiB; duplicate top-level fields and
-conflicting complete representations are excluded rather than guessed.
-No recalled rows and recalled-but-ineligible rows are distinct results.
-Both hierarchical recall interfaces are awaited; retained records remain untouched.
+`ruflo-context-contract` retires on qualified current native code for
+[Ruflo #3314](https://github.com/ruvnet/ruflo/issues/3314). Pristine CLI 3.71.1
+passes real task/success/reward/critique values to AgentDB's ContextSynthesizer,
+awaits both recall interfaces, and distinguishes no matches from no eligible
+outcomes without inventing episodes from prose. Twenty isolated native cases
+cover outcomes, zero reward, empty/fact/malformed inputs, partial eligibility and
+errors using the actual pure controller.
 
-Since 4.46.69, a recalled episodic source and its verified semantic consolidation
-copy count as one experience. The existing native tier owner's read-only plan
-proves the lineage; exact values and temporal fields must agree. Independent
-episodes with identical content remain distinct, and copy-only recall remains
-eligible. `consolidatedCopyCount` reports the excluded copies alongside raw
-recalled/eligible/excluded counts. A failed lineage read stops synthesis.
+The former downstream JSON arbitration and semantic-copy lineage algorithm are
+withdrawn with `ruflo-tier-consolidation`. Native consolidation remains explicitly
+unsupported. Historical semantic copies and selected-learning patterns are not
+deleted or rewritten; separately recalled copies may count separately under
+native synthesis. Current qualification does not silently backport new behaviour
+to unqualified old sources. Exact reverse transforms preserve safe removal of
+known released overlays, and unknown source changes fail visibly.
 
-The separate `ruflo-tier-consolidation` target supplies explicit, hash-approved
-tier preservation under [#2977](https://github.com/ruvnet/ruflo/issues/2977).
-Upstream's consolidation stub remains unsupported; this bounded downstream path
-does not supply every missing controller or change SONA.
-
-```bash
-npx github:sparkling/ruflo-source-patch ruflo-context-contract install
-```
-
-The target has an isolated behavioral regression suite with exact-anchor drift,
-idempotence and restoration checks. Retire only when the installed native adapter
-passes the same contract without the patch; unknown source changes fail visibly.
 Installation changes source files, not modules already held by host-owned MCPs.
-Those owners need a supported reconnect to activate the changed modules; closing
-the Codex TUI alone is not proof of reconnection. No MCP is killed by these targets.
+Those owners need a supported reconnect to activate changed modules; closing the
+Codex TUI alone is not proof of reconnection. No MCP is killed by these targets.
 
 The separate `ruflo-context-guidance` target fixes
 [#4691](https://github.com/ruvnet/ruflo/issues/4691): the MCP description,
@@ -1978,7 +1986,7 @@ npx github:sparkling/ruflo-source-patch init install
 npx github:sparkling/ruflo-source-patch plugin-hosts install
 npx github:sparkling/ruflo-source-patch ruflo-instruction-contract install
 npx github:sparkling/ruflo-source-patch ruflo-model-contract install
-npx github:sparkling/ruflo-source-patch ruflo-selective-learning install # exact selected completed-trajectory pattern learning; no global replay
+npx github:sparkling/ruflo-source-patch ruflo-selective-learning install # refuse unsupported explicit selection before global learning
 npx github:sparkling/ruflo-source-patch monitor install   # keeps them applied
 
 npx github:sparkling/ruflo-source-patch all status        # what's live, everything at once
@@ -1997,9 +2005,9 @@ Actions: `install` · `uninstall` · `status`
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`ruflo-learning-stats`** | Reports store-scoped learning counters honestly, reads retained patterns independently, and commits concurrent counter increments under the existing bounded lock without stale-snapshot overwrite. Pending increments remain process-local until a successful flush. | [#2245 · closed](https://github.com/ruvnet/ruflo/issues/2245) · [#4217 · closed](https://github.com/ruvnet/ruflo/issues/4217) |
-| **`ruflo-selective-learning`** | Makes explicit `hooks_intelligence_learn.trajectoryIds` retain complete evaluated source trajectories in the native ReasoningBank with exact provenance/outcomes, unchanged idempotence and correction refusal. No global buffered learning, trajectory replay or EWC/provider-weight training runs on this path. Partial writes are reported without a false rollback claim. Single-owner requests serialize; cross-process atomic reconciliation is not claimed. | Related manual-learning integration [#2245](https://github.com/ruvnet/ruflo/issues/2245), not a full repair of that historical issue |
+| **`ruflo-selective-learning`** | Refuses supplied `hooks_intelligence_learn.trajectoryIds` before mutation because native learning ignores the selection. Omitted selection retains the native SONA path. The former custom ReasoningBank retention algorithm is withdrawn; historical patterns remain intact. | [#4693 · open](https://github.com/ruvnet/ruflo/issues/4693) |
 | **`ruflo-sqlite-owner`** | Resolves native SQLite through ControllerRegistry's actual dependency owner for graph and repair/initializer handles, preventing competing native SQLite libraries from managing the same file. It neither borrows and closes the registry handle nor replaces the database. | [#3693 · closed](https://github.com/ruvnet/ruflo/issues/3693) |
-| **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. Count a verified retained source/copy pair once while retaining independent identical-content episodes. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
+| **`ruflo-context-contract`** | Retired on qualified current native outcome preservation and async recall. Restores the native function together with withdrawal of custom tier-copy lineage; historical rows remain untouched. Unknown or unqualified native sources refuse. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-context-guidance`** | Correct the native MCP description and central research skill/agent guidance: synthesize documents from exact source evidence, reserve ContextSynthesizer for validated episode outcomes, and preserve native matching and result semantics. | [#4691 · open](https://github.com/ruvnet/ruflo/issues/4691) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306 · closed](https://github.com/ruvnet/ruflo/issues/3306) |
@@ -2074,7 +2082,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`ruflo-pattern-receipt`** | Requires a successful delegated pattern store and exact namespace/key/content readback before acknowledging fallback persistence. Covers the MCP handler and memory bridge; a failed native controller cannot acquire a misleading persisted note. | [#3691 · closed](https://github.com/ruvnet/ruflo/issues/3691) |
-| **`ruflo-tier-consolidation`** | Preserves 1..32 explicit evaluated episodic keys as semantic copies through the existing native owner. Defaults to dry-run; apply requires each approved source hash. Retains original rows, exact values, outcomes and temporal fields; refuses ambiguity, capacity and destination conflicts, with atomic rollback. | [#2977](https://github.com/ruvnet/ruflo/issues/2977) |
+| **`ruflo-tier-consolidation`** | Withdrawn: restores native explicit unsupported consolidation instead of supplying a custom tier-copy algorithm. Exact reversal composes with native context restoration and preserves every historical record. | [#2977](https://github.com/ruvnet/ruflo/issues/2977) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164) |
 | **`ruflo-policy-ledger`** | Separates immutable receipt segments from a bounded working state after an explicit first migration. Native authorization and receipt verification remain authoritative. Archive contents and directories are synced before state publication; the prefix boundary is authenticated. Complete `policy audit`/verification retain all history. Installing alone does not migrate a project. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164); [review of #3892](https://github.com/ruvnet/ruflo/pull/3892#issuecomment-6059183467) |
 | **`ruflo-flywheel-evidence`** | Reuses the native scale-12 encoder for nested verification/canary evidence before receipt identity and signing. Keeps strict verification and historical receipts unchanged. | [#3229 residual · closed](https://github.com/ruvnet/ruflo/issues/3229) |

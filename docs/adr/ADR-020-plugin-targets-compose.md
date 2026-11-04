@@ -13,6 +13,16 @@ retrieve instead of reporting healthy absence; its retained name does not author
 an alternate store or controller policy. Native capture diagnostics and the bounded
 capture budget are separate issue-backed contributions.
 
+The 4 November upstream-intent review restores the qualified native context
+function and withdraws custom tier-copy consolidation as one composed transition.
+The downstream context lineage call depended on the tier extension, so neither
+may remain partially restored. Historical rows, semantic copies and retained
+patterns stay untouched. Selected learning keeps only a pre-mutation refusal for
+ignored explicit selections (#4693); omitted selection retains native SONA.
+Known released overlays remain exactly reversible, while unknown or unqualified
+source refuses. Retirement tests prove upstream's intended behaviour, not adoption
+of our custom algorithms. Install/all/monitor must not reintroduce withdrawals.
+
 Native-owner forwarding qualifies one native decision for equivalent authority. The 4 November extension permits `memory_list`, `memory_stats`, and `memory_export`
 from a pinned client to an unpinned same-project owner only with an original own
 enumerable absolute `dbPath` equal to that pin and an advertised selector. Native
