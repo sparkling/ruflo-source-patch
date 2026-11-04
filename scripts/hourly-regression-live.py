@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Read-only composition of the existing owning app-server WebSocket protocol.
-Only initialize/initialized and existing-thread ruflo list/retrieve are sent.
+Only initialize/initialized and existing-thread read-only MCP tools are sent.
 Values, namespace/key pairs, thread IDs and native error text never leave workers.
 """
 import asyncio
+import datetime
 import hashlib
 import json
 import pathlib
+import os
 import re
 import shlex
 import stat
@@ -16,6 +18,12 @@ import time
 MAX_BYTES = 1024 * 1024
 READ_TIMEOUT_SECONDS = 30
 HOST_TIMEOUT_SECONDS = 120
+SOURCE_TIMEOUT_SECONDS = 180
+SOURCE_ARGUMENTS = {'question': 'ADR091 research reconciliation synthesis', 'offset': 0, 'limit': 4}
+
+
+def host_timeout(targets):
+    return HOST_TIMEOUT_SECONDS + (SOURCE_TIMEOUT_SECONDS + 10 if any(t.get('kind') == 'knowledge-source' for t in targets) else 0)
 
 
 def error_category(error):
@@ -61,9 +69,9 @@ def body(value, expected):
             content = value['content']
             texts = [row['text'] for row in content if isinstance(row, dict)
                      and row.get('type') == 'text' and isinstance(row.get('text'), str)] if isinstance(content, list) else []
-            if len(texts) != 1:
+            if not texts:
                 raise Refused('ambiguous-or-missing-result')
-            value = texts[0]
+            value = '\n'.join(texts)
         elif 'result' in value:
             value = value['result']
         else:
@@ -94,14 +102,80 @@ def verify(page, read):
     return {'valueDigest': digest(read['value']), 'valueComparison': comparison}
 
 
+def verify_source(result, expected_root, requested_at_ms=None):
+    coverage = result.get('coverage')
+    memory = coverage.get('memory') if isinstance(coverage, dict) else None
+    if not isinstance(memory, dict) or memory.get('complete') is not True:
+        raise Refused('incomplete-source-memory')
+    if result.get('gaps') != [] or memory.get('failedNamespaces') != []:
+        raise Refused('source-coverage-gaps')
+    snapshot = memory.get('snapshot')
+    if not isinstance(snapshot, dict) or snapshot.get('mode') != 'live-local-native-store':
+        raise Refused('unexpected-source-mode')
+    root = snapshot.get('sourceRoot') if isinstance(snapshot, dict) else None
+    if (not isinstance(root, str) or not os.path.isabs(root) or not pathlib.Path(root).is_dir()
+            or os.path.realpath(root) != os.path.realpath(expected_root)):
+        raise Refused('unexpected-source-root')
+    inventory = memory.get('inventory')
+    if not isinstance(inventory, dict) or not inventory:
+        raise Refused('missing-source-inventory')
+    counts = {field: 0 for field in ('enumerated', 'admitted', 'excluded')}
+    checked = []
+    def epoch_ms(value):
+        try:
+            return round(datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp() * 1000)
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return -1
+    for row in inventory.values():
+        if not isinstance(row, dict) or row.get('complete') is not True:
+            raise Refused('incomplete-source-inventory')
+        for field in counts:
+            value = row.get(field)
+            if type(value) is not int or value < 0:
+                raise Refused('invalid-source-inventory-count')
+            counts[field] += value
+        observed = epoch_ms(row.get('checkedAt'))
+        if observed >= 0:
+            checked.append(observed)
+    now = round(time.time() * 1000)
+    retrieved = epoch_ms(result.get('retrievedAt'))
+    requested = now if requested_at_ms is None else requested_at_ms
+    return {'resultDigest': digest(result), 'sourceRootDigest': digest(os.path.realpath(root)),
+            'coverage': {**counts, 'namespaces': len(inventory), 'memoryComplete': 1,
+                         'gapCount': 0, 'failedNamespaceCount': 0, 'inventoryAgeKnownNamespaces': len(checked),
+                         'inventoryOldestCheckedAtEpochMs': min(checked) if checked else -1,
+                         'inventoryNewestCheckedAtEpochMs': max(checked) if checked else -1,
+                         'inventoryOldestAgeMs': max(0, now - min(checked)) if checked else -1,
+                         'inventoryNewestAgeMs': max(0, now - max(checked)) if checked else -1,
+                         'resultRetrievedAtEpochMs': retrieved,
+                         'requestStartedAtEpochMs': int(requested),
+                         'retrievedAtAgeMs': max(0, now - retrieved) if retrieved >= 0 else -1,
+                         'cachedResponse': int(retrieved < int(requested)) if retrieved >= 0 else -1}}
+
+
 def validate_targets(targets):
-    if not isinstance(targets, list) or not 1 <= len(targets) <= 4:
+    if not isinstance(targets, list) or not 1 <= len(targets) <= 5:
         raise Refused('invalid-target-config')
     for target in targets:
         if (not isinstance(target, dict) or target.get('host') not in ('local', 'hz')
                 or not re.fullmatch(r'[a-zA-Z0-9_-]{1,40}', target.get('label', ''))
                 or not re.fullmatch(r'[0-9a-f-]{36}', target.get('threadId', ''))):
             raise Refused('invalid-target-config')
+        if target.get('kind', 'memory') not in ('memory', 'knowledge-source'):
+            raise Refused('invalid-target-kind')
+        if target.get('kind') == 'knowledge-source' and (target['host'] != 'hz'
+                or not isinstance(target.get('expectedSourceRoot'), str)
+                or not os.path.isabs(target['expectedSourceRoot'])):
+            raise Refused('invalid-source-target')
+    return targets
+
+
+def configured_targets(configuration):
+    targets = validate_targets(configuration.get('targets'))
+    sources = sum(t.get('kind') == 'knowledge-source' for t in targets)
+    enabled = configuration.get('enableSource') is True
+    if len(targets) != (5 if enabled else 4) or sources != (1 if enabled else 0):
+        raise Refused('unexpected-target-count-or-unapproved-source')
     return targets
 
 
@@ -109,9 +183,10 @@ async def worker(targets):
     import websockets
     results = []
     socket = str(pathlib.Path.home() / '.codex/app-server-control/app-server-control.sock')
-    for target in validate_targets(targets):
+    # Give the source its full native allowance before the bounded memory checks.
+    for target in sorted(validate_targets(targets), key=lambda t: t.get('kind') != 'knowledge-source'):
         started = time.monotonic()
-        row = {'target': target['label'], 'status': 'not-verified'}
+        row = {'target': target['label'], 'kind': target.get('kind', 'memory'), 'status': 'not-verified'}
         try:
             async with websockets.unix_connect(socket, uri='ws://localhost/', max_size=MAX_BYTES,
                                                open_timeout=5, close_timeout=1) as ws:
@@ -130,7 +205,8 @@ async def worker(targets):
                                 if 'error' in response:
                                     raise Refused('app-server-error', response['error'])
                                 return response['result']
-                    allowance = READ_TIMEOUT_SECONDS if method == 'mcpServer/tool/call' else 5
+                    allowance = (SOURCE_TIMEOUT_SECONDS if target.get('kind') == 'knowledge-source'
+                                 else READ_TIMEOUT_SECONDS) if method == 'mcpServer/tool/call' else 5
                     return await asyncio.wait_for(receive(), allowance)
 
                 await call('initialize', {'clientInfo': {'name': 'rsp-hourly-readonly', 'version': '1'},
@@ -139,7 +215,19 @@ async def worker(targets):
 
                 async def tool(name, arguments):
                     return await call('mcpServer/tool/call', {'threadId': target['threadId'],
-                                      'server': 'ruflo', 'tool': name, 'arguments': arguments})
+                                      'server': 'knowledge_ai_ba' if target.get('kind') == 'knowledge-source' else 'ruflo',
+                                      'tool': name, 'arguments': arguments})
+                if target.get('kind') == 'knowledge-source':
+                    requested_at_ms = time.time() * 1000
+                    result = body(await tool('search_knowledge', SOURCE_ARGUMENTS), 'coverage')
+                    row.update(verify_source(result, target['expectedSourceRoot'], requested_at_ms))
+                    cached = row['coverage']['cachedResponse']
+                    row.update(status='verified' if cached == 0 else 'not-verified',
+                               elapsedMs=round((time.monotonic() - started) * 1000))
+                    if cached != 0:
+                        row['error'] = 'cached-source-response-no-fresh-inventory-proof' if cached == 1 else 'source-freshness-unknown'
+                    results.append(row)
+                    continue
                 page = body(await tool('memory_list', {'limit': 1}), 'entries')
                 entries = page.get('entries')
                 if not isinstance(entries, list) or len(entries) != 1 or not isinstance(entries[0], dict):
@@ -173,7 +261,7 @@ async def host_probe(host, targets):
     process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
     try:
-        stdout, _ = await asyncio.wait_for(process.communicate(json.dumps(targets).encode()), HOST_TIMEOUT_SECONDS)
+        stdout, _ = await asyncio.wait_for(process.communicate(json.dumps(targets).encode()), host_timeout(targets))
         if process.returncode != 0 or len(stdout) > 65536:
             raise Refused('worker-failed')
         result = json.loads(stdout)
@@ -193,7 +281,7 @@ async def main():
     if sys.argv[1:] == ['--worker']:
         targets = json.loads(sys.stdin.buffer.read(65537))
         try:
-            result = await asyncio.wait_for(worker(targets), HOST_TIMEOUT_SECONDS - 2)
+            result = await asyncio.wait_for(worker(targets), host_timeout(targets) - 2)
         except Exception as error:
             result = [{'target': t['label'], 'status': 'not-verified', 'error': error_category(error)}
                       for t in validate_targets(targets)]
@@ -205,7 +293,7 @@ async def main():
     info = config.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_uid != __import__('os').getuid() or info.st_mode & 0o077 or info.st_size > 65536:
         raise Refused('config-must-be-private-owned-file')
-    targets = validate_targets(json.loads(config.read_text()).get('targets'))
+    targets = configured_targets(json.loads(config.read_text()))
     results = await asyncio.gather(*(host_probe(host, [t for t in targets if t['host'] == host])
                  for host in ('local', 'hz') if any(t['host'] == host for t in targets)))
     rows = [row for group in results for row in group]

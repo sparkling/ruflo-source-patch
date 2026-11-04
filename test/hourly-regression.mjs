@@ -3,13 +3,20 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { bounded, run, plist, suites } from '../scripts/hourly-regression.mjs';
+import { bounded, run, plist, suites, sourceFixtures, sourceFixtureCommand } from '../scripts/hourly-regression.mjs';
 import { acquireLock } from '../scripts/hourly-regression-lock.mjs';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-hourly-test-'));
 const success = { code: 0, signal: null, stopped: null, bytes: 7, tail: 'fixture passed' };
-const liveSuccess = { ...success, tail: JSON.stringify({ status: 'verified', targets: [{ target: 'fixture', status: 'verified' }] }) };
+const liveSuccess = { ...success, tail: JSON.stringify({ status: 'verified', targets: [{ target: 'fixture', kind: 'knowledge-source', status: 'verified' }] }) };
+const sourceSuccess = { ...success, tail: '# tests 33\n# pass 33\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n' };
+const fixtureResult = command => command === 'python3' ? liveSuccess : command === 'ssh' ? sourceSuccess : success;
 try {
+  fs.writeFileSync(path.join(root, 'live-targets.json'), JSON.stringify({ enableSource: true }), { mode: 0o600 });
+  const skippedSource = await sourceFixtures(async () => ({ ...sourceSuccess,
+    tail: sourceSuccess.tail.replace('# skipped 0', '# skipped 1') }), process.cwd());
+  assert.equal(skippedSource.report.status, 'not-verified');
+  assert(!JSON.stringify(skippedSource).includes('# tests'), 'raw source fixture output must not enter receipts');
   const liveTests = spawnSync('python3', [new URL('./hourly-regression-live.py', import.meta.url).pathname],
     { encoding: 'utf8', timeout: 5000 });
   assert.equal(liveTests.status, 0, liveTests.stderr);
@@ -26,8 +33,14 @@ try {
   const execute = async (command, args, options) => {
     count++;
     if (command === 'git') return { ...success, tail: 'fixture-revision' };
+    if (command === 'ssh') {
+      assert.equal(args.at(-1), sourceFixtureCommand);
+      assert.equal(options.timeoutMs, 120000);
+      options.output(sourceSuccess.tail);
+      return sourceSuccess;
+    }
     if (command === 'python3') {
-      assert.equal(options.timeoutMs, 125000);
+      assert.equal(options.timeoutMs, 315000);
       assert(args[0].endsWith('/scripts/hourly-regression-live.py'));
       return liveSuccess;
     }
@@ -57,7 +70,7 @@ try {
     return success;
   };
   assert.equal(await run({ state: root, codex: '/native/codex', execute }), 1);
-  assert.equal(count, 4);
+  assert.equal(count, 5);
   assert(!fs.existsSync(path.join(root, 'running.lock')));
   const receiptFile = fs.readdirSync(root).find(f => f.startsWith('run-') && f.endsWith('.json'));
   const receipt = JSON.parse(fs.readFileSync(path.join(root, receiptFile)));
@@ -68,14 +81,24 @@ try {
   assert.equal(fs.statSync(root).mode & 0o777, 0o700);
   // Reviewer errors must remain failures even when fixtures pass.
   let call = 0;
-  const failingReview = async command => (++call === 4 ? { ...success, code: null, stopped: 'timeout' } : command === 'python3' ? liveSuccess : success);
+  const failingReview = async command => (++call === 5 ? { ...success, code: null, stopped: 'timeout' } : fixtureResult(command));
   assert.equal(await run({ state: root, execute: failingReview }), 1);
-  assert.equal(await run({ state: path.join(root, 'healthy'), execute: async command => command === 'python3' ? liveSuccess : success }), 0);
+  assert.equal(await run({ state: path.join(root, 'healthy'), execute: async command => fixtureResult(command) }), 0);
+  const originalState = path.join(root, 'original-monitor');
+  assert.equal(await run({ state: originalState, execute: async (command, _args, options) => {
+    assert.notEqual(command, 'ssh', 'source fixtures stay inactive until private configuration enables them');
+    if (command === 'python3') assert.equal(options.timeoutMs, 125000);
+    return fixtureResult(command);
+  } }), 0);
+  const originalFile = fs.readdirSync(originalState).find(file => file.endsWith('.json'));
+  const originalReceipt = JSON.parse(fs.readFileSync(path.join(originalState, originalFile)));
+  assert.equal(originalReceipt.sourceFixtures.report.status, 'not-enabled');
+  assert(originalReceipt.missingCoverage.some(gap => gap.includes('awaiting qualification')));
   assert.equal(await run({ state: path.join(root, 'unverified-live'), execute: async command => command === 'python3'
-    ? { ...success, tail: JSON.stringify({ status: 'not-verified', error: 'native-error' }) } : success }), 1);
+    ? { ...success, tail: JSON.stringify({ status: 'not-verified', error: 'native-error' }) } : fixtureResult(command) }), 1);
   const deadlineState = path.join(root, 'live-deadline');
   assert.equal(await run({ state: deadlineState, execute: async command => command === 'python3'
-    ? { ...liveSuccess, stopped: 'timeout' } : success }), 1);
+    ? { ...liveSuccess, stopped: 'timeout' } : fixtureResult(command) }), 1);
   const deadlineFile = fs.readdirSync(deadlineState).find(file => file.endsWith('.json'));
   assert.equal(JSON.parse(fs.readFileSync(path.join(deadlineState, deadlineFile))).live.report.error,
     'monitor-deadline-completion-unknown', 'outer expiry must override even a partial success response');
