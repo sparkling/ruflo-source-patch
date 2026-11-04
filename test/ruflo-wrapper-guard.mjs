@@ -25,6 +25,35 @@ assert.deepEqual(p.patchSource(teardownWrapper), { next: teardownWrapper, applie
 assert(p.isPatched(teardownWrapper));
 assert.equal(p.reverseSource(teardownWrapper), teardownWrapper);
 assert(!p.isPatched(teardownWrapper.replace('await shutdownBridge()', 'void shutdownBridge()')));
+const completeWrapper = fs.readFileSync(new URL('./fixtures/ruflo-wrapper-3.71.1.mjs', import.meta.url), 'utf8');
+for (const format of [text => text, text => text.replaceAll('\n', '\r\n'),
+  text => text.replaceAll('\n', '\r\n').replace('\r\n', '\n')]) {
+  const original = format(completeWrapper);
+  assert.deepEqual(p.patchSource(original), { next: original, applied: [], missing: [] });
+  assert(p.isPatched(original)); assert.equal(p.reverseSource(original), original);
+}
+for (const changed of [completeWrapper.replace('process.exit(1);', 'process.exit(0);'),
+  completeWrapper.replace('console.error(', 'console.log('), completeWrapper + '// unknown change\n']) {
+  assert(!p.isPatched(changed)); assert(p.patchSource(changed).missing.length);
+  assert.equal(p.patchSource(changed).next, changed);
+}
+// Fresh npx discovery and full composition must preserve this native rendition.
+const currentRoot = path.join(process.env.RUFLO_NPX_ROOT, 'native-3711', 'node_modules/ruflo');
+const currentFile = path.join(currentRoot, 'bin/ruflo.js');
+write(path.join(currentRoot, 'package.json'), JSON.stringify({ name: 'ruflo', version: '3.71.1',
+  type: 'module', bin: { ruflo: 'bin/ruflo.js' }, dependencies: { '@claude-flow/cli': '3.71.1' } }));
+write(currentFile, completeWrapper);
+assert.deepEqual(p.discover(), [currentFile]);
+const nativeApplied = c.applyComposed(['ruflo-wrapper-guard']);
+assert.equal(nativeApplied.errors, 0); assert.equal(nativeApplied.incomplete, 0);
+assert.equal(nativeApplied.patched, 0); assert.equal(fs.readFileSync(currentFile, 'utf8'), completeWrapper);
+assert.deepEqual(c.statusComposed(['ruflo-wrapper-guard'])['ruflo-wrapper-guard'], { files: 1, patched: 1 });
+const wrongPin = JSON.parse(fs.readFileSync(path.join(currentRoot, 'package.json'), 'utf8'));
+wrongPin.dependencies['@claude-flow/cli'] = '^3.71.1';
+write(path.join(currentRoot, 'package.json'), JSON.stringify(wrongPin));
+assert.throws(() => p.discover(), /exact matching CLI dependency/);
+fs.rmSync(path.join(process.env.RUFLO_NPX_ROOT, 'native-3711'), { recursive: true });
+
 
 
 
