@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { spawn, spawnSync } from 'node:child_process';
-import { SPECS, patchSource, reverseSource, hasPatch, isPatched, preflight } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { SPECS, descriptor, patchSource, reverseSource, hasPatch, isPatched, preflight } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { INLINE_SNAPSHOT_SHA256, NATIVE_SNAPSHOT_SHA256, NATIVE_LEARNING_CALL, INLINE_LEARNING_CALL,
   prepareNativeLearningRoute, preservedRoutePath } from '../lib/brain-capture-diagnostics/native-route.mjs';
 import { writeIfChanged, restoreFromBackup } from '../lib/pristine.mjs';
@@ -177,7 +177,29 @@ try {
   fs.writeFileSync(bundle[0], 'unknown upstream replacement');
   assert.equal(preflight(bundle).ok, false, 'one unknown member protects the whole dependent bundle');
   assert.equal(preflight([...bundle, path.join(sandbox, 'missing.mjs')]).ok, false);
-
+  // Actual HZ saved pristine/live hashes, through the full shared-file composer.
+  const { applyComposed } = await import('../lib/plugin-compose.mjs'), scratch = await import('../lib/brain-scratch-preservation/patcher.mjs');
+  const savedDescriptors = [{ ...descriptor }, { ...scratch.descriptor }], shared = bundle[1], pristine = fixture('ruflo-memory-hooks');
+  assert.equal(digest(pristine), '099c66b1a72555bd62ebd78a1506fa1b0458b95e8af4fb22cdcfa261760b7722');
+  const prior = descriptor.historicalPatchSource(scratch.patchSource(pristine).next).next;
+  assert.equal(digest(prior), '0d4430dfed7efed7c5fbd32075f7a7e7c868ce3a16397481752cb60185715043');
+  for (const [i, spec] of SPECS.entries()) fs.writeFileSync(bundle[i], fixture(path.basename(spec.relative, '.mjs')));
+  fs.writeFileSync(shared, prior); fs.writeFileSync(shared + '.rsp-backup', pristine);
+  Object.assign(descriptor, { discover: () => bundle, preflight: () => preflight(bundle), prepare: () => prepareNativeLearningRoute(bundle, patchSource) });
+  Object.assign(scratch.descriptor, { discover: () => [shared], preflight: () => ({ ok: !scratch.patchSource(fs.readFileSync(shared, 'utf8')).missing.length }) });
+  const apply = () => applyComposed([descriptor.name, scratch.descriptor.name], { files: [shared], cliTargets: [] });
+  try {
+    delete descriptor.historicalPatchSource;
+    assert(apply().incomplete, 'reproduces old full-composer rejection despite standalone preflight passing');
+    assert.equal(fs.readFileSync(shared, 'utf8'), prior); assert.equal(fs.readFileSync(shared + '.rsp-backup', 'utf8'), pristine);
+    descriptor.historicalPatchSource = savedDescriptors[0].historicalPatchSource;
+    const upgraded = apply(); assert.equal(upgraded.incomplete + upgraded.errors, 0, upgraded.log.join('\n'));
+    assert.equal(fs.readFileSync(shared, 'utf8'), patchSource(scratch.patchSource(pristine).next).next);
+    assert.equal(fs.readFileSync(shared + '.rsp-backup', 'utf8'), pristine); assert.equal(upgraded.rebaselined, 0);
+    fs.writeFileSync(shared, prior + '\n// unknown external edit');
+    assert(apply().incomplete); assert.equal(fs.readFileSync(shared, 'utf8'), prior + '\n// unknown external edit');
+    assert.equal(fs.readFileSync(shared + '.rsp-backup', 'utf8'), pristine);
+  } finally { Object.assign(descriptor, savedDescriptors[0]); Object.assign(scratch.descriptor, savedDescriptors[1]); }
   // Actual native logger, first demonstrating the defect, then patched scope separation/repeats.
   const nativeLogger = context(fixture('hook-failures'));
   const legacyHome = path.join(sandbox, 'native');
