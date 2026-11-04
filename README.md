@@ -15,6 +15,23 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Native inventory pagination: 4 November 2026
+
+Version 4.46.125 adds `ruflo-memory-list-pagination` for
+[Ruflo #4686](https://github.com/ruvnet/ruflo/issues/4686). Native listing sorted
+large content and embedding payloads before discarding earlier pages. The patch
+pages native row identifiers first, then returns the same fields through the same
+connection. Filters, counts, limits, metadata and errors retain native semantics.
+Views, WITHOUT ROWID tables, shadowed row identifiers and unknown schema metadata
+keep the original query. It adds no index, schema change or alternate database driver.
+
+Independent tests exercised 126 native/sql.js cases on both 3.71.0 and 3.71.1.
+An isolated 50,000-row fixture reduced a late-page read from 922 to 149 ms;
+this is not a live source-search measurement or an atomic pagination guarantee.
+Existing native owners require a graceful refresh to load the query correction.
+The same release recognizes the exact published 3.71.1 wrapper and verifies its
+new missing-installation refusal while leaving that upstream wrapper unchanged.
+
 ## Explicit-store inventory policy: 4 November 2026
 
 Version 4.46.124 corrects duplicate authorization work in our native-owner forwarding
@@ -1998,6 +2015,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
 | **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
+| **`ruflo-memory-list-pagination`** | Page native row identifiers before hydrating payloads; preserve original queries for unknown or incompatible schemas. | [#4686 · open](https://github.com/ruvnet/ruflo/issues/4686) |
 | **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`verify-interface`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12 · closed](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48 · closed](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316 · closed](https://github.com/stuinfla/ruvnet-brain/issues/316) |
