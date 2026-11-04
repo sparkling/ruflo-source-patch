@@ -366,7 +366,7 @@ Include source refusal, credential refusal, no-match, real backend failure,
 pagination and declared extraction-gap cases. Extend existing tests rather than
 adding another harness or an exhaustive per-request inventory/export.
 
-### Verified implementation slices — 4 November 2026
+### Verified implementation slices, 4 November 2026
 
 Product `b64e602` is pushed on `main`: canonical HZ source configuration; existing
 tracked reader support for TXT, CSV, JSONL, Markdown/MDX, TTL/JSON-LD, HTML source

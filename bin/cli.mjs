@@ -86,6 +86,7 @@ import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mj
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
 import { rufloSelectiveLearningCommand } from '../lib/ruflo-selective-learning/commands.mjs';
 import { rufloTierConsolidationCommand } from '../lib/ruflo-tier-consolidation/commands.mjs';
+import { rufloControllerInventoryCommand } from '../lib/ruflo-controller-inventory/commands.mjs';
 import { rufloPatternWithdrawalCommand } from '../lib/ruflo-pattern-withdrawal/commands.mjs';
 import { rufloFlywheelEvidenceCommand } from '../lib/ruflo-flywheel-evidence/commands.mjs';
 import { rufloChampionAuthorityCommand } from '../lib/ruflo-champion-authority/commands.mjs';
@@ -154,6 +155,7 @@ const PLUGIN_PATCH_TARGETS = {
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'ruflo-tier-consolidation': rufloTierConsolidationCommand,
   'ruflo-selective-learning': rufloSelectiveLearningCommand,
+  'ruflo-controller-inventory': rufloControllerInventoryCommand,
   'ruflo-pattern-withdrawal': rufloPatternWithdrawalCommand,
   'ruflo-policy-serialization': rufloPolicySerializationCommand,
   'ruflo-policy-ledger': rufloPolicyLedgerCommand,
@@ -252,6 +254,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-grounding-multifile')}attribute native grounding to each added file in a mixed patch (#373)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
+  ${pad('ruflo-controller-inventory')} native pattern/skill inventories; count-only tier statistics (#4707)
   ${pad('ruflo-pattern-withdrawal')} selective native ReasoningBank exact get/hash-guarded delete (#3450/#829 context)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
   ${pad('ruflo-selective-learning')}refuse unsupported native trajectory selection before learning (#4693)

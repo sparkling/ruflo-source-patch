@@ -1471,6 +1471,23 @@ withdrawal preflight remains atomic within each installed bridge/tool pair. An
 unsupported older cache stays visibly incomplete while independently proven
 packages receive their complete patches. Invalid preflight file scopes fail closed.
 
+## Native controller inventories
+
+`ruflo-controller-inventory` binds existing public AgentDB methods through the
+current Ruflo owner for [#4707](https://github.com/ruvnet/ruflo/issues/4707):
+`agentdb_pattern-list`, `agentdb_skill-list`, `agentdb_skill-get`, and explicitly
+count-only `agentdb_hierarchical-stats`. Native pages retain their records, totals,
+limit and offset; concurrent pages are not a transactional snapshot. Skill reads
+preserve native backend refusals. Tier counts and persisted rows describe different
+representations and retain native durability/fallback qualifiers; they are not a
+hierarchical record census. The patch uses the canonical registry and native
+operation lease, creates no driver or storage, and exposes no mutations.
+
+Retire only after equivalent upstream methods pass native owner identity,
+pagination, exact read, failure and actual-consumer checks. A matching method name
+alone is not retirement evidence. Installation does not reload an already running
+MCP owner; activate through its normal graceful lifecycle and verify new schemas.
+
 ## Selective native pattern withdrawal (v4.46.61)
 
 The new `ruflo-pattern-withdrawal` target exposes administrative exact
@@ -2269,6 +2286,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |
 | **`ruflo-http-sessions`** | Bind native HTTP requests to their own session and authenticated principal; return session IDs and pre-dispatch expiry responses so clients can reinitialize after replacement. Preserve native completion retirement and legacy SSE binding. | [#3294 · open](https://github.com/ruvnet/ruflo/issues/3294) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
+| **`ruflo-controller-inventory`** | Delegate native paginated pattern/skill inventories, exact skills and count-only tier statistics through the existing owner. | [#4707](https://github.com/ruvnet/ruflo/issues/4707) |
 | **`ruflo-pattern-withdrawal`** | Expose exact native ReasoningBank get and hash-guarded delete for explicit correction. Preserve unrelated patterns and refuse changed identities; no cross-process compare-and-swap guarantee. | Related [#3450](https://github.com/ruvnet/ruflo/issues/3450) and [#829](https://github.com/ruvnet/ruflo/issues/829), not complete repairs of those issues |
 | **`brain-learning-receipts`** | **Retired on native 4.7.28 behavior proof; older compatibility only.** Native exact readback, consent and child-result handling establish capture before marking an observation complete. | [#377 · closed](https://github.com/stuinfla/ruvnet-brain/issues/377) |
 | **`brain-adr-envelope`** | Preserve the complete decision envelope through native asynchronous bounded stdin reading up to 1 MiB, including tail fields. Native verdict and fail-open policy semantics remain unchanged. | [#515 · open](https://github.com/stuinfla/ruvnet-brain/issues/515) |

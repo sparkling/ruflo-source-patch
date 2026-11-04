@@ -36,6 +36,7 @@ npx github:sparkling/ruflo-source-patch plugin-hosts install # dual-host install
 npx github:sparkling/ruflo-source-patch ruflo-model-contract install # exact native model IDs; routing tier stays caller/harness allocated (#3215)
 npx github:sparkling/ruflo-source-patch ruflo-context-contract install # retired on qualified native context outcomes; restore upstream behavior (#3314)
 npx github:sparkling/ruflo-source-patch ruflo-sqlite-owner install # graph, registry and repair use the same native SQLite library (#3693)
+npx github:sparkling/ruflo-source-patch ruflo-controller-inventory install # existing native pattern/skill inventories and count-only hierarchy statistics (#4707)
 npx github:sparkling/ruflo-source-patch ruflo-pattern-receipt install # reject failed pattern fallback writes; exact namespace/key/value readback (#3691)
 npx github:sparkling/ruflo-source-patch ruflo-tier-consolidation install # withdrawn custom tier-copy algorithm; restore native unsupported behavior, preserve all data (#2977)
 npx github:sparkling/ruflo-source-patch ruflo-policy-serialization install # serialize verified policy state once, preserving every receipt and authorization (#3164)
