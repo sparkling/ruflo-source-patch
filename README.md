@@ -3404,7 +3404,9 @@ through existing Mac/HZ MCP sessions, one HZ source search, and a native OpenAI
 proof from fresh inventory observations. It has one
 owner lock, finite runtime/output/memory limits and private bounded receipts under
 `~/.local/state/ruflo-source-patch/hourly-regression`; it does not control projects
-or send console prompts. A real launchd run passed on 4 November at 10:13 UTC.
+or send console prompts. The full launchd run passed on 4 November at 10:47 UTC:
+41 Product tests, all patch fixtures, four memory checks, a fresh 46.9-second
+Strategy source search and the Sol Medium review.
 Forced background CPU/I/O policy reproduced fixture admission failures; Standard
 scheduling fixed that runner defect without changing production or test deadlines.
 Fixture success, live read success and historical record recovery remain distinct.
