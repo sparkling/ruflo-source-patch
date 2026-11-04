@@ -1,13 +1,14 @@
 # ADR-038: Live research access through native MCP methods
 
-**Status**: Accepted; native access, HZ authority and bounded coverage implemented; explicit source gaps retained
+**Status**: Accepted; HZ access, declared private holdings and native inventories implemented; remaining capability limits explicit
 **Date**: 2026-11-04
 **Updated**: 2026-11-04. Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
 overbroad content filters. Shared content admission and the document/native-inventory expansion are
-verified, committed and activated on Hetzner. Separate published-media methods
-and actual project-consumer refresh are verified; declared source limitations
-remain explicit. Laptop checkouts are not current authorities.
+verified, committed and activated on Hetzner. Native pattern/skill inventories,
+100 declared private originals and shared cold initialization are implemented.
+Actual consumer refresh is verified; remaining native and cold-cost limits stay
+explicit. Laptop checkouts are not current authorities.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, mcp, research, source-authority, native-configuration
 
@@ -32,8 +33,7 @@ records. These findings support simplifying the access path; they do not prove
 complete original-document coverage or equivalent retrieval quality. Some stored
 records are summaries, chunks, historical proposals or imported foreign evidence.
 
-The initial RVF portability recommendation is superseded by the owner's live-only
-direction. Its experiments remain evidence, not an implementation requirement.
+The owner's live-only direction supersedes RVF portability; its experiments remain evidence.
 
 ## Decision
 
@@ -77,11 +77,9 @@ mirrors of methods that Ruflo already exposes.
 | Inspect relationships | Expose relevant existing native graph read methods where configured and authorized. |
 | Consult learned patterns or other learning state | Use the appropriate existing native controller reads; preserve their distinct semantics. |
 
-Discover the installed methods and schemas before registration; this table defines
-responsibilities, not invented API names. A verified exposure gap may justify a
-thin method binding to an existing supported operation, not a replacement index,
-ranker or framework. Report a genuine unavailable capability instead of inventing
-a successful substitute.
+Discover installed methods/schemas before registration. A verified exposure gap may
+justify a thin binding to a supported operation, not a replacement index, ranker or
+framework. Report unavailable capabilities without inventing successful substitutes.
 
 Exact memory retrieval returns the stored record. If it contains only a summary or
 reference, follow the existing original-document reader when the task requires
@@ -394,16 +392,20 @@ missing page 1 and absent visual extraction remain explicit.
 
 Native episode list/get succeeded at the five actual HZ controller owners:
 BA 1,756; SA 15,827; EA research 2,413; Product zero; AI-BA 616 at observation.
-Product's zero is a successful native inventory result. The installed registry
-provides no pattern, skill or tier list method: available search/get/recall is not
-a census. Retained SQL graph traversal and native graph/controller populations
-remain distinct. No standalone AgentDB driver, raw database read or replacement
-inventory algorithm is introduced to hide those exposure gaps.
+Product's zero is a successful native inventory result at that observation.
+Ruflo 3.71.1 omitted existing AgentDB 3.3 public pattern/skill inventory methods.
+Issue-backed `ruflo-controller-inventory`, release 4.46.137, exposes native
+`agentdb_pattern-list`, `agentdb_skill-list` and `agentdb_skill-get` through the
+same owner, operation lease and authorization path. Pages preserve native totals,
+filters and offsets; they are live reads, not a transaction across concurrent writes.
+`agentdb_hierarchical-stats` exposes native counts and durability/fallback details,
+not tier record enumeration. No standalone driver, raw database read or new
+inventory algorithm is added. Retained SQL graphs remain a distinct representation.
 
 The separate artefact owner is committed as `295e4ba` / `75d9029` and integrated
 with source methods, skills, agents and installation defaults in `02da635`.
-Forty-four combined regressions passed. The current interface has 18 tools:
-twelve native reads, two research-document methods, two artefact methods and two
+Forty-four initial regressions passed. The current interface has 22 tools:
+sixteen native reads, two research-document methods, two artefact methods and two
 compatibility methods. Publication/generation catalogues are separated from
 primary document results; discussion and authoring research remain readable.
 
@@ -416,38 +418,46 @@ The installed methods preserve exact source lineage, original hashes/locations,
 source-cut pagination and observed configuration fields. HEAD checks verify only
 access response state, not full binary identity or semantic content.
 
-`coverage-completion-dispositions.json` in the local activation directory accounts
-for 28 inventoried source classes. Unconfigured private work, original binary
-features and native controllers without inventory methods remain explicit gaps,
-rather than being silently counted as covered. No blanket all-material claim is
-made by the completed method bindings.
+The 28-class coverage disposition now includes 100 declared private originals:
+Product 68, AI-BA 10, BA 11, SA 10 and EA research one. Existing catalogue/custody
+owners supply exact identities; explicit configured paths cover selected working
+research. All 100 bodies match their source hashes. Seven representative live
+MCP searches and complete reads across all five owners verify hashes and status.
+Held/quarantined status is not an access ban; drafts, held inputs and historical
+copies retain their qualifications. Missing originals, credential refusal and
+wrong-owner bindings propagate explicit coverage failures. Other unconfigured
+holdings, binary features and controllers without native inventory remain gaps.
 
-Private HZ receipts in Product `.local/native-live-mcp-20261104/`:
-`hz-authority-owner-proof.json`, `native-episode-proof.json`,
-`document-expansion-proof.json`, `ai-expanded-originals-proof.json` and
-`coverage-tests.log`. Copies of these private receipts and the subsequent
-consumer proof are retained in the local activation evidence directory.
+Proofs remain in Product `.local/native-live-mcp-20261104/` and the root
+`.local/federated-research-20261104/native-live-activation/` bundle, including
+private-holdings verification and `product-cold/completion-summary.json`.
 
 ### Actual consumer activation and remaining limits
 
 All three HZ source services now use the canonical current runtime. Fifteen
 source/session combinations across three retained HZ project consumers and all
-five sources in the retained Mac consumer advertise 18 methods and passed exact
-native reads after the old routes were retired. The five existing native owner
-PIDs remained unchanged. Authentication refusal returned 401 and wrong-source
-refusal returned 404. HZ's Mac tunnel and the unused Mac source service were
+five sources in the retained Mac consumer now advertise 22 methods and passed exact
+native reads after route retirement. The inventory release gracefully reloaded
+the five existing owners; configuration and source identities stayed intact.
+Authentication/wrong-source checks returned 401/404. The Mac tunnel and service were
 stopped after verified cutover and zero remaining established connections.
 
 Actual consumer searches and complete/hash-checked reads passed for the omitted
 source classes, including TXT/CSV, reviewed assertions, authoring Markdown,
 JSONL lines, opportunity specifications and Product benefits/current catalogue
 records. Artefact discovery/exact metadata reads passed for populated bindings;
-Product reports its explicit catalogue gap. Sixteen source-to-artefact round
-trips were separately checked. Initial Product document checks exceeded the
-verifier's 70-second deadline; after earlier calls settled, serialized follow-ups
-passed on HZ and Mac with a 300-second bound. The warm follow-ups took 149/208 ms;
-these are not cold-latency or automatic-recovery improvement claims. Unretained references correctly
-failed; fresh discovery followed by exact reading passed.
+Product reports its explicit media-catalogue gap. Sixteen source-to-artefact
+round trips were separately checked. Investigation of the earlier cold timeout
+reproduced duplicate initialization: two requests read the sealed corpus twice,
+took 60.0 seconds and peaked at 2.49 GiB. Shared, atomic initialization reduced the
+unchanged-corpus run to 28.9 seconds and 1.36 GiB, with identical result hashes.
+After deployment and private-source integration, two independent MCP sessions
+completed first searches in 38.9 seconds (39.1 including initialization), under
+the unchanged 70-second verification bound, peaking at 1.39 GiB. An exact original
+was fully read and hash-verified. First-load cost still takes tens of seconds;
+tokenization/ranking is unchanged. Failed loads publish no partial corpus; retries,
+caller cancellation and changed configured cuts are tested. Product regressions
+pass 45/45; the local/native contract set passes 31/31. Root patch suite passes.
 
 The `routes-consumers/` receipt bundle contains host configuration/installation,
 service activation, expanded-class and Product follow-up proofs. Its HZ and Mac
@@ -461,10 +471,9 @@ updates do not extend the four retained-parent execution evidence.
 
 ## Consequences
 
-The native engine owns retrieval and storage semantics; the agent owns evidence
-synthesis. Source data stays at its authority and needs no sharing synchronization.
-The agent must select sources and assess evidence; relevant original files still
-need an accessible reader. Native engine defects remain possible and are handled
+The native engine owns retrieval/storage; the agent owns synthesis. Source data
+stays at its authority without sharing synchronization.
+The agent must select sources and assess evidence; original files still need an accessible reader. Native engine defects remain possible and are handled
 through the shared issue-backed patch process, not hidden by the interface.
 
 ## Related decisions and evidence
@@ -478,6 +487,7 @@ through the shared issue-backed patch process, not hidden by the interface.
 - Product ADR-027 (Accepted, mirror choice) and ADR-037 (Accepted, implemented
   comprehensive facade) have scoped current-contract amendments in `02da635`;
   their older historical behaviour is retained as history. AI-BA ADR-084's historical withdrawal remains authoritative.
+- Inventory exposure gap: [Ruflo #4707](https://github.com/ruvnet/ruflo/issues/4707).
 - Native implementation: [memory MCP tools](https://github.com/ruvnet/ruflo/blob/main/v3/%40claude-flow/cli/src/mcp-tools/memory-tools.ts)
   and [MCP command configuration](https://github.com/ruvnet/ruflo/blob/main/v3/%40claude-flow/cli/src/commands/mcp.ts).
 - Retained private evidence: `.local/federated-research-20261104/`, particularly
