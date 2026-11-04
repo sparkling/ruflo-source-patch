@@ -9,12 +9,14 @@ larger envelope exposed a native nonblocking-stdin `EAGAIN`/`EPIPE` defect; the
 shared correction reuses native asynchronous bounded input. Recall enumerated
 all `turns` rows for presence; the correction requests one while preserving
 complete checkpoint namespaces. Both have executable regressions. The source
-facade repeated full namespace exports and serialized callers. Its shared Product
-repair is live: native metadata accelerates unchanged namespaces; selected gaps
-use scoped verification. Incomplete query results no longer suppress a recovery
-request for five minutes. Cold concurrent R5/R7 passed in 125.5/172.8 seconds under
-the unchanged 180-second deadline. That narrow queue margin is not an arbitrary-load
-guarantee. CPU bursts were not proof of sustained saturation or timeout cause.
+facade repeated full namespace exports and serialized callers. Native metadata now
+accelerates unchanged namespaces; incomplete results cannot hide recovery for five
+minutes. Release 4.46.124 removes duplicate inventory authorization; 4.46.126 pages
+native row identities before payloads. After the AI owner refresh, concurrent
+R5/R7/R1 passed in 34/59/89 seconds, with complete coverage and no gaps; the hourly
+cold source read took 81 seconds. Serial request delay and cold export cost remain.
+Release 4.46.127 shortens current-composition proof without skipping preflights or
+changing locks; it does not eliminate concurrent SessionStart timeout risk.
 
 Strategy's 08:51:07Z checkpoint store timed out. The original exact key is absent;
 the complete expected value is not reconstructible, so no replay occurred.
@@ -30,7 +32,7 @@ candidate is not installed because the helper requires an upstream signature.
 
 ## Shared failures and current evidence
 
-The strongest common factor is deadline pressure from native policy history. Each
+For the original lifecycle failures, a measured factor was native policy history. Each
 authorization authenticates the full anchor history, then publication traverses
 and serializes it again under the same project lock. Originating CLI calls and
 the native owner each preserve their authorization boundary. Our omitted
