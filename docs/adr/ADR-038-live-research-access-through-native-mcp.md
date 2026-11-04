@@ -1,9 +1,10 @@
 # ADR-038: Live research access through native MCP methods
 
-**Status**: Accepted; implementation and consumer activation in progress
+**Status**: Implemented; consumer activation verified at the coverage below
 **Date**: 2026-11-04
 **Updated**: 2026-11-04. Owner authorized native MCP implementation and required
 appropriate original-document methods in addition to memory search/retrieval.
+Native access is active; complete whole-repository research coverage is not claimed.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, mcp, research, source-authority, native-configuration
 
@@ -148,6 +149,13 @@ them into underlying originals. Tool descriptions must explain that distinction.
 The implementation must report source scope, exclusions and historical cuts
 honestly. Neither advertising a controller nor succeeding on one known key proves
 that all controller data or all original research is accessible.
+
+Fresh Mac-to-HZ source checks passed after owner Tailscale authorization. Actual
+retained HZ AI-BA and Product connections also passed their first exact read after
+a graceful source-service restart, without caller retry or host reload and with
+their client process identities unchanged. The source-bound configuration and
+retained-client evidence live in
+`.local/federated-research-20261104/native-live-activation/`.
 
 ## Consequences
 
