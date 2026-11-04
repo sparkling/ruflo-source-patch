@@ -40,7 +40,7 @@ try {
   const moduleUrl = pathToFileURL(path.join(pkg, 'mcp-client.js')).href;
   const native = await import(pathToFileURL(policyFile));
   const req = createRequire(path.join(nativeRoot, 'package.json'));
-  const { MCPServer } = await import(pathToFileURL(req.resolve('@claude-flow/mcp')));
+  const { MCPServer } = await import(pathToFileURL(process.env.RSP_OWNER_MCP_ENTRY || req.resolve('@claude-flow/mcp')));
   const { Client } = await import(pathToFileURL(req.resolve('@modelcontextprotocol/sdk/client/index.js')));
   const { StreamableHTTPClientTransport } = await import(pathToFileURL(req.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')));
   const tokenFile = path.join(scratch, 'token'), config = path.join(scratch, 'owners.json');
@@ -309,7 +309,7 @@ try {
   assert.notEqual(concurrent[0].request.context.metadata.inputDigest, concurrent[1].request.context.metadata.inputDigest);
   await native.withPolicyTransaction(root, engine => engine.issueApproval({ id: 'uncertain', principal: 'legacy-cli', actions: ['memory.read'], issuedBy: 'fixture-admin', expiresAt: Date.now() + 60000, maxUses: 1 }), { approvalIssuerVerifier: who => who === 'fixture-admin' });
   const http = server.transports[0], handle = http.requestHandler;
-  http.requestHandler = async request => { const response = await handle(request); if (request.params?.arguments?.key === 'lost-response') http.server.closeAllConnections(); return response; };
+  http.requestHandler = async (request, context) => { const response = await handle(request, context); if (request.params?.arguments?.key === 'lost-response') http.server.closeAllConnections(); return response; };
   before = count();
   await assert.rejects(caller('memory_retrieve', { ...input, key: 'lost-response' }, { approvalIds: ['uncertain'] }));
   http.requestHandler = handle;

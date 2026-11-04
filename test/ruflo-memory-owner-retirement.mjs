@@ -4,10 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
 import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
+import { patchSource as patchHttp, reverse as reverseHttp } from '../lib/ruflo-http-sessions/patcher.mjs';
 const capability = 'ruflo/native-memory-owner-one-call';
 const clientId = () => 'ruflo-native-owner-client:' + randomUUID();
 const init = (id, ephemeral = true) => ({ jsonrpc:'2.0',id:1,method:'initialize',params:{
@@ -17,7 +18,8 @@ const request = (id, token, method = 'tools/call', name = 'fixture_read') => ({j
   params:{name,arguments:{},_meta:{[capability]:{clientId:id,token}}} });
 if (process.argv[2] === 'killed-client') {
   const [url, token, tool] = process.argv.slice(3), id = clientId();
-  const post = body => fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)}).then(r=>r.json());
+  let httpSession;
+  const post = async body => { const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,...(httpSession?{'Mcp-Session-Id':httpSession}:{})},body:JSON.stringify(body)});httpSession=r.headers.get('mcp-session-id')??httpSession;return r.json(); };
   const initialized = await post(init(id));
   const disposal = initialized.result.capabilities.experimental[capability];
   process.send({id});
@@ -109,14 +111,106 @@ async notification(r){state.calls.push(r);}async close(){}}
 
   if(process.env.RSP_OWNER_NATIVE_ROOT){
     const require=createRequire(path.join(process.env.RSP_OWNER_NATIVE_ROOT,'package.json'));
-    const {MCPServer}=await import(pathToFileURL(require.resolve('@claude-flow/mcp')).href);
-    const logger={debug(){},info(){},warn(){},error(){}};
-    native=new MCPServer({transport:'http',host:'127.0.0.1',port:0,auth:{enabled:true,method:'token',tokens:['disposable']},
+    const nativeRoot=path.resolve(require.resolve('@claude-flow/mcp'),'../..'), staged=path.join(scratch,'native-mcp');
+    fs.cpSync(path.join(nativeRoot,'dist'),path.join(staged,'dist'),{recursive:true});
+    fs.copyFileSync(path.join(nativeRoot,'package.json'),path.join(staged,'package.json'));
+    const nativeRequire=createRequire(path.join(nativeRoot,'package.json'));
+    for(const dependency of Object.keys(JSON.parse(fs.readFileSync(path.join(nativeRoot,'package.json'))).dependencies ?? { ajv:1, cors:1, express:1, 'express-rate-limit':1, helmet:1, ws:1 })) {
+      let resolved=path.dirname(nativeRequire.resolve(dependency));
+      while(!fs.existsSync(path.join(resolved,'package.json')) || JSON.parse(fs.readFileSync(path.join(resolved,'package.json'))).name!==dependency) {
+        const parent=path.dirname(resolved);assert.notEqual(parent,resolved);resolved=parent;
+      }
+      const link=path.join(staged,'node_modules',dependency);fs.mkdirSync(path.dirname(link),{recursive:true});fs.symlinkSync(resolved,link);
+    }
+    for(const relative of ['server.js','transport/http.js']) {
+      const file=path.join(staged,'dist',relative), source=fs.readFileSync(file,'utf8'), candidate=patchHttp(source);
+      assert.deepEqual(candidate.missing,[]);assert.equal(reverseHttp(candidate.next),source);
+      assert.equal(patchHttp(candidate.next).next,candidate.next);fs.writeFileSync(file,candidate.next);
+    }
+    const installRoot=path.join(scratch,'global/@claude-flow/mcp');
+    fs.mkdirSync(path.join(installRoot,'dist/transport'),{recursive:true});
+    fs.copyFileSync(path.join(nativeRoot,'package.json'),path.join(installRoot,'package.json'));
+    for(const file of ['server.js','transport/http.js'])fs.copyFileSync(path.join(nativeRoot,'dist',file),path.join(installRoot,'dist',file));
+    fs.mkdirSync(path.join(scratch,'home/.claude'),{recursive:true});fs.writeFileSync(path.join(scratch,'home/.claude/settings.json'),'{}');
+    const cli=action=>spawnSync(process.execPath,[fileURLToPath(new URL('../bin/cli.mjs',import.meta.url)),'ruflo-http-sessions',action],
+      {encoding:'utf8',timeout:30000,env:{...process.env,RUFLO_SOURCE_PATCH_HOME:path.join(scratch,'home'),RUFLO_GLOBAL_ROOT:path.join(scratch,'global'),RUFLO_NPX_ROOT:path.join(scratch,'npx'),
+        RSP_NO_SELF_UPDATE:'1',RSP_NO_MONITOR_RECOVER:'1',RSP_NO_LAUNCHCTL:'1',RSP_NO_STALE_WRITER_KILL:'1',RSP_NO_HOST_AUTO_UPDATE:'1'}});
+    const firstInstall=cli('install');assert.equal(firstInstall.status,0,firstInstall.stdout+firstInstall.stderr);assert.match(firstInstall.stdout,/patched: 2/);
+    const status=cli('status');assert.equal(status.status,0,status.stdout+status.stderr);assert.match(status.stdout,/2\/2 file\(s\) patched/);
+    assert.equal(cli('install').status,0);
+    for(const file of ['server.js','transport/http.js'])assert.equal(fs.readFileSync(path.join(installRoot,'dist',file)+'.rsp-backup','utf8'),fs.readFileSync(path.join(nativeRoot,'dist',file),'utf8'));
+    const uninstall=cli('uninstall');assert.equal(uninstall.status,0,uninstall.stdout+uninstall.stderr);
+    for(const file of ['server.js','transport/http.js'])assert.equal(fs.readFileSync(path.join(installRoot,'dist',file),'utf8'),fs.readFileSync(path.join(nativeRoot,'dist',file),'utf8'));
+    fs.unlinkSync(path.join(installRoot,'dist/transport/http.js'));
+    assert.notEqual(cli('install').status,0,'missing companion surface refuses whole target');
+    assert.equal(fs.readFileSync(path.join(installRoot,'dist/server.js'),'utf8'),fs.readFileSync(path.join(nativeRoot,'dist/server.js'),'utf8'));
+    if (process.env.RSP_OWNER_NATIVE_SRC || fs.existsSync(path.join(process.env.RSP_OWNER_NATIVE_ROOT,'dist/src/services'))) {
+      const policy=spawnSync(process.execPath,[fileURLToPath(new URL('./ruflo-owner-policy.mjs',import.meta.url))],
+        {encoding:'utf8',timeout:60000,env:{...saved,RSP_OWNER_MCP_ENTRY:path.join(staged,'dist/index.js')}});
+      assert.equal(policy.status,0,policy.stdout+policy.stderr);console.log('staged HTTP native authorization/cancellation fixture passed');
+    }
+    const {MCPServer}=await import(pathToFileURL(path.join(staged,'dist/index.js')).href);
+    const {Client}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')));
+    const {StreamableHTTPClientTransport}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')));
+    const warnings=[],logger={debug(){},info(){},warn(message,fields){warnings.push({message,fields});},error(){}};
+    native=new MCPServer({transport:'http',host:'127.0.0.1',port:0,auth:{enabled:true,method:'token',tokens:['disposable','other-principal']},
       rateLimit:{windowMs:60000,limit:600},sessionRateLimit:{requestsPerSecond:100,burstSize:1000,perSessionLimit:500}},logger);
     const api=await attach(native);let gate,finish,entered;
     const calls={fixture_read:0,fixture_write:0};
     for(const name of Object.keys(calls))native.registerTool({name,description:'Disposable lifecycle boundary',inputSchema:{type:'object',properties:{}},handler:async()=>{calls[name]++;entered();await gate;return{success:true};}});
     await native.start();const endpoint='http://127.0.0.1:'+native.transports[0].server.address().port+'/mcp';
+    let sessionCalls=0;
+    const sessionTool={name:'fixture_session',description:'Read native session identity',inputSchema:{type:'object',properties:{}},
+      handler:async(_args,context)=>{sessionCalls++;const before=context.sessionId;await new Promise(resolve=>setImmediate(resolve));return{before,after:context.sessionId};}};
+    native.registerTool(sessionTool);
+    const sdk=async(label,token='disposable',oneCall=false)=>{
+      const transport=new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:'Bearer '+token,Connection:'close'}}});
+      const client=new Client({name:label,version:'1'},{capabilities:oneCall?{experimental:{[capability]:{version:1}}}:{}});await client.connect(transport);return{client,transport};
+    };
+    const [a,b,c]=await Promise.all([sdk('session-a'),sdk('session-b','other-principal'),sdk('session-a-sibling')]);
+    const ephemeralId=clientId(), e=await sdk(ephemeralId,'disposable',true);
+    const disposal=e.client.getServerCapabilities().experimental[capability];
+    const attributed={name:'fixture_session',arguments:{},_meta:{[capability]:{clientId:ephemeralId,token:disposal.token}}};
+    for(const wrong of [b,c])await assert.rejects(wrong.client.callTool(attributed),/Invalid/);
+    const wrongRelease=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer disposable','Mcp-Session-Id':c.transport.sessionId},
+      body:JSON.stringify({jsonrpc:'2.0',method:'notifications/ruflo/memory-owner-release',params:{clientId:ephemeralId,token:disposal.token}})});
+    assert.equal(wrongRelease.status,500);await wrongRelease.arrayBuffer();
+    const diagnostic=warnings.find(row=>row.message==='Native HTTP notification rejected');
+    assert.deepEqual(diagnostic?.fields,{method:'notifications/ruflo/memory-owner-release',reason:'Invalid one-call owner retirement'});
+    assert(!JSON.stringify(diagnostic).includes(disposal.token),'notification diagnostic excludes token/body');
+    assert.equal(sessionCalls,0,'foreign session cannot dispatch or release a one-call token');
+    await e.client.callTool(attributed);assert.equal(sessionCalls,1,'own token executes once after alien attempts');
+    await e.client.close();native.terminateSession(e.transport.sessionId);
+    const aId=a.transport.sessionId,bId=b.transport.sessionId;
+    assert(aId&&bId&&c.transport.sessionId);assert.equal(new Set([aId,bId,c.transport.sessionId]).size,3,'same and different principals receive distinct native session IDs');
+    const value=response=>JSON.parse(response.content.find(row=>row.type==='text').text);
+    for(let batch=0;batch<6;batch++)await Promise.all([a,b,c,a].map(async client=>{
+      const result=value(await client.client.callTool({name:'fixture_session',arguments:{}}));
+      assert.deepEqual(result,{before:client.transport.sessionId,after:client.transport.sessionId});
+    }));
+    assert.equal(native.getSessions().length,3,'warm calls do not allocate new native sessions');
+    const raw=async(body,{id,token='disposable',url=endpoint}={})=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,Connection:'close',...(id?{'Mcp-Session-Id':id}:{})},body:JSON.stringify(body)});
+    const read={jsonrpc:'2.0',id:31,method:'tools/call',params:{name:'fixture_session',arguments:{}}};
+    const beforeRefusals=sessionCalls;
+    for(const [options,status]of [[{id:aId,token:'other-principal'},404],[{id:'unknown-native-session'},404],[{},400],[{id:aId,token:'invalid'},401]]) {
+      const response=await raw(read,options);assert.equal(response.status,status);await response.arrayBuffer();
+    }
+    assert.equal(sessionCalls,beforeRefusals,'missing/stolen/unknown/unauthenticated session never dispatches');
+    // Retained HTTP+SSE binds its native session to its authenticated connection.
+    const abortSse=new AbortController();
+    const stream=await fetch(endpoint,{headers:{Authorization:'Bearer disposable'},signal:abortSse.signal});
+    const reader=stream.body.getReader(),first=new TextDecoder().decode((await reader.read()).value);
+    const legacyUrl=new URL(first.match(/data: (.+)/)[1],endpoint).href;
+    const legacyInit=await raw(init(clientId(),false),{url:legacyUrl});
+    assert.equal(legacyInit.status,202);const legacyId=legacyInit.headers.get('mcp-session-id');assert(legacyId);await legacyInit.arrayBuffer();
+    const legacyRead=await raw(read,{url:legacyUrl});assert.equal(legacyRead.status,202);await legacyRead.arrayBuffer();
+    const alien=await raw(read,{url:legacyUrl,token:'other-principal'});assert.equal(alien.status,404);await alien.arrayBuffer();
+    abortSse.abort();await reader.cancel().catch(()=>{});
+    native.terminateSession(aId);
+    const beforeExpired=sessionCalls;await assert.rejects(a.client.callTool({name:'fixture_session',arguments:{}}),error=>error.code===404);
+    assert.equal(sessionCalls,beforeExpired,'expired-session call cannot execute');
+    await a.client.close();await b.client.close();await c.client.close();
+    for(const session of native.getSessions())native.terminateSession(session.id);
     const firstAbandoned=clientId();await native.handleInitialize(init(firstAbandoned));
     for(let i=1;i<100;i++)await native.handleInitialize(init(clientId()));
     const nativeCapacity=typeof native.sessionManager.reserveCapacity==='function';
@@ -144,8 +238,6 @@ async notification(r){state.calls.push(r);}async close(){}}
       assert(native.getSessions().some(s=>s.clientInfo.name===stable));
     }
     assert.deepEqual(calls,{fixture_read:1,fixture_write:1});
-    const {Client}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')));
-    const {StreamableHTTPClientTransport}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')));
     const nativeFactory=path.join(scratch,'native-factory.mjs');
     fs.writeFileSync(nativeFactory,createOwnerPolicyProtocol.toString()+'\n'+createMemoryOwnerClient.toString()
       .replace("'@modelcontextprotocol/sdk/client/index.js'",JSON.stringify(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')).href))
@@ -164,7 +256,7 @@ async notification(r){state.calls.push(r);}async close(){}}
     const stableSdk=new Client({name:'persistent-sdk-fixture',version:'1'},{capabilities:{}});
     await stableSdk.connect(transport());
     const http=native.transports[0],dispatch=http.requestHandler;
-    http.requestHandler=async r=>{const response=await dispatch(r);
+    http.requestHandler=async (r,context)=>{const response=await dispatch(r,context);
       if(r.method==='tools/call'&&r.params.arguments?.loseResponse)http.server.closeAllConnections();
       return response;
     };
@@ -201,7 +293,21 @@ async notification(r){state.calls.push(r);}async close(){}}
       finish();assert((await pending).result,'eviction does not turn the running handler into a failed write or replay');
       assert.equal(calls.fixture_read,before+1,'capacity pressure executes once');
     }
-    await api.close();await native.stop();native.sessionManager.destroy();native=null;
+    const retained=await sdk('restart-retained');
+    const priorId=retained.transport.sessionId;await retained.client.callTool({name:'fixture_session',arguments:{}});
+    const port=native.transports[0].server.address().port;
+    await api.close();await native.stop();native.sessionManager.destroy();
+    native=new MCPServer({transport:'http',host:'127.0.0.1',port,auth:{enabled:true,method:'token',tokens:['disposable']}},logger);
+    const replacementApi=await attach(native);native.registerTool(sessionTool);await native.start();
+    const beforeRestartRead=sessionCalls;
+    await assert.rejects(retained.client.callTool({name:'fixture_session',arguments:{}}),error=>error.code===404);
+    assert.equal(sessionCalls,beforeRestartRead,'old process ID is refused before handler execution');
+    await retained.client.close();
+    const reinitialized=await sdk('restart-retained');assert.notEqual(reinitialized.transport.sessionId,priorId);
+    const recovered=value(await reinitialized.client.callTool({name:'fixture_session',arguments:{}}));
+    assert.equal(recovered.before,reinitialized.transport.sessionId);assert.equal(sessionCalls,beforeRestartRead+1);
+    await reinitialized.client.close();await replacementApi.close();await native.stop();native.sessionManager.destroy();native=null;
+    console.log('HTTP session regression: two-principal isolation,24interleavedcalls,SSEbinding,auth/expiryrefusals,restart404,freshnativeinitialize; no implicit replay');
     console.log('actual native HTTP+SDK: killed read/write and105lost-response clients retire after completion; persistent survives below capacity; native capacity eviction='+nativeCapacity);
   }
 }finally{

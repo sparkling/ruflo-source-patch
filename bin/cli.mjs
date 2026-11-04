@@ -161,6 +161,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-user-learning-root': brainUserLearningRootCommand,
   'ruflo-memory-entries-only': action => runPluginCommand('ruflo-memory-entries-only', action),
   'ruflo-memory-owner': action => runPluginCommand('ruflo-memory-owner', action),
+  'ruflo-http-sessions': action => runPluginCommand('ruflo-http-sessions', action),
   'ruflo-memory-list-pagination': action => runPluginCommand('ruflo-memory-list-pagination', action),
   'ruflo-policy-anchor-copy': action => runPluginCommand('ruflo-policy-anchor-copy', action),
   'brain-recall-runtime': action => runPluginCommand('brain-recall-runtime', action),
@@ -257,6 +258,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-learning-receipts')}mark capture only after verified readback (#377)
   ${pad('ruflo-memory-entries-only')}withdraw capture adapter; retain retrieve failure reporting (#4666)
   ${pad('ruflo-memory-owner')}route configured clients through authenticated native owners (#4654)
+  ${pad('ruflo-http-sessions')}bind native HTTP calls to their initialized principal/session (#3294)
   ${pad('ruflo-memory-list-pagination')}page native identities before full memory payloads (#4686)
   ${pad('ruflo-policy-anchor-copy')}reuse authenticated history with exact byte-digest publication proof (#3164)
   ${pad('brain-recall-runtime')}withdraw recall adapter and restore native execution (#514)
