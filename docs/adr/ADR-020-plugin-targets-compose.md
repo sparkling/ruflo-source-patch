@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-03. Bounded fresh lifecycle handoff and native store/read
+**Updated**: 2026-11-04. Bounded fresh lifecycle handoff and native store/read
 process reuse extend the implemented composition. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
@@ -27,7 +27,7 @@ and pristine reversal preserve the canonical failure decoder.
 The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without
 adding admission, storage, acknowledgement or replay behavior. Private overwrite
-slots bound diagnostics; they are samples, not complete loss accounting. Native
+slots bound diagnostics; they are samples, not complete loss accounting. Native checkpoint stages now retain launch, deadline and sanitized terminal evidence.
 HTTP tests exercise single-use approval, concurrent request isolation, forged
 metadata/evidence, budget refusal and full audit before activation.
 
@@ -102,6 +102,10 @@ only after one successful exact read and complete byte comparison through the
 unchanged native constructor at the original committed timestamp. It retains the
 stored value and reports its committed identity; changed actions and read failures
 remain failures. Shared composition preserves capture diagnostics and exact reversal.
+
+The 4 November #429 extension requests one `turns` row for presence only; checkpoint namespaces still enumerate completely, including a project named `turns`. Native authorization and selection are unchanged. Actual stdin hook runs preserve output and confirm retirement; uncontrolled timings do not prove a general speedup. The finite 20-second mitigation remains. Exact 4.46.120 migration and pristine reversal are tested.
+
+The same day's #515 correction composes native asynchronous bounded stdin reading with the paired envelope caps. The former synchronous read swallowed `EAGAIN` as empty policy input and could produce parent `EPIPE`. Executable tests verify complete delivery, refusals and missing-verdict output. Native fail-open semantics and deadlines remain unchanged; errors are not hidden.
 
 The 2 November recall follow-up adds `brain-recall-owner-reuse` (#429) as a
 separate atomic three-file contribution. It extends the existing native reader

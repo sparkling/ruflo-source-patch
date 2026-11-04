@@ -1,8 +1,26 @@
 # Hook and database repair register
 
-Updated: 2026-11-03. Owner: ruflo-source-patch. Project sessions retain their
+Updated: 2026-11-04. Owner: ruflo-source-patch. Project sessions retain their
 own work and report failures in their own Herdr sessions. No console injections,
 worker resumes, database resets or uncertain-write replays are authorized by this register.
+
+4 November update: the failures have multiple demonstrated mechanisms. The
+larger envelope exposed a native nonblocking-stdin `EAGAIN`/`EPIPE` defect; the
+shared correction reuses native asynchronous bounded input. Recall enumerated
+all `turns` rows for presence; the correction requests one while preserving
+complete checkpoint namespaces. Both have executable regressions. The source
+facade separately repeats full namespace exports and serializes callers; its
+cache repair requires cold/warm/concurrent live qualification. CPU utilization
+varies sharply; bursts are not proof of sustained saturation or timeout cause.
+
+Strategy's 08:51:07Z checkpoint store timed out. The original exact key is absent;
+the complete expected value is not reconstructible, so no replay occurred.
+Shared checkpoint diagnostics now retain stage, launch and sanitized terminal
+details in the existing private ring. ST01/ST03's 14 imported values are verified;
+their current launch/proc/transcript issues are separate local application work.
+The helper's independent false-success persistence bugs are reported in
+[Ruflo #4685](https://github.com/ruvnet/ruflo/issues/4685). Its tested upstream
+candidate is not installed because the helper requires an upstream signature.
 
 ## Shared failures and current evidence
 

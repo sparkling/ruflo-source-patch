@@ -15,7 +15,25 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## ADR envelope repair: 2 November 2026
+## ADR envelope repair: updated 4 November 2026
+
+The larger envelope exposed a second native defect: `decision-gate` touches
+`process.stdin`, then synchronously reads its nonblocking pipe. A caught `EAGAIN`
+can become empty policy input; larger inputs also produce `EPIPE` in the parent.
+The 4 November correction reuses native `readStdinBounded` asynchronously at the
+existing 1 MiB bound. Executable regressions compare complete payload digests and
+tail fields through every policy, preserve refusal code 2, and retain explicit
+missing-verdict diagnostics for policy errors/timeouts. Native fail-open policy
+semantics are unchanged. This repairs input loss; it does not suppress pipe errors
+or claim that every historical unattributed `EPIPE` has the same cause.
+
+Checkpoint diagnostics now preserve the store/retrieve stage, attempted and actual
+launch, child PID, deadline/elapsed time, terminal code/signal and sanitized failure
+category in the existing private bounded capture ring. They do not retain values,
+arguments or raw stderr, alter native results, extend deadlines or replay writes.
+The 4 November Strategy checkpoint is currently absent at its original exact key;
+its complete original value cannot be reconstructed from retained evidence.
+Instrumentation makes future failures diagnosable; it does not recover that record.
 
 `brain-adr-envelope` repairs the reproduced HZ semantic-ai inspection failure
 ([Brain #515](https://github.com/stuinfla/ruvnet-brain/issues/515)). The native
@@ -354,7 +372,19 @@ writer was not attributed. No historical observation was replayed or existing
 coordinator/MCP transport stopped. Private proof is in
 `release-v4.46.105/activation.json` under the 3 November recovery directory.
 
-## Recall owner reuse: 2 November 2026
+## Recall owner reuse: updated 4 November 2026
+
+The 4 November repair bounds the `turns` namespace list to one entry when recall
+uses it only to establish presence. Namespaces used for checkpoint selection
+remain complete, including a project whose checkpoint namespace is `turns`.
+Native authorization, initialization, ranking and exact reads are unchanged.
+The Product fixture returned the same selected evidence while the live turns
+response fell from 1,275 rows / 379,921 bytes to one row / 326 bytes. Actual stdin
+hook runs returned identical output and confirmed reader retirement. Their
+4,689 ms and 3,444 ms timings were observed under varying load, not a controlled
+speedup. The temporary 20-second deadline remains; the original 1,900 ms deadline
+still failed under diagnostic concurrency. This reduces unnecessary enumeration;
+it does not resolve every source-facade or lifecycle timeout.
 
 `brain-recall-owner-reuse` extends the existing Brain reader for
 [Brain #429](https://github.com/stuinfla/ruvnet-brain/issues/429). The native hook

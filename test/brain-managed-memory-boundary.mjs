@@ -56,7 +56,7 @@ function write(file, body, mode = 0o644) {
 const hash = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
 const fakeHookInput = `import fs from 'node:fs';
-export async function readStdinBounded() { return fs.readFileSync(0); }
+export function readStdinBounded() { return Promise.resolve(fs.readFileSync(0)); }
 export function parseHookEvent(raw) { try { return JSON.parse(String(raw)); } catch { return {}; } }
 export const toolName = (event) => typeof event?.tool_name === 'string' ? event.tool_name : '';
 export const commandOf = (event) => event?.tool_input?.command || event?.command || '';
@@ -397,7 +397,7 @@ const envelope = await import('../lib/brain-adr-envelope/patcher.mjs');
 const sharedShim = path.join(nextRoot, 'scripts/hook-shim.mjs');
 const shimNative = fs.readFileSync(sharedShim, 'utf8').replace('};', envelope.SPECS[0].edits[0][0] + '\n};');
 write(sharedShim, shimNative);
-write(path.join(nextRoot, 'scripts/decision-gate.mjs'), envelope.SPECS[1].edits[0][0] + '\n');
+write(path.join(nextRoot, 'scripts/decision-gate.mjs'), envelope.SPECS[1].edits.map(([from]) => from).join('\n') + '\n');
 const envelopeCli = action => spawnSync(process.execPath, [path.join(REPO, 'bin/cli.mjs'), envelope.NAME, action], {
   env: process.env, encoding: 'utf8', timeout: 30_000,
 });
