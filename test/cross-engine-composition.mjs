@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { observeComposition } from '../lib/composition-proof.mjs';
 import { PLATFORM_GENERATOR } from './fixtures/ruflo-instruction-vendor.mjs';
 
 const sandbox = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-cross-engine-')));
@@ -89,6 +91,102 @@ try {
     state.removeTargets(['init']); healthy(cli.apply([])); expectFiles(legacy);
     for (const file of files) assert(!fs.existsSync(backup(file)), 'last claimant restores and removes shared backup');
   }
+  // SessionStart followers prove the exact installed source once the writer
+  // releases; they never take turns doing the same full mutating qualification.
+  reset(); state.addTargets(['init']); state.addPluginTargets([plugin]);
+  healthy(cli.apply(['init'])); healthy(compose.applyComposed([plugin]));
+  assert.equal(compose.installedCompositionHealthy(state.readState()), true);
+  assert.equal(compose.installedCompositionHealthy({ patchTargets: [], pluginTargets: [plugin] }), false,
+    'an unselected CLI contribution must be restored, even on a shared plugin file');
+  const withdrawn = path.join(roots[0], 'agentdb/dist/src/core/AgentDB.js');
+  write(withdrawn, 'const vectorStoragePath = "withdrawn fixture";');
+  assert.equal(compose.installedCompositionHealthy(state.readState()), false,
+    'withdrawn adapter outside active CLI entry table must not be hidden by observation');
+  fs.rmSync(withdrawn);
+  const { reapply } = await import('../lib/cwd/commands.mjs');
+  assert.equal(reapply({ observe: true }).observed, true);
+  const hook = spawnSync(process.execPath, ['--input-type=module', '--eval', `
+    import fs from 'node:fs';
+    let candidates = 0; const open = fs.openSync;
+    fs.openSync = (file, ...args) => { if (String(file).includes('.mutation.lock.candidate-')) candidates++; return open(file, ...args); };
+    process.once('exit', () => console.log('__OBSERVATION__'+JSON.stringify({ candidates })));
+    await import(${JSON.stringify(new URL('../lib/cwd/session-start.mjs', import.meta.url).href)});
+  `], { env: process.env, cwd: sandbox, encoding: 'utf8', timeout: 15000 });
+  assert.equal(hook.status, 0, hook.stdout + hook.stderr);
+  assert(hook.stdout.includes('__OBSERVATION__{"candidates":0}'), 'actual SessionStart entry must use the observation path: ' + hook.stdout);
+  const leaderRelease = state.acquirePatchMutationLock();
+  const childSource = `
+    import fs from 'node:fs';
+    import { reapply } from ${JSON.stringify(new URL('../lib/cwd/commands.mjs', import.meta.url).href)};
+    let candidates = 0; const open = fs.openSync;
+    fs.openSync = (file, ...args) => { if (String(file).includes('.mutation.lock.candidate-')) candidates++; return open(file, ...args); };
+    console.log('ready');
+    try { console.log(JSON.stringify({ result: reapply({ observe: true }), candidates })); }
+    catch(error) { console.log(JSON.stringify({ error: error.message, candidates })); process.exitCode = 1; }
+  `;
+  const followers = Array.from({ length: 6 }, () => {
+    const child = spawn(process.execPath, ['--input-type=module', '--eval', childSource], {
+      env: { ...process.env, RSP_PATCH_LOCK_TIMEOUT_MS: '5000' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '', stderr = '', ready;
+    const timer = setTimeout(() => child.kill('SIGKILL'), 15000);
+    const started = new Promise(resolve => { ready = resolve; });
+    child.stdout.on('data', chunk => { output += chunk; if (output.includes('ready\n')) ready(); });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    const done = new Promise(resolve => child.on('close', code => { clearTimeout(timer); ready(); resolve({ code, output, stderr }); }));
+    return { started, done };
+  });
+  try { await Promise.all(followers.map(child => child.started)); }
+  finally { leaderRelease(); }
+  for (const row of await Promise.all(followers.map(child => child.done))) {
+    assert.equal(row.code, 0, row.output + row.stderr);
+    const result = JSON.parse(row.output.trim().split('\n').at(-1));
+    assert.equal(result.result.observed, true, row.output);
+    assert.equal(result.candidates, 0, 'healthy follower must never publish a mutation claim');
+  }
+  // A writer disappearing between polling reads must not let a follower skip
+  // its proof and publish a redundant mutation claim instead.
+  const exists = fs.existsSync; let sawOwner = false, observationCalls = 0;
+  fs.existsSync = file => {
+    if (file === state.PATCH_MUTATION_LOCK_PATH && !sawOwner) { sawOwner = true; return true; }
+    return exists(file);
+  };
+  try {
+    const release = state.acquirePatchMutationLock({ observe: () => { observationCalls++; return true; } });
+    try { assert.equal(release, null); } finally { release?.(); }
+    assert.equal(observationCalls, 1);
+  } finally { fs.existsSync = exists; }
+  write(files[0], legacy); // A genuinely dropped patch still requires the writer.
+  assert.equal(compose.installedCompositionHealthy(state.readState()), false);
+  assert.notEqual(reapply({ observe: true }).observed, true);
+  expectFiles(combined(legacy));
+
+  // The pure proof cannot accept markers, missing dependencies or an unstable
+  // discovery/source observation. No mutation/recovery hook is invoked.
+  const member = path.join(sandbox, 'proof-member.mjs');
+  write(member, 'pristine + patch'); write(backup(member), 'pristine');
+  const descriptor = { name: 'proof-fixture', hasPatch: source => source.includes(' + patch'),
+    patchSource: source => ({ next: source + ' + patch', applied: ['patch'], missing: [] }),
+    prepare: () => { throw Error('observation must not mutate'); }, preflight: () => ({ ok: true }) };
+  const discovery = () => new Map([[member, [descriptor]]]);
+  const observe = () => observeComposition([descriptor], discovery);
+  assert.equal(observe(), true);
+  descriptor.preflight = () => ({ ok: false }); assert.equal(observe(), false);
+  descriptor.preflight = () => { write(member, 'pristine + patch + foreign'); return { ok: true }; };
+  assert.equal(observe(), false, 'source changes during dependency checking invalidate proof');
+  descriptor.preflight = () => ({ ok: true });
+  assert.equal(observe(), false, 'marker-preserving foreign edit is not exact source');
+  write(member, 'pristine + patch'); fs.rmSync(backup(member));
+  assert.equal(observe(), false, 'missing pristine cannot infer patched provenance');
+  write(backup(member), 'pristine + patch'); assert.equal(observe(), false, 'poisoned pristine refuses');
+  write(backup(member), 'pristine');
+  descriptor.patchSource = source => ({ next: source, applied: [], missing: ['unknown anchor'] });
+  assert.equal(observe(), false);
+  descriptor.patchSource = source => ({ next: source + ' + patch', applied: ['patch'], missing: [] });
+  let discoveries = 0;
+  assert.equal(observeComposition([descriptor], () => ++discoveries === 1 ? discovery() : new Map()), false);
+  assert.equal(observeComposition([{ ...descriptor, name: 'missing' }], discovery), false);
+  assert.equal(observeComposition([{ name: 'absent', applicability: () => ({ state: 'not-applicable' }) }], () => new Map()), true);
+  console.log('✓ SessionStart: six followers observe exact source without mutation; drift repairs under lock; unknown/dependency/stability failures refuse');
   reset(); state.addTargets(['init']); state.addPluginTargets([plugin]);
   const { patchPreviousPlatformGenerator } = await import('../lib/ruflo-instruction-contract/skill-contract.mjs');
   for (const file of files) { write(file, patchPreviousPlatformGenerator(cliOnly(legacy)).next); write(backup(file), legacy); }

@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-04. Explicit-store inventory reads reuse equivalent native policy
+**Updated**: 2026-11-04. SessionStart can observe fresh exact installed composition without becoming a writer; unknown or changed sources retain exclusive repair. Explicit-store inventory reads reuse equivalent native policy
 authority; bounded lifecycle handoff and store/read reuse remain. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
@@ -23,6 +23,8 @@ their prior authorization path. Full anchor verification and audit are unchanged
 history still scales linearly. Exact 4.46.123/earlier reconstruction preserves
 upgrade, pristine reversal and the canonical failure decoder.
 The independent #4686 pagination contribution pages proven native row identifiers before hydrating payloads; unknown schemas retain native SQL. It changes no schema, driver or pagination consistency contract. Native/sql.js equivalence and shared-owner forward/reverse composition qualify activation. The reviewed 3.71.1 wrapper remains unchanged, including its new missing-installation refusal. Composition provenance now tries exact current-chain equality before historical subsets; all native preflights and fallback proofs remain, without caching health or changing the mutation lock.
+
+SessionStart reuses those transforms and dependency preflights to observe the current desired state, physical-file set, pristine backups and composed bytes. It checks file/state identity again and declines observation while a mutation or recovery claim is present. Healthy followers can therefore finish after the writer releases instead of serially repeating installation qualification. This is a fresh read-only observation, not a persistent health cache or mutation permission; unknown, changed, unsupported or incomplete composition still uses the existing exclusive apply, retirement and failure-reporting path. Monitor/install behavior and lock ownership, recovery and timeout remain unchanged.
 
 Version 4.46.128 reuses the native owner for fixed-source list/stats/export batches of at most four, retaining native policy, trust, one-call retirement, cancellation and draining; other calls retain their prior path. This does not claim an atomic snapshot. The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without
