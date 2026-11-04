@@ -39,8 +39,26 @@ authorize replay. A late old-client failure cannot evict its replacement.
 The released 4.46.134 client reproduces expiry failure against native MCP 3.1.6.
 The candidate passes expiry, real server replacement, twelve concurrent calls
 with one replacement handshake, authorization/identity/cancellation refusals and
-lost-response tests. Installation and activation verification are pending;
-both HTTP owners and persistent stdio clients must load the new source.
+lost-response tests. The complete suite passes against the qualified CLI 3.71.1
+fixture; default discovery also exposes a separate CLI 3.71.2 pagination anchor
+failure reproduced by released 4.46.134.
+
+The immutable `v4.46.135` artifact is installed byte-for-byte in both Mac prefixes
+and the HZ global prefix. The five research-project owners on each host and this
+repository's Mac owner were gracefully refreshed; native host reloads succeeded.
+All 16 Mac and 32 HZ shared session source files qualify, including the affected
+project's retained CLI 3.71.0 runtime. HZ monitoring passes. At this activation,
+Mac monitoring reports only the separate 3.71.2 pagination compatibility gap.
+
+A retained verification stdio client using the affected project's exact runtime
+and preserved scan input succeeded on its first call after a real owner restart,
+with the same client process and no harness retry. Native expiry is separately
+covered by the regression fixture. The original author connection could not be
+called through the host API: it rejects direct input into multi-agent child
+threads. This live proof does not claim that original thread was exercised.
+The preserved scan returned `safe: false`; transport recovery does not admit its
+research content or resume authors. Source-connector refresh and source-specific
+read verification remain separately owned activation checks.
 
 ## Native alignment and backend readiness: 4 November 2026
 

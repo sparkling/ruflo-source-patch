@@ -8,7 +8,19 @@ refusal and permits one fresh handshake under unchanged configured authority.
 Concurrent callers share the replacement; native identity, policy and auth are
 rechecked. Principal mismatch, unqualified 404, authorization refusal and unknown
 execution never permit replay. Native expiry/restart and twelve-call concurrency
-tests pass; installation and live activation verification are pending.
+tests pass. The immutable 4.46.135 package is byte-verified in both Mac prefixes
+and HZ's global prefix. Five research-project owners per host plus this Mac
+repository owner were gracefully refreshed, with successful native host reloads.
+All 16 Mac and 32 HZ session source files qualify. A retained verification client
+using the affected HZ project's exact CLI 3.71.0 runtime completed its first scan
+after owner replacement on the same stdio process, without a harness retry.
+The original child-agent connection remains unexercised: the native host refuses
+direct tool input into multi-agent child threads. The preserved scan returned
+`safe: false`, so no research admission or author resumption is implied.
+The complete suite passes with qualified CLI 3.71.1. Default discovery's unrelated
+CLI 3.71.2 pagination anchor failure reproduces on released 4.46.134; it is also
+the sole Mac monitor drift at activation. HZ monitoring passes. Source-connector
+refresh and source-specific read proof are separate activation responsibilities.
 Correct the separate downstream one-call cleanup race: after a
 received response, native server completion owns session retirement; the client
 closes its transport without a redundant release notification. Explicit cleanup
