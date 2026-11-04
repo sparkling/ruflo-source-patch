@@ -73,6 +73,7 @@ import { brainDualHostStdinCommand } from '../lib/brain-dual-host-stdin/commands
 import { brainCodexCompletionCommand } from '../lib/brain-codex-completion/commands.mjs';
 import { brainGroundingEvidenceCommand } from '../lib/brain-grounding-evidence/commands.mjs';
 import { brainGroundingCodeCommand } from '../lib/brain-grounding-code/commands.mjs';
+import { brainGroundingMultifileCommand } from '../lib/brain-grounding-code/multifile-command.mjs';
 import { brainTransitionNoticeCommand } from '../lib/brain-transition-notice/commands.mjs';
 import { brainTransitionValidationCommand } from '../lib/brain-transition-validation/commands.mjs';
 import { brainManagedCliCaptureCommand } from '../lib/brain-managed-cli-capture/commands.mjs';
@@ -147,6 +148,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-codex-completion': brainCodexCompletionCommand,
   'brain-grounding-evidence': brainGroundingEvidenceCommand,
   'brain-grounding-code': brainGroundingCodeCommand,
+  'brain-grounding-multifile': brainGroundingMultifileCommand,
   'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
@@ -247,6 +249,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-codex-completion')}qualify native Codex completion evidence without weakening scope checks (#423)
   ${pad('brain-grounding-evidence')}record successful searches for the Stop gate without broadening write authorization (#316)
   ${pad('brain-grounding-code')}ignore prose-only JS/Python comments/docstrings in grounding (#46)
+  ${pad('brain-grounding-multifile')}attribute native grounding to each added file in a mixed patch (#373)
   ${pad('brain-transition-notice')}show pending memory once per session; keep capture and failure reporting intact (#380)
   ${pad('brain-transition-validation')}validate full history once per transition; retain native checks and exact readback (#385)
   ${pad('ruflo-pattern-withdrawal')} selective native ReasoningBank exact get/hash-guarded delete (#3450/#829 context)

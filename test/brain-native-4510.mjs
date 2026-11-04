@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { nativeSatisfied as groundingNative } from '../lib/brain-grounding-code/native.mjs';
 import { exerciseNativeGrounding, probeGroundingCodeReplacement } from '../lib/brain-grounding-code/probe.mjs';
-import { patchMultiSource } from '../lib/brain-grounding-code/multi-patch.mjs';
 import { readCapturePrivacySources, evaluateCapturePrivacy, isReviewedNativeCaptureNormalizer } from '../lib/brain-native/capture-privacy-proof.mjs';
 import * as capture from '../lib/brain-managed-cli-capture/patcher.mjs';
 import { probeCaptureBehavior } from '../lib/brain-managed-cli-capture/probe.mjs';
@@ -141,10 +140,8 @@ try {
   assert(groundingNative(guard));
   const groundingRoot = path.join(temporary, 'grounding'); fs.mkdirSync(groundingRoot);
   const helper = fixtureRead('scripts/grounding-code-projection.mjs');
-  assert.throws(() => exerciseNativeGrounding({ guard, helper }, groundingRoot), /native replay 3/,
-    '4.5.10 retains the multi-file sibling-metadata defect');
-  const grounding = exerciseNativeGrounding({ guard, helper: patchMultiSource(helper).next }, groundingRoot);
-  assert.equal(grounding.assertions, 44); // Alias entrypoint is independently exercised below.
+  const grounding = exerciseNativeGrounding({ guard, helper }, groundingRoot);
+  assert.equal(grounding.assertions, 44);
   const helperFile = path.join(groundingRoot, 'scripts/grounding-code-projection.mjs');
   const helperAlias = path.join(groundingRoot, 'alias.mjs'); fs.symlinkSync(helperFile, helperAlias);
   const projectionInput = JSON.stringify({ tool_name: 'Write', tool_input: { file_path: 'backup.py', content: '# agentdb warning\nimport sqlite3\n' } });
@@ -152,6 +149,6 @@ try {
     env: { HOME: groundingRoot, PATH: process.env.PATH || '' } });
   assert.equal(aliasResult.status, 0, aliasResult.stderr); assert(aliasResult.stdout.trim(), 'realpath alias executes the native helper entrypoint');
   const groundingProof = probeGroundingCodeReplacement({ files: [path.join(groundingRoot, 'scripts/ground-before-write.sh')] });
-  assert.equal(groundingProof.state, 'live', 'pristine native multi-file grounding is not repaired upstream');
+  assert.equal(groundingProof.state, 'superseded', groundingProof.evidence);
   console.log('PASS Brain 4.5.10: six native proof families, privacy/consent/frozen refusal, immutable recovery, dedup, suspension, conservative grounding and alias entrypoint');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
