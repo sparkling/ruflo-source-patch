@@ -17,7 +17,7 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Native inventory pagination: 4 November 2026
 
-Version 4.46.125 adds `ruflo-memory-list-pagination` for
+Version 4.46.126 exposes `ruflo-memory-list-pagination` through the public CLI for
 [Ruflo #4686](https://github.com/ruvnet/ruflo/issues/4686). Native listing sorted
 large content and embedding payloads before discarding earlier pages. The patch
 pages native row identifiers first, then returns the same fields through the same
@@ -29,7 +29,9 @@ Independent tests exercised 126 native/sql.js cases on both 3.71.0 and 3.71.1.
 An isolated 50,000-row fixture reduced a late-page read from 922 to 149 ms;
 this is not a live source-search measurement or an atomic pagination guarantee.
 Existing native owners require a graceful refresh to load the query correction.
-The same release recognizes the exact published 3.71.1 wrapper and verifies its
+The 4.46.125 tag omitted the public command registration; 4.46.126 corrects that
+packaging omission and tests actual CLI install, status and uninstall. It also
+recognizes the exact published 3.71.1 wrapper and verifies its
 new missing-installation refusal while leaving that upstream wrapper unchanged.
 
 ## Explicit-store inventory policy: 4 November 2026
