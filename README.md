@@ -15,6 +15,22 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Bounded native inventory reads: 4 November 2026
+
+Version 4.46.128 exposes a read-only inventory client through the existing native
+owner implementation for `memory_list`, `memory_stats`, and `memory_export`.
+The fixed source root/store, native policy, trust and one-call session retirement
+remain enforced. Up to four independent reads may run together; closing stops
+admission and drains started client calls. Cancellation does not claim that a
+server-side handler has finished, and inventory remains non-atomic.
+
+The Product source adapter uses this seam to remove its per-read serialization
+while retaining whole-request ordering, complete-corpus admission, byte bounds,
+coverage errors and existing timeouts. All settled reads in a started group are
+accounted for. Independent native policy/lifecycle tests, 42 Product tests,
+23 distinct AI engine tests and three source-integration tests passed. Live
+activation and original-query latency are qualified separately below.
+
 ## Composition proof performance: 4 November 2026
 
 Version 4.46.127 checks exact equality with the complete current patch composition
