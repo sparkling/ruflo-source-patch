@@ -14,6 +14,14 @@ import sys
 import time
 
 MAX_BYTES = 1024 * 1024
+READ_TIMEOUT_SECONDS = 30
+HOST_TIMEOUT_SECONDS = 120
+
+
+def error_category(error):
+    if isinstance(error, (asyncio.TimeoutError, TimeoutError)):
+        return 'monitor-deadline-completion-unknown'
+    return error.category if isinstance(error, Refused) else type(error).__name__
 
 
 def digest(value):
@@ -122,7 +130,8 @@ async def worker(targets):
                                 if 'error' in response:
                                     raise Refused('app-server-error', response['error'])
                                 return response['result']
-                    return await asyncio.wait_for(receive(), 5)
+                    allowance = READ_TIMEOUT_SECONDS if method == 'mcpServer/tool/call' else 5
+                    return await asyncio.wait_for(receive(), allowance)
 
                 await call('initialize', {'clientInfo': {'name': 'rsp-hourly-readonly', 'version': '1'},
                                           'capabilities': {'experimentalApi': True}})
@@ -146,7 +155,7 @@ async def worker(targets):
             row.update(error=error.category, errorDigest=error.evidence)
         except Exception as error:
             # Exception messages can contain response data or authentication material.
-            row.update(error=type(error).__name__)
+            row.update(error=error_category(error))
         row['elapsedMs'] = round((time.monotonic() - started) * 1000)
         results.append(row)
     return results
@@ -164,7 +173,7 @@ async def host_probe(host, targets):
     process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
     try:
-        stdout, _ = await asyncio.wait_for(process.communicate(json.dumps(targets).encode()), 40)
+        stdout, _ = await asyncio.wait_for(process.communicate(json.dumps(targets).encode()), HOST_TIMEOUT_SECONDS)
         if process.returncode != 0 or len(stdout) > 65536:
             raise Refused('worker-failed')
         result = json.loads(stdout)
@@ -175,7 +184,7 @@ async def host_probe(host, targets):
         if process.returncode is None:
             process.kill()
             await process.wait()
-        category = error.category if isinstance(error, Refused) else type(error).__name__
+        category = error_category(error)
         return [{'target': t['label'], 'status': 'not-verified', 'error': category,
                  'elapsedMs': round((time.monotonic() - started) * 1000)} for t in targets]
 
@@ -184,9 +193,9 @@ async def main():
     if sys.argv[1:] == ['--worker']:
         targets = json.loads(sys.stdin.buffer.read(65537))
         try:
-            result = await asyncio.wait_for(worker(targets), 35)
+            result = await asyncio.wait_for(worker(targets), HOST_TIMEOUT_SECONDS - 2)
         except Exception as error:
-            result = [{'target': t['label'], 'status': 'not-verified', 'error': type(error).__name__}
+            result = [{'target': t['label'], 'status': 'not-verified', 'error': error_category(error)}
                       for t in validate_targets(targets)]
         print(json.dumps(result))
         return 0
@@ -209,5 +218,5 @@ if __name__ == '__main__':
     try:
         sys.exit(asyncio.run(main()))
     except Exception as error:
-        print(json.dumps({'status': 'not-verified', 'error': error.category if isinstance(error, Refused) else type(error).__name__}))
+        print(json.dumps({'status': 'not-verified', 'error': error_category(error)}))
         sys.exit(1)

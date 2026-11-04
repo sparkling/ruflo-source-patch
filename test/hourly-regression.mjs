@@ -24,7 +24,7 @@ try {
     count++;
     if (command === 'git') return { ...success, tail: 'fixture-revision' };
     if (command === 'python3') {
-      assert.equal(options.timeoutMs, 45000);
+      assert.equal(options.timeoutMs, 125000);
       assert(args[0].endsWith('/scripts/hourly-regression-live.py'));
       return liveSuccess;
     }
@@ -70,6 +70,12 @@ try {
   assert.equal(await run({ state: path.join(root, 'healthy'), execute: async command => command === 'python3' ? liveSuccess : success }), 0);
   assert.equal(await run({ state: path.join(root, 'unverified-live'), execute: async command => command === 'python3'
     ? { ...success, tail: JSON.stringify({ status: 'not-verified', error: 'native-error' }) } : success }), 1);
+  const deadlineState = path.join(root, 'live-deadline');
+  assert.equal(await run({ state: deadlineState, execute: async command => command === 'python3'
+    ? { ...liveSuccess, stopped: 'timeout' } : success }), 1);
+  const deadlineFile = fs.readdirSync(deadlineState).find(file => file.endsWith('.json'));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(deadlineState, deadlineFile))).live.report.error,
+    'monitor-deadline-completion-unknown', 'outer expiry must override even a partial success response');
   let interruptedCalls = 0;
   assert.equal(await run({ state: path.join(root, 'interrupted'), execute: async () => {
     interruptedCalls++;

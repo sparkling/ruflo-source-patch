@@ -13,6 +13,12 @@ spec.loader.exec_module(live)
 
 
 class ReadOnlyProbe(unittest.TestCase):
+    def test_diagnostic_deadline_is_not_native_failure(self):
+        self.assertEqual(live.READ_TIMEOUT_SECONDS, 30)
+        self.assertEqual(live.HOST_TIMEOUT_SECONDS, 120)
+        self.assertEqual(live.error_category(asyncio.TimeoutError()), 'monitor-deadline-completion-unknown')
+        self.assertEqual(live.error_category(live.Refused('native-error')), 'native-error')
+
     def setUp(self):
         self.entry = {'key': 'disposable', 'namespace': 'fixture', 'value': {'text': 'complete'}}
         self.page = {'entries': [self.entry]}
