@@ -1,12 +1,13 @@
 # ADR-038: Live research access through native MCP methods
 
-**Status**: Accepted; native access deployed, source-authority and coverage corrections pending
+**Status**: Accepted; native access, HZ authority and bounded coverage implemented; explicit source gaps retained
 **Date**: 2026-11-04
 **Updated**: 2026-11-04. Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
-overbroad content filters. Shared content admission is repaired and active on
-Hetzner Product/AI-BA; authority corrections and coverage expansion remain
-pending. Laptop checkouts are not current authorities.
+overbroad content filters. Shared content admission and the document/native-inventory expansion are
+verified, committed and activated on Hetzner. Separate published-media methods
+and actual project-consumer refresh are verified; declared source limitations
+remain explicit. Laptop checkouts are not current authorities.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, mcp, research, source-authority, native-configuration
 
@@ -71,7 +72,8 @@ mirrors of methods that Ruflo already exposes.
 |---|---|
 | Find stored research | Native search with relevant source/namespace selection and documented arguments. |
 | Read a known stored record | Native exact retrieval, preserving value, identity and metadata. |
-| Discover/read original documents or artefacts | Reuse existing source/document search and exact document/resource readers. Verify their actual coverage and references. |
+| Discover/read research originals | Reuse existing `search_documents` / `read_document` and supported source readers; preserve format, hash and extraction coverage. |
+| Discover/read published media metadata | Separate `search_artefacts` / `read_artefact`, reusing durable source publication catalogues and published original locations. |
 | Inspect relationships | Expose relevant existing native graph read methods where configured and authorized. |
 | Consult learned patterns or other learning state | Use the appropriate existing native controller reads; preserve their distinct semantics. |
 
@@ -85,6 +87,28 @@ Exact memory retrieval returns the stored record. If it contains only a summary 
 reference, follow the existing original-document reader when the task requires
 the original. Label summaries, imported evidence, withdrawn decisions and missing
 originals truthfully. A current read does not make a historical record current.
+
+### Published media custody and separate methods
+
+Owner direction requires distinct MCP methods for research documents and published
+artefacts. `search_documents` / `read_document` retain research text and authoring
+inputs; `search_artefacts` / `read_artefact` discover exact media catalogue identities,
+titles, types, generation configuration, source references and published originals.
+Research that discusses an artefact remains research text. Catalogue metadata must
+not appear as though it were the full underlying research or media content.
+
+Publication deletes local and NotebookLM copies after verified publication. Reuse
+the existing durable publication/catalogue manifests and original object/site
+locations. Do not recreate mirrors, regenerate media or assume provider copies
+remain. Retained transcripts/extracted text may support content search where the
+existing owner exposes them; otherwise state metadata-only coverage. A catalogue
+publication receipt is historical verification, distinct from a current URL check.
+
+Expose only filters backed by observed metadata. Unsupported source classes,
+missing manifests, absent transcripts and inaccessible published originals remain
+explicit. Refresh affected project MCP consumers after deployment and verify their
+actual tool discovery plus artefact search/exact metadata reads; restarting a
+server alone is not completion.
 
 ### Agent behaviour and failure semantics
 
@@ -131,7 +155,7 @@ complete only when the intended consumer uses the configured route successfully.
 
 ### Observed interface and coverage boundary
 
-The implemented interface advertises 15 tools with descriptions and argument
+The earlier deployed baseline advertised 15 tools with descriptions and argument
 schemas: eleven source-bound native memory/controller reads, two original-document
 methods and two retained compatibility methods. It registers tools, not MCP
 resources or prompts. Method discovery documents invocation; it is not a corpus
@@ -217,8 +241,9 @@ shared-reader read on Hetzner. That SA check did not change its network route.
 Focused consumer, source-boundary, graph and credential regression tests passed.
 Receipt: `content-filter-live-proof.json` in the activation evidence directory.
 
-The BA/SA/EA registrations still use the old laptop source route; their Hetzner
-cutover remains step 1/7 below. Overlapping uncommitted laptop reader changes were
+At the audit cut, BA/SA/EA registrations still used the old laptop source route;
+the later verified implementation and activation records below supersede that
+routing observation. Overlapping uncommitted laptop reader changes were
 preserved. AI-BA's independent path/extension selection still excludes 868 tracked
 entries in the measured run; this includes non-research files and is not 868
 proven missing research documents. Historical prefiltered exports and legacy
@@ -232,11 +257,12 @@ SQL graphs and native controller representations must be mapped separately.
 Upstream ADR-520's episode get/list views bound text fields to 4,000 characters;
 the same bound was verified in Hetzner's installed Ruflo 3.71.1 implementation.
 An exact episode ID therefore identifies a record without guaranteeing its full
-text. Verify the installed view contract and expose a supported full-record read
+text; the subsequent list binding preserves this native limit. Verify the installed view contract and expose a supported full-record read
 where available; otherwise state the limit. Never reconstruct missing text or
 use raw managed-database access to bypass that boundary.
-Published artefact catalogues, provider originals and private research holdings
-need explicit access/custody mappings; they are not covered merely because a
+Published artefact catalogues, durable published originals and private research
+holdings need explicit access/custody mappings; deleted local/provider copies are
+not expected retrieval locations; they are not covered merely because a
 document mentions their URLs.
 
 Complete this decision by correcting authority after verifying the active source
@@ -264,8 +290,8 @@ Reuse existing source configuration, manifests, readers and native methods.
 | 3. Account for all source classes | Each existing source owner supplies its current tracked paths, declared private holdings and retained manifests. Map each class to a supported method, explicit access restriction, duplicate rendition or unresolved gap. Include ordinary memories, learning controllers and graphs independently. | Every inventoried class has a disposition and authority. Counts are tied to a source cut; unresolved/private uninspected holdings are explicit, never counted as covered. |
 | 4. Expose omitted documents/data | Shared reader owner: extend existing reader configuration for eligible text, CSV, JSONL, Markdown authoring inputs, research catalogues, reviewed assertions and opportunity specifications. Reuse existing extraction/readers for binary originals. | Known omitted items from every source can be discovered and read with matching identity/content. JSONL records retain line/record identity; truncation, extraction gaps and duplicate formats are visible. |
 | 5. Complete native record access | Native interface owner: discover installed read/list/get schemas for populated controllers, tiers and graph representations; expose missing read-only methods only where needed. Use native pagination and exact retrieval. | Enumeration/count reconciliation and representative exact reads for each populated representation; unavailable enumeration remains a named limitation. Top-K search is not a census. |
-| 6. Link artefacts to evidence | Existing source/catalogue owner: connect published artefact metadata to source references, original/provider/object locations, configurations and available transcript/text renditions. Include retained local/private originals through their authorized existing reader. | A source-to-artefact and artefact-to-source example works for every populated artefact type; missing, removed or inaccessible originals are reported. An accessible URL alone does not prove body/text coverage. |
-| 7. Activate and verify consumers | Deploy the shared change on Hetzner, refresh affected registrations through supported controls, then point laptop consumers at Hetzner. Preserve existing sessions and exact unrelated configuration. | Five-source discovery, native reads and original-document reads pass from the actual research consumer; stale-client/restart behavior and explicit failure reporting pass. Record active code/configuration identity and rollback. |
+| 6. Link artefacts to evidence | Existing source/catalogue owner: connect durable published artefact metadata to source references, verified published object/site locations, configurations and any retained transcript/text renditions through separate artefact methods. Preserve the deletion-after-publication lifecycle; do not require deleted local/provider copies. | A source-to-artefact and artefact-to-source example works for every populated artefact type; missing, removed or inaccessible originals are reported. An accessible URL alone does not prove body/text coverage. |
+| 7. Activate and verify consumers | Deploy the shared change on Hetzner, refresh affected registrations through supported controls, then point laptop consumers at Hetzner. Preserve existing sessions and exact unrelated configuration. | Five-source discovery, native reads, original-document reads and the separate artefact methods pass from refreshed actual project consumers; stale-client/restart behavior and explicit failure reporting pass. Record active code/configuration identity and rollback. |
 
 The initial source-specific backlog is:
 
@@ -340,6 +366,99 @@ Include source refusal, credential refusal, no-match, real backend failure,
 pagination and declared extraction-gap cases. Extend existing tests rather than
 adding another harness or an exhaustive per-request inventory/export.
 
+### Verified implementation slices — 4 November 2026
+
+Product `b64e602` is pushed on `main`: canonical HZ source configuration; existing
+tracked reader support for TXT, CSV, JSONL, Markdown/MDX, TTL/JSON-LD, HTML source
+and Mermaid text; configured authoring/reviewed-assertion roots; Product's current
+private catalogue through its existing validated `readCatalog` owner; benefits
+coverage; and thin native `agentdb_episode-list` exposure. JSONL records retain
+exact line bytes, line number and observed whole-file hash. HTML remains source
+text, without executing scripts or claiming rendered/visual extraction.
+
+Thirty-seven focused regressions passed, including exact text pagination, JSONL
+line identity, native count/pagination passthrough, credential and source refusal,
+private catalogue validation and existing consumer/service behaviour. The current
+HZ BA, SA and EA research owners reported 93,996, 53,145 and 43,645 ordinary
+records respectively at their canonical `agentdb-memory.db` paths. These are
+observed counts, not fixed expected totals or complete controller coverage.
+
+AI path selection is committed on HZ as `2658c916`; the identical scoped file
+change is published through aligned Mac `main` as `9eb8661`, preserving HZ's
+unrelated divergent history. Direct HZ validation matched every admitted live
+text unit against its source bytes: 1,696 units plus 144 retained book pages.
+The previously omitted selected classes include 483 authoring Markdown files,
+nine JSONL ledgers and 29 opportunity Markdown/JSON specifications; the thirtieth
+opportunity file is CSS and remains outside research text. The retained book's
+missing page 1 and absent visual extraction remain explicit.
+
+Native episode list/get succeeded at the five actual HZ controller owners:
+BA 1,756; SA 15,827; EA research 2,413; Product zero; AI-BA 616 at observation.
+Product's zero is a successful native inventory result. The installed registry
+provides no pattern, skill or tier list method: available search/get/recall is not
+a census. Retained SQL graph traversal and native graph/controller populations
+remain distinct. No standalone AgentDB driver, raw database read or replacement
+inventory algorithm is introduced to hide those exposure gaps.
+
+The separate artefact owner is committed as `295e4ba` / `75d9029` and integrated
+with source methods, skills, agents and installation defaults in `02da635`.
+Forty-four combined regressions passed. The current interface has 18 tools:
+twelve native reads, two research-document methods, two artefact methods and two
+compatibility methods. Publication/generation catalogues are separated from
+primary document results; discussion and authoring research remain readable.
+
+The catalogue inventory contains BA 1,598, SA 3,057, EA 510 and AI-BA 2,808
+records at inspection. AI-BA includes 1,134 published Strategy artefacts and
+1,674 historical catalogue records. Product explicitly reports an unbound media
+catalogue, not proof that no media exist. Current/publication, historical and
+unavailable states remain distinct; binary text is not indexed by this adapter.
+The installed methods preserve exact source lineage, original hashes/locations,
+source-cut pagination and observed configuration fields. HEAD checks verify only
+access response state, not full binary identity or semantic content.
+
+`coverage-completion-dispositions.json` in the local activation directory accounts
+for 28 inventoried source classes. Unconfigured private work, original binary
+features and native controllers without inventory methods remain explicit gaps,
+rather than being silently counted as covered. No blanket all-material claim is
+made by the completed method bindings.
+
+Private HZ receipts in Product `.local/native-live-mcp-20261104/`:
+`hz-authority-owner-proof.json`, `native-episode-proof.json`,
+`document-expansion-proof.json`, `ai-expanded-originals-proof.json` and
+`coverage-tests.log`. Copies of these private receipts and the subsequent
+consumer proof are retained in the local activation evidence directory.
+
+### Actual consumer activation and remaining limits
+
+All three HZ source services now use the canonical current runtime. Fifteen
+source/session combinations across three retained HZ project consumers and all
+five sources in the retained Mac consumer advertise 18 methods and passed exact
+native reads after the old routes were retired. The five existing native owner
+PIDs remained unchanged. Authentication refusal returned 401 and wrong-source
+refusal returned 404. HZ's Mac tunnel and the unused Mac source service were
+stopped after verified cutover and zero remaining established connections.
+
+Actual consumer searches and complete/hash-checked reads passed for the omitted
+source classes, including TXT/CSV, reviewed assertions, authoring Markdown,
+JSONL lines, opportunity specifications and Product benefits/current catalogue
+records. Artefact discovery/exact metadata reads passed for populated bindings;
+Product reports its explicit catalogue gap. Sixteen source-to-artefact round
+trips were separately checked. Initial Product document checks exceeded the
+verifier's 70-second deadline; after earlier calls settled, serialized follow-ups
+passed on HZ and Mac with a 300-second bound. The warm follow-ups took 149/208 ms;
+these are not cold-latency or automatic-recovery improvement claims. Unretained references correctly
+failed; fresh discovery followed by exact reading passed.
+
+The `routes-consumers/` receipt bundle contains host configuration/installation,
+service activation, expanded-class and Product follow-up proofs. Its HZ and Mac
+`post-retirement-proof.json` files record all 20 successful final checks;
+`hz-proof/final-runtime-proof.json` records unchanged owners and retired routes.
+Unrelated configuration was preserved at mutation; subsequent independent hook
+trust-hash changes are not falsely described as byte-for-byte global preservation.
+Dormant opportunity projects now inherit the user bindings; no active opportunity
+or Claude session was available for a live consumer proof. Their configuration
+updates do not extend the four retained-parent execution evidence.
+
 ## Consequences
 
 The native engine owns retrieval and storage semantics; the agent owns evidence
@@ -357,8 +476,8 @@ through the shared issue-backed patch process, not hidden by the interface.
 - [ADR-033: live structured interfaces](ADR-033-generated-ruflo-instructions-use-the-live-interface.md),
   Implemented: reuse discovered structured native tools.
 - Product ADR-027 (Accepted, mirror choice) and ADR-037 (Accepted, implemented
-  comprehensive facade) require scoped reconciliation when their default access
-  behaviour changes. AI-BA ADR-084's historical withdrawal remains authoritative.
+  comprehensive facade) have scoped current-contract amendments in `02da635`;
+  their older historical behaviour is retained as history. AI-BA ADR-084's historical withdrawal remains authoritative.
 - Native implementation: [memory MCP tools](https://github.com/ruvnet/ruflo/blob/main/v3/%40claude-flow/cli/src/mcp-tools/memory-tools.ts)
   and [MCP command configuration](https://github.com/ruvnet/ruflo/blob/main/v3/%40claude-flow/cli/src/commands/mcp.ts).
 - Retained private evidence: `.local/federated-research-20261104/`, particularly
