@@ -1,10 +1,12 @@
 # ADR-038: Live research access through native MCP methods
 
-**Status**: Implemented; consumer activation verified at the coverage below
+**Status**: Accepted; native access deployed, source-authority and coverage corrections pending
 **Date**: 2026-11-04
 **Updated**: 2026-11-04. Owner authorized native MCP implementation and required
 appropriate original-document methods in addition to memory search/retrieval.
-Native access is active; complete whole-repository research coverage is not claimed.
+Native access is active. The subsequent source-class audit found a BA authority
+freshness gap and omitted research inputs; the complete sharing decision is not
+yet implemented.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, mcp, research, source-authority, native-configuration
 
@@ -157,11 +159,45 @@ their client process identities unchanged. The source-bound configuration and
 retained-client evidence live in
 `.local/federated-research-20261104/native-live-activation/`.
 
-After the final normal source refresh and supported host reload, retained host
-registrations still advertised earlier tool descriptions. All five sources stayed
-connected. Installed descriptions are corrected, but existing host schema caches
-are not proven refreshed; do not claim complete documentation activation in those
-retained sessions.
+A normal source refresh and unchanged-configuration host reload initially left
+old tool descriptions cached. A controlled native disable/drain/restore cycle of
+the five user-level source registrations resolved this on HZ: all fifteen
+source/session combinations now advertise corrected descriptions, with the parsed
+configuration exactly restored and database owners unchanged. This verifies the
+three retained HZ consumers; it does not certify every dormant session.
+
+### Source-class audit and remaining work
+
+Endpoint registration was not a complete data-source map. The follow-up audit
+compared committed path/blob inventories, current source configuration, retained
+manifest metadata and bounded native reads. No managed database was opened
+directly, and no source binding or corpus was changed by that audit.
+
+| Source | Established gap or qualification |
+| --- | --- |
+| BA | The configured Mac source lacks 13 added and 27 changed HZ research/configuration files, including current ADR-042 work. Authoring inputs and reviewed artefact graph assertions also sit outside the default live document roots. Most other omitted configuration JSON is evaluation material, not automatically missing research. |
+| SA | Committed research documents match across hosts. The document reader omits 79 tracked text files, including acquired source extracts, and configured authoring/research selections. Native copies may exist but full original equivalence is not established. |
+| EA | Committed research documents match across hosts. The Markdown/JSON reader omits 6,361 text files and five research CSVs, among other formats. Many text files are retained upstream source blobs. EA operational memory remains intentionally excluded. |
+| Product | The current research catalogue and benefits coverage map are outside the live reader. Historical imported file/memory/learning records remain dated snapshots, not canonical live access to the originating projects. |
+| AI-BA | 483 tracked Markdown authoring inputs, nine JSONL ledgers and 30 opportunity-spec files fall outside live admission. Some HTML has equivalent Markdown; a format exclusion alone does not prove unique-content loss. |
+
+Eleven native read methods also do not census all controller populations. Native
+episode listing exists but is not exposed by this source interface; top-K pattern,
+episode and graph reads cannot establish completeness. Ordinary records, retained
+SQL graphs and native controller representations must be mapped separately.
+Published artefact catalogues, provider originals and private research holdings
+need explicit access/custody mappings; they are not covered merely because a
+document mentions their URLs.
+
+Complete this decision by correcting authority after verifying the active source
+owner, reusing existing readers for eligible omitted source classes, exposing
+needed existing native inventory methods, and mapping artefact metadata to its
+originals. Preserve intentional exclusions and qualify unavailable extraction.
+Do not add a common store, synchronization pipeline or replacement search engine.
+
+Private audit evidence: `coverage-audit-hz-summary.json` (24 source-class rows),
+`coverage-audit-mac-paths.json`, `coverage-audit-authority.json`, and
+`source-schema-refresh-hz.json` under the existing activation evidence directory.
 
 ## Consequences
 
