@@ -194,6 +194,8 @@ try {
 
   reset(PLATFORM_GENERATOR);
   state.addPluginTargets([plugin]); healthy(compose.applyComposed([plugin]));
+  assert.equal(compose.installedCompositionHealthy({ patchTargets: ['init'], pluginTargets: [plugin] }), false,
+    'a discovered file with zero applicable CLI entries must retain the ordinary incomplete-target postcondition');
   state.writeState({ patchTargets: [], pluginTargets: [plugin], retired: { init: { reason: 'fixture native bounded init replacement' } } });
   healthy(cli.apply([])); expectFiles(instruction.patchSource(PLATFORM_GENERATOR).next);
   for (const file of files) assert.equal(fs.readFileSync(backup(file), 'utf8'), PLATFORM_GENERATOR);
