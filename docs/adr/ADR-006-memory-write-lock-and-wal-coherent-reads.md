@@ -7,7 +7,13 @@ and reuses the existing schema/error guard around its unchanged SQL and argument
 Native shadowed-rowid pages can silently lose or overselect rows, so the target
 cannot fully retire. Older source compatibility remains intact; disposable
 native/sql.js fixtures cover both query generations, exact fields, full static
-enumeration and non-capability errors. Deployment verification is pending.
+enumeration and non-capability errors. The full suite passes with normal 3.71.2
+discovery, as do focused 3.71.0/3.71.1 cases. All 322 artifact files are verified
+in both Mac prefixes and HZ's global prefix. Eight Mac and sixteen HZ pagination
+files qualify, both monitors pass, and a bounded actual MCP offset-page read
+passes. Only two Mac 3.71.2 source files changed; active owners retain identical
+qualified 3.71.1 query bytes and required no additional restart. Residual upstream
+schema behavior is reported on Ruflo #4686; no full retirement is claimed.
 Release 4.46.135 corrects shared persistent HTTP-session
 recovery: an authenticated matching-request absence receipt proves pre-dispatch
 refusal and permits one fresh handshake under unchanged configured authority.
