@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
 import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
@@ -59,7 +60,11 @@ try {
   let executed = 0;
   const registry = new Map([['memory_retrieve', { handler: async () => ({ success: true, invocation: ++executed }) }]]);
   const explicitReads = ['memory_list', 'memory_stats', 'memory_export'], routed = [];
-  for (const name of explicitReads) registry.set(name, { handler: async input => {
+  let heldEntered, heldRelease, heldDone, heldSession;
+  for (const name of explicitReads) registry.set(name, { handler: async (input, context) => {
+    if (input.namespace === 'held-inventory') {
+      heldSession=context.sessionId;heldEntered();await new Promise(resolve=>{heldRelease=resolve;});heldDone();
+    }
     routed.push({ name, input }); return { success: true, dbPath: input.dbPath };
   } });
   const dispatch = api => new Function('TOOL_REGISTRY', 'MCPClientError', 'authorizeMcpTool', 'classifyMcpTool', 'rspMemoryOwner', 'applyContentBoundaryGuardrail', body)(registry, Error, native.authorizeMcpTool, native.classifyMcpTool, api, (_name, value) => value);
@@ -94,6 +99,99 @@ try {
     assert.deepEqual(routed.at(-1), { name, input: selected }, 'selected store and selectors cross the wire unchanged');
     assert.equal(state().receipts.at(-1).payload.request.action.type, native.classifyMcpTool(name).actionType,
       'export retains its native action classification');
+  }
+  // An authenticated direct HTTP read with the default native caller has the
+  // same request as the source-bound stdio projection. This proves policy data
+  // equivalence only: external adapters must still qualify identity/lifecycle.
+  const directProtocol = await factory.createOwnerPolicyProtocol(moduleUrl);
+  for (const name of explicitReads) {
+    const selected = { dbPath: pinnedStore, namespace: 'fixture' };
+    const projected = await directProtocol.project(name, selected, { transport:'stdio' }, configuration.owners.one);
+    const priorCount = count(), priorRouted = routed.length;
+    const direct = await sdk.callTool({ name, arguments:selected });
+    assert(!direct.isError); assert.equal(count(), priorCount + 1); assert.equal(routed.length, priorRouted + 1);
+    assert.deepEqual(routed.at(-1), { name, input:selected });
+    const request = structuredClone(state().receipts.at(-1).payload.request);
+    delete request.requestId; delete request.context.now;
+    assert.deepEqual(request, JSON.parse(JSON.stringify(projected.request)), 'default direct HTTP read retains complete native policy request');
+  }
+  // A Product/service process lives outside the source cwd. Its fixed reader
+  // still constructs the source request natively, with verified one-call HTTP.
+  const facade = path.join(scratch, 'facade'); fs.mkdirSync(facade);
+  const beforeFacade = count(), beforeFacadeRouted = routed.length;
+  const childSource = `
+    import assert from 'node:assert/strict';
+    import {createMemoryOwnerClient} from ${JSON.stringify(pathToFileURL(path.join(pkg,'factory.mjs')).href)};
+    delete process.env.CLAUDE_FLOW_DB_PATH;
+    const api=await createMemoryOwnerClient(${JSON.stringify(moduleUrl)});
+    const root=${JSON.stringify(root)}, dbPath=${JSON.stringify(pinnedStore)};
+    const reader=await api.openInventoryReader({root,dbPath});
+    assert.equal(reader.registry.length,3);
+    const read=(name,args,options)=>reader.client.callTool({name,arguments:args},undefined,options);
+    for(const [name,args] of [['memory_store',{dbPath}],['agentdb_pattern-search',{dbPath}],
+      ['memory_list',{dbPath:root+'/foreign.db'}],['memory_list',Object.create({dbPath})],
+      ['memory_list',{dbPath,toJSON(){return{dbPath:root+'/foreign.db'}}}]]) await assert.rejects(read(name,args));
+    process.env.CLAUDE_FLOW_PRINCIPAL_ID='changed';await assert.rejects(read('memory_stats',{dbPath}));delete process.env.CLAUDE_FLOW_PRINCIPAL_ID;
+    process.env.CLAUDE_FLOW_DB_PATH=root+'/foreign.db';await assert.rejects(read('memory_stats',{dbPath}));delete process.env.CLAUDE_FLOW_DB_PATH;
+    const aborted=new AbortController();aborted.abort();await assert.rejects(read('memory_stats',{dbPath},{signal:aborted.signal}));
+    const pending=Array.from({length:4},(_,i)=>read('memory_list',{dbPath,namespace:'parallel-'+i}));
+    await assert.rejects(read('memory_stats',{dbPath}),/concurrency bound/);
+    await Promise.all(pending);await reader.client.close();
+    await assert.rejects(read('memory_stats',{dbPath}),/closed/);await api.close();
+  `;
+  const facadeRun = spawn(process.execPath, ['--input-type=module','-e',childSource], {cwd:facade,env:process.env,stdio:['ignore','pipe','pipe']});
+  let facadeOutput='';for(const stream of [facadeRun.stdout,facadeRun.stderr])stream.on('data',data=>{facadeOutput+=data;});
+  const facadeExit = await new Promise(resolve=>facadeRun.on('close',resolve));
+  assert.equal(facadeExit,0,facadeOutput);assert.equal(count(),beforeFacade+4);assert.equal(routed.length,beforeFacadeRouted+4);
+  for(const {name,input:selected} of routed.slice(-4)) {
+    const projected=await directProtocol.project(name,selected,{transport:'stdio'},configuration.owners.one);
+    const receipt=state().receipts.slice(-4).find(row=>row.payload.request.action.namespace===selected.namespace);
+    const request=structuredClone(receipt.payload.request);delete request.requestId;delete request.context.now;
+    assert.deepEqual(request,JSON.parse(JSON.stringify(projected.request)),'cross-cwd reader retains exact native source request');
+  }
+  // Cancelling an acquisition after native allocation may not leak its late
+  // initialized session, and must never dispatch a read afterward.
+  const beforeAcquisition=count(), originalInitialize=server.handleInitialize;
+  let initialized, releaseInitialize, allocatedClient;
+  const allocated=new Promise(resolve=>{initialized=resolve;});
+  server.handleInitialize=async request=>{
+    const result=await originalInitialize(request);allocatedClient=request.params.clientInfo.name;
+    initialized();await new Promise(resolve=>{releaseInitialize=resolve;});return result;
+  };
+  const acquisitionAbort=new AbortController();
+  const acquisition=client.openInventoryReader({root,dbPath:pinnedStore,signal:acquisitionAbort.signal});
+  await allocated;acquisitionAbort.abort(new Error('acquisition cancelled'));releaseInitialize();
+  await assert.rejects(acquisition,/acquisition cancelled/);server.handleInitialize=originalInitialize;
+  assert.equal(count(),beforeAcquisition,'late initialization never dispatches a read');
+  let sweep=await client.openInventoryReader({root,dbPath:pinnedStore});await sweep.client.close();
+  assert(!server.getSessions().some(session=>session.clientInfo.name===allocatedClient),'late allocated session retired');
+  server.handleInitialize=request=>{
+    const older=structuredClone(request);delete older.params.capabilities.experimental['ruflo/native-memory-owner-one-call'];
+    return originalInitialize(older);
+  };
+  await assert.rejects(client.openInventoryReader({root,dbPath:pinnedStore}),/one-call retirement/);
+  assert.equal(count(),beforeAcquisition,'older owner without safe disposal cannot dispatch inventory reads');
+  server.handleInitialize=originalInitialize;
+  const lifetimeAbort=new AbortController(), beforeLifetime=count();
+  const lifetimeReader=await client.openInventoryReader({root,dbPath:pinnedStore,signal:lifetimeAbort.signal});
+  lifetimeAbort.abort(Error('reader lifetime cancelled'));
+  await assert.rejects(lifetimeReader.client.callTool({name:'memory_stats',arguments:{dbPath:pinnedStore}}),/reader lifetime cancelled/);
+  await lifetimeReader.client.close();assert.equal(count(),beforeLifetime,'reader lifetime abort prevents dispatch without call options');
+  for(const cancel of [false,true]) {
+    const abort=new AbortController(), reader=await client.openInventoryReader({root,dbPath:pinnedStore,signal:abort.signal});
+    const entered=new Promise(resolve=>{heldEntered=resolve;}), done=new Promise(resolve=>{heldDone=resolve;});
+    const pending=reader.client.callTool({name:'memory_list',arguments:{dbPath:pinnedStore,namespace:'held-inventory'}});
+    await entered;
+    if(cancel) { abort.abort(new Error('held read cancelled'));await assert.rejects(pending,/held read cancelled/); }
+    let closed=false;const closing=reader.client.close().then(()=>{closed=true;});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(closed,cancel,'close awaits pending client requests; cancellation is not proof of server completion');
+    await assert.rejects(reader.client.callTool({name:'memory_stats',arguments:{dbPath:pinnedStore}}),/closed/);
+    sweep=await client.openInventoryReader({root,dbPath:pinnedStore});await sweep.client.close();
+    assert(server.getSessions().some(session=>session.id===heldSession),'native pending handler survives another initialization');
+    heldRelease();await done;if(!cancel)await pending;await closing;await new Promise(resolve=>setImmediate(resolve));
+    sweep=await client.openInventoryReader({root,dbPath:pinnedStore});await sweep.client.close();
+    assert(!server.getSessions().some(session=>session.id===heldSession),'settled one-call handler retires without replay');
   }
   for (const [name, args] of [
     ['memory_list', {}], ['memory_list', { dbPath: '.swarm/agentdb-memory.db' }],
@@ -131,6 +229,9 @@ try {
     engine.upsertRule({ id: 'approval', effect: 'require_approval', actions: ['memory.read'] });
     engine.issueApproval({ id: 'once', principal: 'legacy-cli', actions: ['memory.read'], issuedBy: 'fixture-admin', expiresAt: Date.now() + 60000, maxUses: 1 });
   }, { approvalIssuerVerifier: who => who === 'fixture-admin' });
+  const deniedReader=await client.openInventoryReader({root,dbPath:pinnedStore}), beforeReaderDenial=count(), beforeDeniedRouted=routed.length;
+  await assert.rejects(deniedReader.client.callTool({name:'memory_list',arguments:{dbPath:pinnedStore}}),/Native memory owner refused/);
+  await deniedReader.client.close();assert.equal(count(),beforeReaderDenial+1);assert.equal(routed.length,beforeDeniedRouted);
   let before = count();
   await caller('memory_retrieve', input, context);
   assert.equal(count(), before + 1); assert.equal(state().approvals[0].uses, 1); assert.equal(executed, 2);
