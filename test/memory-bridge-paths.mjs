@@ -250,8 +250,11 @@ const bridgeSource = fs.readFileSync(patchedBridge, 'utf8');
 const initSource = fs.readFileSync(patchedInit, 'utf8');
 check(native ? nativeMemoryBridgeSatisfied(bridgeSource) : bridgeSource.includes('const __RSP_MEMORY_BRIDGE_PATHS_REVISION = "2026-08-31.2";'),
   'MBP3 path-keyed bridge revision proof is absent');
-check((native || !bridgeSource.includes('registryInstances.get(')) && !/\bbridgeAvailable\s*=[^=]/.test(bridgeSource)
-  && !/\bbridgeFailureReason\s*=[^=]/.test(bridgeSource),
+// Native identity is proved by the executed isolation/drain checks above. Ruflo
+// 3.71.1 also uses a function-local bridgeFailureReason diagnostic; a whole-file
+// identifier regex cannot distinguish that from the legacy process-wide latch.
+check(native || (!bridgeSource.includes('registryInstances.get(') && !/\bbridgeAvailable\s*=[^=]/.test(bridgeSource)
+  && !/\bbridgeFailureReason\s*=[^=]/.test(bridgeSource)),
   'MBP3 a process-global registry cache or availability latch remains live');
 check(initSource.includes("getBridgeFailureReason?.(dbPath)") || initSource.includes("getBridgeFailureReason?.(bridgeDbPath)"),
   'MBP3 WAL diagnostics are not scoped to the failed database');
