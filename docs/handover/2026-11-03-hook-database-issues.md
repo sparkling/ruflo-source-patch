@@ -9,9 +9,12 @@ larger envelope exposed a native nonblocking-stdin `EAGAIN`/`EPIPE` defect; the
 shared correction reuses native asynchronous bounded input. Recall enumerated
 all `turns` rows for presence; the correction requests one while preserving
 complete checkpoint namespaces. Both have executable regressions. The source
-facade separately repeats full namespace exports and serializes callers; its
-cache repair requires cold/warm/concurrent live qualification. CPU utilization
-varies sharply; bursts are not proof of sustained saturation or timeout cause.
+facade repeated full namespace exports and serialized callers. Its shared Product
+repair is live: native metadata accelerates unchanged namespaces; selected gaps
+use scoped verification. Incomplete query results no longer suppress a recovery
+request for five minutes. Cold concurrent R5/R7 passed in 125.5/172.8 seconds under
+the unchanged 180-second deadline. That narrow queue margin is not an arbitrary-load
+guarantee. CPU bursts were not proof of sustained saturation or timeout cause.
 
 Strategy's 08:51:07Z checkpoint store timed out. The original exact key is absent;
 the complete expected value is not reconstructible, so no replay occurred.

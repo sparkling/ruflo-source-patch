@@ -3398,14 +3398,21 @@ neighbours.
 ## Tested
 
 The owner-requested hourly job uses `scripts/hourly-regression.mjs`, 26 focused
-fixture families, bounded read-only list/exact-read calls through existing Mac/HZ
-MCP sessions, and a native OpenAI `gpt-6.1-sol` review at medium effort. It has one
+fixture families, the canonical Product source fixtures, bounded read-only calls
+through existing Mac/HZ MCP sessions, one HZ source search, and a native OpenAI
+`gpt-6.1-sol` review at medium effort. Source checks distinguish cached response
+proof from fresh inventory observations. It has one
 owner lock, finite runtime/output/memory limits and private bounded receipts under
 `~/.local/state/ruflo-source-patch/hourly-regression`; it does not control projects
 or send console prompts. A real launchd run passed on 4 November at 10:13 UTC.
 Forced background CPU/I/O policy reproduced fixture admission failures; Standard
 scheduling fixed that runner defect without changing production or test deadlines.
 Fixture success, live read success and historical record recovery remain distinct.
+The shared source-facade repair belongs to Product rather than an installed-package
+patch: [inventory correction](https://github.com/sparkling/semantic-product/commit/ef35842)
+and [incomplete-result cache correction](https://github.com/sparkling/semantic-product/commit/b36bd72).
+Cold concurrent R5/R7 searches passed at 125.5/172.8 seconds with no coverage gaps;
+the 180-second deadline is unchanged and queue capacity remains finite.
 
 The runner also includes focused suites for the recent targets: native SQLite dependency ownership,
 exact fallback pattern receipts, immutable verified policy serialization, hook failure attribution,
