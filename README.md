@@ -15,9 +15,40 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Native HTTP session identity: 4 November 2026
+
+`ruflo-http-sessions` addresses [Ruflo #3294](https://github.com/ruvnet/ruflo/issues/3294)
+using the request-local session design in the still-unmerged
+[PR #3268](https://github.com/ruvnet/ruflo/pull/3268). Published MCP 3.1.5 and 3.1.6
+use one mutable `currentSession` for HTTP clients and omit the session response
+header. A retained SDK client therefore receives HTTP 200 with JSON-RPC
+`Server not initialized` after server replacement; another client's initialization
+can make that first client work again under the wrong shared session.
+
+The patch retains the published 2025-11-25 protocol and native SessionManager.
+HTTP requests carry their own native session and authenticated-principal identity;
+unknown or expired session IDs return HTTP 404 before dispatch. Missing IDs and
+cross-principal reuse are refused. Initialization returns `Mcp-Session-Id`, and
+legacy SSE retains its own connection binding. Stdio behavior and existing
+completion-aware owner retirement remain unchanged. This is not a protocol-version
+upgrade or automatic replay of memory writes.
+
+Existing clients initialized before this correction have no session ID. They need
+their owning host's supported reconnect once after activation; installing the
+patch alone cannot retroactively give them an ID. Native SDK tests cover separate
+principals, interleaved calls, server replacement, fresh initialization and the
+existing 105 lost-response retirement cases on both published MCP versions.
+
+Patch mutation waiters also now inspect an existing owner before publishing a
+candidate. An isolated one-second wait previously performed 60 needless candidate
+writes/fsyncs; it now performs zero. Atomic ownership, dead-owner recovery and
+timeout refusal remain unchanged. This removes I/O amplification; repeated
+SessionStart qualification and sustained turn-capture capacity remain separate
+unresolved work.
+
 ## Upstream review: 4 November 2026
 
-The audit retrieved all 136 tracked issue states without errors: 107 closed and
+The 4.46.129 audit retrieved all 136 then-tracked issue states without errors: 107 closed and
 29 open. Published Ruflo/CLI 3.71.1 and MCP 3.1.6 were checked against their npm
 integrities; Brain remains at the natively selected 4.7.28 generation. Issue
 closure and source compatibility are separate from live activation.
@@ -2102,6 +2133,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
 | **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |
+| **`ruflo-http-sessions`** | Bind native HTTP requests to their own session and authenticated principal; return session IDs and pre-dispatch expiry responses so clients can reinitialize after replacement. Preserve native completion retirement and legacy SSE binding. | [#3294 · open](https://github.com/ruvnet/ruflo/issues/3294) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`ruflo-pattern-withdrawal`** | Expose exact native ReasoningBank get and hash-guarded delete for explicit correction. Preserve unrelated patterns and refuse changed identities; no cross-process compare-and-swap guarantee. | Related [#3450](https://github.com/ruvnet/ruflo/issues/3450) and [#829](https://github.com/ruvnet/ruflo/issues/829), not complete repairs of those issues |
 | **`brain-learning-receipts`** | **Retired on native 4.7.28 behavior proof; older compatibility only.** Native exact readback, consent and child-result handling establish capture before marking an observation complete. | [#377 · closed](https://github.com/stuinfla/ruvnet-brain/issues/377) |
