@@ -17,7 +17,7 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Native HTTP session identity: 4 November 2026
 
-`ruflo-http-sessions` addresses [Ruflo #3294](https://github.com/ruvnet/ruflo/issues/3294)
+Version 4.46.130 adds `ruflo-http-sessions` for [Ruflo #3294](https://github.com/ruvnet/ruflo/issues/3294)
 using the request-local session design in the still-unmerged
 [PR #3268](https://github.com/ruvnet/ruflo/pull/3268). Published MCP 3.1.5 and 3.1.6
 use one mutable `currentSession` for HTTP clients and omit the session response
@@ -42,9 +42,12 @@ existing 105 lost-response retirement cases on both published MCP versions.
 Patch mutation waiters also now inspect an existing owner before publishing a
 candidate. An isolated one-second wait previously performed 60 needless candidate
 writes/fsyncs; it now performs zero. Atomic ownership, dead-owner recovery and
-timeout refusal remain unchanged. This removes I/O amplification; repeated
-SessionStart qualification and sustained turn-capture capacity remain separate
-unresolved work.
+timeout refusal remain unchanged. SessionStart also reuses the existing transforms
+and dependency checks for a fresh exact observation of installed composition.
+Healthy followers need no mutation claim; changed or unknown bytes still require
+the normal exclusive repair. Six concurrent followers are covered by the shared
+composition regression suite. This is not a cached health verdict or a change to
+monitor/install behavior. Sustained turn-capture capacity remains unresolved.
 
 ## Upstream review: 4 November 2026
 
