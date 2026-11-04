@@ -36,6 +36,10 @@ native owner identity, policy and authentication are verified again. Principal
 mismatch, ordinary 404, authorization refusal and uncertain execution never
 authorize replay. A late old-client failure cannot evict its replacement.
 
+The [deployed repair and retained-client verification](https://github.com/ruvnet/ruflo/issues/3294#issuecomment-6642102681)
+are reported upstream under #3294. The affected AIDefence call failed at the
+shared session boundary; this is not a scanner defect or an upstream closure claim.
+
 The released 4.46.134 client reproduces expiry failure against native MCP 3.1.6.
 The candidate passes expiry, real server replacement, twelve concurrent calls
 with one replacement handshake, authorization/identity/cancellation refusals and

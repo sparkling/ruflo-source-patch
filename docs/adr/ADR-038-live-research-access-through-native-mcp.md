@@ -165,6 +165,9 @@ the five user-level source registrations resolved this on HZ: all fifteen
 source/session combinations now advertise corrected descriptions, with the parsed
 configuration exactly restored and database owners unchanged. This verifies the
 three retained HZ consumers; it does not certify every dormant session.
+The separately stale BA and AI-BA project-memory clients were then refreshed;
+their own native statistics reads passed and both project configuration files
+were restored byte-for-byte.
 
 ### Source-class audit and remaining work
 
@@ -180,6 +183,14 @@ directly, and no source binding or corpus was changed by that audit.
 | EA | Committed research documents match across hosts. The Markdown/JSON reader omits 6,361 text files and five research CSVs, among other formats. Many text files are retained upstream source blobs. EA operational memory remains intentionally excluded. |
 | Product | The current research catalogue and benefits coverage map are outside the live reader. Historical imported file/memory/learning records remain dated snapshots, not canonical live access to the originating projects. |
 | AI-BA | 483 tracked Markdown authoring inputs, nine JSONL ledgers and 30 opportunity-spec files fall outside live admission. Some HTML has equivalent Markdown; a format exclusion alone does not prove unique-content loss. |
+
+Content admission is another independent boundary: it excludes six selected BA,
+eleven SA and 64 EA documents. Some are intentional runtime receipts. A concrete
+false-positive candidate is SA's historical primary-source collection part 3:
+its explicit inert upstream quotations include a command containing `<task>`,
+and the shared runtime-wrapper detector excludes the entire document. Review this
+centrally; do not confuse quoted implementation examples with executable runtime
+instructions or waive credential protection.
 
 Eleven native read methods also do not census all controller populations. Native
 episode listing exists but is not exposed by this source interface; top-K pattern,
@@ -198,6 +209,7 @@ Do not add a common store, synchronization pipeline or replacement search engine
 Private audit evidence: `coverage-audit-hz-summary.json` (24 source-class rows),
 `coverage-audit-mac-paths.json`, `coverage-audit-authority.json`, and
 `source-schema-refresh-hz.json` under the existing activation evidence directory.
+`coverage-audit-mac-admission.json` records the additional content exclusions.
 
 ## Consequences
 
