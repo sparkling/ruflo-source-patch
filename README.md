@@ -35,6 +35,12 @@ The 4 November Strategy checkpoint is currently absent at its original exact key
 its complete original value cannot be reconstructed from retained evidence.
 Instrumentation makes future failures diagnosable; it does not recover that record.
 
+Version 4.46.122 also qualifies the previous recall and checkpoint contributions
+in the shared installer's forward composition proof. Direct in-place tests had
+missed that upgrade path; the installer correctly preserved both files when it
+could not prove them. New complete-bundle regressions reproduce the refusal,
+verify exact migration without rebaselining and retain refusal of unknown edits.
+
 `brain-adr-envelope` repairs the reproduced HZ semantic-ai inspection failure
 ([Brain #515](https://github.com/stuinfla/ruvnet-brain/issues/515)). The native
 shim cut a 112,446-byte edit envelope at 65,536 bytes. ADR's JSON parser then

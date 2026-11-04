@@ -315,6 +315,20 @@ try {
     assert.equal(compose.statusComposed([NAME])[NAME].patched, 0);
     put(file, source);
   }
+  // The composer must recognize released bytes from pristine, not merely the
+  // patcher's direct in-place upgrade path.
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    const spec = SPECS.find(row => file.endsWith(row.relative));
+    const released = spec.edits.filter(([id]) => !['presence-only-option', 'presence-only-limit', 'turn-presence-only'].includes(id))
+      .reduce((text, [, from, to]) => text.replace(from, () => to), source);
+    put(file + '.rsp-backup', source);
+    put(file, released);
+  }
+  const releasedUpgrade = compose.applyComposed([withdrawn.NAME, NAME]);
+  assert.equal(releasedUpgrade.incomplete, 0, releasedUpgrade.log.join('\n'));
+  for (const file of files) assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), fixture.sources[path.basename(file)].source);
+  assert.equal(compose.reconcile([], [NAME]).incomplete, 0);
   // An installed pre-diagnostics owner is an exact historical composition,
   // so upgrading never re-baselines or loses the pristine bytes.
   for (const file of files) {
