@@ -2206,7 +2206,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`verify-interface`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12 · closed](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48 · closed](https://github.com/stuinfla/ruvnet-brain/issues/48) |
 | **`brain-grounding-evidence`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Records successful source searches independently from product-specific write stamps, so generic evidence can satisfy Stop without authorizing unrelated product writes. Native retirement requires the installed search/stamp/Stop behavior and failure cases to pass. | [#316 · closed](https://github.com/stuinfla/ruvnet-brain/issues/316) |
 | **`brain-codex-completion`** | **Completion-claim feature disabled by operator instruction.** Replaces the former Codex evidence/diagnostic workarounds with one exact upstream audit bypass. No completion-based blocking, automatic completion authority, correction ledger or replacement warning. Other Stop gates remain unchanged. Superseded parser and diagnostic implementations are deleted; old installations must first restore their recorded pristine source. Re-enable only after an explicitly reviewed upstream replacement. | [#425 · closed; operator suspension retained](https://github.com/stuinfla/ruvnet-brain/issues/425), related [#423 · closed](https://github.com/stuinfla/ruvnet-brain/issues/423) |
-| **`brain-grounding-code`** | **Retired on native behavior proof; older compatibility only.** Brain 4.7.28's helper and shared entrypoint are reviewed together and pass 44 isolated cases including alias execution. Native executable, product-path, managed-memory and uncertain-context refusals remain intact. Missing, altered or escaping dependencies fail visibly | [#373 · closed](https://github.com/stuinfla/ruvnet-brain/issues/373) · related substance gate [#46 · closed](https://github.com/stuinfla/ruvnet-brain/issues/46) |
+| **`brain-grounding-code`** | **Active for a reproduced multi-file recurrence in Brain 4.7.28.** The Codex adapter retains the full patch for each file, and native single-file projection misattributes sibling JSON text to code. Select the guarded operation from a validated all-Add patch, then reuse native projection. True code and uncertain input retain their grounding requirements. Retirement now includes the multi-file case; missing or altered dependencies fail visibly | [#373 · closed, recurrence reported](https://github.com/stuinfla/ruvnet-brain/issues/373) · related substance gate [#46 · closed](https://github.com/stuinfla/ruvnet-brain/issues/46) |
 | **`brain-router-imports`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Resolves omitted flat router imports through their existing native Console helpers; does not substitute a new router implementation. | [#341 · closed](https://github.com/stuinfla/ruvnet-brain/issues/341) |
 | **`brain-transition-notice`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Deduplicates repeated pending-transition warnings through the native session ledger, preserving the first warning, distinct failures, durable capture and exact readback requirements. | [#380 · closed](https://github.com/stuinfla/ruvnet-brain/issues/380) |
 | **`brain-managed-cli-capture`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reuses the native redacted action projection before progression no-op comparison so a real managed command is captured while unchanged lifecycle events remain no-op. | [#382 · closed](https://github.com/stuinfla/ruvnet-brain/issues/382) |
@@ -2239,8 +2239,8 @@ The later [4.5.8 release](https://github.com/stuinfla/ruvnet-brain/compare/v4.5.
 retains those sources and reduces validation allocation; it does not implement a bounded frontier.
 Its native host-declaration reconciliation is accepted only with exact installer boundaries and
 verified installed dependencies. The public 4.5.9 installer and helper boundaries retain the same
-accepted proof; its grounding projection additionally retires `brain-grounding-code` on executable
-checks. Hook metadata cannot clear executable/MCP restart uncertainty;
+accepted proof; its grounding projection passed the earlier single-file retirement checks.
+The multi-file recurrence documented below now prevents that retirement. Hook metadata cannot clear executable/MCP restart uncertainty;
 the older overlay now applies the same restriction and migrates only exact prior patch bytes.
 The [frontier proposal](https://github.com/stuinfla/ruvnet-brain/blob/v4.5.7/docs/proposals/0390-progression-frontier-proposal.md)
 remains proposed; mature-history capture and restore within host deadlines are not established.
@@ -2312,14 +2312,25 @@ partial Edit/Update payloads keep their conservative requirement. Executable str
 uncertain syntax and unsupported languages retain the requirement; parser failure retains the
 vendor scan. The substance detector and managed-memory guard are unchanged. It patches the native
 active generation and matching hosts through exact anchors, pristine restoration and monitor
-reapplication. Brain 4.5.9 replaces that overlay with its conservative native projection (#373).
-Retirement requires reviewed guard/helper bytes in every discovered copy and 43 isolated native
+reapplication. Brain 4.5.9 replaces the original overlay with its conservative native projection (#373).
+The earlier retirement proof required reviewed guard/helper bytes in every discovered copy and 43 isolated native
 replays, including the original warning-docstring incident, executable/path/managed-memory refusals,
 missing-helper fallback and product-specific stamp expiry. Function docstrings and uncertain edits
 retain the stricter native policy. A version number or a nearby helper alone cannot retire the patch;
 missing, altered or symlinked helpers fail without changing installed source.
 Brain 4.5.10 adds a 44th replay proving that a CLI alias executes the same native projection.
 Mixed installed versions each receive their own behavior replay.
+
+The 4 November 2026 recurrence adds a 45th native case: a complete patch adding Python code and
+sibling JSON that mentions AIDefence. Brain 4.7.28's Codex adapter checks every touched file with
+the complete patch; its single-file projector falls back to scanning unrelated sibling text.
+The exact registered HZ hook reproduced the rejection without executing the patch. The repair
+selects the unique guarded operation from a fully validated all-Add patch, then reuses native
+validation and projection. Duplicate paths, unsupported operations, moves, truncated input and
+uncertain edits retain the original scan. Native adapter-chain tests accept the original input
+while refusing actual ungrounded imports in either code file. Grounding stamps, substance policy,
+permissions and the updater remain unchanged. Marker-free upstream code must pass the expanded
+matrix before the target retires; the original single-file proof is insufficient.
 
 `brain-transition-notice install` fixes [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380)
 by sharing the native bounded session notice ledger across both transition entrypoints. The first

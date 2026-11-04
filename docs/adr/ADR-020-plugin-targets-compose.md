@@ -332,10 +332,15 @@ Partial Edit/Update fragments retain their conservative requirement. Herdr expos
 backup refused solely for its warning against touching AgentDB. The exact vendor anchor composes
 from pristine; real executable strings, imports, paths, uncertain syntax and unsupported languages
 retain grounding requirements. Parser failure retains the original scan. The substance detector,
-managed-memory guard, stamps and update plane remain unchanged. The target is now retired:
-Brain 4.7.28's native projection and shared entrypoint pass the 44-case isolated
-behavior matrix. Missing or changed dependencies refuse qualification; the newer
-helper hash was accepted only after reviewing its entrypoint change and replaying behavior.
+managed-memory guard, stamps and update plane remain unchanged. Brain 4.7.28 passed the earlier
+44-case single-file matrix, but the 4 November multi-file reproduction invalidated complete
+retirement. Its Codex adapter checks each touched path with the full patch; the native projector
+rejects multiple operations and scans sibling JSON as code. The shared target now selects the
+unique guarded Add File from a fully validated all-Add patch before reusing native projection.
+Unknown, duplicate, truncated, move or partial-edit input retains the original scan. The expanded
+45-case native matrix and full adapter-chain replay accept sibling metadata while still rejecting
+ungrounded code in either file. Retirement replays pristine source with this case; missing or
+changed dependencies refuse qualification. No stamps, policy permissions or updater state change.
 
 Brain #316's `brain-grounding-evidence` composes two atomic exact edits in
 the native active generation's `grounding-stamp.sh` and matching host copies. Successful search
