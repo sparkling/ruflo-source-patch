@@ -32,6 +32,10 @@ for (const [name, entry] of Object.entries(fixture.sources)) {
     assert.equal(reverseSource(result.next), source);
     assert(!result.next.includes('RUFLO_BRIDGE_MEMORY_ENTRIES_ONLY'));
     const spec = SPECS.find(row => row.relative.endsWith('/' + name));
+    const released = spec.edits.filter(([id]) => !['presence-only-option', 'presence-only-limit', 'turn-presence-only'].includes(id))
+      .reduce((text, [, from, to]) => text.replace(from, () => to), source);
+    assert.equal(patchSource(released).next, result.next, 'exact4.46.120 composition migrates');
+    assert.equal(reverseSource(patchSource(released).next), source, 'migration reverses to the same native source');
     assert(patchSource(source.replace(spec.edits[0][1], 'changed upstream')).missing.length);
     assert(patchSource(source + '\n' + spec.edits[0][1]).missing.length);
     assert(patchSource(result.next.replace(PATCH_MARKER, PATCH_MARKER + '-changed')).missing.length);
@@ -77,7 +81,7 @@ write('decision-record.mjs', 'export const supersededKeys=()=>new Set(); export 
 write('entrypoint.mjs', 'export const isDirectInvocation=()=>false;');
 
 const { recall } = await import(pathToFileURL(path.join(scripts, 'agentdb-recall.mjs')));
-const { resolveBatchTarget } = await import(pathToFileURL(path.join(scripts, 'agentdb-recall-process.mjs')));
+const { resolveBatchTarget, nativeRead } = await import(pathToFileURL(path.join(scripts, 'agentdb-recall-process.mjs')));
 assert.equal(vm.runInNewContext(`(${resolveBatchTarget.toString()})('/unused', {})`,
   { process: { platform: 'win32' } }), null);
 
@@ -104,9 +108,11 @@ const nativeKill = process.kill;
 fs.mkdirSync(process.env.RUFLO_SOURCE_PATCH_HOME, { recursive: true, mode: 0o700 });
 const diagnosticRoot = path.join(process.env.RUFLO_SOURCE_PATCH_HOME, '.ruflo-source-patch/hook-failures/recall');
 const scopeHash = value => hash(value).slice(0, 16);
+const listCalls = path.join(base, 'native-list-calls.jsonl');
 const modes = ['ok', 'timeout', 'native-false', 'throws', 'malformed', 'oversized', 'capability-absent', 'abort-during-search', 'already-aborted', 'unconfirmed', 'learning-consented', 'diagnostic-refused'];
 try {
   for (const mode of modes) {
+    fs.writeFileSync(listCalls, '');
     fs.rmSync(diagnosticRoot, { recursive: true, force: true });
     if (mode === 'diagnostic-refused') { fs.mkdirSync(diagnosticRoot, { recursive: true }); fs.chmodSync(diagnosticRoot, 0o755); }
     const late = path.join(base, mode + '.late');
@@ -120,7 +126,7 @@ try {
       export const resolveDbPath=p=>p;
       const expected=${JSON.stringify(store)},ns=${JSON.stringify(namespace)},checkpoint=${JSON.stringify(checkpoint)},content=${JSON.stringify(checkpointValue)};
       function check(p){if(p!==expected)throw Error('wrong native store');}
-      export async function listEntries({namespace,dbPath}){check(dbPath);return{success:true,entries:namespace===ns?[{key:checkpoint},{key:'research-html-result'}]:[]};}
+      export async function listEntries({namespace,dbPath,limit,offset}){check(dbPath);fs.appendFileSync(${JSON.stringify(listCalls)},JSON.stringify({namespace,limit,offset})+'\\n');return{success:true,entries:namespace===ns?[{key:checkpoint},{key:'research-html-result'}]:namespace==='turns'?[{key:'turn-presence-only'}]:[]};}
       export async function getEntry({key,namespace,dbPath}){check(dbPath);return namespace===ns&&(key===checkpoint||key==='research-html-result')?{success:true,found:true,entry:{content:key===checkpoint?content:'Research HTML delivery evidence'}}:{success:true,found:false};}
       export const searchEntries=${search};
     `);
@@ -136,6 +142,11 @@ try {
         diagnosticSessionId: 'fixture-session-secret',
         env: { ...process.env, TEST_LEARNING_ENABLED: mode === 'learning-consented' ? '1' : '0' } });
     } finally { clearTimeout(abortTimer); process.kill = nativeKill; }
+    const observedLists = fs.readFileSync(listCalls, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+    if (observedLists.length) {
+      assert.equal(observedLists.find(row => row.namespace === 'turns')?.limit, 1);
+      assert(observedLists.filter(row => row.namespace !== 'turns').every(row => row.limit === 100000 && row.offset === 0));
+    }
     if (mode === 'already-aborted') {
       assert.equal(owned.length, 0);
       assert.equal(result.outcome, 'unavailable');
@@ -182,6 +193,29 @@ try {
     for (const pid of owned) assert.throws(() => nativeKill(-pid, 0), error => error.code === 'ESRCH', `owned child remains: ${mode}`);
     assert(!fs.existsSync(late), 'late query survived retirement');
   }
+  // Presence truncation is an explicit consumer option, never a namespace-wide policy.
+  for (const presenceOnly of [[], ['turns']]) {
+    const calls = [];
+    const session = { storePath: store, list: async (namespace, limit) => {
+      calls.push({ namespace, limit });
+      return { state: 'ok', rows: (namespace === 'turns' ? ['old-turn', 'project-state-auto-9999999999999-x'] : ['decision-one'])
+        .slice(0, limit).map(key => ({ key })) };
+    } };
+    const result = await nativeRead({ store: { path: store }, namespaces: ['turns', 'project'], session, presenceOnly });
+    assert.equal(result.ok, true); assert.deepEqual(calls.map(row => row.limit), [presenceOnly.length ? 1 : 100000, 100000]);
+    assert.equal(result.value.turns.length, presenceOnly.length ? 1 : 2);
+  }
+  const recallSource = fs.readFileSync(path.join(scripts, 'agentdb-recall.mjs'), 'utf8');
+  const presenceExpression = /const presenceOnly = ([^;]+);/.exec(recallSource)[1];
+  const { checkpointNamespaces } = await import(pathToFileURL(path.join(scripts, 'checkpoint-keys.mjs')));
+  for (const name of ['turns', 'Turns']) assert.equal(vm.runInNewContext(presenceExpression,
+    { root: path.join(base, name), checkpointNamespaces }).length, 0, 'checkpoint namespace keeps every key');
+  for (const state of ['unavailable', 'timed out']) {
+    const failed = await nativeRead({ store: { path: store }, namespaces: ['turns'], presenceOnly: ['turns'],
+      session: { storePath: store, list: async () => ({ state }) } });
+    assert.equal(failed.ok, false); assert.equal(failed.fatal, true); assert.equal(failed.state, state);
+  }
+
   // Fixed retention and late-close observations are bounded independently of a
   // long retirement polling loop. Logging cannot follow a substituted directory.
   fs.rmSync(diagnosticRoot, { recursive: true, force: true });
