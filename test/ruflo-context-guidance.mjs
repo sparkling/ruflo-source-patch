@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const scratch = fs.realpathSync(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-context-guidance-')));
 const taskHome = path.join(scratch, 'home'), globalRoot = path.join(scratch, 'global');
@@ -126,6 +128,43 @@ assert.equal(restored.errors, 0, JSON.stringify(restored));
 assert.equal(restored.restored, originals.size);
 for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), original);
 
+// Exercise the public dispatcher: direct composition alone cannot prove CLI adoption.
+write(path.join(taskHome, '.claude', 'settings.json'), '{}\n');
+const cli = (...args) => spawnSync(process.execPath, [fileURLToPath(new URL('../bin/cli.mjs', import.meta.url)), ...args], {
+  cwd: scratch, encoding: 'utf8', timeout: 30000,
+  env: { ...process.env, RSP_NO_SELF_UPDATE: '1', RSP_NO_MONITOR_RECOVER: '1',
+    RSP_NO_LAUNCHCTL: '1', RSP_NO_STALE_WRITER_KILL: '1', RSP_NO_HOST_AUTO_UPDATE: '1' },
+});
+const cliOk = (...args) => {
+  const result = cli(...args);
+  assert.equal(result.status, 0, `${args.join(' ')}: ${result.error || ''}\n${result.stdout}\n${result.stderr}`);
+  return result.stdout;
+};
+const { readState, writeState } = await import('../lib/cwd/state.mjs');
+cliOk(NAME, 'install');
+assert.ok(readState().pluginTargets.includes(NAME), 'named CLI install tracks guidance');
+for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), patchSource(original).next);
+assert.match(cliOk(NAME, 'status'), /9\/9 file\(s\) patched.*tracked/);
+cliOk(NAME, 'uninstall');
+assert.ok(!readState().pluginTargets.includes(NAME));
+for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), original);
+
+// Retire unrelated targets only in this fixture so `all install` proves adoption
+// of the new target without requiring every other target's vendor source fixtures.
+const { PATCH_TARGETS } = await import('../lib/cwd/patch-library.mjs');
+const { PLUGIN_TARGETS } = await import('../lib/plugin-registry.mjs');
+const retired = Object.fromEntries([...PATCH_TARGETS, ...PLUGIN_TARGETS].filter(name => name !== NAME)
+  .map(name => [name, { at: '2026-11-04T00:00:00.000Z', reason: 'unrelated fixture target', evidence: 'isolated test' }]));
+writeState({ patchTargets: [], pluginTargets: [], retired, all: true });
+cliOk('all', 'install');
+assert.deepEqual(readState().pluginTargets, [NAME], 'all install adopts the new composing target');
+assert.equal(readState().all, true);
+for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), patchSource(original).next);
+assert.match(cliOk(NAME, 'status'), /9\/9 file\(s\) patched.*tracked/);
+cliOk(NAME, 'uninstall');
+for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), original);
+writeState({ patchTargets: [], pluginTargets: [], retired: {}, all: false });
+
 const selected = [...originals.keys()].find(file => file.endsWith('SKILL.md'));
 write(selected, drift);
 applied = applyComposed([NAME]);
@@ -149,4 +188,4 @@ assert.equal(applied.patched, 0, 'native fix is never repatched');
 restored = reconcile([], [NAME]);
 assert.equal(restored.errors, 0);
 for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), nativeText(patchSource(original).next));
-console.log('✓ context guidance: source routing, unchanged native handler/results, exact rollback, host selection, drift refusal and native retirement');
+console.log('✓ context guidance: source routing, unchanged native handler/results, exact rollback, host selection, public CLI/all adoption, drift refusal and native retirement');

@@ -187,6 +187,7 @@ const PLUGIN_PATCH_TARGETS = {
   // MetaHarness has a hooks-capable kernel but its Codex renderers discard declarations (#168).
   'metaharness-codex-hooks': metaharnessCodexHooksCommand,
   'ruflo-instruction-contract': rufloInstructionContractCommand,
+  'ruflo-context-guidance': action => runPluginCommand('ruflo-context-guidance', action),
 };
 
 function usage() {
@@ -224,6 +225,7 @@ Plugin patches (ruflo-core)    (actions: install | uninstall | status)
   ${pad('ruflo-swarm-codex-hooks')}project Claude-only Swarm module metadata into a valid Codex manifest (#3688)
   ${pad('ruflo-codex-skills')}expose the missing namespaced Ruflo status skill in Codex (#2821)
   ${pad('ruflo-instruction-contract')}make generated roots + packaged skills MCP-first and schema-valid (#3153)
+  ${pad('ruflo-context-guidance')}distinguish research evidence from validated episode outcomes (#4691)
 
 Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('verify-interface')}its PreToolUse gate blocks any \`ruflo-*\` binary — and plain English prose —
