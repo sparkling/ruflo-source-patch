@@ -1,0 +1,258 @@
+  const localDist = join(MODULE_ROOT, 'v3/@claude-flow/memory/dist/index.js');
+  if (existsSync(localDist)) {
+    try {
+      return await import(`file://${localDist}`);
+    } catch { /* fall through */ }
+  }
+
+  // Strategy 2: Use createRequire for CJS-style resolution (handles nested node_modules
+  // when installed as a transitive dependency via npx ruflo / npx @claude-flow/cli@latest)
+  try {
+    const { createRequire } = await import('module');
+    const require = createRequire(join(MODULE_ROOT, 'package.json'));
+    return require('@claude-flow/memory');
+  } catch { /* fall through */ }
+
+  // Strategy 3: ESM import (works when @claude-flow/memory is a direct dependency)
+  try {
+    return await import('@claude-flow/memory');
+  } catch { /* fall through */ }
+
+  // Strategy 4: Walk up from MODULE_ROOT looking for @claude-flow/memory in any node_modules
+  let searchDir = MODULE_ROOT;
+  const { parse } = await import('path');
+  while (searchDir !== parse(searchDir).root) {
+    const candidate = join(searchDir, 'node_modules', '@claude-flow', 'memory', 'dist', 'index.js');
+    if (existsSync(candidate)) {
+      try {
+        return await import(`file://${candidate}`);
+      } catch { /* fall through */ }
+    }
+    searchDir = dirname(searchDir);
+  }
+
+  return null;
+}
+
+// ============================================================================
+// Read config from .claude-flow/config.yaml
+// ============================================================================
+
+function readConfig() {
+  const configPath = join(PROJECT_ROOT, '.claude-flow', 'config.yaml');
+  const defaults = {
+    learningBridge: { enabled: true, sonaMode: 'balanced', confidenceDecayRate: 0.005, accessBoostAmount: 0.03, consolidationThreshold: 10 },
+    memoryGraph: { enabled: true, pageRankDamping: 0.85, maxNodes: 5000, similarityThreshold: 0.8 },
+    agentScopes: { enabled: true, defaultScope: 'project' },
+  };
+
+  if (!existsSync(configPath)) return defaults;
+
+  try {
+    const yaml = readFileSync(configPath, 'utf-8');
+    // Simple YAML parser for the memory section
+    const getBool = (key) => {
+      const match = yaml.match(new RegExp(`${key}:\\s*(true|false)`, 'i'));
+      return match ? match[1] === 'true' : undefined;
+    };
+
+    const lbEnabled = getBool('learningBridge[\\s\\S]*?enabled');
+    if (lbEnabled !== undefined) defaults.learningBridge.enabled = lbEnabled;
+
+    const mgEnabled = getBool('memoryGraph[\\s\\S]*?enabled');
+    if (mgEnabled !== undefined) defaults.memoryGraph.enabled = mgEnabled;
+
+    const asEnabled = getBool('agentScopes[\\s\\S]*?enabled');
+    if (asEnabled !== undefined) defaults.agentScopes.enabled = asEnabled;
+
+    return defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+// ============================================================================
+// Commands
+// ============================================================================
+
+async function doImport() {
+  log('Importing auto memory files into bridge...');
+
+  const memPkg = await loadMemoryPackage();
+  if (!memPkg || !memPkg.AutoMemoryBridge) {
+    warnMemoryUnavailable();
+    return;
+  }
+
+  const config = readConfig();
+  const backend = trackBackend(new JsonFileBackend(STORE_PATH));
+  await backend.initialize();
+
+  const bridgeConfig = {
+    workingDir: PROJECT_ROOT,
+    syncMode: 'on-session-end',
+  };
+  const wtDir = worktreeMemoryDir();
+  if (wtDir) bridgeConfig.memoryDir = wtDir;
+
+  // Wire learning if enabled and available
+  if (config.learningBridge.enabled && memPkg.LearningBridge) {
+    bridgeConfig.learning = {
+      sonaMode: config.learningBridge.sonaMode,
+      confidenceDecayRate: config.learningBridge.confidenceDecayRate,
+      accessBoostAmount: config.learningBridge.accessBoostAmount,
+      consolidationThreshold: config.learningBridge.consolidationThreshold,
+    };
+  }
+
+  // Wire graph if enabled and available
+  if (config.memoryGraph.enabled && memPkg.MemoryGraph) {
+    bridgeConfig.graph = {
+      pageRankDamping: config.memoryGraph.pageRankDamping,
+      maxNodes: config.memoryGraph.maxNodes,
+      similarityThreshold: config.memoryGraph.similarityThreshold,
+    };
+  }
+
+  const bridge = new memPkg.AutoMemoryBridge(backend, bridgeConfig);
+
+  try {
+    const result = await bridge.importFromAutoMemory();
+    success(`Imported ${result.imported} entries (${result.skipped} skipped)`);
+    dim(`├─ Backend entries: ${await backend.count()}`);
+    dim(`├─ Learning: ${config.learningBridge.enabled ? 'active' : 'disabled'}`);
+    dim(`├─ Graph: ${config.memoryGraph.enabled ? 'active' : 'disabled'}`);
+    dim(`└─ Agent scopes: ${config.agentScopes.enabled ? 'active' : 'disabled'}`);
+  } catch (err) {
+    dim(`Import failed (non-critical): ${err.message}`);
+  }
+
+  await backend.shutdown();
+}
+
+async function doSync() {
+  log('Syncing insights to auto memory files...');
+
+  const memPkg = await loadMemoryPackage();
+  if (!memPkg || !memPkg.AutoMemoryBridge) {
+    warnMemoryUnavailable();
+    return;
+  }
+
+  const config = readConfig();
+  const backend = trackBackend(new JsonFileBackend(STORE_PATH));
+  await backend.initialize();
+
+  const entryCount = await backend.count();
+  if (entryCount === 0) {
+    dim('No entries to sync');
+    await backend.shutdown();
+    return;
+  }
+
+  const bridgeConfig = {
+    workingDir: PROJECT_ROOT,
+    syncMode: 'on-session-end',
+  };
+  const wtDir = worktreeMemoryDir();
+  if (wtDir) bridgeConfig.memoryDir = wtDir;
+
+  if (config.learningBridge.enabled && memPkg.LearningBridge) {
+    bridgeConfig.learning = {
+      sonaMode: config.learningBridge.sonaMode,
+      confidenceDecayRate: config.learningBridge.confidenceDecayRate,
+      consolidationThreshold: config.learningBridge.consolidationThreshold,
+    };
+  }
+
+  if (config.memoryGraph.enabled && memPkg.MemoryGraph) {
+    bridgeConfig.graph = {
+      pageRankDamping: config.memoryGraph.pageRankDamping,
+      maxNodes: config.memoryGraph.maxNodes,
+    };
+  }
+
+  const bridge = new memPkg.AutoMemoryBridge(backend, bridgeConfig);
+
+  try {
+    const syncResult = await bridge.syncToAutoMemory();
+    success(`Synced ${syncResult.synced} entries to auto memory`);
+    dim(`├─ Categories updated: ${syncResult.categories?.join(', ') || 'none'}`);
+    dim(`└─ Backend entries: ${entryCount}`);
+
+    // Curate MEMORY.md index with graph-aware ordering
+    let indexSkipped = null;
+    if (typeof bridge.on === 'function') bridge.on('index:skipped', (info) => { indexSkipped = info; });
+    await bridge.curateIndex();
+    if (indexSkipped) dim(`MEMORY.md index unchanged (${indexSkipped.reason || 'nothing to curate'})`);
+    else success('Curated MEMORY.md index');
+  } catch (err) {
+    dim(`Sync failed (non-critical): ${err.message}`);
+  }
+
+  if (bridge.destroy) bridge.destroy();
+  await backend.shutdown();
+}
+
+async function doStatus() {
+  const memPkg = await loadMemoryPackage();
+  const config = readConfig();
+
+  const sidecar = join(MODULE_ROOT, '.claude-flow', 'memory-package.json');
+  const hasSidecar = existsSync(sidecar);
+
+  console.log('\n=== Auto Memory Bridge Status ===\n');
+  console.log(`  Package:        ${memPkg ? '✅ Available' : '❌ Not found — self-learning DISABLED (fix: npm i -D @claude-flow/memory)'}`);
+  console.log(`  Resolver:       ${hasSidecar ? '✅ .claude-flow/memory-package.json' : '⏸ no sidecar (run: npx ruflo@latest doctor --fix)'}`);
+  console.log(`  Store:          ${existsSync(STORE_PATH) ? '✅ ' + STORE_PATH : '⏸ Not initialized'}`);
+  console.log(`  LearningBridge: ${config.learningBridge.enabled ? '✅ Enabled' : '⏸ Disabled'}`);
+  console.log(`  MemoryGraph:    ${config.memoryGraph.enabled ? '✅ Enabled' : '⏸ Disabled'}`);
+  console.log(`  AgentScopes:    ${config.agentScopes.enabled ? '✅ Enabled' : '⏸ Disabled'}`);
+
+  if (existsSync(STORE_PATH)) {
+    try {
+      const data = JSON.parse(readFileSync(STORE_PATH, 'utf-8'));
+      console.log(`  Entries:        ${Array.isArray(data) ? data.length : 0}`);
+    } catch { /* ignore */ }
+  }
+
+  console.log('');
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+// Older settings.json files run `node -e "…import(file)" import`, where the
+// subcommand lands in argv[1] and argv[2] is empty, so both hooks fell through
+// to `status` and never imported or synced (#4058). Accept that shape too.
+const COMMANDS = ['import', 'sync', 'status'];
+const command = process.argv[2] || (COMMANDS.includes(process.argv[1]) ? process.argv[1] : 'status');
+
+// Dynamic import() failures can surface as unhandled rejections on a later
+// microtask even when the awaiting call site already caught them, which would
+// otherwise force a non-zero exit. Swallow to keep hooks exit-0, but surface the
+// reason under RUFLO_DEBUG/DEBUG so genuine async bugs aren't silently hidden
+// (FIX 2 — the previous `() => {}` discarded every rejection process-wide).
+process.on('unhandledRejection', (reason) => {
+  if (DEBUG) {
+    const detail = reason && reason.message ? reason.message : String(reason);
+    process.stderr.write(`[AutoMemory] unhandledRejection (suppressed): ${detail}\n`);
+  }
+});
+
+try {
+  switch (command) {
+    case 'import': await doImport(); break;
+    case 'sync': await doSync(); break;
+    case 'status': await doStatus(); break;
+    default:
+      console.log('Usage: auto-memory-hook.mjs <import|sync|status>');
+      break;
+  }
+} catch (err) {
+  // Hooks must never crash Claude Code - fail silently
+  try { dim(`Error (non-critical): ${err.message}`); } catch (_) {}
+}
+// Force clean exit — process.exitCode alone isn't enough if async errors override it
+process.exit(0);
