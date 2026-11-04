@@ -117,8 +117,16 @@ async notification(r){state.calls.push(r);}async close(){}}
     const calls={fixture_read:0,fixture_write:0};
     for(const name of Object.keys(calls))native.registerTool({name,description:'Disposable lifecycle boundary',inputSchema:{type:'object',properties:{}},handler:async()=>{calls[name]++;entered();await gate;return{success:true};}});
     await native.start();const endpoint='http://127.0.0.1:'+native.transports[0].server.address().port+'/mcp';
-    for(let i=0;i<100;i++)await native.handleInitialize(init(clientId()));
-    await assert.rejects(native.handleInitialize(init(clientId())),/Maximum sessions/);
+    const firstAbandoned=clientId();await native.handleInitialize(init(firstAbandoned));
+    for(let i=1;i<100;i++)await native.handleInitialize(init(clientId()));
+    const nativeCapacity=typeof native.sessionManager.reserveCapacity==='function';
+    if(nativeCapacity){
+      const priorCurrent=native.getSessions().at(-1).id;
+      assert((await native.handleInitialize(init(clientId()))).result,'native capacity eviction admits the successor');
+      assert.equal(native.getSessions().length,100,'upstream capacity stays bounded');
+      assert(!native.getSessions().some(s=>s.clientInfo.name===firstAbandoned),'upstream evicts the oldest superseded allocation');
+      assert(native.getSessions().some(s=>s.id===priorCurrent),'upstream preserves the current allocation');
+    }else await assert.rejects(native.handleInitialize(init(clientId())),/Maximum sessions/);
     Date.now=()=>now()+30001;
     const stable=clientId();await native.handleInitialize(init(stable,false));
     assert.equal(native.getSessions().length,1);Date.now=now;
@@ -175,8 +183,26 @@ async notification(r){state.calls.push(r);}async close(){}}
     assert((await stableSdk.listTools()).tools.some(tool=>tool.name==='fixture_write'));
     assert(native.getSessions().some(s=>s.clientInfo.name==='persistent-sdk-fixture'));
     await stableSdk.close();
+    if(nativeCapacity){
+      // Upstream #4682 fixes admission at capacity, not completion-aware disposal.
+      // A superseded allocation can be evicted while its actual handler is held;
+      // the handler still settles once. Keep that limit separate from the normal
+      // one-call/persistent preservation checks above, which remain unchanged.
+      const heldId=clientId(),heldInit=await native.handleInitialize(init(heldId));
+      const heldToken=heldInit.result.capabilities.experimental[capability].token;
+      gate=new Promise(r=>finish=r);const reached=new Promise(r=>entered=r);
+      const before=calls.fixture_read;
+      const pending=native.handleRequest(request(heldId,heldToken,'tools/call','fixture_read'));
+      await reached;
+      for(let i=0;i<102;i++)assert((await native.handleInitialize(init(clientId(),false))).result);
+      assert(!native.getSessions().some(s=>s.clientInfo.name===heldId),'native capacity eviction is not pending-handler aware');
+      assert(!native.getSessions().some(s=>s.clientInfo.name==='persistent-sdk-fixture'),'native capacity eviction does not preserve older persistent allocation identity');
+      assert.equal(native.getSessions().length,100);
+      finish();assert((await pending).result,'eviction does not turn the running handler into a failed write or replay');
+      assert.equal(calls.fixture_read,before+1,'capacity pressure executes once');
+    }
     await api.close();await native.stop();native.sessionManager.destroy();native=null;
-    console.log('actual native HTTP+SDK: killed read/write and105lost-response clients retire after completion; persistent survives');
+    console.log('actual native HTTP+SDK: killed read/write and105lost-response clients retire after completion; persistent survives below capacity; native capacity eviction='+nativeCapacity);
   }
 }finally{
   Date.now=now;if(native){await native.stop();native.sessionManager.destroy();}
