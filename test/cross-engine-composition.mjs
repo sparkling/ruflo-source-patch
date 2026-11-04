@@ -175,6 +175,45 @@ try {
     }
   }
   const applyCopy = () => compose.applyComposed(consoleTargets, { files: [copied] });
+  // Exact current compositions need one forward chain, not every historical subset.
+  // The same public proof must retain subset/history and reject unknown bytes.
+  consoleFixture();
+  const proofOwners = [lifecycle, lockstep, hostRecovery].map(module => module.descriptor);
+  const originals = proofOwners.map(owner => owner.patchSource);
+  const proofCalls = [];
+  for (const [index, owner] of proofOwners.entries()) owner.patchSource = (...args) => {
+    proofCalls.push(owner.name); return originals[index](...args);
+  };
+  try {
+    assert(compose.isKnownFileComposition(consolePristine, consoleBytes, copied, consoleTargets));
+    assert.deepEqual(proofCalls, consoleTargets, 'complete current proof runs each ordered contribution once');
+    proofCalls.length = 0;
+    const subset = originals[0](consolePristine).next;
+    assert(compose.isKnownFileComposition(consolePristine, subset, copied, consoleTargets),
+      'partial prior composition still uses the existing historical subset proof');
+    assert(proofCalls.length > consoleTargets.length, 'subset mismatch reaches the exhaustive fallback');
+    assert(!compose.isKnownFileComposition(consolePristine, consoleBytes + '// unknown edit', copied, consoleTargets));
+    assert(!compose.isKnownFileComposition(consolePristine + '// unknown pristine', consoleBytes, copied, consoleTargets));
+    assert(!compose.isKnownFileComposition(consolePristine, consolePristine, copied, consoleTargets),
+      'unmodified vendor bytes are not invented patch provenance');
+    const healthyForward = hostRecovery.descriptor.patchSource;
+    hostRecovery.descriptor.patchSource = source => ({ next: consoleBytes, applied: [], missing: ['fixture-unknown-anchor'] });
+    assert(!compose.isKnownFileComposition(consolePristine, consoleBytes, copied, consoleTargets),
+      'an atomic missing-anchor contribution cannot manufacture an exact full proof');
+    hostRecovery.descriptor.patchSource = healthyForward;
+  } finally { proofOwners.forEach((owner, index) => { owner.patchSource = originals[index]; }); }
+  // The shortcut is inside provenance only; complete native bundle preflight still runs.
+  const priorPreflight = hostRecovery.descriptor.preflight;
+  hostRecovery.descriptor.preflight = () => ({ ok: false, errors: ['fixture native dependency unavailable'] });
+  try {
+    const result = applyCopy(); assert(result.incomplete > 0);
+    assert(result.log.some(line => line.includes('fixture native dependency unavailable')));
+    assert.equal(fs.readFileSync(copied, 'utf8'), consoleBytes);
+    assert(!fs.existsSync(backup(copied)), 'failed preflight never enters pristine recovery');
+  } finally {
+    if (priorPreflight === undefined) delete hostRecovery.descriptor.preflight;
+    else hostRecovery.descriptor.preflight = priorPreflight;
+  }
   // Native Console promotion copies bin/install.mjs without its adjacent backup.
   // Multiple actual patch owners require a matching healthy peer, never a guess.
   consoleFixture();
