@@ -42,6 +42,7 @@ SUITES=(ruflo-wrapper-guard sequence-fuzz plugin-notify reporting hooks-migratio
 SUITES+=(ruflo-memory-stats)
 SUITES+=(ruflo-memory-list-pagination)
 SUITES+=(ruflo-context-contract)
+SUITES+=(ruflo-context-guidance)
 SUITES+=(graph-withdrawal)
 SUITES+=(ruflo-wrapper-runtime)
 SUITES+=(ruflo-mcp-registration)

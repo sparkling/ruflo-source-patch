@@ -1771,6 +1771,28 @@ Installation changes source files, not modules already held by host-owned MCPs.
 Those owners need a supported reconnect to activate the changed modules; closing
 the Codex TUI alone is not proof of reconnection. No MCP is killed by these targets.
 
+The separate `ruflo-context-guidance` target fixes
+[#4691](https://github.com/ruvnet/ruflo/issues/4691): the MCP description,
+`ruflo-goals` research-synthesize skill and `ruflo-core` researcher agent still
+direct ordinary documents and graph findings to episode-outcome synthesis.
+It routes research to source-owned search and exact namespace/key readback, and
+reserves `agentdb_context-synthesize` for validated task, reward and success data.
+The executable handler, matching, eligibility, limits and result shapes stay
+unchanged. An original episode query may still correctly return no matching or
+eligible episodes; a consumer expecting document synthesis must adopt the corrected
+contract rather than treating the patch as a promise of a successful synthesis.
+
+```bash
+npx github:sparkling/ruflo-source-patch ruflo-context-guidance install
+```
+
+The existing composition engine preserves pristine bytes and exact uninstall.
+Both host marketplaces and their selected plugin caches are covered. Unknown
+anchors refuse the target. It retires only when all three discovered native
+surfaces carry the verified corrected guidance without local markers; different
+upstream wording requires review. Existing MCPs and already-loaded skills need
+their normal host refresh before the changed guidance becomes visible.
+
 ## Wrapper/runtime mismatch guard
 
 Tracked upstream in [Ruflo #3306](https://github.com/ruvnet/ruflo/issues/3306).
@@ -1961,6 +1983,7 @@ Actions: `install` · `uninstall` · `status`
 | **`ruflo-selective-learning`** | Makes explicit `hooks_intelligence_learn.trajectoryIds` retain complete evaluated source trajectories in the native ReasoningBank with exact provenance/outcomes, unchanged idempotence and correction refusal. No global buffered learning, trajectory replay or EWC/provider-weight training runs on this path. Partial writes are reported without a false rollback claim. Single-owner requests serialize; cross-process atomic reconciliation is not claimed. | Related manual-learning integration [#2245](https://github.com/ruvnet/ruflo/issues/2245), not a full repair of that historical issue |
 | **`ruflo-sqlite-owner`** | Resolves native SQLite through ControllerRegistry's actual dependency owner for graph and repair/initializer handles, preventing competing native SQLite libraries from managing the same file. It neither borrows and closes the registry handle nor replaces the database. | [#3693 · closed](https://github.com/ruvnet/ruflo/issues/3693) |
 | **`ruflo-context-contract`** | Preserve validated episode outcomes and critiques for ContextSynthesizer; distinguish missing, ineligible and partially eligible inputs without fabricating rewards or rewriting memories. Count a verified retained source/copy pair once while retaining independent identical-content episodes. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
+| **`ruflo-context-guidance`** | Correct the native MCP description and central research skill/agent guidance: synthesize documents from exact source evidence, reserve ContextSynthesizer for validated episode outcomes, and preserve native matching and result semantics. | [#4691 · open](https://github.com/ruvnet/ruflo/issues/4691) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306 · closed](https://github.com/ruvnet/ruflo/issues/3306) |
 | **`cwd`** | **Silent data loss and stray state.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; cache identity uses the resolved absolute starting path. AgentDB vector-storage overrides were withdrawn in 4.46.95: native AgentDB storage owns those paths. Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |
