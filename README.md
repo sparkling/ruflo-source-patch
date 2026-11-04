@@ -15,6 +15,33 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Shared HTTP session recovery and cleanup: 4 November 2026
+
+Version 4.46.135 removes a redundant release notification in our
+`ruflo-memory-owner` patch. The server already marks a negotiated one-call session
+complete after its handler settles; a successor initialization can remove that
+session before its client sends the additional release, producing HTTP 404/-32002.
+This is a downstream cleanup race, not proof of an upstream memory failure or
+lost data. Only a received response on a negotiated one-call connection permits
+omitting the redundant notification. Transport closure, handshake-failure cleanup,
+persistent/legacy release and uncertain-operation protection remain required.
+
+It also fixes a separate persistent-client failure: the shared owner client kept
+an expired native HTTP session and failed its next call before evicting the cache.
+The native SDK propagates HTTP 404 without reinitializing. The authenticated
+server now identifies a missing session with a matching-request receipt that
+proves no dispatch occurred. Only that receipt permits one fresh handshake with
+the same configured authority. Concurrent callers share the replacement, and
+native owner identity, policy and authentication are verified again. Principal
+mismatch, ordinary 404, authorization refusal and uncertain execution never
+authorize replay. A late old-client failure cannot evict its replacement.
+
+The released 4.46.134 client reproduces expiry failure against native MCP 3.1.6.
+The candidate passes expiry, real server replacement, twelve concurrent calls
+with one replacement handshake, authorization/identity/cancellation refusals and
+lost-response tests. Installation and activation verification are pending;
+both HTTP owners and persistent stdio clients must load the new source.
+
 ## Native alignment and backend readiness: 4 November 2026
 
 Version 4.46.134 adds the plain-search backend reporting fix below and the separate

@@ -2,7 +2,20 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-03. Release 4.46.116 proves the exact historical timeout
+**Updated**: 2026-11-04. Release 4.46.135 corrects shared persistent HTTP-session
+recovery: an authenticated matching-request absence receipt proves pre-dispatch
+refusal and permits one fresh handshake under unchanged configured authority.
+Concurrent callers share the replacement; native identity, policy and auth are
+rechecked. Principal mismatch, unqualified 404, authorization refusal and unknown
+execution never permit replay. Native expiry/restart and twelve-call concurrency
+tests pass; installation and live activation verification are pending.
+Correct the separate downstream one-call cleanup race: after a
+received response, native server completion owns session retirement; the client
+closes its transport without a redundant release notification. Explicit cleanup
+for unfinished handshakes and persistent/legacy sessions remains, as does
+uncertain-operation protection. Its interleaving and exact released migration
+regressions pass.
+2026-11-03. Release 4.46.116 proves the exact historical timeout
 composition during installation; unknown edits still refuse.
 2026-11-03. Release 4.46.115 adds negotiated one-call lifecycle
 retirement on native handler completion, plus bounded abandoned-handshake expiry.

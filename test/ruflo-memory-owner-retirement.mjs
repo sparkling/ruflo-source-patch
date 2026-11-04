@@ -8,7 +8,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
 import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
-import { patchSource as patchHttp, reverse as reverseHttp } from '../lib/ruflo-http-sessions/patcher.mjs';
+import { patchSource as patchHttp, reverse as reverseHttp, descriptor as httpDescriptor } from '../lib/ruflo-http-sessions/patcher.mjs';
+import { proveSessionRecovery } from './ruflo-owner-session-recovery.mjs';
 const capability = 'ruflo/native-memory-owner-one-call';
 const clientId = () => 'ruflo-native-owner-client:' + randomUUID();
 const init = (id, ephemeral = true) => ({ jsonrpc:'2.0',id:1,method:'initialize',params:{
@@ -89,9 +90,9 @@ try {
 export class StreamableHTTPClientTransport{}
 export class Client{constructor(info,opts){state.options=opts;state.info=info;}async connect(){}
 getServerCapabilities(){return{experimental:{'ruflo/native-memory-owner':{...state.identity,releaseNotification:'notifications/ruflo/memory-owner-release'},'${capability}':{version:1,token:'00000000-0000-4000-8000-000000000001'}}};}
-async listTools(){if(state.mode==='list-fails')throw Error('list failed');return{tools:[{name:'memory_store',inputSchema:{properties:{}}}]};}
-async callTool(r){state.calls.push(r);throw Error('response lost');}
-async notification(r){state.calls.push(r);}async close(){}}
+async listTools(){if(state.mode==='list-fails')throw Error('list failed');return{tools:[{name:'memory_store',inputSchema:{properties:{nativeResult:{},requireNative:{},appendOnly:{},appendConditions:{},generateEmbeddingFlag:{}}}}]};}
+async callTool(r){state.calls.push(r);if(state.mode==='received')return state.response;throw Error('response lost');}
+async notification(r){state.calls.push(r);}async close(){state.closed=(state.closed||0)+1;}}
 `);
   const factory=path.join(scratch,'factory.mjs'),sdkUrl=JSON.stringify(pathToFileURL(sdk).href);
   fs.writeFileSync(factory,createOwnerPolicyProtocol.toString()+'\n'+createMemoryOwnerClient.toString().replace("'@modelcontextprotocol/sdk/client/index.js'",sdkUrl).replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'",sdkUrl)+'\nexport {createMemoryOwnerClient};');
@@ -101,6 +102,22 @@ async notification(r){state.calls.push(r);}async close(){}}
   assert.equal(state.calls[0].method,'notifications/ruflo/memory-owner-release');
   assert.equal(state.calls[0].params.token,'00000000-0000-4000-8000-000000000001');
   assert.equal(state.options.capabilities.experimental[capability].version,1);
+  // A received response proves one-call completion even when decode refuses it.
+  // Preserve the native refusal/invalid-result error without another release.
+  for(const [response,canonical,error] of [
+    [{content:[{type:'text',text:'{"success":true}'}]},false,null],
+    [{isError:true,content:[{type:'text',text:'{"error":"fixture refusal"}'}]},false,/Native memory owner refused: fixture refusal/],
+    [{content:[{type:'text',text:'{"value":1}'}]},true,/invalid canonical result/],
+    [{content:[{type:'text',text:'{broken'}]},false,/invalid JSON/],
+  ]){
+    state.calls=[];state.closed=0;state.mode='received';state.response=response;
+    const received=await create(moduleUrl);
+    if(error)await assert.rejects(received.call('memory_store',{}, {},canonical),error);
+    else assert.deepEqual(await received.call('memory_store'),{success:true});
+    assert.equal(state.calls.length,1,'received one-call response never sends redundant release');
+    assert.equal(state.calls[0].name,'memory_store');assert.equal(state.closed,1,'received response closes transport');
+    await received.close();assert.equal(state.closed,1,'close does not retire a completed call twice');
+  }
   state.calls=[];state.mode='lost';const uncertain=await create(moduleUrl);
   await assert.rejects(uncertain.call('memory_store'),/response lost/);
   assert.equal(state.calls.length,1);assert.equal(state.calls[0].name,'memory_store');
@@ -126,6 +143,14 @@ async notification(r){state.calls.push(r);}async close(){}}
       const file=path.join(staged,'dist',relative), source=fs.readFileSync(file,'utf8'), candidate=patchHttp(source);
       assert.deepEqual(candidate.missing,[]);assert.equal(reverseHttp(candidate.next),source);
       assert.equal(patchHttp(candidate.next).next,candidate.next);fs.writeFileSync(file,candidate.next);
+      const prior=httpDescriptor.historicalPatchSource(source).next;
+      assert.equal(patchHttp(prior).next,candidate.next,'exact released HTTP revision upgrades');
+      assert.equal(reverseHttp(prior),source,'released HTTP revision restores pristine');
+      if(relative==='server.js'){
+        assert.equal(httpDescriptor.isPatched(prior),false);
+        assert(patchHttp(prior.replace('scope.session = session;','scope.session = undefined;')).missing.length,
+          'unknown changes to the prior boundary are refused');
+      }
     }
     const installRoot=path.join(scratch,'global/@claude-flow/mcp');
     fs.mkdirSync(path.join(installRoot,'dist/transport'),{recursive:true});
@@ -138,6 +163,10 @@ async notification(r){state.calls.push(r);}async close(){}}
     const firstInstall=cli('install');assert.equal(firstInstall.status,0,firstInstall.stdout+firstInstall.stderr);assert.match(firstInstall.stdout,/patched: 2/);
     const status=cli('status');assert.equal(status.status,0,status.stdout+status.stderr);assert.match(status.stdout,/2\/2 file\(s\) patched/);
     assert.equal(cli('install').status,0);
+    const previousServer=path.join(installRoot,'dist/server.js');
+    fs.writeFileSync(previousServer,httpDescriptor.historicalPatchSource(fs.readFileSync(previousServer+'.rsp-backup','utf8')).next);
+    assert.equal(cli('install').status,0,'installed historical HTTP source upgrades through exact composition');
+    assert(httpDescriptor.isPatched(fs.readFileSync(previousServer,'utf8')));
     for(const file of ['server.js','transport/http.js'])assert.equal(fs.readFileSync(path.join(installRoot,'dist',file)+'.rsp-backup','utf8'),fs.readFileSync(path.join(nativeRoot,'dist',file),'utf8'));
     const uninstall=cli('uninstall');assert.equal(uninstall.status,0,uninstall.stdout+uninstall.stderr);
     for(const file of ['server.js','transport/http.js'])assert.equal(fs.readFileSync(path.join(installRoot,'dist',file),'utf8'),fs.readFileSync(path.join(nativeRoot,'dist',file),'utf8'));
@@ -154,7 +183,7 @@ async notification(r){state.calls.push(r);}async close(){}}
     const {StreamableHTTPClientTransport}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')));
     const warnings=[],logger={debug(){},info(){},warn(message,fields){warnings.push({message,fields});},error(){}};
     native=new MCPServer({transport:'http',host:'127.0.0.1',port:0,auth:{enabled:true,method:'token',tokens:['disposable','other-principal']},
-      rateLimit:{windowMs:60000,limit:600},sessionRateLimit:{requestsPerSecond:100,burstSize:1000,perSessionLimit:500}},logger);
+      rateLimit:{windowMs:60000,limit:1200},sessionRateLimit:{requestsPerSecond:100,burstSize:1000,perSessionLimit:500}},logger);
     const api=await attach(native);let gate,finish,entered;
     const calls={fixture_read:0,fixture_write:0};
     for(const name of Object.keys(calls))native.registerTool({name,description:'Disposable lifecycle boundary',inputSchema:{type:'object',properties:{}},handler:async()=>{calls[name]++;entered();await gate;return{success:true};}});
@@ -252,6 +281,48 @@ async notification(r){state.calls.push(r);}async close(){}}
     await native.handleInitialize(init(clientId(),false));
     assert.equal(native.getSessions().length,initialCount+1,'failed listTools session is retired at next initialize');
     await failedNative.close();
+    // Complete the one-call handler, then initialize its successor before the
+    // first response reaches the client. Server retirement has already won.
+    const releasedFactory=path.join(scratch,'released-factory.mjs');
+    const released=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.134.json',import.meta.url),'utf8')).runtime;
+    fs.writeFileSync(releasedFactory,released
+      .replace("'@modelcontextprotocol/sdk/client/index.js'",JSON.stringify(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')).href))
+      .replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'",JSON.stringify(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')).href))
+      .replace('export const rspMemoryOwner = await createMemoryOwnerClient(import.meta.url);','export {createMemoryOwnerClient};'));
+    await proveSessionRecovery({ native, create:(await import(pathToFileURL(nativeFactory))).createMemoryOwnerClient,
+      createReleased:(await import(pathToFileURL(releasedFactory))).createMemoryOwnerClient, moduleUrl, config });
+    for(const [label,factory,expectedPosts]of [['released-4.46.134',releasedFactory,1],['candidate',nativeFactory,0]]){
+    const raceHttp=native.transports[0],raceDispatch=raceHttp.requestHandler,raceNotify=raceHttp.notificationHandler;
+    const raceWarnings=[],savedError=console.error;let successor,retiredSession,releasePosts=0;
+    const raceClient=await (await import(pathToFileURL(factory))).createMemoryOwnerClient(moduleUrl);
+    raceHttp.requestHandler=async(r,context)=>{
+      const response=await raceDispatch(r,context);
+      if(r.method==='tools/call'&&r.params.name==='fixture_read'){
+        retiredSession=context.sessionId;
+        assert(native.getSessions().some(session=>session.id===retiredSession));
+        successor=await sdk('retirement-race-successor');
+        assert(!native.getSessions().some(session=>session.id===retiredSession),'successor removes completed one-call session before response delivery');
+      }
+      return response;
+    };
+    raceHttp.notificationHandler=(r,context)=>{
+      if(r.method==='notifications/ruflo/memory-owner-release')releasePosts++;
+      return raceNotify(r,context);
+    };
+    const beforeRace=calls.fixture_read;console.error=value=>raceWarnings.push(String(value));
+    try{
+      assert.deepEqual(await raceClient.call('fixture_read'),{success:true});
+      assert(retiredSession);assert.equal(calls.fixture_read,beforeRace+1,'completed read is never replayed');
+      console.log(JSON.stringify({retirementInterleaving:label,releasePosts,warnings:raceWarnings,executions:calls.fixture_read-beforeRace}));
+      assert.equal(releasePosts,expectedPosts,'received one-call result needs no redundant retirement POST');
+      if(expectedPosts){assert.equal(raceWarnings.length,1);assert.match(raceWarnings[0],/-32002.*HTTP session is absent, expired or belongs to another principal/);}
+      else assert.deepEqual(raceWarnings,[],'completed server retirement is not reported as unavailable');
+      assert(native.getSessions().some(session=>session.id===successor.transport.sessionId),'successor remains live');
+    }finally{
+      console.error=savedError;raceHttp.requestHandler=raceDispatch;raceHttp.notificationHandler=raceNotify;
+      await raceClient.close();if(successor){await successor.client.close();native.terminateSession(successor.transport.sessionId);}
+    }
+    }
     const transport=()=>new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:'Bearer disposable'}}});
     const stableSdk=new Client({name:'persistent-sdk-fixture',version:'1'},{capabilities:{}});
     await stableSdk.connect(transport());
@@ -295,6 +366,8 @@ async notification(r){state.calls.push(r);}async close(){}}
     }
     const retained=await sdk('restart-retained');
     const priorId=retained.transport.sessionId;await retained.client.callTool({name:'fixture_session',arguments:{}});
+    const restartClient=await (await import(pathToFileURL(nativeFactory))).createMemoryOwnerClient(moduleUrl);
+    const restartBefore=await restartClient.call('fixture_session',{}, {sessionId:'restart-cached'});
     const port=native.transports[0].server.address().port;
     await api.close();await native.stop();native.sessionManager.destroy();
     native=new MCPServer({transport:'http',host:'127.0.0.1',port,auth:{enabled:true,method:'token',tokens:['disposable']}},logger);
@@ -306,8 +379,12 @@ async notification(r){state.calls.push(r);}async close(){}}
     const reinitialized=await sdk('restart-retained');assert.notEqual(reinitialized.transport.sessionId,priorId);
     const recovered=value(await reinitialized.client.callTool({name:'fixture_session',arguments:{}}));
     assert.equal(recovered.before,reinitialized.transport.sessionId);assert.equal(sessionCalls,beforeRestartRead+1);
+    const automaticallyRecovered=await restartClient.call('fixture_session',{}, {sessionId:'restart-cached'});
+    assert.notEqual(automaticallyRecovered.before,restartBefore.before);
+    assert.equal(sessionCalls,beforeRestartRead+2,'cached owner client reinitializes and dispatches once after server restart');
+    await restartClient.close();
     await reinitialized.client.close();await replacementApi.close();await native.stop();native.sessionManager.destroy();native=null;
-    console.log('HTTP session regression: two-principal isolation,24interleavedcalls,SSEbinding,auth/expiryrefusals,restart404,freshnativeinitialize; no implicit replay');
+    console.log('HTTP session regression: two-principal isolation, 24 interleaved calls, SSE binding, auth/expiry refusals, restart 404, cached owner recovery; no uncertain replay');
     console.log('actual native HTTP+SDK: killed read/write and105lost-response clients retire after completion; persistent survives below capacity; native capacity eviction='+nativeCapacity);
   }
 }finally{
