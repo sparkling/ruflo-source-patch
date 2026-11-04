@@ -29,7 +29,13 @@ while retaining whole-request ordering, complete-corpus admission, byte bounds,
 coverage errors and existing timeouts. All settled reads in a started group are
 accounted for. Independent native policy/lifecycle tests, 42 Product tests,
 23 distinct AI engine tests and three source-integration tests passed. Live
-activation and original-query latency are qualified separately below.
+activation completed on Mac/HZ; all 312 packaged files match the immutable artifact,
+both patch monitors pass, and the AI BA facade loaded the new reader. Fresh original
+A took 52.8 seconds cold, versus 81.1 before batching. Three concurrent original
+R1/R5/R7 requests took 23.3/48.1/71.5 seconds including queueing, all with 69 verified
+namespaces, no coverage gaps and no cached-response reuse. Native policy receipts
+confirm batches of up to four. The expanded hourly source suite passes 53 tests.
+These measurements do not clear historical lifecycle failures or research acceptance.
 
 ## Composition proof performance: 4 November 2026
 

@@ -22,9 +22,8 @@ export const suites = [
   'ruflo-mcp-registration', 'hook-failure-log', 'brain-managed-cli-diagnostics',
   'ruflo-auto-memory-persistence',
 ];
-export const missingCoverage = ['knowledge-local-source queue fixture blocked by missing HZ EA ruvector import',
-  'native-current policy qualification unless RSP_POLICY_NATIVE_ROOT is explicitly configured'];
-export const sourceFixtureCommand = 'cd /home/claude/src/hm/semantic-product && node --test --test-reporter=tap tests/product-native-inventory.test.mjs tests/product-native-inventory-batch.test.mjs tests/knowledge-service.test.mjs';
+export const missingCoverage = ['native-current policy qualification unless RSP_POLICY_NATIVE_ROOT is explicitly configured'];
+export const sourceFixtureCommand = 'cd /home/claude/src/hm/semantic-product && node --test --test-reporter=tap tests/product-native-inventory.test.mjs tests/product-native-inventory-batch.test.mjs tests/knowledge-service.test.mjs tests/knowledge-local-source.test.mjs';
 
 export async function sourceFixtures(execute, cwd) {
   const started = Date.now();

@@ -13,8 +13,8 @@ facade repeated full namespace exports and serialized callers. Native metadata n
 accelerates unchanged namespaces; incomplete results cannot hide recovery for five
 minutes. Release 4.46.124 removes duplicate inventory authorization; 4.46.126 pages
 native row identities before payloads. After the AI owner refresh, concurrent
-R5/R7/R1 passed in 34/59/89 seconds, with complete coverage and no gaps; the hourly
-cold source read took 81 seconds. Serial request delay and cold export cost remain.
+R5/R7/R1 passed in 34/59/89 seconds. Release 4.46.128 batches up to four native reads;
+fresh A passed in 53 seconds and concurrent R1/R5/R7 in 23/48/71, all 69 namespaces complete.
 Release 4.46.127 shortens current-composition proof without skipping preflights or
 changing locks; it does not eliminate concurrent SessionStart timeout risk.
 
@@ -25,7 +25,7 @@ details in the existing private ring. Release 4.46.123 is active on both hosts;
 new native checkpoint/readback checks passed in 1.00/2.08 seconds. This does not
 recover the original missing record. ST01/ST03's 14 imported values are verified;
 their coordinator repaired the local launch checks and launched each author once.
-ST01 completed at 10:04:38Z; ST03's retained running receipt is not a liveness check.
+ST01 completed at 10:04:38Z; its 11:46:54Z duplicate-read timeout was reconciled against the exact already-durable original value, without replay. ST03's retained running receipt is not a liveness check.
 The helper's independent false-success persistence bugs are reported in
 [Ruflo #4685](https://github.com/ruvnet/ruflo/issues/4685). Its tested upstream
 candidate is not installed because the helper requires an upstream signature.
