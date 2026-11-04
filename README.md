@@ -15,6 +15,20 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Explicit-store inventory policy: 4 November 2026
+
+Version 4.46.124 corrects duplicate authorization work in our native-owner forwarding
+patch. A fixed-store source client and an unpinned owner in the same project previously
+evaluated the same request twice: measured policy work was about 1.2 seconds per read.
+Only `memory_list`, `memory_stats`, and `memory_export` now qualify when their original,
+own enumerable `dbPath` exactly equals the caller's absolute pin and the owner advertises
+that selector. Native request reconstruction, trust, identity, approvals, evidence and
+full authorization remain unchanged. Other pin mismatches retain their prior path.
+Native HTTP tests cover single-use approval and negative routing cases; exact previous
+release reconstruction preserves uninstall and upgrade. No timeout or store is changed.
+This removes a measured contributor; full source-inventory performance remains under
+investigation. Installation is separate from refreshing already-loaded source clients.
+
 ## ADR envelope repair: updated 4 November 2026
 
 The larger envelope exposed a second native defect: `decision-gate` touches

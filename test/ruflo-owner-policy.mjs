@@ -58,12 +58,19 @@ try {
   const body = source.slice(start, source.indexOf('\n}\n', start) + 2).replace('export async function', 'return async function');
   let executed = 0;
   const registry = new Map([['memory_retrieve', { handler: async () => ({ success: true, invocation: ++executed }) }]]);
+  const explicitReads = ['memory_list', 'memory_stats', 'memory_export'], routed = [];
+  for (const name of explicitReads) registry.set(name, { handler: async input => {
+    routed.push({ name, input }); return { success: true, dbPath: input.dbPath };
+  } });
   const dispatch = api => new Function('TOOL_REGISTRY', 'MCPClientError', 'authorizeMcpTool', 'classifyMcpTool', 'rspMemoryOwner', 'applyContentBoundaryGuardrail', body)(registry, Error, native.authorizeMcpTool, native.classifyMcpTool, api, (_name, value) => value);
   const receiver = dispatch(owner), caller = dispatch(client);
   // This is the exact native cliTools context construction. Native MCPServer
   // receives _meta on the wire, and the attached owner handles its scope.
   server.registerTool({ name: 'memory_retrieve', description: 'Disposable policy fixture', inputSchema: { type: 'object', properties: { namespace: { type: 'string' }, key: { type: 'string' } } },
     handler: (input, context) => receiver('memory_retrieve', input, { sessionId: context?.sessionId || 'fixture-http', transport: 'http' }) });
+  for (const name of explicitReads) server.registerTool({ name, description: 'Explicit store fixture',
+    inputSchema: { type: 'object', properties: { dbPath: { type: 'string' }, namespace: { type: 'string' } } },
+    handler: (input, context) => receiver(name, input, { sessionId: context?.sessionId || 'fixture-http', transport: 'http' }) });
   await server.start(); configuration.owners.one.url = 'http://127.0.0.1:' + server.transports[0].server.address().port + '/mcp'; writeConfig();
   sdk = new Client({ name: 'fixture-direct', version: '1' }, { capabilities: {} });
   await sdk.connect(new StreamableHTTPClientTransport(new URL(configuration.owners.one.url), { requestInit: { headers: { Authorization: 'Bearer disposable' } } }));
@@ -73,6 +80,52 @@ try {
   await caller('memory_retrieve', input, { transport: 'stdio' });
   assert.equal(count(), 1, 'default legacy forwarding has exactly one durable decision');
   assert.equal(executed, 1);
+  // Fixed-store read facades explicitly select one store while the same-project
+  // owner serves multiple stores. The original path and native policy must agree.
+  const pinnedStore = path.join(root, '.swarm', 'agentdb-memory.db');
+  configuration.stores.push({ dbPath: pinnedStore, owner: 'one' }); writeConfig();
+  process.env.CLAUDE_FLOW_DB_PATH = pinnedStore;
+  for (const name of explicitReads) {
+    const selected = { dbPath: pinnedStore, namespace: 'fixture' }, priorCount = count();
+    const result = await client.tryForward(name, selected, { transport: 'stdio' });
+    assert.equal(result.forwarded, true, name + ' explicit pinned read qualifies');
+    assert.deepEqual(result.result, { success: true, dbPath: pinnedStore });
+    assert.equal(count(), priorCount + 1, name + ' keeps one authoritative durable decision');
+    assert.deepEqual(routed.at(-1), { name, input: selected }, 'selected store and selectors cross the wire unchanged');
+    assert.equal(state().receipts.at(-1).payload.request.action.type, native.classifyMcpTool(name).actionType,
+      'export retains its native action classification');
+  }
+  for (const [name, args] of [
+    ['memory_list', {}], ['memory_list', { dbPath: '.swarm/agentdb-memory.db' }],
+    ['memory_retrieve', { dbPath: pinnedStore }], ['memory_search', { dbPath: pinnedStore }],
+    ['memory_store', { dbPath: pinnedStore }], ['memory_index_status', { dbPath: pinnedStore }],
+    ['agentdb_pattern-search', { dbPath: pinnedStore }],
+    ['memory_list', { dbPath: pinnedStore, provenanceFilter: [] }],
+  ]) assert.equal((await client.tryForward(name, args)).forwarded, false, 'other default-store contracts remain separate');
+  for (const args of [Object.create({ dbPath: pinnedStore }),
+    Object.defineProperty({}, 'dbPath', { value: pinnedStore }),
+    Object.defineProperty({}, 'dbPath', { enumerable: true, get: () => pinnedStore })])
+    assert.equal((await client.tryForward('memory_list', args)).forwarded, false, 'selected store must survive the wire as an own data field');
+  await assert.rejects(client.tryForward('memory_list', { dbPath: path.join(root, 'foreign.db') },
+    { transport: 'stdio' }), /configured MCP client authority/);
+  assert.equal((await client.tryForward('memory_list', { dbPath: pinnedStore }, { environment: 'other' })).forwarded, false);
+  configuration.owners.one.pin = path.join(root, 'different.db'); writeConfig();
+  await assert.rejects(client.tryForward('memory_list', { dbPath: pinnedStore }), /conflicts with configured owner authority/);
+  configuration.owners.one.pin = null; configuration.owners.one.cwd = scratch; writeConfig();
+  assert.equal((await client.tryForward('memory_list', { dbPath: pinnedStore })).forwarded, false, 'explicit store does not merge policy roots');
+  configuration.owners.one.cwd = root; writeConfig();
+  const nativeHandle = server.handleRequest;
+  server.handleRequest = async request => {
+    const response = structuredClone(await nativeHandle.call(server, request));
+    if (request.method === 'tools/list') for (const tool of response.result.tools)
+      if (explicitReads.includes(tool.name)) delete tool.inputSchema.properties.dbPath;
+    return response;
+  };
+  const schemaCount = count(), routedCount = routed.length;
+  await assert.rejects(client.tryForward('memory_list', { dbPath: pinnedStore }), /lacks explicit inventory store authority/);
+  assert.equal(count(), schemaCount); assert.equal(routed.length, routedCount, 'missing selector contract refuses before policy or read dispatch');
+  server.handleRequest = nativeHandle;
+  delete process.env.CLAUDE_FLOW_DB_PATH;
   await native.withPolicyTransaction(root, engine => {
     engine.setMode('enforce');
     engine.upsertRule({ id: 'approval', effect: 'require_approval', actions: ['memory.read'] });
@@ -83,6 +136,27 @@ try {
   assert.equal(count(), before + 1); assert.equal(state().approvals[0].uses, 1); assert.equal(executed, 2);
   await assert.rejects(caller('memory_retrieve', input, context), /Native memory owner refused/);
   assert.equal(count(), before + 2); assert.equal(state().approvals[0].uses, 1); assert.equal(executed, 2);
+  await native.withPolicyTransaction(root, engine => engine.issueApproval({ id: 'pinned-once',
+    principal: 'legacy-cli', actions: ['memory.read'], issuedBy: 'fixture-admin',
+    expiresAt: Date.now() + 60000, maxUses: 1 }), { approvalIssuerVerifier: who => who === 'fixture-admin' });
+  process.env.CLAUDE_FLOW_DB_PATH = pinnedStore;
+  const pinnedInput = { dbPath: pinnedStore, namespace: 'fixture' };
+  const pinnedContext = { transport: 'stdio', approvalIds: ['pinned-once'], evidence: [] };
+  const pinnedProtocol = await factory.createOwnerPolicyProtocol(moduleUrl);
+  const pinnedProjection = await pinnedProtocol.project('memory_list', pinnedInput, pinnedContext, configuration.owners.one);
+  before = count(); const pinnedExecuted = routed.length;
+  await caller('memory_list', pinnedInput, pinnedContext);
+  assert.equal(count(), before + 1); assert.equal(routed.length, pinnedExecuted + 1);
+  const pinnedReceipt = structuredClone(state().receipts.at(-1).payload.request);
+  assert.equal(typeof pinnedReceipt.requestId, 'string'); assert(Number.isFinite(pinnedReceipt.context.now));
+  delete pinnedReceipt.requestId; delete pinnedReceipt.context.now;
+  assert.deepEqual(pinnedReceipt, JSON.parse(JSON.stringify(pinnedProjection.request)),
+    'new branch evaluates the complete unchanged native caller request');
+  assert.equal(state().approvals.find(row => row.id === 'pinned-once').uses, 1);
+  await assert.rejects(caller('memory_list', pinnedInput, pinnedContext), /Native memory owner refused/);
+  assert.equal(count(), before + 2); assert.equal(routed.length, pinnedExecuted + 1, 'exhausted pinned approval cannot dispatch');
+  assert.equal(state().approvals.find(row => row.id === 'pinned-once').uses, 1);
+  delete process.env.CLAUDE_FLOW_DB_PATH;
   const protocol = await factory.createOwnerPolicyProtocol(moduleUrl);
   const projection = await protocol.project('memory_retrieve', input, context, configuration.owners.one);
   const send = meta => sdk.callTool({ name: 'memory_retrieve', arguments: input, _meta: { [protocol.key]: meta } });

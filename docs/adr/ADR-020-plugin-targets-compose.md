@@ -2,8 +2,8 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-04. Bounded fresh lifecycle handoff and native store/read
-process reuse extend the implemented composition. Capture admission serializes metadata ownership,
+**Updated**: 2026-11-04. Explicit-store inventory reads reuse equivalent native policy
+authority; bounded lifecycle handoff and store/read reuse remain. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
 ControllerRegistry initialization and vector-path selection after the compensating
@@ -13,16 +13,15 @@ retrieve instead of reporting healthy absence; its retained name does not author
 an alternate store or controller policy. Native capture diagnostics and the bounded
 capture budget are separate issue-backed contributions.
 
-The 3 November policy correction qualifies one native decision for same-authority
-MCP forwarding. `ruflo-memory-owner` reuses native request construction, checks
-canonical cwd/pin/policy/trust equivalence, and compares the owner reconstruction
-before accounting. Only default legacy identity and native server/environment are
-eligible. Approval IDs and evidence reach the native verifier; metadata is never
-authority. Unsupported owner capabilities refuse before evaluation or dispatch.
-Constrained and semantically different routes retain their prior authorization
-path and remain outside this correction. Full anchor verification and audit are
-unchanged; anchor history still scales linearly. Exact 4.46.117/earlier migration
-and pristine reversal preserve the canonical failure decoder.
+Native-owner forwarding qualifies one native decision for equivalent authority. The 4 November extension permits `memory_list`, `memory_stats`, and `memory_export`
+from a pinned client to an unpinned same-project owner only with an original own
+enumerable absolute `dbPath` equal to that pin and an advertised selector. Native
+request reconstruction, trust, identity, approvals and evidence still must match;
+metadata is never authority. Unsupported capabilities refuse before dispatch.
+Other pin mismatches, constrained identities and different policy contexts retain
+their prior authorization path. Full anchor verification and audit are unchanged;
+history still scales linearly. Exact 4.46.123/earlier reconstruction preserves
+upgrade, pristine reversal and the canonical failure decoder.
 
 The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without
