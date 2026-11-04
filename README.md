@@ -3598,7 +3598,10 @@ neighbours.
 The owner-requested hourly job uses `scripts/hourly-regression.mjs`, 26 focused
 fixture families, the canonical Product source fixtures, bounded read-only calls
 through existing Mac/HZ MCP sessions, one HZ source search, and a native OpenAI
-`gpt-6.1-sol` review at medium effort. Source checks distinguish cached response
+`gpt-6.1-sol` review at medium effort. Memory checks first discover and verify native
+AgentDB health, so successful list/exact reads through an unavailable backend or
+local ReasoningBank fallback cannot pass. Optional disabled controllers and durable
+SQLite tier composition remain valid. Source checks distinguish cached response
 proof from fresh inventory observations. It has one
 owner lock, finite runtime/output/memory limits and private bounded receipts under
 `~/.local/state/ruflo-source-patch/hourly-regression`; it does not control projects

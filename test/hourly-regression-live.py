@@ -74,6 +74,89 @@ class ReadOnlyProbe(unittest.TestCase):
             live.body({'isError': True, 'content': [{'text': 'never print this'}]}, 'entries')
         self.assertNotIn('never print this', str(error.exception))
 
+    def memory_worker(self, health, registered=True):
+        calls = []
+        responses = {'agentdb_health': health, 'memory_list': self.page, 'memory_retrieve': self.read}
+        class Socket:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *_args): pass
+            async def send(self, text):
+                self.last = json.loads(text)
+                calls.append(self.last)
+            async def recv(self):
+                request = self.last
+                if request['method'] == 'initialize':
+                    result = {}
+                elif request['method'] == 'mcpServerStatus/list':
+                    tools = {'agentdb_health': {'inputSchema': {'type': 'object', 'properties': {}}}} if registered else {}
+                    result = {'data': [{'name': 'ruflo', 'tools': tools}]}
+                else:
+                    result = {'content': [{'type': 'text', 'text': json.dumps(responses[request['params']['tool']])}]}
+                return json.dumps({'id': request['id'], 'result': result})
+        with patch.dict(sys.modules, {'websockets': types.SimpleNamespace(unix_connect=lambda *_a, **_k: Socket())}):
+            rows = asyncio.run(live.worker([{'host': 'hz', 'label': 'memory',
+                'threadId': '00000000-0000-0000-0000-000000000000'}]))
+        return rows[0], calls
+
+    def test_native_health_refuses_degraded_backend_before_successful_reads(self):
+        # Reduced observed Product health: failed native open still advertised a local
+        # ReasoningBank; list/exact success alone cannot establish native readiness.
+        failures = [
+            ({'available': False, 'agentdbInitError': 'PRIVATE active WAL refusal',
+              'bridgeFailureReason': 'PRIVATE active WAL refusal',
+              'controllers': [{'name': 'reasoningBank', 'enabled': True, 'level': -1}]},
+             'native-backend-initialization-error'),
+            ({'available': False, 'controllers': []}, 'native-backend-unavailable'),
+            ({'available': True, 'controllers': [{'name': 'reasoningBank', 'enabled': True, 'level': -1}]},
+             'native-backend-fallback'),
+            ({'available': True, 'controllers': [], 'hierarchicalMemory': {
+                'fallbackFrom': 'agentdb-unavailable', 'durable': False, 'persistence': 'volatile'}},
+             'native-backend-fallback'),
+            ({'available': True, 'controllers': [], 'bridgeFailureReason': 'PRIVATE native failure'},
+             'native-backend-initialization-error'),
+        ]
+        for health, category in failures:
+            with self.subTest(category=category, health=health):
+                row, calls = self.memory_worker(health)
+                self.assertEqual(row['status'], 'not-verified')
+                self.assertEqual(row['error'], category)
+                self.assertEqual(row['errorDigest'], live.digest(health))
+                self.assertEqual([c['params']['tool'] for c in calls if c['method'] == 'mcpServer/tool/call'],
+                                 ['agentdb_health'], 'failed health must not replay or continue memory operations')
+                self.assertNotIn('PRIVATE', json.dumps(row))
+
+    def test_native_health_accepts_empty_research_and_durable_tier_composition(self):
+        # Reduced recovered Product response: optional controllers can be disabled,
+        # and the documented durable SQLite tier is not an unavailable-AgentDB fallback.
+        health = {'available': True, 'agentdbInitError': None, 'bridgeFailureReason': None,
+                  'controllers': [{'name': 'reasoningBank', 'enabled': True, 'level': 1},
+                                  {'name': 'mutationGuard', 'enabled': False, 'level': 2}],
+                  'patternCount': 0, 'hierarchicalMemory': {'fallbackFrom': 'agentdb-export-missing',
+                      'durable': True, 'persistence': 'sqlite', 'persistedRows': 0}}
+        row, calls = self.memory_worker(health)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual(row['nativeHealthDigest'], live.digest(health))
+        self.assertTrue(row['nativeBackendAvailable'])
+        self.assertEqual([c['params']['tool'] for c in calls if c['method'] == 'mcpServer/tool/call'],
+                         ['agentdb_health', 'memory_list', 'memory_retrieve'])
+        discovery = next(c for c in calls if c['method'] == 'mcpServerStatus/list')
+        self.assertEqual(discovery['params']['serverName'], 'ruflo')
+        self.assertEqual(discovery['params']['detail'], 'toolsAndAuthOnly')
+        self.assertNotIn('disposable', json.dumps(row))
+
+    def test_native_health_requires_registered_tool_and_preserves_private_error_digest(self):
+        row, calls = self.memory_worker({'available': True}, registered=False)
+        self.assertEqual(row['status'], 'not-verified')
+        self.assertEqual(row['error'], 'native-health-tool-unavailable')
+        self.assertFalse(any(c['method'] == 'mcpServer/tool/call' for c in calls))
+        error = {'isError': True, 'content': [{'type': 'text', 'text': 'PRIVATE authorization: Bearer secret'}]}
+        row, _ = self.memory_worker(error)
+        self.assertEqual(row['status'], 'not-verified')
+        self.assertEqual(row['error'], 'native-error')
+        self.assertEqual(row['errorDigest'], live.digest(error))
+        self.assertNotIn('PRIVATE', json.dumps(row))
+        self.assertNotIn('secret', json.dumps(row))
+
     def test_source_completeness_and_private_output(self):
         with tempfile.TemporaryDirectory() as root:
             result = {'question': 'PRIVATE QUESTION', 'results': [{'body': 'PRIVATE RETAINED BODY'}], 'gaps': [],

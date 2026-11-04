@@ -102,6 +102,24 @@ def verify(page, read):
     return {'valueDigest': digest(read['value']), 'valueComparison': comparison}
 
 
+def verify_native_health(value):
+    if value.get('agentdbInitError') or value.get('bridgeFailureReason'):
+        raise Refused('native-backend-initialization-error', value)
+    if value.get('available') is not True:
+        raise Refused('native-backend-unavailable', value)
+    controllers = value.get('controllers')
+    if not isinstance(controllers, list):
+        raise Refused('invalid-native-health', value)
+    local_bank = any(isinstance(row, dict) and row.get('name') == 'reasoningBank'
+                     and row.get('enabled') is True and row.get('level') == -1 for row in controllers)
+    tier = value.get('hierarchicalMemory')
+    if local_bank or (isinstance(tier, dict) and tier.get('fallbackFrom') == 'agentdb-unavailable'):
+        raise Refused('native-backend-fallback', value)
+    # Optional controllers and empty research are not failures. The durable
+    # SQLite tier composed when AgentDB lacks an export remains a native owner.
+    return {'nativeBackendAvailable': True, 'nativeHealthDigest': digest(value)}
+
+
 def verify_source(result, expected_root, requested_at_ms=None):
     coverage = result.get('coverage')
     memory = coverage.get('memory') if isinstance(coverage, dict) else None
@@ -228,6 +246,14 @@ async def worker(targets):
                         row['error'] = 'cached-source-response-no-fresh-inventory-proof' if cached == 1 else 'source-freshness-unknown'
                     results.append(row)
                     continue
+                registry = await call('mcpServerStatus/list', {'threadId': target['threadId'],
+                                      'serverName': 'ruflo', 'detail': 'toolsAndAuthOnly', 'limit': 1})
+                servers = registry.get('data')
+                tools = servers[0].get('tools', {}) if isinstance(servers, list) and len(servers) == 1 else {}
+                health = tools.get('agentdb_health', {}).get('inputSchema', {})
+                if health.get('type') != 'object' or health.get('required'):
+                    raise Refused('native-health-tool-unavailable', registry)
+                row.update(verify_native_health(body(await tool('agentdb_health', {}), 'available')))
                 page = body(await tool('memory_list', {'limit': 1}), 'entries')
                 entries = page.get('entries')
                 if not isinstance(entries, list) or len(entries) != 1 or not isinstance(entries[0], dict):
