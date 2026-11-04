@@ -5,7 +5,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { patchSource, reverseSource, isPatched, ANCHOR, preflight, applicability } from '../lib/brain-grounding-code/patcher.mjs';
 import { nativeSatisfied } from '../lib/brain-grounding-code/native.mjs';
-import { probeGroundingCodeReplacement } from '../lib/brain-grounding-code/probe.mjs';
+import { exerciseNativeGrounding, probeGroundingCodeReplacement } from '../lib/brain-grounding-code/probe.mjs';
+import { MULTI_ANCHOR, MULTI_REPLACEMENT, patchMultiSource } from '../lib/brain-grounding-code/multi-patch.mjs';
 import { pluginStatusHealthy } from '../lib/plugin-registry.mjs';
 import { brainNativeSupersessions } from '../lib/brain-native/supersede.mjs';
 
@@ -119,8 +120,8 @@ assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live
 fs.writeFileSync(helperFile, nativeHelper);
 assert.equal(preflight([nativeFile]).ok, true);
 const proof = probeGroundingCodeReplacement({ files: [nativeFile] });
-assert.equal(proof.state, 'superseded', proof.evidence);
-assert.match(proof.evidence, /missing-helper refusal/);
+assert.equal(proof.state, 'live', 'single-file native exemption does not fix sibling metadata leakage');
+assert.match(proof.evidence, /native replay 3/);
 assert.equal(typeof brainNativeSupersessions['brain-grounding-code'].check, 'function');
 assert.match(brainNativeSupersessions['brain-grounding-code'].issue, /issues\/46$/);
 fs.writeFileSync(helperFile, nativeHelper.replace('throw new Error', 'return ""; //'));
@@ -151,8 +152,7 @@ assert.equal(preflight([nativeFile]).ok, false, 'shared native entrypoint must b
 fs.writeFileSync(entrypointFile, entrypoint);
 assert.equal(preflight([nativeFile]).ok, true);
 const entrypointProof = probeGroundingCodeReplacement({ files: [nativeFile] });
-assert.equal(entrypointProof.state, 'superseded', entrypointProof.evidence);
-assert.match(entrypointProof.evidence, /44 isolated native replays/);
+assert.equal(entrypointProof.state, 'live', '4.7.28 retains the multi-file projection defect');
 fs.writeFileSync(entrypointFile, entrypoint.replace('return false;', 'return true;'));
 assert.equal(preflight([nativeFile]).ok, false, 'changed dependency cannot retain native qualification');
 assert.equal(probeGroundingCodeReplacement({ files: [nativeFile] }).state, 'live');
@@ -165,4 +165,103 @@ fs.unlinkSync(entrypointFile);
 fs.writeFileSync(entrypointFile, entrypoint);
 assert.equal(preflight([nativeFile]).ok, true);
 assert.equal(patchSource(nativeGuard).next, nativeGuard, 'qualification never reinstalls the retired overlay');
-console.log('PASS brain-grounding-code: reviewed native shared entrypoint, 43-case matrix plus alias execution, and dependency refusal');
+console.log('PASS brain-grounding-code: native shared entrypoint qualification and dependency refusal');
+
+// #373 recurrence: the native Codex adapter checks each path with the complete patch.
+// A code-only gate must not attribute the sibling JSON screening receipt to acquire.py.
+const multiPatched = patchMultiSource(entrypointHelper);
+assert.deepEqual(multiPatched.missing, []);
+assert.equal(isPatched(multiPatched.next), true);
+assert.equal(reverseSource(multiPatched.next), entrypointHelper);
+assert.deepEqual(patchSource(multiPatched.next), { next: multiPatched.next, applied: [], missing: [] });
+for (const drift of [entrypointHelper + entrypointHelper,
+  entrypointHelper.replace(MULTI_ANCHOR, '// changed'),
+  multiPatched.next.replace('additions.has(file)', 'additions.has("other.py")')]) {
+  assert(patchMultiSource(drift).missing.length);
+}
+fs.writeFileSync(helperFile, multiPatched.next);
+assert.equal(preflight([nativeFile, helperFile]).ok, true);
+assert.equal(probeGroundingCodeReplacement({ files: [nativeFile, helperFile] }).state, 'live',
+  'installed overlay must never prove its own upstream retirement');
+const repairedRoot = path.join(root, 'repaired'); fs.mkdirSync(repairedRoot);
+const repairedProof = exerciseNativeGrounding({ guard: nativeGuard, helper: multiPatched.next, entrypoint }, repairedRoot);
+assert.equal(repairedProof.assertions, 45);
+
+const codeFile = path.join(root, 'acquire.py');
+const methodFile = path.join(root, 'method.json');
+const add = (file, body) => `*** Add File: ${file}\n${body.split('\n').map(line => '+' + line).join('\n')}\n`;
+const mixedPatch = `*** Begin Patch\n${add(codeFile, 'import requests')}${add(path.join(root, '.claude-flow/research-active.json'), '{"status":"acquiring"}')}${add(methodFile,
+  '{"screening":"Native mcp__ruflo__aidefence_scan input schema discovered; full extracted text in <=8000-character sequential chunks before admission"}')}*** End Patch`;
+const nativeEnv = { ...env, HOME: repairedRoot,
+  MODEL_ROUTER_PROFILE: path.join(repairedRoot, '.claude/model-router/profile.json') };
+const gate = (patchText, file, expected, helper = multiPatched.next) => {
+  fs.writeFileSync(path.join(repairedRoot, 'scripts/grounding-code-projection.mjs'), helper);
+  const result = spawnSync('/bin/bash', [path.join(repairedRoot, 'scripts/ground-before-write.sh')], {
+    input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: file, new_string: patchText } }),
+    env: nativeEnv, cwd: repairedRoot, encoding: 'utf8', timeout: 5000 });
+  assert.equal(result.status, expected, result.stderr);
+  if (expected === 2) assert.match(result.stderr, /BLOCKED/);
+};
+gate(mixedPatch, codeFile, 2, entrypointHelper);
+gate(mixedPatch, codeFile, 0);
+gate(mixedPatch, methodFile, 0); // JSON remains outside the native code-file policy.
+gate(mixedPatch.replace('+import requests', '+import aidefence'), codeFile, 2);
+const siblingCode = mixedPatch.replace('*** End Patch', add(path.join(root, 'screen.py'), 'import aidefence') + '*** End Patch');
+gate(siblingCode, codeFile, 0);
+gate(siblingCode, path.join(root, 'screen.py'), 2); // Per-file fan-out still refuses the whole call.
+for (const malformed of [mixedPatch.replace('*** End Patch', ''),
+  mixedPatch.replace('*** End Patch', add(codeFile, 'import aidefence') + '*** End Patch'),
+  mixedPatch.replace('*** End Patch', '*** Update File: other.py\n@@\n+import aidefence\n*** End Patch'),
+  mixedPatch.replace('+import requests', 'import requests'),
+  mixedPatch.replace('*** End Patch', '*** Delete File: other.py\n*** End Patch'),
+  mixedPatch.replace('+import requests', '+import requests\n*** Move to: other.py'),
+  mixedPatch.replace(`*** Add File: ${methodFile}`, `*** Add File: ${methodFile} `)]) gate(malformed, codeFile, 2);
+gate(mixedPatch, path.join(root, 'absent.py'), 2);
+gate(mixedPatch.replace('+import requests', '+open(".swarm/memory.db")'), codeFile, 2);
+assert.equal(multiPatched.next.includes(MULTI_REPLACEMENT), true);
+console.log('PASS brain-grounding-code: mixed Python/JSON recurrence, 45 repaired native cases, true sibling-code refusal, malformed/duplicate/move/partial refusal and pristine retirement');
+
+// Discovery and the real composition engine own only the active generation and matching host copy.
+const composeRoot = path.join(root, 'composition'); fs.mkdirSync(composeRoot);
+const composition = spawnSync(process.execPath, ['--input-type=module', '-e', `
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+const { discover } = await import(${JSON.stringify(new URL('../lib/brain-grounding-code/patcher.mjs', import.meta.url).href)});
+const { applyComposed, statusComposed, reconcile } = await import(${JSON.stringify(new URL('../lib/plugin-compose.mjs', import.meta.url).href)});
+const { VENDOR_SPECS } = await import(${JSON.stringify(new URL('../lib/brain-managed-memory-boundary/transforms.mjs', import.meta.url).href)});
+const home = process.env.RUFLO_SOURCE_PATCH_HOME;
+const brain = process.env.RSP_RUVNET_BRAIN_HOME;
+const active = path.join(brain, 'versions/4.7.28');
+const host = path.join(home, '.codex/plugins/cache/ruvnet-brain/ruvnet-brain/4.7.28');
+const old = path.join(brain, 'versions/4.7.27');
+const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
+assert.deepEqual(discover(), []);
+for (const dir of [active, host, old]) {
+  write(path.join(dir, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'ruvnet-brain', version: dir === old ? '4.7.27' : '4.7.28' }));
+  for (const spec of VENDOR_SPECS) write(path.join(dir, spec.relative), '// discovery fixture');
+  write(path.join(dir, 'scripts/hook-input.mjs'), '// discovery fixture');
+  write(path.join(dir, 'scripts/ground-before-write.sh'), ${JSON.stringify(nativeGuard)});
+  write(path.join(dir, 'scripts/grounding-code-projection.mjs'), ${JSON.stringify(entrypointHelper)});
+  write(path.join(dir, 'scripts/entrypoint.mjs'), ${JSON.stringify(entrypoint)});
+}
+write(path.join(brain, 'active.json'), JSON.stringify({ version: '4.7.28', codeRoot: active }));
+assert.equal(discover().length, 4);
+const applied = applyComposed(['brain-grounding-code']);
+assert.equal(applied.errors, 0, JSON.stringify(applied));
+assert.equal(applied.incomplete, 0, JSON.stringify(applied));
+assert.equal(applied.patched, 2);
+assert.equal(statusComposed(['brain-grounding-code'])['brain-grounding-code'].patched, 4);
+assert.equal(applyComposed(['brain-grounding-code']).patched, 0);
+assert.equal(fs.readFileSync(path.join(old, 'scripts/grounding-code-projection.mjs'), 'utf8'), ${JSON.stringify(entrypointHelper)});
+const reverted = reconcile([], ['brain-grounding-code']);
+assert.equal(reverted.errors, 0, JSON.stringify(reverted));
+for (const dir of [active, host]) {
+  assert.equal(fs.readFileSync(path.join(dir, 'scripts/ground-before-write.sh'), 'utf8'), ${JSON.stringify(nativeGuard)});
+  assert.equal(fs.readFileSync(path.join(dir, 'scripts/grounding-code-projection.mjs'), 'utf8'), ${JSON.stringify(entrypointHelper)});
+}
+`], { env: { ...process.env, RUFLO_SOURCE_PATCH_HOME: composeRoot,
+  RSP_RUVNET_BRAIN_HOME: path.join(composeRoot, '.cache/ruvnet-brain'),
+  RSP_CODEX_HOME: path.join(composeRoot, '.codex') }, encoding: 'utf8', timeout: 20000 });
+assert.equal(composition.status, 0, composition.stderr || composition.stdout);
+console.log('PASS brain-grounding-code: active/host discovery, composed idempotency, exact pristine restoration and older-generation preservation');
