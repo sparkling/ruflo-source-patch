@@ -74,6 +74,28 @@ try {
     RUFLO_NPX_ROOT:path.join(scratch,'npx'), RUFLO_GLOBAL_ROOT:path.join(scratch,'global')} });
   assert.equal(child.status, 0, child.stdout + child.stderr);
   assert.equal(fs.readFileSync(path.join(unidentified, files[0]), 'utf8'), sources[0], 'missing package identity remains unclaimed');
+  fs.mkdirSync(path.join(scratch, 'home/.claude'), { recursive:true });
+  fs.writeFileSync(path.join(scratch, 'home/.claude/settings.json'), '{}');
+  const cli = action => {
+    const result = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname,
+      'ruflo-memory-list-pagination', action], { encoding:'utf8', timeout:30000, env:{...process.env,
+      RUFLO_SOURCE_PATCH_HOME:path.join(scratch,'home'), RUFLO_NPX_ROOT:path.join(scratch,'npx'),
+      RUFLO_GLOBAL_ROOT:path.join(scratch,'global'), RSP_NO_SELF_UPDATE:'1', RSP_NO_MONITOR_RECOVER:'1',
+      RSP_NO_LAUNCHCTL:'1', RSP_NO_STALE_WRITER_KILL:'1', RSP_NO_HOST_AUTO_UPDATE:'1'} });
+    assert.equal(result.status, 0, result.stdout + result.stderr); return result.stdout;
+  };
+  assert.match(cli('install'), /patched: 2/);
+  assert.match(cli('status'), /2\/2 file\(s\) patched — tracked/);
+  const stateFile = path.join(scratch, 'home/.ruflo-source-patch/state.json');
+  assert(JSON.parse(fs.readFileSync(stateFile)).pluginTargets.includes('ruflo-memory-list-pagination'));
+  files.forEach((file,index)=>{
+    assert(isPatched(fs.readFileSync(path.join(memory,file),'utf8')));
+    assert.equal(fs.readFileSync(path.join(memory,file)+'.rsp-backup','utf8'),sources[index]);
+  });
+  assert.match(cli('uninstall'), /restored 2 file\(s\)/);
+  assert(!JSON.parse(fs.readFileSync(stateFile)).pluginTargets.includes('ruflo-memory-list-pagination'));
+  files.forEach((file,index)=>assert.equal(fs.readFileSync(path.join(memory,file),'utf8'),sources[index]));
+  assert.match(cli('status'), /0\/2 file\(s\) patched — NOT tracked/);
 } finally { fs.rmSync(scratch, { recursive:true, force:true }); }
 const fn = (source, name) => {
   const start = source.indexOf('export ' + (name === 'ensureBridgeSchema' ? '' : 'async ') + 'function ' + name + '(');
