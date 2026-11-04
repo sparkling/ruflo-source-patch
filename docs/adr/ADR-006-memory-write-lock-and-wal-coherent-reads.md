@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-04. Release 4.46.135 corrects shared persistent HTTP-session
+**Updated**: 2026-11-04. Release 4.46.136 qualifies CLI 3.71.2's native pagination
+and reuses the existing schema/error guard around its unchanged SQL and arguments.
+Native shadowed-rowid pages can silently lose or overselect rows, so the target
+cannot fully retire. Older source compatibility remains intact; disposable
+native/sql.js fixtures cover both query generations, exact fields, full static
+enumeration and non-capability errors. Deployment verification is pending.
+Release 4.46.135 corrects shared persistent HTTP-session
 recovery: an authenticated matching-request absence receipt proves pre-dispatch
 refusal and permits one fresh handshake under unchanged configured authority.
 Concurrent callers share the replacement; native identity, policy and auth are

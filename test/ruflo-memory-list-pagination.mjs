@@ -21,6 +21,12 @@ const { liveMemoryRowSql } = await import(pathToFileURL(path.join(directory, 'li
 const { MAX_LIST_EMBEDDINGS, encodeEmbeddingQ8 } = await import(pathToFileURL(path.join(directory, 'embedding-q8.js')));
 const files = ['memory-bridge.js', 'memory-initializer.js'];
 const sources = files.map(file => pristineBytes(path.join(directory, file)).toString());
+// The published fallback is an independent unpaged oracle. Native 3.71.2's
+// paged query silently loses/overselects rows when _rowid_ is a user column.
+const nativePagination = sources[0].includes('const pagedSql =');
+const references = sources.map(source => source
+  .replace('ctx.db.prepare(pagedSql).all(', 'ctx.db.prepare(originalSql).all(')
+  .replace('listRows = runList(pagedSql);', 'listRows = runList(originalSql);'));
 const patched = sources.map(source => {
   const result = patchSource(source); assert.deepEqual(result.missing, []);
   assert.equal(reverse(result.next), source); assert(isPatched(result.next));
@@ -108,13 +114,13 @@ const makeBridge = (source, db) => new Function('operationContext', 'withBridgeO
   'isValidProvenanceType', 'liveMemoryRowSql', 'MAX_LIST_EMBEDDINGS', 'encodeEmbeddingQ8', fn(source, 'bridgeListEntries'))(
   { getStore: () => ({ active: true }) }, operation => operation(), async () => ({}), () => ({ db }),
   type => ['unknown', 'tool_result', 'user_claim'].includes(type), liveMemoryRowSql, MAX_LIST_EMBEDDINGS, encodeEmbeddingQ8);
-const makeLegacy = (source, bytes) => new Function('getBridge', 'isValidProvenanceType', 'PROVENANCE_TYPES',
+const makeLegacy = (source, bytes, sql = SQL) => new Function('getBridge', 'isValidProvenanceType', 'PROVENANCE_TYPES',
   'getMemoryRoot', 'path', 'fs', 'releaseOwnNativeHandle', 'hasNativeWalSidecars', 'ensureSchemaColumns',
   'getSqlJs', 'readFileMaybeEncrypted', 'liveMemoryRowSql', 'MAX_LIST_EMBEDDINGS', 'encodeEmbeddingQ8',
   fn(source, 'listEntries').replace("await import('sql.js')", 'await getSqlJs()'))(
   async () => null, type => ['unknown', 'tool_result', 'user_claim'].includes(type), ['unknown', 'tool_result', 'user_claim'],
   () => os.tmpdir(), path, { existsSync: () => true }, async () => {}, async () => false, async () => {},
-  async () => ({ default: async () => SQL }), () => bytes, liveMemoryRowSql, MAX_LIST_EMBEDDINGS, encodeEmbeddingQ8);
+  async () => ({ default: async () => sql }), () => bytes, liveMemoryRowSql, MAX_LIST_EMBEDDINGS, encodeEmbeddingQ8);
 const normalized = result => ({ ...result, entries: [...result.entries].sort((a,b) => a.key.localeCompare(b.key)) });
 let checks = 0;
 for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique', 'shadow-case', 'shadow-generated', 'view']) {
@@ -139,19 +145,49 @@ for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique',
     { namespace: 'selected', limit: 20, offset: 50, tags: ['prod'], provenanceFilter: ['tool_result'] },
     { namespace: 'absent', limit: 20 }, { tags: ['exact"tag'], limit: 1000 },
   ]) {
-    const expected = await makeBridge(sources[0], db)(options), actual = await makeBridge(patched[0], db)(options);
+    const expected = await makeBridge(references[0], db)(options), actual = await makeBridge(patched[0], db)(options);
     assert.equal(actual.success, true); assert.deepEqual(normalized(actual), normalized(expected));
     for (let i=1;i<actual.entries.length;i++) assert(actual.entries[i-1].updatedAt >= actual.entries[i].updatedAt);
     const bytes = db.serialize();
-    const oldLegacy = await makeLegacy(sources[1], bytes)(options), newLegacy = await makeLegacy(patched[1], bytes)(options);
+    const oldLegacy = await makeLegacy(references[1], bytes)(options), newLegacy = await makeLegacy(patched[1], bytes)(options);
     assert.equal(newLegacy.success, true); assert.deepEqual(normalized(newLegacy), normalized(oldLegacy)); checks+=2;
   }
+  if (nativePagination) {
+    const options = { limit: 20, includeContent: true };
+    for (const [index, read] of [[0, source => makeBridge(source, db)], [1, source => makeLegacy(source, db.serialize())]]) {
+      const expected = await read(references[index])(options), upstream = await read(sources[index])(options);
+      if (mode === 'rowid' || mode === 'without-rowid') assert.deepEqual(normalized(upstream), normalized(expected));
+      else if (mode.startsWith('shadow-')) assert.notDeepEqual(normalized(upstream), normalized(expected), `native shadowed rowid gap remains reproducible: ${mode}/${index}`);
+    }
+    if (mode === 'rowid') {
+      const queries = [];
+      const failing = { prepare(sql) {
+        queries.push(sql); const statement = db.prepare(sql);
+        return sql.includes('WHERE _rowid_ IN') ? { all() { throw Error('fixture database is locked'); } } : statement;
+      } };
+      const result = await makeBridge(patched[0], failing)({ limit: 20 });
+      assert.equal(result, null, 'bridge retains its native failure result');
+      assert.equal(queries.filter(sql => sql.includes('ORDER BY updated_at DESC')).length, 1, 'native bridge execution error never runs fallback');
+      queries.length = 0;
+      class FailingDatabase extends SQL.Database {
+        prepare(sql) {
+          queries.push(sql); const statement = super.prepare(sql);
+          if (sql.includes('WHERE _rowid_ IN')) statement.step = () => { throw Error('fixture database is locked'); };
+          return statement;
+        }
+      }
+      const legacy = await makeLegacy(patched[1], db.serialize(), { ...SQL, Database: FailingDatabase })({ limit: 20 });
+      assert.equal(legacy.success, false); assert.match(legacy.error, /locked/);
+      assert.equal(queries.filter(sql => sql.includes('ORDER BY updated_at DESC')).length, 1, 'sql.js execution error never runs fallback');
+    }
+  }
   const read = makeBridge(patched[0], db), all = [];
-  for (let offset=0;;) {
+  for (let offset=0, pages=0;;) {
+    assert(pages++ < 100, 'pagination must make bounded progress');
     const page = await read({ limit: 37, offset, includeContent: true }); assert.equal(page.success, true);
     all.push(...page.entries); offset+=page.entries.length; if(offset>=page.total)break;
   }
-  const expected = await makeBridge(sources[0], db)({ limit: 1000, includeContent: true });
+  const expected = await makeBridge(references[0], db)({ limit: 1000, includeContent: true });
   assert.deepEqual(normalized({ ...expected, entries: all }), normalized(expected), 'ties/offsets enumerate every native identity once');
   const retained = all[0];
   const writeTable = mode === 'view' ? 'original_entries' : 'memory_entries';
@@ -202,4 +238,4 @@ if (process.env.RSP_LIST_BENCHMARK === '1') {
 }
 console.log(JSON.stringify({ nativeListChecks: checks, rowidAndWithoutRowid: true, nullIds: true,
   exactFields: true, unicodeAndNul: true, tiedPages: true, updateDeleteVisibility: true,
-  shadowedRowidAndViews: true, noManagedDatabase: true }));
+  shadowedRowidAndViews: true, nativePagination, noManagedDatabase: true }));

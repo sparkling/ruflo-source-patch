@@ -240,6 +240,17 @@ but does not establish that concurrent SessionStart calls can never time out.
 
 ## Native inventory pagination: 4 November 2026
 
+Version 4.46.136 recognizes CLI 3.71.2's native row-identity pagination and keeps
+its SQL, filters, bindings, embedding cap and row mapping unchanged. Full patch
+retirement is premature: the published function reports `total: 3` but returns
+an empty page when a nullable user column shadows `_rowid_`. Nonunique shadowing
+can also overselect rows. The target reuses its existing schema guard around the
+native query and preserves native failure results instead of retrying unrelated
+execution errors through the fallback. Older releases retain their exact patch.
+Both implementations pass 126 native/sql.js cases, complete static enumeration,
+composition and real CLI install/status/uninstall tests. Unknown source changes
+still refuse. Installation and live activation of this release are pending.
+
 Version 4.46.126 exposes `ruflo-memory-list-pagination` through the public CLI for
 [Ruflo #4686](https://github.com/ruvnet/ruflo/issues/4686). Native listing sorted
 large content and embedding payloads before discarding earlier pages. The patch
