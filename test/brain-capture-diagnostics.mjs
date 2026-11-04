@@ -4,11 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { SPECS, patchSource, reverseSource, hasPatch, isPatched, preflight } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { INLINE_SNAPSHOT_SHA256, NATIVE_SNAPSHOT_SHA256, NATIVE_LEARNING_CALL, INLINE_LEARNING_CALL,
   prepareNativeLearningRoute, preservedRoutePath } from '../lib/brain-capture-diagnostics/native-route.mjs';
 import { writeIfChanged, restoreFromBackup } from '../lib/pristine.mjs';
+import { CHECKPOINT_HELPER } from '../lib/brain-capture-diagnostics/checkpoint.mjs';
 
 const fixture = name => {
   const reused = {
@@ -139,6 +140,16 @@ try {
     assert(isPatched(result.next), spec.relative);
     assert.equal(patchSource(result.next).next, result.next, 'idempotent');
     assert.equal(reverseSource(result.next), source, 'exact reverse');
+    if (spec.relative === 'scripts/ruflo-memory-hooks.mjs') {
+      const previous = spec.edits.filter(({ id }) => !id.startsWith('checkpoint-diagnostic-'))
+        .reduce((text, { from, to }) => text.replace(from, () => to), source);
+      assert(!isPatched(previous));
+      assert.equal(patchSource(previous).next, result.next, 'prior diagnostics upgrade exactly');
+      assert.equal(reverseSource(previous), source, 'prior diagnostics inverse retained');
+      assert.equal(reverseSource(result.next), source);
+      assert(patchSource(previous.replace('    const timeout = Math.floor', '    const timeout = Math.ceil')).missing.length === 0,
+        'unowned native timeout bytes are not rewritten by diagnostics');
+    }
     if (spec.relative === 'scripts/turn-outcome-capture.mjs') {
       const previous = spec.edits.filter(({ id }) => !id.startsWith('readback-'))
         .reduce((text, { from, to }) => text.replace(from, () => to), source);
@@ -277,6 +288,111 @@ try {
   const controller = new AbortController();
   assert.equal((await invoke({ signal: controller.signal, abort: () => controller.abort(), stderr: '[ERROR] unrelated' })).error, 'cancelled');
   assert(kills > 0 && cleanups === 5);
+
+  // Execute checkpoint -> original native runner boundary -> retrieve. The
+  // child transport is inert; emitted observations and private writer are real.
+  const diagnosticDir = path.join(sandbox, '.ruflo-source-patch/capture-diagnostics');
+  const diagnosticFile = path.join(diagnosticDir, 'capture-0.json');
+  const diagnosticProcess = { ...process, env: { RUFLO_SOURCE_PATCH_HOME: sandbox } };
+  async function checkpointCase(mode, instrumented = true) {
+    const spec = SPECS.find(s => s.relative === 'scripts/ruflo-memory-hooks.mjs');
+    const prior = spec.edits.filter(({ id }) => !id.startsWith('checkpoint-diagnostic-'))
+      .reduce((text, { from, to }) => text.replace(from, () => to), fixture('ruflo-memory-hooks'));
+    const source = instrumented ? patched('ruflo-memory-hooks') : prior;
+    const calls = [], deadlineAt = Date.now() + (mode === 'expired' ? -1 : 1000);
+    let value;
+    const checkpointCode = (instrumented ? CHECKPOINT_HELPER : '')
+      + section(source, 'export function rufloMemory(', '\nfunction parseJson(')
+      + section(source, 'const retrieve = ', '\nfunction gitFacts(')
+      + section(source, 'export async function checkpoint(', '/** First page');
+    const api = context(checkpointCode, {
+      process: diagnosticProcess, failureScope: logger.failureScope,
+      crypto: { ...crypto, randomUUID: () => '00000000-0000-4000-8000-000000000000' },
+      AUTO_PREFIX: 'project-state-auto-', projectStore: () => ({ root: '/canonical/root', db: '/canonical/store', adopted: true, namespace: 'project' }),
+      gitFacts: () => ({ branch: 'fixture', head: 'fixture' }),
+      resolveRuflo: () => '/inert/ruflo', rufloInvocationOrPlain: (file, args) => ({ executable: file, args }),
+      rufloSpawnOptions: () => ({ cwd: sandbox, env: {}, cleanup() {} }), killGroup() {},
+      captureFailureReason: privacy.captureFailureReason,
+      spawnDetached: (file, args, options, callback) => {
+        calls.push(args[1]); assert(options.timeout <= 1000);
+        assert(args.includes('--path')); assert.equal(args.at(-1), '/canonical/store');
+        if (args[1] === 'store') { assert(args.includes('--no-upsert')); value = args[args.indexOf('--value') + 1]; }
+        if (mode === 'throw') throw Object.assign(Error('PRIVATE_COMMAND'), { code: 'EACCES' });
+        let error = null, stderr = '', stdout = args[1] === 'retrieve' ? value : '';
+        if (mode === 'timeout' || mode === 'read-failed' && args[1] === 'retrieve') {
+          error = Object.assign(Error('PRIVATE_COMMAND'), { code: null, signal: 'SIGKILL', killed: true });
+          stderr = 'Native memory owner refused: Maximum sessions 100; password=SECRET; PRIVATE_PAYLOAD';
+        }
+        if (mode === 'launch') error = Object.assign(Error('PRIVATE_COMMAND'), { code: 'ENOENT' });
+        if (mode === 'conflict' && args[1] === 'retrieve') stdout = 'PRIVATE_OTHER_VALUE';
+        const child = { pid: mode === 'launch' ? undefined : 4321, exitCode: error ? null : 0, signalCode: error?.signal };
+        queueMicrotask(() => callback(error, stdout, stderr));
+        return child;
+      },
+    });
+    const result = await api.checkpoint({ projectDir: '/input/path', event: 'PreCompact', payload: { session_id: 'PRIVATE_SESSION' },
+      env: mode === 'off' ? { RSP_CAPTURE_DIAGNOSTICS: 'off' } : {}, deadlineAt, now: () => 1000 });
+    return { result: JSON.parse(JSON.stringify(result)), calls };
+  }
+  for (const mode of ['success', 'timeout', 'read-failed', 'conflict', 'launch', 'expired']) {
+    const old = await checkpointCase(mode, false), current = await checkpointCase(mode);
+    assert.deepEqual(current, old, mode + ' native results and write/read counts unchanged');
+    const receipt = JSON.parse(fs.readFileSync(diagnosticFile, 'utf8'));
+    assert.equal(receipt.kind, 'brain-checkpoint-diagnostic');
+    assert.equal(receipt.project, hash('/canonical/root')); assert.equal(receipt.store, hash('/canonical/store'));
+    assert.equal(receipt.session, hash('PRIVATE_SESSION')); assert.equal(receipt.expectedKey, hash(current.result.key));
+    assert.equal(receipt.readbackEntered, ['success', 'read-failed', 'conflict'].includes(mode));
+    assert.equal(receipt.stages[0].stage, 'store'); assert.equal(receipt.stages.length, receipt.readbackEntered ? 2 : 1);
+    assert(Number.isInteger(receipt.stages[0].remainingAtStartMs));
+    assert(Number.isInteger(receipt.stages[0].elapsedMs));
+    if (mode === 'timeout' || mode === 'read-failed') {
+      const stage = receipt.stages.at(-1); assert(stage.launched && stage.attempted); assert.equal(stage.childPid, 4321);
+      assert(stage.terminal.killed); assert.equal(stage.terminal.signal, 'SIGKILL');
+      assert(stage.terminal.classification.includes('owner-refused')); assert(stage.terminal.classification.includes('session-capacity'));
+      assert(stage.terminal.classification.includes('runner-killed'));
+    }
+    if (mode === 'expired') { assert(!receipt.stages[0].attempted); assert(!receipt.stages[0].launched); }
+    if (mode === 'launch') { assert(receipt.stages[0].attempted); assert(!receipt.stages[0].launched); assert.equal(receipt.stages[0].terminal.code, 'ENOENT'); }
+    if (mode === 'success') assert.equal(receipt.outcome, 'verified');
+    if (mode === 'read-failed') assert.equal(receipt.outcome, 'readback-unavailable');
+    if (mode === 'conflict') assert.equal(receipt.outcome, 'readback-conflict');
+    const bytes = fs.readFileSync(diagnosticFile, 'utf8');
+    for (const forbidden of ['PRIVATE_', 'SECRET', '/canonical', '/input/path', 'project-state-auto-']) assert(!bytes.includes(forbidden));
+    assert(Buffer.byteLength(bytes) <= 16384); assert.equal(fs.statSync(diagnosticFile).mode & 0o777, 0o600);
+  }
+  for (const instrumented of [false, true]) await assert.rejects(checkpointCase('throw', instrumented), /PRIVATE_COMMAND/);
+  const thrownReceipt = JSON.parse(fs.readFileSync(diagnosticFile, 'utf8'));
+  assert(thrownReceipt.stages[0].terminal.classification.includes('launch-threw'));
+  assert.equal(thrownReceipt.stages[0].terminal.code, 'EACCES');
+  const beforeOff = fs.readFileSync(diagnosticFile, 'utf8'); await checkpointCase('off');
+  assert.equal(fs.readFileSync(diagnosticFile, 'utf8'), beforeOff);
+  fs.chmodSync(diagnosticFile, 0o644);
+  const loggingUnavailable = await checkpointCase('success'); assert(loggingUnavailable.result.verified);
+  assert.equal(fs.readFileSync(diagnosticFile, 'utf8'), beforeOff, 'unsafe diagnostic path refused without affecting checkpoint');
+  fs.chmodSync(diagnosticFile, 0o600);
+
+  // Real bounded native process-group runner, without a Ruflo driver or store.
+  const nativeMemory = patched('ruflo-memory-hooks');
+  const real = context(CHECKPOINT_HELPER
+    + section(nativeMemory, '/** SIGKILL', '\nfunction parseJson('), {
+    process: diagnosticProcess, spawn, failureScope: logger.failureScope,
+    crypto: { ...crypto, randomUUID: () => '00000000-0000-4000-8000-000000000000' },
+    resolveRuflo: () => process.execPath,
+    rufloInvocationOrPlain: () => ({ executable: process.execPath,
+      args: ['-e', "process.stderr.write('Native memory owner refused: Maximum sessions 100 PRIVATE_PAYLOAD\\n');setInterval(()=>{},1000)"] }),
+    rufloSpawnOptions: () => ({ cwd: sandbox, env: {}, cleanup() {} }), captureFailureReason: privacy.captureFailureReason,
+  });
+  const deadlineAt = Date.now() + 500;
+  const diagnostic = real.checkpointDiagnostic({ env: {}, project: '/canonical/root', store: '/canonical/store', session: 'PRIVATE_SESSION', expectedKey: 'fixture-key', event: 'PreCompact', deadlineAt });
+  const timed = await real.rufloMemory(['store'], { db: '/inert', deadlineAt, diagnostic });
+  assert.equal(timed.error, 'timed out'); diagnostic.finish('store-failed');
+  const realReceipt = JSON.parse(fs.readFileSync(diagnosticFile, 'utf8')), realStage = realReceipt.stages[0];
+  assert(realStage.attempted && realStage.launched && realStage.childPid > 0);
+  assert.equal(realStage.terminal.signal, 'SIGKILL');
+  assert(realStage.terminal.timedOut || realStage.terminal.killed);
+  assert(realStage.terminal.classification.includes('owner-refused'));
+  assert(realStage.terminal.classification.includes('session-capacity'));
+  assert(!JSON.stringify(realReceipt).includes('PRIVATE_PAYLOAD'));
 
   // Existing learning admission with two occupied live-PID slots: no child, no writer, one scoped shed.
   let spawned = 0, writes = 0, childEnv;
