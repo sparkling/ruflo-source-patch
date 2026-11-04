@@ -2,480 +2,132 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { pathToFileURL } from 'node:url';
-import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { createHash } from 'node:crypto';
-import { CONTEXT_OLD, CONTEXT_351, CONTEXT_PREVIOUS, CONTEXT_RELEASED, CONTEXT_NEW, contextWithLease } from '../lib/ruflo-context-contract/patcher.mjs';
-
+import { pathToFileURL } from 'node:url';
+import { CONTEXT_OLD, CONTEXT_351, CONTEXT_PREVIOUS, CONTEXT_RELEASED, CONTEXT_NEW,
+  CONTEXT_NATIVE_HELPERS, nativeContextSatisfied, contextWithLease } from '../lib/ruflo-context-contract/patcher.mjs';
 const argv = process.argv.slice(2);
-const usage = 'Usage: node test/ruflo-context-contract.mjs [<absolute scratch directory>] [--native-cli <absolute CLI package.json>]';
-// The suite harness supplies a sandbox argument. Keep our temporary directory
-// private so this test's cleanup never removes a directory owned by its caller.
-if (argv[0] && path.isAbsolute(argv[0])) {
-  assert.ok(fs.statSync(argv.shift()).isDirectory(), usage);
-}
-assert.ok(argv.length === 0 || (argv.length === 2 && argv[0] === '--native-cli'
-  && path.isAbsolute(argv[1]) && path.basename(argv[1]) === 'package.json'), usage);
-const nativeCli = argv[1];
-const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'context-contract-test-')));
+if (argv[0] && path.isAbsolute(argv[0]) && !argv[0].endsWith('package.json')) argv.shift();
+assert.ok(!argv.length || (argv.length === 2 && argv[0] === '--native-cli'));
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-native-context-'));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
 process.env.RUFLO_NPX_ROOT = path.join(scratch, 'npx');
 process.env.RUFLO_GLOBAL_ROOT = path.join(scratch, 'global');
-const root = path.join(scratch, 'npx', 'fixture', 'node_modules', '@claude-flow', 'cli');
-const mem = path.join(root, 'dist', 'src', 'memory');
-fs.mkdirSync(mem, { recursive: true });
-fs.writeFileSync(path.join(root, 'package.json'), '{"name":"@claude-flow/cli","version":"fixture","type":"module"}');
-const file = path.join(mem, 'memory-bridge.js');
+const root = path.join(scratch, 'global/@claude-flow/cli');
+const file = path.join(root, 'dist/src/memory/memory-bridge.js');
+fs.mkdirSync(path.dirname(file), { recursive: true });
+fs.writeFileSync(path.join(root, 'package.json'), '{"name":"@claude-flow/cli","version":"3.71.1","type":"module"}');
 const prelude = `let registry;
 export function setRegistry(value) { registry = value; }
-async function getRegistry() { if (registry instanceof Error) throw registry; return registry; }
-export function projectRootProbe() { return [process.cwd(), '.swarm'].join('/'); }
+async function getRegistry() { return registry; }
+const operationContext = { getStore: () => ({ active: true }) };
+function withBridgeOperation() { throw Error('lost native lease'); }
 `;
-const pristine = prelude + CONTEXT_OLD + '\n';
-fs.writeFileSync(file, pristine);
-const { apply } = await import('../lib/cwd/patch-library.mjs');
-const critique = 'Use explicit outcome fields when adapting stored episodes.';
-const episode = (overrides = {}) => ({ task: 'repair adapter', success: true, reward: 0.8, critique, ...overrides });
-const examples = [episode(), episode({ task: 'test adapter', success: false, reward: 0.2 })];
-let captured = [], calls = 0, recallCalls = [], lineageCalls = [];
-const controller = {
-  async synthesize(patterns, options) {
-    calls++;
-    captured = patterns;
-    assert.deepEqual(options, { includeRecommendations: true });
-    return {
-      summary: patterns.length ? 'Controller-owned summary' : 'No relevant memories found.',
-      patterns: [], recommendations: [], keyInsights: [], totalMemories: patterns.length,
-      successRate: patterns.length ? patterns.filter(p => p.success).length / patterns.length : 0,
-      averageReward: patterns.length ? patterns.reduce((sum, p) => sum + p.reward, 0) / patterns.length : 0,
-    };
-  },
-};
-function registryFor(rows, { real = false, cs = controller, recallError, consolidate } = {}) {
-  const hm = {
-    async recall(...args) {
-      recallCalls.push(args);
-      await Promise.resolve();
-      if (recallError) throw recallError;
-      return rows;
-    },
-  };
-  if (consolidate) hm.consolidate = async options => {
-    lineageCalls.push(options);
-    return consolidate(options);
-  };
-  if (real) hm.promote = () => assert.fail('recall must not promote memories');
-  return { get(name) { return name === 'contextSynthesizer' ? cs : name === 'hierarchicalMemory' ? hm : null; } };
-}
-function reset() { captured = []; calls = 0; recallCalls = []; lineageCalls = []; }
-function assertCounts(result, recalled, eligible, excluded) {
-  assert.equal(result.recalledCount, recalled);
-  assert.equal(result.eligibleCount, eligible);
-  assert.equal(result.excludedCount, excluded);
-  assert.equal(result.inputContract, 'validated-memory-pattern-v1');
-}
-async function mappingProof(mod) {
-  reset();
-  mod.setRegistry(registryFor(examples));
-  const result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, true);
-  assert.deepEqual(captured, examples, 'task, true/false, actual rewards and repeated critiques survive');
-  assert.equal(result.synthesis.successRate, 0.5);
-  assert.equal(result.synthesis.averageReward, 0.5);
-  assertCounts(result, 2, 2, 0);
-}
-async function consolidationLineageProof(mod) {
-  const value = JSON.stringify(episode({ success: false, reward: -0.5 }));
-  const source = { id: 'tm_lineage_source', key: 'lineage-episode', value, tier: 'episodic', ts: 1700000000000,
-    validFrom: '2000-01-01T00:00:00.000Z', validUntil: '2999-01-01T00:00:00.000Z' };
-  const sourceSha256 = createHash('sha256').update(JSON.stringify([
-    source.id, source.key, value, source.tier, source.ts, source.validFrom, source.validUntil, null, 0,
-  ])).digest('hex');
-  const copy = { ...source, id: 'tm_consolidated_' + sourceSha256,
-    key: 'consolidated:' + source.key, tier: 'semantic' };
-  const proof = {
-    source: 'tiered-memory', operation: 'preserve-evaluated-episodes-in-semantic-tier', dryRun: true,
-    targetTier: 'semantic', sourceIntegrityVerified: false, qualityInference: false,
-    promoted: 0, wouldPromote: 0, alreadyConsolidated: 1, pruned: 0,
-    entries: [{ sourceKey: source.key, sourceId: source.id, sourceSha256,
-      targetKey: copy.key, targetId: copy.id, alreadyConsolidated: true }],
-  };
-  const run = async (rows, consolidate = () => proof) => {
-    reset();
-    mod.setRegistry(registryFor(rows, { consolidate }));
-    return mod.bridgeContextSynthesize({ query: 'lineage' });
-  };
-  let result = await run([source, copy]);
-  assert.equal(result.success, true);
-  assertCounts(result, 2, 1, 1);
-  assert.equal(result.synthesis.totalMemories, 1, 'a verified semantic preservation copy adds no second observation');
-  assert.deepEqual(captured, [episode({ success: false, reward: -0.5 })]);
-  assert.deepEqual(lineageCalls, [{ sources: [{ key: source.key }], dryRun: true }],
-    'lineage is proven through the existing native owner without a write');
-
-  result = await run([copy]);
-  assert.equal(result.success, true);
-  assertCounts(result, 1, 1, 0);
-  assert.equal(result.synthesis.totalMemories, 1, 'a copy recalled alone still contributes its evidence once');
-
-  const independent = { ...source, id: 'tm_independent_source', key: 'independent-episode' };
-  result = await run([source, independent]);
-  assert.equal(result.success, true);
-  assertCounts(result, 2, 2, 0);
-  assert.equal(result.synthesis.totalMemories, 2, 'independent episodes with identical JSON are not deduplicated');
-  assert.deepEqual(lineageCalls, []);
-
-  for (const changed of [
-    { id: 'tm_forged_copy' }, { ts: copy.ts + 1 },
-    { value: JSON.stringify(episode({ success: false, reward: -0.75 })) },
-    { validFrom: '2001-01-01T00:00:00.000Z' }, { validUntil: '2998-01-01T00:00:00.000Z' },
-    { supersededBy: 'tm_other' },
-  ]) {
-    result = await run([source, { ...copy, ...changed }]);
-    assert.equal(result.success, true, 'mismatched evidence remains independently eligible');
-    assertCounts(result, 2, 2, 0);
-    assert.equal(result.synthesis.totalMemories, 2, 'mismatched identity, bytes or temporal evidence is not collapsed');
-  }
-  for (const changed of [{ sourceId: 'tm_forged_source' }, { targetId: 'tm_consolidated_' + '0'.repeat(64) },
-    { sourceKey: 'another-source' }, { targetKey: 'consolidated:another-source' }, { alreadyConsolidated: false }]) {
-    result = await run([source, copy], () => ({ ...proof, entries: [{ ...proof.entries[0], ...changed }] }));
-    assert.equal(result.success, true);
-    assertCounts(result, 2, 2, 0);
-  }
-
-  result = await run([source, copy], () => { throw new Error('native lineage unavailable'); });
-  assert.equal(result.success, false, 'failed native lineage lookup must not produce a successful synthesis');
-  assert.equal(result.phase, 'lineage');
-  assert.equal(calls, 0);
-  assert.equal(Object.hasOwn(result, 'synthesis'), false);
-  for (const invalidProof of [null, { ...proof, dryRun: false }, { ...proof, pruned: 1 },
-    { ...proof, source: 'unverified-controller' }, { ...proof, entries: null }]) {
-    result = await run([source, copy], () => invalidProof);
-    assert.equal(result.success, false, 'an invalid native receipt fails closed');
-    assert.equal(calls, 0);
-  }
-}
-async function nativeProof(mod, original) {
-  if (!nativeCli) return; // Default suite needs only Node and this repository.
-  const cliPackage = fs.realpathSync(nativeCli);
-  const cliMeta = JSON.parse(fs.readFileSync(cliPackage, 'utf8'));
-  assert.equal(cliMeta.name, '@claude-flow/cli', '--native-cli must identify the CLI package');
-  const requireFromCli = createRequire(cliPackage);
-  // Resolve only the pure static controller, never AgentDB's index, registry,
-  // installed memory bridge, database driver, or any MCP/service entrypoint.
-  const controllerFile = requireFromCli.resolve('agentdb/controllers/ContextSynthesizer');
-  assert.equal(path.basename(controllerFile), 'ContextSynthesizer.js');
-  const { ContextSynthesizer } = await import(pathToFileURL(controllerFile).href);
-  assert.equal(typeof ContextSynthesizer?.synthesize, 'function');
-  original.setRegistry({ get(name) {
-    return name === 'contextSynthesizer' ? ContextSynthesizer : { recall: () => examples };
-  } });
-  const before = await original.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(before.success, true);
-  assert.equal(before.synthesis.successRate, 0);
-  assert.equal(before.synthesis.averageReward, 1);
-  assert.deepEqual(before.synthesis.patterns, [], 'old mapper drops critique-derived patterns');
-  for (const real of [false, true]) {
-    mod.setRegistry(registryFor(examples, { real, cs: ContextSynthesizer }));
-    const after = await mod.bridgeContextSynthesize({ query: 'adapter' });
-    assert.equal(after.success, true);
-    assert.equal(after.status, 'complete');
-    assertCounts(after, 2, 2, 0);
-    assert.equal(after.synthesis.successRate, 0.5);
-    assert.equal(after.synthesis.averageReward, 0.5);
-    assert.deepEqual(after.synthesis.patterns, ['use explicit outcome fields when adapting stored episodes (2/2 times)']);
-  }
-  console.log('Native ContextSynthesizer: original 0/1/no patterns; patched 0.5/0.5/repeated critique (both recall forms; no DB).');
-}
+const pristine = prelude + CONTEXT_NATIVE_HELPERS + CONTEXT_351 + '\n';
+const { apply, inspect } = await import('../lib/cwd/patch-library.mjs');
+const { checkNativeContext } = await import('../lib/ruflo-context-contract/supersede.mjs');
 try {
-  const applied = apply(['ruflo-context-contract']);
-  assert.equal(applied.patched, 1, JSON.stringify(applied));
-  assert.equal(applied.incomplete, 0);
-  assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), pristine);
-  assert.equal(apply(['ruflo-context-contract']).patched, 0, 'idempotent');
-  assert.equal(spawnSync(process.execPath, ['--check', file]).status, 0);
-  const mod = await import(pathToFileURL(file).href);
-  await consolidationLineageProof(mod);
-  await mappingProof(mod);
-  assert.deepEqual(recallCalls, [['adapter', 10]], 'async legacy recall is awaited');
-  assert.equal(calls, 1);
-
-  reset();
-  mod.setRegistry(registryFor(examples, { real: true }));
-  let result = await mod.bridgeContextSynthesize({ query: 'adapter', maxEntries: 3 });
-  assert.deepEqual(recallCalls, [[{ query: 'adapter', k: 3 }]], 'object-query recall is awaited');
-  assert.equal(result.status, 'complete');
-  assertCounts(result, 2, 2, 0);
-
-  reset();
-  mod.setRegistry(registryFor([{ metadata: examples[0] }, { value: examples[1] }]));
-  result = await mod.bridgeContextSynthesize({ query: 'metadata' });
-  assert.deepEqual(captured, examples, 'native metadata episodes retain explicit fields');
-  mod.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
-  assert.equal((await mod.bridgeContextSynthesize({ query: 'conflict' })).success, false,
-    'conflicting native metadata is not silently preferred');
-  const zero = episode({ success: false, reward: 0, input: '', output: '', similarity: 0 });
-  const negativeZero = episode({ reward: -0 });
-  const large = episode({ reward: 2.5 });
-  const negative = episode({ reward: -3.5 });
-  const accepted = [zero, negativeZero, large, negative];
-  for (const value of accepted) Object.freeze(value);
-  reset();
-  mod.setRegistry(registryFor(Object.freeze(accepted)));
-  result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, true);
-  assert.deepEqual(captured, accepted, 'no clamping, coercion or mutation');
-  assert.equal(Object.is(captured[1].reward, -0), true);
-  assert.notEqual(captured[0], zero, 'only a fresh validated projection reaches the controller');
-
-  reset();
-  const packed = [
-    { key: 'first', value: JSON.stringify(examples[0]) },
-    { id: 'second', content: JSON.stringify(examples[1]) },
-    { value: zero }, { content: zero },
-    { value: zero, content: { ...zero } },
-    { ...zero, value: { ...zero } },
-  ];
-  mod.setRegistry(registryFor(packed));
-  result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, true);
-  assertCounts(result, 6, 6, 0);
-  assert.deepEqual(captured, [examples[0], examples[1], zero, zero, zero, zero]);
-  assert.ok(captured.every(row => !Object.hasOwn(row, 'key') && !Object.hasOwn(row, 'value')));
-
-  let getterCalls = 0;
-  const accessor = { ...zero };
-  Object.defineProperty(accessor, 'success', { get() { getterCalls++; return true; } });
-  const optionalAccessor = { ...zero };
-  Object.defineProperty(optionalAccessor, 'critique', { get() { getterCalls++; return critique; } });
-  const wrapperAccessor = {};
-  Object.defineProperty(wrapperAccessor, 'value', { get() { getterCalls++; return zero; } });
-  const invalid = [
-    null, undefined, [], 'plain string', JSON.stringify(zero),
-    { key: 'fact', value: 'The project uses Node.' }, { content: 'Use the default database.' },
-    { value: '{"task":' }, { value: 'null' }, { value: '[]' }, { value: '{"fact":"yes"}' },
-    { value: JSON.stringify({ ...zero, success: 'false' }) },
-    { value: '{"task":"repair","success":false,"success":true,"reward":0}' },
-    { value: '{"task":"repair","success":false,"succe\\u0073s":true,"reward":0}' },
-    { value: JSON.stringify(episode({ critique: 'x'.repeat(65_536) })) },
-    { value: JSON.stringify(episode({ critique: '€'.repeat(30_000) })) },
-    { value: { task: 'repair', success: true } }, { value: { task: 'repair', reward: 0 } },
-    { success: true, reward: 0 }, episode({ task: '' }), episode({ task: '   ' }),
-    episode({ task: 9 }), episode({ success: 0 }), episode({ success: 'true' }),
-    episode({ reward: '0' }), episode({ reward: null }), episode({ reward: NaN }),
-    episode({ reward: Infinity }), episode({ reward: -Infinity }),
-    episode({ critique: {} }), episode({ input: [] }), episode({ output: 0 }),
-    episode({ similarity: '0' }), episode({ similarity: NaN }),
-    Object.create(zero), Object.create({ value: zero }), accessor, optionalAccessor, wrapperAccessor,
-    { value: zero, content: { ...zero, success: true } },
-    { ...zero, value: { ...zero, reward: 1 } },
-  ];
-  for (const row of invalid) {
-    reset();
-    mod.setRegistry(registryFor([row]));
-    result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-    assert.equal(result.success, false, `ineligible row: ${typeof row}`);
-    assert.equal(result.status, 'no-eligible-episodes');
-    assertCounts(result, 1, 0, 1);
-    assert.equal(Object.hasOwn(result, 'synthesis'), false, 'facts do not acquire measured outcomes');
-    assert.equal(calls, 0);
-  }
-  assert.equal(getterCalls, 0, 'accessors never provide evidence');
-
-  reset();
-  const inheritedOptional = Object.assign(Object.create({ critique: 'invented critique', similarity: 1 }),
-    { task: 'repair', success: false, reward: 0 });
-  const pollution = { value: '{"__proto__":{"success":true},"task":"repair","success":false,"reward":0}' };
-  mod.setRegistry(registryFor([inheritedOptional, pollution]));
-  result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, true);
-  assert.deepEqual(captured, [{ task: 'repair', reward: 0, success: false }, { task: 'repair', reward: 0, success: false }]);
-  assert.equal({}.success, undefined, 'JSON keys do not modify prototypes');
-
-  reset();
-  mod.setRegistry(registryFor([...examples, ...invalid]));
-  result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, true);
-  assert.equal(result.status, 'partial');
-  assertCounts(result, 2 + invalid.length, 2, invalid.length);
-  assert.deepEqual(captured, examples);
-  assert.equal(result.synthesis.totalMemories, 2, 'denominator counts only eligible episodes');
-
-  reset();
-  mod.setRegistry(registryFor([]));
-  result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-  assert.equal(result.success, false);
-  assert.equal(result.status, 'no-memories');
-  assert.equal(result.reason, 'no-memories');
-  assert.equal(Object.hasOwn(result, 'synthesis'), false);
-  assertCounts(result, 0, 0, 0);
-  assert.equal(calls, 0, 'native empty recall must not invoke synthesis');
-
-  for (const badParams of [null, undefined, {}, { query: '' }, { query: 1 },
-    Object.create({ query: 'inherited' }), { query: 'x'.repeat(10_001) },
-    ...[0, -1, 1.5, '3', NaN, Infinity, null].map(maxEntries => ({ query: 'x', maxEntries }))]) {
-    reset();
-    mod.setRegistry(registryFor(examples));
-    result = await mod.bridgeContextSynthesize(badParams);
-    assert.equal(result.success, false);
-    assert.equal(result.phase, 'input');
-    assertCounts(result, null, null, null);
-    assert.equal(calls, 0);
-    assert.deepEqual(recallCalls, []);
-  }
-  for (const [registry, phase] of [
-    [null, 'registry'], [new Error('registry failed'), 'registry'], [{}, 'registry'],
-    [registryFor([], { cs: null }), 'controller'],
-    [{ get: name => name === 'contextSynthesizer' ? controller : null }, 'recall'],
-    [registryFor(null), 'recall'], [registryFor({ entries: examples }), 'recall'],
-    [registryFor([], { recallError: new Error('recall failed') }), 'recall'],
-  ]) {
-    reset();
-    mod.setRegistry(registry);
-    result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-    assert.equal(result.success, false);
-    assert.equal(result.status, 'error');
-    assert.equal(result.phase, phase);
-    assertCounts(result, null, null, null);
-    assert.ok(result.error);
-    assert.equal(calls, 0);
-  }
-  for (const synthesize of [
-    () => { throw new Error('controller failed'); },
-    async () => { throw new Error('async controller failed'); },
-    () => { throw null; }, () => undefined, () => ({ success: false, error: 'refused' }),
-    () => ({ summary: 'invalid', patterns: [], recommendations: [], keyInsights: [], totalMemories: 2,
-      successRate: 0.5, averageReward: Infinity }),
-  ]) {
-    mod.setRegistry(registryFor(examples, { cs: { synthesize } }));
-    result = await mod.bridgeContextSynthesize({ query: 'adapter' });
-    assert.equal(result.success, false);
-    assert.equal(result.status, 'error');
-    assert.equal(result.phase, 'synthesis');
-    assertCounts(result, 2, 2, 0);
-    assert.equal(typeof result.error, 'string');
-    assert.ok(result.error.length);
-  }
-
-  // These mutant functions run in isolation; no source package or database is imported.
-  for (const [find, replace] of [
-    ['success: success.value', 'success: true'],
-    ['reward: reward.value', 'reward: 1'],
-    ["['critique', 'input', 'output', 'similarity']", "['input', 'output', 'similarity']"],
-    ['await hm.recall(query.value, maxEntries)', 'hm.recall(query.value, maxEntries)'],
-  ]) {
-    assert.ok(CONTEXT_NEW.includes(find), `mutant anchor: ${find}`);
-    const mutant = await import('data:text/javascript;base64,' + Buffer.from(prelude + CONTEXT_NEW.replace(find, replace)).toString('base64'));
-    await assert.rejects(() => mappingProof(mutant), { name: 'AssertionError' });
-  }
-  const original = await import('data:text/javascript;base64,' + Buffer.from(prelude + CONTEXT_OLD).toString('base64'));
-  await assert.rejects(() => mappingProof(original), { name: 'AssertionError' }, 'baseline fails the contract proof');
-  await nativeProof(mod, original);
-
-  assert.equal(apply(['cwd', 'ruflo-context-contract']).incomplete, 0, 'shared-file composition');
-  let bytes = fs.readFileSync(file, 'utf8');
-  assert.ok(bytes.includes(CONTEXT_NEW));
-  assert.ok(bytes.includes('__rufloResolveRoot(process.cwd())'));
-  assert.equal(apply(['cwd']).incomplete, 0);
-  bytes = fs.readFileSync(file, 'utf8');
-  assert.ok(bytes.includes(CONTEXT_OLD), 'context uninstalls while cwd remains');
-  assert.ok(bytes.includes('__rufloResolveRoot(process.cwd())'));
+  fs.writeFileSync(file, pristine);
   assert.equal(apply(['ruflo-context-contract']).incomplete, 0);
-  bytes = fs.readFileSync(file, 'utf8');
-  assert.ok(bytes.includes(CONTEXT_NEW));
-  assert.ok(!bytes.includes('__rufloResolveRoot(process.cwd())'));
-  apply([]);
-  assert.equal(fs.readFileSync(file, 'utf8'), pristine, 'byte-exact restoration');
-  const nativePrefix = prelude + `const operationContext = { getStore: () => ({ active: true }) };
-function withBridgeOperation() { throw new Error('test holds its native lease'); }
-`;
-  // Verbatim 3.51.1 eligibility helpers demonstrate the remaining native
-  // duplicate/conflict problem independently of the historical mapper bug.
-  const nativeEligibility = "function contextEpisodeFrom(value) {\n    if (typeof value === 'string') {\n        try {\n            value = JSON.parse(value);\n        }\n        catch {\n            return null;\n        }\n    }\n    if (!value || typeof value !== 'object' || Array.isArray(value))\n        return null;\n    const record = value;\n    const owns = (key) => Object.prototype.hasOwnProperty.call(record, key);\n    if (!owns('task') || !owns('reward') || !owns('success')\n        || typeof record.task !== 'string' || !record.task.trim()\n        || typeof record.reward !== 'number' || !Number.isFinite(record.reward)\n        || typeof record.success !== 'boolean')\n        return null;\n    const episode = {\n        task: record.task.trim(),\n        reward: record.reward,\n        success: record.success,\n    };\n    for (const field of ['critique', 'input', 'output']) {\n        if (owns(field)) {\n            if (typeof record[field] !== 'string')\n                return null;\n            episode[field] = record[field];\n        }\n    }\n    return episode;\n}\nfunction contextEpisodeFromRecall(row) {\n    if (!row || typeof row !== 'object' || Array.isArray(row))\n        return null;\n    const record = row;\n    for (const field of [null, 'metadata', 'value', 'content']) {\n        const candidate = field === null ? record\n            : Object.prototype.hasOwnProperty.call(record, field) ? record[field] : undefined;\n        const episode = contextEpisodeFrom(candidate);\n        if (episode)\n            return episode;\n    }\n    return null;\n}\n";
-  const currentNative = await import('data:text/javascript;base64,' + Buffer.from(
-    nativePrefix + nativeEligibility + CONTEXT_351).toString('base64'));
-  currentNative.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
-  assert.equal((await currentNative.bridgeContextSynthesize({ query: 'conflict' })).success, true,
-    '3.51 native source still silently prefers one conflicting episode');
-  const duplicateJson = '{"task":"adapter","reward":0,"reward":1,"success":false}';
-  currentNative.setRegistry(registryFor([{ value: duplicateJson }]));
-  assert.equal((await currentNative.bridgeContextSynthesize({ query: 'duplicates' })).success, true,
-    '3.51 native source silently overwrites duplicate outcome evidence');
-  const nativePristine = nativePrefix + CONTEXT_351;
-  fs.writeFileSync(file, nativePristine);
-  assert.equal(apply(['ruflo-context-contract']).incomplete, 0, '3.51 native source supported');
-  const native351 = await import(pathToFileURL(file).href + '?native351');
-  await mappingProof(native351);
-  for (const real of [false, true]) for (const candidate of [currentNative, mod, native351]) {
-    reset();
-    candidate.setRegistry(registryFor([], { real }));
-    const empty = await candidate.bridgeContextSynthesize({ query: 'empty' });
-    assert.deepEqual(Object.fromEntries(['success', 'reason', 'error', 'recalled', 'eligible', 'skipped'].map(key => [key, empty[key]])),
-      { success: false, reason: 'no-memories', error: 'No memories matched the query', recalled: 0, eligible: 0, skipped: 0 });
-    assert.equal(calls, 0, 'both patched recall forms preserve native refusal before synthesis');
-    assert.equal(Object.hasOwn(empty, 'synthesis'), false);
+  assert.equal(fs.readFileSync(file, 'utf8'), pristine);
+  assert.equal(inspect()['ruflo-context-contract'].native, 1);
+  assert.equal(checkNativeContext().state, 'superseded');
+  for (const former of [CONTEXT_PREVIOUS, CONTEXT_RELEASED, CONTEXT_NEW]) {
+    fs.writeFileSync(file + '.rsp-backup', pristine);
+    fs.writeFileSync(file, '\n' + pristine.replace(CONTEXT_351, () => contextWithLease(former)));
+    assert.equal(apply(['ruflo-context-contract']).incomplete, 0, 'released current overlay upgrades');
+    assert.equal(fs.readFileSync(file, 'utf8'), pristine, 'exact published restoration');
+    assert.equal(apply(['ruflo-context-contract']).incomplete, 0, 'monitor/all cannot re-add it');
   }
-  native351.setRegistry(registryFor([{ metadata: examples[0], value: examples[1] }]));
-  assert.equal((await native351.bridgeContextSynthesize({ query: 'conflict' })).success, false);
-  native351.setRegistry(registryFor([{ value: duplicateJson }]));
-  assert.equal((await native351.bridgeContextSynthesize({ query: 'duplicates' })).success, false);
-
-  native351.setRegistry(registryFor([{ metadata: examples[0] }], { real: true }));
-  assert.equal((await native351.bridgeContextSynthesize({ query: 'metadata' })).success, true);
-  assert.ok(fs.readFileSync(file, 'utf8').includes('withBridgeOperation(() => bridgeContextSynthesize(params))'),
-    'native lifecycle lease retained');
-  apply([]);
-  assert.equal(fs.readFileSync(file, 'utf8'), nativePristine, '3.51 exact reversal');
-  fs.writeFileSync(file, pristine);
-
-  for (const [vendor, previous, expected, label] of [
-    [pristine, CONTEXT_PREVIOUS, CONTEXT_NEW, 'unleased'],
-    [pristine, CONTEXT_RELEASED, CONTEXT_NEW, 'unleased'],
-    [nativePristine, contextWithLease(CONTEXT_RELEASED), contextWithLease(CONTEXT_NEW), 'leased'],
-    [nativePristine, contextWithLease(CONTEXT_PREVIOUS), contextWithLease(CONTEXT_NEW), 'leased'],
-  ]) for (const shared of [false, true]) {
-    const targets = shared ? ['cwd', 'ruflo-context-contract'] : ['ruflo-context-contract'];
-    fs.writeFileSync(file, vendor);
-    assert.equal(apply(targets).incomplete, 0);
-    const complete = fs.readFileSync(file, 'utf8');
-    assert.ok(complete.includes(expected));
-    const historical = complete.replace(expected, () => previous);
-    assert.notEqual(historical, complete);
-    fs.writeFileSync(file, historical);
-    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor,
-      label + ': complete prior composition retains the real saved pristine');
-    assert.equal(apply([]).incomplete, 0, 'direct historical uninstall succeeds');
-    assert.equal(fs.readFileSync(file, 'utf8'), vendor, 'direct historical uninstall restores exact vendor');
-    assert.equal(apply(targets).incomplete, 0);
-    fs.writeFileSync(file, historical);
-    const upgraded = apply(targets);
-    assert.equal(upgraded.incomplete, 0, JSON.stringify(upgraded));
-    const current = fs.readFileSync(file, 'utf8');
-    assert.equal(current, complete, label + ': normal application upgrades the exact historical composition');
-    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor,
-      label + ': upgrade must not adopt prior patched bytes as pristine');
-    if (shared) {
-      assert.equal(apply(['cwd']).incomplete, 0);
-      const cwdOnly = fs.readFileSync(file, 'utf8');
-      assert.ok(cwdOnly.includes('__rufloResolveRoot(process.cwd())'));
-      assert.ok(cwdOnly.includes(label === 'leased' ? CONTEXT_351 : CONTEXT_OLD),
-        'removing upgraded context preserves its shared cwd owner');
-      assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), vendor);
-    }
-    assert.equal(apply([]).incomplete, 0);
-    assert.equal(fs.readFileSync(file, 'utf8'), vendor, label + ': final uninstall restores exact vendor bytes');
+  for (const unknown of [prelude + CONTEXT_OLD, pristine.replace("typeof record.success !== 'boolean'", "typeof record.success !== 'string'"),
+    pristine.replace("reason: 'no-memories'", "reason: 'unknown'"), pristine + pristine]) {
+    fs.rmSync(file + '.rsp-backup', { force: true }); fs.writeFileSync(file, unknown);
+    assert.equal(nativeContextSatisfied(unknown), false);
+    assert.ok(apply(['ruflo-context-contract']).incomplete);
+    assert.equal(fs.readFileSync(file, 'utf8'), unknown, 'unqualified native is never rewritten');
+    assert.notEqual(checkNativeContext().state, 'superseded');
   }
-  fs.writeFileSync(file, pristine);
-
-  for (const changed of [pristine.replace('reward: 1,', 'reward: 0.5,'), pristine + CONTEXT_OLD]) {
-    fs.writeFileSync(file, changed);
-    const drift = apply(['ruflo-context-contract']);
-    assert.ok(drift.incomplete > 0);
-    assert.ok(drift.skipped > 0);
-    assert.equal(fs.readFileSync(file, 'utf8'), changed, 'missing/duplicate anchors leave unknown source untouched');
+  // Explicit removal of exact historical old overlays remains available. It is
+  // not an installation or a declaration that the historical native bug is fixed.
+  const old = prelude + CONTEXT_OLD + '\n';
+  for (const former of [CONTEXT_PREVIOUS, CONTEXT_RELEASED, CONTEXT_NEW]) {
+    fs.writeFileSync(file + '.rsp-backup', old); fs.writeFileSync(file, '\n' + prelude + former + '\n');
+    apply([]); assert.equal(fs.readFileSync(file, 'utf8'), old);
   }
-  console.log('Context contract: outcomes, bounded JSON, async recall, eligibility, errors, mutants, composition and reversal passed (no DB).');
-} finally {
-  fs.rmSync(scratch, { recursive: true, force: true });
-}
+  // Native upstream update must never be overwritten by an old saved original.
+  fs.writeFileSync(file, pristine); fs.writeFileSync(file + '.rsp-backup', old);
+  assert.equal(apply(['ruflo-context-contract']).incomplete, 0);
+  assert.equal(fs.readFileSync(file, 'utf8'), pristine);
+  fs.writeFileSync(file + '.rsp-backup', old);
+  const { addTargets, readState } = await import('../lib/cwd/state.mjs');
+  const { retireSuperseded } = await import('../lib/supersede.mjs');
+  addTargets(['ruflo-context-contract']);
+  assert.equal(retireSuperseded(readState()).retired, 1);
+  assert.equal(fs.readFileSync(file, 'utf8'), pristine);
+  const { PATCH_MARKER } = await import('../lib/cwd/paths.mjs');
+  const foreignNative = '// ' + PATCH_MARKER + '\n' + pristine;
+  fs.writeFileSync(file, foreignNative); fs.writeFileSync(file + '.rsp-backup', old);
+  addTargets(['ruflo-context-contract']);
+  assert.equal(retireSuperseded(readState()).retired, 0);
+  assert.equal(fs.readFileSync(file, 'utf8'), foreignNative, 'unknown core marker cannot license a downgrade');
+  assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), old);
+  assert.ok(apply(['ruflo-context-contract']).incomplete);
+  assert.equal(fs.readFileSync(file, 'utf8'), foreignNative);
+  const changedNative = pristine.replace("reason: 'no-memories'", "reason: 'changed-native'");
+  fs.writeFileSync(file, changedNative); fs.writeFileSync(file + '.rsp-backup', pristine);
+  assert.ok(apply(['ruflo-context-contract']).incomplete);
+  assert.equal(fs.readFileSync(file, 'utf8'), changedNative);
+  assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), pristine);
+  // Unknown edits inside or beside an old overlay cannot be removed as ours.
+  for (const foreign of ['\n' + pristine.replace(CONTEXT_351, () => contextWithLease(CONTEXT_NEW)) + '\n// foreign',
+    ('\n' + pristine.replace(CONTEXT_351, () => contextWithLease(CONTEXT_NEW))).replace('explicit MemoryPattern data only', 'unknown changed contract')]) {
+    fs.writeFileSync(file, foreign); fs.writeFileSync(file + '.rsp-backup', pristine);
+    assert.ok(apply(['ruflo-context-contract']).incomplete);
+    assert.equal(fs.readFileSync(file, 'utf8'), foreign);
+    assert.ok(apply([]).incomplete);
+    assert.equal(fs.readFileSync(file, 'utf8'), foreign);
+    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), pristine);
+  }
+  let synthesize = (memories) => ({ totalMemories: memories.length,
+    successRate: memories.filter(x => x.success).length / memories.length,
+    averageReward: memories.reduce((sum, x) => sum + x.reward, 0) / memories.length });
+  if (argv[1]) {
+    const req = createRequire(fs.realpathSync(argv[1]));
+    const pure = await import(pathToFileURL(req.resolve('agentdb/controllers/ContextSynthesizer')));
+    synthesize = pure.ContextSynthesizer.synthesize.bind(pure.ContextSynthesizer);
+  }
+  const mod = await import('data:text/javascript;base64,' + Buffer.from(pristine).toString('base64'));
+  const episodes = [{ task: 'one', reward: .8, success: true, critique: 'Preserve actual outcome fields.' },
+    { task: 'two', reward: .2, success: false, critique: 'Preserve actual outcome fields.' }];
+  const query = 'complete economics composition adoption FUR P1 fair comparison';
+  for (const real of [false, true]) for (const [label, rows, ok] of [
+    ['mixed', episodes, true], ['zero', [{ task: 'zero', reward: 0, success: false }], true],
+    ['empty', [], false], ['facts', [{ value: query }], false], ['malformed', [{ value: '{bad' }], false],
+    ['inherited', [Object.create(episodes[0])], false], ['wrong-type', [{ ...episodes[0], success: 'true' }], false],
+    ['partial', [episodes[0], { value: 'research document' }], true],
+  ]) {
+    let calls = 0, args;
+    const hm = { async recall(...input) { args = input; return rows; } };
+    if (real) hm.promote = () => assert.fail('never writes');
+    mod.setRegistry({ get: name => name === 'hierarchicalMemory' ? hm : { synthesize(input) { calls++; return synthesize(input); } } });
+    const result = await mod.bridgeContextSynthesize({ query, maxEntries: 5 });
+    assert.equal(result.success, ok, label);
+    assert.deepEqual(args, real ? [{ query, k: 5 }] : [query, 5]);
+    if (!ok) assert.equal(calls, 0);
+    if (label === 'mixed') { assert.equal(result.synthesis.successRate, .5); assert.equal(result.synthesis.averageReward, .5); }
+    if (label === 'zero') assert.equal(result.synthesis.averageReward, 0);
+    if (label === 'empty') assert.deepEqual(result, { success: false, reason: 'no-memories', error: 'No memories matched the query', recalled: 0, eligible: 0, skipped: 0 });
+    if (label === 'facts') assert.equal(result.reason, 'no-eligible-episodes');
+  }
+  for (const [hm, cs, reason] of [
+    [{ async recall() { throw Error('recall failed'); } }, { synthesize }, 'recall-failed'],
+    [{ recall: () => ({}) }, { synthesize }, 'invalid-recall-result'],
+    [{ recall: () => episodes }, { synthesize() { throw Error('synthesis failed'); } }, 'synthesizer-failed'],
+    [{ recall: () => episodes }, null, 'synthesizer-unavailable'],
+  ]) {
+    mod.setRegistry({ get: name => name === 'hierarchicalMemory' ? hm : cs });
+    const result = await mod.bridgeContextSynthesize({ query });
+    assert.equal(result.success, false); assert.equal(result.reason, reason);
+  }
+  console.log('PASS native context: 20 behavior cases, exact released restoration, current-only retirement, historical uninstall and unknown-source refusal (no DB)');
+} finally { fs.rmSync(scratch, { recursive: true, force: true }); }
