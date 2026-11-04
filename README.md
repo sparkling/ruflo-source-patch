@@ -15,6 +15,16 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Composition proof performance: 4 November 2026
+
+Version 4.46.127 checks exact equality with the complete current patch composition
+before exploring historical subsets. Historical and unknown compositions still
+use the existing exhaustive proof. File discovery, native preflights, mutation
+locking and updater behavior are unchanged; there is no cached health verdict.
+One sequential HZ diagnostic pair reduced lock-held time from 20.9 to 12.0 seconds,
+with 797 unchanged files and no errors in either run. That reduces repeated work
+but does not establish that concurrent SessionStart calls can never time out.
+
 ## Native inventory pagination: 4 November 2026
 
 Version 4.46.126 exposes `ruflo-memory-list-pagination` through the public CLI for

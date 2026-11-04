@@ -22,7 +22,7 @@ Other pin mismatches, constrained identities and different policy contexts retai
 their prior authorization path. Full anchor verification and audit are unchanged;
 history still scales linearly. Exact 4.46.123/earlier reconstruction preserves
 upgrade, pristine reversal and the canonical failure decoder.
-The independent #4686 pagination contribution pages proven native row identifiers before hydrating payloads; unknown schemas retain native SQL. It changes no schema, driver or pagination consistency contract. Native/sql.js equivalence and shared-owner forward/reverse composition qualify activation. The reviewed 3.71.1 wrapper remains unchanged, including its new missing-installation refusal.
+The independent #4686 pagination contribution pages proven native row identifiers before hydrating payloads; unknown schemas retain native SQL. It changes no schema, driver or pagination consistency contract. Native/sql.js equivalence and shared-owner forward/reverse composition qualify activation. The reviewed 3.71.1 wrapper remains unchanged, including its new missing-installation refusal. Composition provenance now tries exact current-chain equality before historical subsets; all native preflights and fallback proofs remain, without caching health or changing the mutation lock.
 
 The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without
