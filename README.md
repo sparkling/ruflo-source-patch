@@ -40,6 +40,9 @@ in the shared installer's forward composition proof. Direct in-place tests had
 missed that upgrade path; the installer correctly preserved both files when it
 could not prove them. New complete-bundle regressions reproduce the refusal,
 verify exact migration without rebaselining and retain refusal of unknown edits.
+Version 4.46.123 recognizes the same exact diagnostic composition in the retired
+native-owner health check. Its inverse/native/forward proof preserves the retired
+adapter boundary; runtime executable bytes are unchanged from 4.46.122.
 
 `brain-adr-envelope` repairs the reproduced HZ semantic-ai inspection failure
 ([Brain #515](https://github.com/stuinfla/ruvnet-brain/issues/515)). The native

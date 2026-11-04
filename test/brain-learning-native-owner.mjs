@@ -87,3 +87,14 @@ for (const original of [source, diagnose(source).next]) {
   }
 }
 console.log('brain-learning-native-owner: exact read-first sibling healthy; unknown edits/adapters remain refused');
+const nativeCheckpoint = fs.readFileSync(new URL('./fixtures/brain-capture-diagnostics/ruflo-memory-hooks.mjs', import.meta.url), 'utf8');
+const tracedCheckpoint = diagnose(nativeCheckpoint);
+assert.deepEqual(tracedCheckpoint.missing, []);
+assert(descriptor.isPatched(tracedCheckpoint.next), 'exact checkpoint diagnostics preserve native owner health');
+assert.equal(descriptor.patchSource(tracedCheckpoint.next).next, tracedCheckpoint.next);
+for (const unknown of [tracedCheckpoint.next.replace('db: store.db, env, bin, deadlineAt, diagnostic', 'db: foreignDb, env, bin, deadlineAt, diagnostic'),
+  tracedCheckpoint.next + '\n// ruflo-source-patch (ruflo#4622 learning-native-owner)']) {
+  assert(!descriptor.isPatched(unknown));
+  assert(descriptor.patchSource(unknown).missing.length);
+  assert.equal(descriptor.patchSource(unknown).next, unknown);
+}
