@@ -51,6 +51,10 @@ try {
   const unidentified = path.join(scratch, 'npx', 'unidentified', 'node_modules', '@claude-flow', 'cli', 'dist', 'src', 'memory');
   fs.mkdirSync(unidentified, { recursive:true });
   fs.writeFileSync(path.join(unidentified, files[0]), sources[0]);
+  const nullManifest = path.join(scratch, 'npx', 'null-manifest', 'node_modules', '@claude-flow', 'cli');
+  fs.mkdirSync(path.join(nullManifest, 'dist/src/memory'), { recursive:true });
+  fs.writeFileSync(path.join(nullManifest, 'package.json'), 'null');
+  fs.writeFileSync(path.join(nullManifest, 'dist/src/memory', files[0]), sources[0]);
   const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict'; import fs from 'node:fs';
     import { spawnSync } from 'node:child_process';
