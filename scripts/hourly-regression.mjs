@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { acquireLock } from './hourly-regression-lock.mjs';
 
 const script = fileURLToPath(import.meta.url);
 const repo = path.dirname(path.dirname(script));
@@ -79,16 +80,17 @@ export async function run({ state = defaultState, codex = 'codex', execute = bou
   const schedulerError = path.join(state, 'scheduler-error.log');
   if (fs.existsSync(schedulerError) && fs.statSync(schedulerError).size > 65536)
     fs.writeFileSync(schedulerError, 'Previous scheduler stderr exceeded 64 KiB; rotated.\n', { mode: 0o600 });
-  const lock = path.join(state, 'running.lock');
-  try { fs.mkdirSync(lock, { mode: 0o700 }); }
-  catch (error) {
-    if (error.code !== 'EEXIST') throw error;
-    console.error(`Regression already locked: ${lock}; inspect owner.json before removing a stale lock.`);
+  let release, lockError;
+  try { release = acquireLock(state); } catch (error) { lockError = error.message; }
+  if (!release) {
+    const reason = lockError || 'live or unproved owner; concurrent run refused';
+    fs.writeFileSync(path.join(state, 'last-blocked.json'), JSON.stringify({ ended: new Date().toISOString(),
+      status: 'blocked', ok: false, reason }, null, 2) + '\n', { mode: 0o600 });
+    console.error(`Regression blocked: ${path.join(state, 'running.lock')}; ${reason}`);
     return 75;
   }
   let fd, scratch;
   try {
-    fs.writeFileSync(path.join(lock, 'owner.json'), JSON.stringify({ pid: process.pid, started: new Date().toISOString() }), { mode: 0o600 });
     // Keep 48 bounded run logs and matching receipts (roughly two days).
     const logs = fs.readdirSync(state).filter(f => /^run-.*\.log$/.test(f)).sort();
     for (const file of logs.slice(0, Math.max(0, logs.length - 47))) {
@@ -126,7 +128,7 @@ export async function run({ state = defaultState, codex = 'codex', execute = bou
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
     if (scratch) fs.rmSync(scratch, { recursive: true, force: true });
-    fs.rmSync(lock, { recursive: true, force: true });
+    release();
   }
 }
 

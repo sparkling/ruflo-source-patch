@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { bounded, run, plist, suites } from '../scripts/hourly-regression.mjs';
+import { acquireLock } from '../scripts/hourly-regression-lock.mjs';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-hourly-test-'));
 const success = { code: 0, signal: null, stopped: null, bytes: 7, tail: 'fixture passed' };
@@ -45,7 +46,7 @@ try {
   assert.equal(await run({ state: root, codex: '/native/codex', execute }), 1);
   assert.equal(count, 3);
   assert(!fs.existsSync(path.join(root, 'running.lock')));
-  const receiptFile = fs.readdirSync(root).find(f => f.endsWith('.json'));
+  const receiptFile = fs.readdirSync(root).find(f => f.startsWith('run-') && f.endsWith('.json'));
   const receipt = JSON.parse(fs.readFileSync(path.join(root, receiptFile)));
   assert.equal(receipt.ok, false);
   assert.equal(receipt.tests.code, 1);
@@ -63,6 +64,31 @@ try {
     return interruptedCalls === 2 ? { ...success, stopped: 'interrupted' } : success;
   } }), 1);
   assert.equal(interruptedCalls, 2, 'interruption must not start a reviewer');
+  const lockState = path.join(root, 'owner-proofs'); fs.mkdirSync(lockState);
+  const release = acquireLock(lockState);
+  const ownerFile = path.join(lockState, 'running.lock/owner.json');
+  const originalOwner = fs.readFileSync(ownerFile, 'utf8');
+  fs.writeFileSync(ownerFile, JSON.stringify({ ...JSON.parse(originalOwner), token: 'b'.repeat(36) }));
+  assert.throws(release, /owner changed/);
+  assert.equal(JSON.parse(fs.readFileSync(ownerFile)).token, 'b'.repeat(36), 'same-PID replacement must survive old release');
+  fs.writeFileSync(ownerFile, originalOwner); release();
+  const worker = spawn(process.execPath, ['--input-type=module', '-e',
+    `import {acquireLock} from ${JSON.stringify(new URL('../scripts/hourly-regression-lock.mjs', import.meta.url).href)}; acquireLock(process.argv[1]); console.log('ready'); setInterval(()=>{},1000);`, lockState], { stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(Error('worker did not acquire lock')), 3000);
+      worker.stdout.once('data', () => { clearTimeout(timer); resolve(); });
+      worker.once('error', reject);
+    });
+    assert.equal(acquireLock(lockState), null, 'actual live worker prevents overlap');
+    const dead = new Promise(resolve => worker.once('close', resolve)); worker.kill('SIGKILL'); await dead;
+    const recoveredRelease = acquireLock(lockState);
+    assert.equal(typeof recoveredRelease, 'function', 'native ESRCH permits fenced dead-worker recovery');
+    recoveredRelease();
+    fs.mkdirSync(path.join(lockState, 'running.lock'));
+    assert.equal(await run({ state: lockState, execute: () => assert.fail('unknown owner must block') }), 75);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(lockState, 'last-blocked.json'))).status, 'blocked');
+  } finally { worker.kill('SIGKILL'); }
   assert.equal((await bounded(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { timeoutMs: 50 })).stopped, 'timeout');
   assert.equal((await bounded(process.execPath, ['-e', 'process.stdout.write("x".repeat(10000));setInterval(()=>{},1000)'], { timeoutMs: 3000, maxBytes: 10 })).stopped, 'output-limit');
   assert.equal((await bounded('/nonexistent/rsp-hourly-command', [], { timeoutMs: 100 })).code, -2);
