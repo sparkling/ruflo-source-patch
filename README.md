@@ -44,6 +44,14 @@ Version 4.46.123 recognizes the same exact diagnostic composition in the retired
 native-owner health check. Its inverse/native/forward proof preserves the retired
 adapter boundary; runtime executable bytes are unchanged from 4.46.122.
 
+Release 4.46.123 is activated on Mac and HZ: all 309 packaged files match the
+immutable artifact, active hook hashes agree, both monitors pass, and the existing
+10/16 native owners remain healthy. New native checkpoint checks completed in
+1.00/2.08 seconds with exact readback; the original Strategy checkpoint above
+remains unrecovered. [Checkpoint diagnostic evidence](https://github.com/stuinfla/ruvnet-brain/issues/518#issuecomment-6628092623)
+and [recall qualification](https://github.com/stuinfla/ruvnet-brain/issues/429#issuecomment-6628092258)
+are recorded upstream with these limits.
+
 `brain-adr-envelope` repairs the reproduced HZ semantic-ai inspection failure
 ([Brain #515](https://github.com/stuinfla/ruvnet-brain/issues/515)). The native
 shim cut a 112,446-byte edit envelope at 65,536 bytes. ADR's JSON parser then
@@ -3388,6 +3396,16 @@ anchor that no longer matches is skipped individually. Never a partial write, ne
 neighbours.
 
 ## Tested
+
+The owner-requested hourly job uses `scripts/hourly-regression.mjs`, 26 focused
+fixture families, bounded read-only list/exact-read calls through existing Mac/HZ
+MCP sessions, and a native OpenAI `gpt-6.1-sol` review at medium effort. It has one
+owner lock, finite runtime/output/memory limits and private bounded receipts under
+`~/.local/state/ruflo-source-patch/hourly-regression`; it does not control projects
+or send console prompts. A real launchd run passed on 4 November at 10:13 UTC.
+Forced background CPU/I/O policy reproduced fixture admission failures; Standard
+scheduling fixed that runner defect without changing production or test deadlines.
+Fixture success, live read success and historical record recovery remain distinct.
 
 The runner also includes focused suites for the recent targets: native SQLite dependency ownership,
 exact fallback pattern receipts, immutable verified policy serialization, hook failure attribution,

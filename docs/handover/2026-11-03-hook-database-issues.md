@@ -16,8 +16,11 @@ varies sharply; bursts are not proof of sustained saturation or timeout cause.
 Strategy's 08:51:07Z checkpoint store timed out. The original exact key is absent;
 the complete expected value is not reconstructible, so no replay occurred.
 Shared checkpoint diagnostics now retain stage, launch and sanitized terminal
-details in the existing private ring. ST01/ST03's 14 imported values are verified;
-their current launch/proc/transcript issues are separate local application work.
+details in the existing private ring. Release 4.46.123 is active on both hosts;
+new native checkpoint/readback checks passed in 1.00/2.08 seconds. This does not
+recover the original missing record. ST01/ST03's 14 imported values are verified;
+their coordinator repaired the local launch checks and launched each author once.
+ST01 completed at 10:04:38Z; ST03's retained running receipt is not a liveness check.
 The helper's independent false-success persistence bugs are reported in
 [Ruflo #4685](https://github.com/ruvnet/ruflo/issues/4685). Its tested upstream
 candidate is not installed because the helper requires an upstream signature.
@@ -44,7 +47,7 @@ of corruption caused by policy latency.
 | Policy-state lock timeouts | AI-BA, BA; Fabric attribution pending | Live locks belong to active native MCP owners, migration-runtime MCP clients and CLI hooks. Our owner queue covered memory but omitted hook authorization; corrected in 4.46.112. Private bounded phase logging added. Activated on 10 Mac and 15 HZ owners; fresh Stop/checkpoint verification passes in all five reported HZ projects. History-dependent transaction cost remains. |
 | Turn/checkpoint store timeout and readback failure | AI-BA, BA, Query, Fabric report | A timeout can precede successful persistence. Read original keys; do not replay. Preserve retrieval error/timing instead of treating null as content mismatch. |
 | Prompt recall deadline | AI-BA, Product/PLM | Native 1.9s budget expires during enumeration or later exact/search phases. Reader startup was tens of milliseconds. Temporary larger finite budgets requested; provider/policy phase timings still needed. |
-| Learning shedding | Query, BA; Fabric attribution pending | Native two-slot admission can drop observations. More time does not create capacity and can prolong occupied slots. Separate admission diagnosis and original-record reconciliation required. |
+| Learning shedding | Query, BA; Fabric attribution pending | Deployed 4.46.119/120 retains two writers while at most eight existing hooks wait within their bounded budget; durable duplicates use native read-first verification. Burst tests pass, but sustained overload still refuses. Historical admission analysis below predates that correction. |
 | Admission-lock ENOENT | Query | Reproduced downstream ownership race: normal owner retirement removes the directory before our claims scan, outside its ENOENT retry. Narrow correction and historical migration tests pass; deployed and activated in 4.46.114 on both hosts. |
 | MCP session exhaustion/retirement | Query historical reports | Earlier 105-client retirement qualification exists. Correlate failure timestamps to loaded release; do not conflate session capacity with model quotas or claim later reads recover original failed writes. |
 | WAL/whole-image refusal | AI-BA and Query historical reports | Safety refusal is not corruption. AI-BA original MCP exact retrieval succeeded on 3 November; broader original-operation recovery remains separately qualified. |
