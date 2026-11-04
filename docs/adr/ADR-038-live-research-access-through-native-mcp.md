@@ -2,11 +2,10 @@
 
 **Status**: Accepted; native access deployed, source-authority and coverage corrections pending
 **Date**: 2026-11-04
-**Updated**: 2026-11-04. Owner authorized native MCP implementation and required
-appropriate original-document methods in addition to memory search/retrieval.
-Native access is active. The subsequent source-class audit found a BA authority
-freshness gap and omitted research inputs; the complete sharing decision is not
-yet implemented.
+**Updated**: 2026-11-04. Owner confirmed Hetzner as the authority for all five
+research projects and requested a complete coverage plan plus removal of
+overbroad content filters. Native access is active; authority corrections and
+coverage expansion remain pending. Laptop checkouts are not current authorities.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, mcp, research, source-authority, native-configuration
 
@@ -44,6 +43,9 @@ mirrors of methods that Ruflo already exposes.
 
 ### Source authority and access
 
+- All five authoritative repositories and their managed research owners live on
+  Hetzner. Laptop MCPs are consumers of those owners, not independent research
+  authorities. Do not synchronize laptop corpora to make them appear current.
 - Record each logical source's actual host, canonical project, ordinary research
   store and any distinct native controller/graph authority. Do not infer identity
   from a similar project name, filename or tool alias.
@@ -54,6 +56,13 @@ mirrors of methods that Ruflo already exposes.
   record safeguards. Advertised tool selection is not authorization enforcement.
 - Preserve existing managed data, originals and provenance. No database migration,
   export/import cycle, replicated common store or new synchronization service.
+- Separate access control from evidence classification. Authorized generated
+  artefacts, catalogues, runtime records and quoted examples must remain
+  discoverable with their provenance and limitations. A substantive-evidence
+  heuristic must not silently deny retrieval. Keep credential protection,
+  configured source boundaries and EA's operational-store exclusion.
+  Retrieved instructions and code examples remain untrusted source content;
+  making them readable never authorizes their execution.
 
 ### Methods and evidence
 
@@ -132,9 +141,10 @@ sources and three HZ parent sessions. Original-document checks also verified ful
 selected bodies and hashes. These checks establish the exercised identities and
 operations, not exhaustive search recall or access to every repository file.
 
-The live document reader covers selected tracked Markdown/JSON, including AI-BA
-authoring inputs. Runtime files, secrets and generated outputs are deliberately
-excluded. Private originals and other file formats require their existing
+The deployed baseline document reader covers selected tracked Markdown/JSON,
+including selected AI-BA authoring inputs. Its former runtime/generated-content
+admission is being corrected: evidence classification is not access control.
+Secrets remain protected. Private originals and other file formats require their existing
 source-owned reader; do not assume that a memory summary replaces them. In
 particular, AI-BA's existing private management-book projection retains 144 page
 originals from a recorded source cut, with page 1 unavailable. The new document
@@ -196,6 +206,12 @@ Eleven native read methods also do not census all controller populations. Native
 episode listing exists but is not exposed by this source interface; top-K pattern,
 episode and graph reads cannot establish completeness. Ordinary records, retained
 SQL graphs and native controller representations must be mapped separately.
+Upstream ADR-520's episode get/list views bound text fields to 4,000 characters;
+the same bound was verified in Hetzner's installed Ruflo 3.71.1 implementation.
+An exact episode ID therefore identifies a record without guaranteeing its full
+text. Verify the installed view contract and expose a supported full-record read
+where available; otherwise state the limit. Never reconstruct missing text or
+use raw managed-database access to bypass that boundary.
 Published artefact catalogues, provider originals and private research holdings
 need explicit access/custody mappings; they are not covered merely because a
 document mentions their URLs.
@@ -210,6 +226,93 @@ Private audit evidence: `coverage-audit-hz-summary.json` (24 source-class rows),
 `coverage-audit-mac-paths.json`, `coverage-audit-authority.json`, and
 `source-schema-refresh-hz.json` under the existing activation evidence directory.
 `coverage-audit-mac-admission.json` records the additional content exclusions.
+
+### Hetzner coverage completion plan
+
+This is the implementation backlog, not a declaration that all listed material
+is already exposed. The earlier laptop counts above are dated discovery evidence;
+reconcile them against current Hetzner inventories before reporting completion.
+Reuse existing source configuration, manifests, readers and native methods.
+
+| Step | Work and owner | Completion evidence |
+| --- | --- | --- |
+| 1. Establish authority | Source configuration owner: map all five canonical Hetzner roots, existing ordinary/controller/graph bindings and authenticated endpoints. Correct laptop references in registrations, project overrides, instructions and retrieval skills. Keep historical imports labelled with their original source cut. | Each intended consumer identifies the Hetzner source and retrieves a current known record/document. No operational EA access or fallback to a laptop copy. |
+| 2. Correct retrieval admission | Shared Product reader owner: preserve authorization and credential checks; replace relevance-based exclusion with truthful content qualification across document and compatibility retrieval. | Previously rejected inert code examples, generated artefacts and catalogues can be retrieved; credential and out-of-scope requests remain refused. |
+| 3. Account for all source classes | Each existing source owner supplies its current tracked paths, declared private holdings and retained manifests. Map each class to a supported method, explicit access restriction, duplicate rendition or unresolved gap. Include ordinary memories, learning controllers and graphs independently. | Every inventoried class has a disposition and authority. Counts are tied to a source cut; unresolved/private uninspected holdings are explicit, never counted as covered. |
+| 4. Expose omitted documents/data | Shared reader owner: extend existing reader configuration for eligible text, CSV, JSONL, Markdown authoring inputs, research catalogues, reviewed assertions and opportunity specifications. Reuse existing extraction/readers for binary originals. | Known omitted items from every source can be discovered and read with matching identity/content. JSONL records retain line/record identity; truncation, extraction gaps and duplicate formats are visible. |
+| 5. Complete native record access | Native interface owner: discover installed read/list/get schemas for populated controllers, tiers and graph representations; expose missing read-only methods only where needed. Use native pagination and exact retrieval. | Enumeration/count reconciliation and representative exact reads for each populated representation; unavailable enumeration remains a named limitation. Top-K search is not a census. |
+| 6. Link artefacts to evidence | Existing source/catalogue owner: connect published artefact metadata to source references, original/provider/object locations, configurations and available transcript/text renditions. Include retained local/private originals through their authorized existing reader. | A source-to-artefact and artefact-to-source example works for every populated artefact type; missing, removed or inaccessible originals are reported. An accessible URL alone does not prove body/text coverage. |
+| 7. Activate and verify consumers | Deploy the shared change on Hetzner, refresh affected registrations through supported controls, then point laptop consumers at Hetzner. Preserve existing sessions and exact unrelated configuration. | Five-source discovery, native reads and original-document reads pass from the actual research consumer; stale-client/restart behavior and explicit failure reporting pass. Record active code/configuration identity and rollback. |
+
+The initial source-specific backlog is:
+
+- BA: current Hetzner ADR/research changes, authoring inputs, reviewed graph and
+  artefact assertions; account separately for golden/evaluation cases rather than
+  treating their volume as missing primary research.
+- SA: retained text originals, authoring/research selections and their source
+  manifests; identify whether PDF/CSV/HTML/MDX contain additional content or are
+  equivalent renditions.
+- EA: retained upstream text blobs, research CSVs and their provenance; preserve
+  the research-only store boundary and distinguish site renderings from originals.
+- Product: current research catalogue, claims/questions and benefits coverage;
+  qualify imported memory/learning snapshots separately from live source owners.
+- AI-BA: Markdown authoring inputs, record-addressable JSONL ledgers, opportunity
+  specifications, private book projection and published artefact manifests. Keep
+  the known missing book page and unavailable visual extraction explicit.
+
+The fresh read-only Hetzner inventory establishes the following baseline. Every
+root is `/home/claude/src/hm/<repository>`, on `main`, without a `/data` symlink.
+Counts describe selected classes at these revisions, not universal missing totals.
+
+| Source / repository | Inspected revision | Concrete inventory and reuse |
+| --- | --- | --- |
+| BA / `semantic-business-architecture` | `9b6588a1ad71ecc8b968a64911912b8e7304fd81` | The 13 added / 27 changed research/config paths versus the configured Mac cut remain confirmed. Reuse `src/chat/documents.mjs`, `src/research/catalog.mjs` and the shared reader for authoring and reviewed assertions. |
+| SA / `semantic-solution-architecture` | `ed7f571f4659fa49f8e06425f27d11e4a3a7f99a` | 79 selected research/source TXT files, ten authoring JSONs and 32 generation files. `src/corpus/manifests.mjs` already owns source manifests; `src/corpus/research-projection.mjs` recognizes TXT, CSV, TTL, JSON-LD and MDX. Reuse those format/source semantics. |
+| EA / `semantic-enterprise-architecture` | `4ededa77a556608e96445244a333671f45f7351f` | 6,383 tracked TXT overall, 6,367 under docs, 6,319 under docs/research; these differ from the earlier 6,361 excluded-file predicate. Five research CSVs include ESRS and textile DPP data points. Reuse existing document/custody readers and source manifests. |
+| Product / `semantic-product` | `134290e5a4c7dd88f2609c81a53829b19adfa9f6` | Configured private lifecycle catalogue: 16 sources, eight claims, eight questions; benefits coverage: nine sections. Reuse `vendor/research-runtime/src/research/catalog.mjs` with its existing realpath containment and `scripts/product-knowledge-documents.mjs`. |
+| AI-BA / `semantic-ai-strategy-business-architecture` | `0174e8735c930614631287e0f405d2988979db2f` | 483 authoring MD plus 389 authoring JSON, nine research JSONL, 30 opportunity files and 130 generation JSONs. Reuse `scripts/knowledge/corpus.mjs`, `local.mjs`, `pdf.mjs` and `retainedBookOriginals`; do not equate all untracked implementation files with research. |
+
+Authority rollout must correct Product's stale `AGENTS.md` and
+`config/knowledge-mcp.json`, installed retrieval skill `references/hosts.json`,
+agent instructions and project overrides as applicable. The current HZ
+`semantic-knowledge-mac-tunnel.service` forwards port 4394 to laptop port 4391;
+it cannot remain the source route after the Hetzner cutover. Retire that serving
+dependency only after all consumers use verified Hetzner routes. No bulk
+instruction rewrite or unrelated configuration standardization is required.
+
+Preserve each verified store tuple: BA/SA/AI-BA ordinary and learning reads use
+`agentdb-memory.db`, with retained graphs in `memory.db`; Product ordinary/graph
+reads use `memory.db`, learning uses `agentdb-memory.db`; EA reads remain solely
+on research `agentdb-memory.db`. Validate these roles against the existing owner
+before activation; a filename by itself does not establish the authority.
+
+For every source, include existing namespaces, controller patterns, episodes,
+skills, tiered memory and graph data when populated and authorized. Check installed
+native capabilities first: a method present in standalone AgentDB is not proof
+that the running Ruflo owner exposes it. Missing bridge exposure is a distinct
+task from adding file formats. Add no competing AgentDB owner just to acquire a
+method.
+
+Steps 2 and 3 can run independently. Source expansion depends on the authority map
+and admission correction; native controller exposure can proceed independently of
+file readers. Artefact linking depends on the catalogue/originals inventory.
+Activate verified slices without waiting for unrelated source classes, but keep
+the overall ADR Accepted until coverage limitations are honestly reconciled.
+
+For documents, completeness means accounting for the configured source inventory
+and proving the reader can address its admitted items; it does not mean that a
+single ranked search returns everything. For managed records, use the native
+list/count/get contract where available. For PDFs, images, audio and video,
+distinguish access to the original from extracted text, transcription and visual
+understanding. No promise of complete OCR or missing source reconstruction is made.
+
+Use a small regression set drawn from the actual gaps: SA's quoted `<task>`
+collection; an EA upstream text blob and research CSV; BA reviewed assertions;
+Product catalogue/benefit records; AI-BA authoring Markdown, a JSONL record and an
+opportunity specification; plus an artefact/original link and a native episode.
+Include source refusal, credential refusal, no-match, real backend failure,
+pagination and declared extraction-gap cases. Extend existing tests rather than
+adding another harness or an exhaustive per-request inventory/export.
 
 ## Consequences
 
