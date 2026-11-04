@@ -28,14 +28,15 @@ const xml = value => String(value).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>':
 export function plist({ node = process.execPath, codex, state = defaultState, envPath = process.env.PATH }) {
   if (!path.isAbsolute(codex || '') || !path.isAbsolute(node) || !path.isAbsolute(state)) throw Error('node, codex and state must be absolute paths');
   const args = [node, script, 'run', '--codex', codex, '--state-dir', state];
+  // Forced background CPU/disk throttling itself breaks the unchanged fixture
+  // deadlines. Keep normal scheduling; subprocess limits below bound the work.
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>${label}</string>
 <key>ProgramArguments</key><array>${args.map(a => `<string>${xml(a)}</string>`).join('')}</array>
 <key>StartInterval</key><integer>3600</integer>
-<key>ProcessType</key><string>Background</string>
-<key>LowPriorityIO</key><true/><key>Nice</key><integer>10</integer>
+<key>ProcessType</key><string>Standard</string>
 <key>Umask</key><integer>63</integer>
 <key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(envPath || '/usr/bin:/bin')}</string></dict>
 <key>StandardOutPath</key><string>/dev/null</string>

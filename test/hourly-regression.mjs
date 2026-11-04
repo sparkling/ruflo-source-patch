@@ -15,6 +15,9 @@ try {
   assert.equal(liveTests.status, 0, liveTests.stderr);
   const rendered = plist({ codex: '/native/codex', state: root, envPath: '/a&b' });
   assert(rendered.includes('<integer>3600</integer>'));
+  assert(rendered.includes('<key>ProcessType</key><string>Standard</string>'));
+  assert(!rendered.includes('<key>LowPriorityIO</key>'), 'deadline qualification must not inherit forced disk throttling');
+  assert(!rendered.includes('<key>Nice</key>'), 'deadline qualification must not inherit forced CPU demotion');
   assert(rendered.includes('/a&amp;b'));
   assert(!rendered.includes('RunAtLoad'));
   assert(!rendered.includes('KeepAlive'));
