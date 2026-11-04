@@ -15,6 +15,17 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Research synthesis guidance: 4 November 2026
+
+Version 4.46.131 adds `ruflo-context-guidance` for
+[#4691](https://github.com/ruvnet/ruflo/issues/4691). The native MCP description,
+research-synthesize skill and researcher agent now distinguish ordinary source
+evidence from validated task episodes. Only guidance changes: the native handler,
+matching, eligibility and no-match outcomes remain unchanged. The full regression
+suite passes, including exact rollback and corrected-upstream retirement checks.
+Source compatibility covers CLI 3.71.0 and 3.71.1; installation and live host
+activation remain separate checks. See the target description below for scope.
+
 ## Native HTTP session identity: 4 November 2026
 
 Version 4.46.130 adds `ruflo-http-sessions` for [Ruflo #3294](https://github.com/ruvnet/ruflo/issues/3294)
