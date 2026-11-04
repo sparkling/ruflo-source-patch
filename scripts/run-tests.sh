@@ -91,6 +91,19 @@ SUITES+=(package-maintenance)
 SUITES+=(cwd-session-current)
 SUITES+=(ruflo-hooks-schema codex-skills-registry)
 SUITES+=(ruflo-memory-owner ruflo-memory-owner-retirement ruflo-owner-policy ruflo-policy-anchor-copy brain-capture-timing)
+SUITES+=(hourly-regression)
+# Explicit focused suites reuse every protection above; names cannot escape test/.
+if [ "$#" -gt 0 ]; then
+  SUITES=()
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" != "--suite" ] || [ "$#" -lt 2 ] || ! [[ "$2" =~ ^[a-z0-9-]+$ ]] || [ ! -f "test/$2.mjs" ]; then
+      echo "usage: scripts/run-tests.sh [--suite existing-suite-name]..." >&2
+      exit 2
+    fi
+    SUITES+=("$2")
+    shift 2
+  done
+fi
 # Bound suite fan-out: each suite may itself launch native child processes.
 jobs=${RSP_TEST_JOBS:-4}
 if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || [ "$jobs" -gt 16 ]; then
@@ -107,7 +120,10 @@ for s in "${SUITES[@]}"; do
     pids=("${pids[@]:1}")
   fi
 done
-for p in "${pids[@]}"; do wait "$p"; done
+# macOS Bash 3 treats expansion of an empty array as unbound under nounset.
+if [ "${#pids[@]}" -gt 0 ]; then
+  for p in "${pids[@]}"; do wait "$p"; done
+fi
 
 for s in "${SUITES[@]}"; do
   cat "$tmp/$s.out"
