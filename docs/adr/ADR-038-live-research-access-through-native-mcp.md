@@ -116,6 +116,32 @@ The existing native probes are narrower than the comprehensive facade searches;
 their timings are not an equivalent-coverage performance claim. Deployment is
 complete only when the intended consumer uses the configured route successfully.
 
+### Observed interface and coverage boundary
+
+The implemented interface advertises 15 tools with descriptions and argument
+schemas: eleven source-bound native memory/controller reads, two original-document
+methods and two retained compatibility methods. It registers tools, not MCP
+resources or prompts. Method discovery documents invocation; it is not a corpus
+coverage guarantee.
+
+The 2026-11-04 retained-consumer check passed all fifteen exact reads across five
+sources and three HZ parent sessions. Original-document checks also verified full
+selected bodies and hashes. These checks establish the exercised identities and
+operations, not exhaustive search recall or access to every repository file.
+
+The live document reader covers selected tracked Markdown/JSON, including AI-BA
+authoring inputs. Runtime files, secrets and generated outputs are deliberately
+excluded. Private originals and other file formats require their existing
+source-owned reader; do not assume that a memory summary replaces them. In
+particular, AI-BA's existing private management-book projection retains 144 page
+originals from a recorded source cut, with page 1 unavailable. Its compatibility
+route remains available; exposure through the new document methods is a separate
+coverage gap being repaired. Preserve the original hash, cut and extraction gap.
+
+The implementation must report source scope, exclusions and historical cuts
+honestly. Neither advertising a controller nor succeeding on one known key proves
+that all controller data or all original research is accessible.
+
 ## Consequences
 
 The native engine owns retrieval and storage semantics; the agent owns evidence
