@@ -17,6 +17,17 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Native alignment and backend readiness: 4 November 2026
 
+`ruflo-memory-search-report` completes the remaining plain-search response fix
+from [#2922](https://github.com/ruvnet/ruflo/issues/2922). CLI 3.71.1 still labels
+that response `HNSW + sql.js` even when its native bridge used brute-force cosine.
+The target calls the existing upstream `describeBackend()` helper, preserving
+native bridge-disabled diagnostics and the separate `smartFallback` warning.
+It changes no storage, embeddings, matching, ranking or fallback policy. Tests
+execute the published reporter and response block for native cosine, HNSW,
+disabled-bridge and unavailable-status cases, plus exact rollback and a corrected
+upstream source. Unknown source shapes refuse. A backend label still does not
+prove corpus coverage, index freshness or original-resource custody.
+
 Version 4.46.133 withdraws custom behaviour that exceeds bug repair. Qualified CLI 3.71.1 already preserves genuine context outcomes and awaits
 both recall interfaces, so `ruflo-context-contract` restores that native function.
 `ruflo-tier-consolidation` restores native explicit unsupported consolidation.
@@ -2010,6 +2021,7 @@ Actions: `install` · `uninstall` · `status`
 | **`ruflo-context-contract`** | Retired on qualified current native outcome preservation and async recall. Restores the native function together with withdrawal of custom tier-copy lineage; historical rows remain untouched. Unknown or unqualified native sources refuse. | [#3314 · closed](https://github.com/ruvnet/ruflo/issues/3314) |
 | **`ruflo-context-guidance`** | Correct the native MCP description and central research skill/agent guidance: synthesize documents from exact source evidence, reserve ContextSynthesizer for validated episode outcomes, and preserve native matching and result semantics. | [#4691 · open](https://github.com/ruvnet/ruflo/issues/4691) |
 | **`ruflo-memory-stats`** | Uses the existing AgentDB registry connection instead of a raw sql.js probe; complete active/legacy-NULL and embedding-presence counts, safe arbitrary namespaces, explicit unavailable state. No WAL manipulation or competing driver. | [#3311 · closed](https://github.com/ruvnet/ruflo/issues/3311) |
+| **`ruflo-memory-search-report`** | Plain search uses the existing native backend reporter instead of a hardcoded HNSW label; native bridge-disabled diagnostics, SmartRetrieval fallback warnings and search results remain intact. No retrieval algorithm or storage change. | [#2922 · open](https://github.com/ruvnet/ruflo/issues/2922) |
 | **`ruflo-wrapper-guard`** | Restores `ruflo`, selects the newest installed stable CLI instead of the first older nested dependency, and delegates version/CLI/MCP behavior to that implementation. No launch-time downloads or process kills; malformed/broken selection fails visibly. Known lifecycle shims retain direct installed CLI execution. | [#3306 · closed](https://github.com/ruvnet/ruflo/issues/3306) |
 | **`cwd`** | **Silent data loss and stray state.** Residual `.claude-flow` / `.swarm` state in current Ruflo still follows raw or implicit cwd in permission state/audit, swarm state, neural-weft defaults, generated helpers, hook-session state, and other durable-state paths. The target anchors the resolver, callees, and implicit-relative constants; cache identity uses the resolved absolute starting path. AgentDB vector-storage overrides were withdrawn in 4.46.95: native AgentDB storage owns those paths. Ruflo 3.38.16's native daemon resolver is recognized as satisfied and left pristine. Legacy and 3.38.16 session-end shapes atomically write the snapshot they advertise, and unknown future shapes fail loudly. A leak detector remains because textual coverage cannot prove completeness | [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |
 | **`daemon`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired on executable proof in Ruflo 3.38.11+.** Older releases need direct start/stop/status/supervisor paths normalized to one project-root lock/PID identity. Current releases export and use `resolveDaemonProjectRoot()` throughout; retirement executes nested, nested-project, `.git` stop, and no-marker behavior and rejects route/resolver mutations | [#2877 · closed](https://github.com/ruvnet/ruflo/issues/2877) · [#2633 · open](https://github.com/ruvnet/ruflo/issues/2633) |

@@ -23,6 +23,11 @@ Known released overlays remain exactly reversible, while unknown or unqualified
 source refuses. Retirement tests prove upstream's intended behaviour, not adoption
 of our custom algorithms. Install/all/monitor must not reintroduce withdrawals.
 
+The `ruflo-memory-search-report` contribution also composes on `memory-tools.js`.
+It reuses upstream's existing backend reporter for plain-search responses (#2922),
+without changing search or fallback policy. Exact corrected upstream bytes need
+no local contribution; unsupported reporter/response shapes remain unqualified.
+
 Native-owner forwarding qualifies one native decision for equivalent authority. The 4 November extension permits `memory_list`, `memory_stats`, and `memory_export`
 from a pinned client to an unpinned same-project owner only with an original own
 enumerable absolute `dbPath` equal to that pin and an advertised selector. Native
