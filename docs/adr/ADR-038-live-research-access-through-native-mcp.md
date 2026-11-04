@@ -157,6 +157,12 @@ their client process identities unchanged. The source-bound configuration and
 retained-client evidence live in
 `.local/federated-research-20261104/native-live-activation/`.
 
+After the final normal source refresh and supported host reload, retained host
+registrations still advertised earlier tool descriptions. All five sources stayed
+connected. Installed descriptions are corrected, but existing host schema caches
+are not proven refreshed; do not claim complete documentation activation in those
+retained sessions.
+
 ## Consequences
 
 The native engine owns retrieval and storage semantics; the agent owns evidence
