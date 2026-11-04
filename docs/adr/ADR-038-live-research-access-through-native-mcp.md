@@ -4,8 +4,9 @@
 **Date**: 2026-11-04
 **Updated**: 2026-11-04. Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
-overbroad content filters. Native access is active; authority corrections and
-coverage expansion remain pending. Laptop checkouts are not current authorities.
+overbroad content filters. Shared content admission is repaired and active on
+Hetzner Product/AI-BA; authority corrections and coverage expansion remain
+pending. Laptop checkouts are not current authorities.
 **Deciders**: Henrik Pettersen
 **Tags**: ruflo, mcp, research, source-authority, native-configuration
 
@@ -142,8 +143,8 @@ selected bodies and hashes. These checks establish the exercised identities and
 operations, not exhaustive search recall or access to every repository file.
 
 The deployed baseline document reader covers selected tracked Markdown/JSON,
-including selected AI-BA authoring inputs. Its former runtime/generated-content
-admission is being corrected: evidence classification is not access control.
+including selected AI-BA authoring inputs. Shared runtime/generated-content
+admission has been corrected: evidence classification is not access control.
 Secrets remain protected. Private originals and other file formats require their existing
 source-owned reader; do not assume that a memory summary replaces them. In
 particular, AI-BA's existing private management-book projection retains 144 page
@@ -194,13 +195,35 @@ directly, and no source binding or corpus was changed by that audit.
 | Product | The current research catalogue and benefits coverage map are outside the live reader. Historical imported file/memory/learning records remain dated snapshots, not canonical live access to the originating projects. |
 | AI-BA | 483 tracked Markdown authoring inputs, nine JSONL ledgers and 30 opportunity-spec files fall outside live admission. Some HTML has equivalent Markdown; a format exclusion alone does not prove unique-content loss. |
 
-Content admission is another independent boundary: it excludes six selected BA,
-eleven SA and 64 EA documents. Some are intentional runtime receipts. A concrete
-false-positive candidate is SA's historical primary-source collection part 3:
+Content admission was another independent boundary: it excluded six selected BA,
+eleven SA and 64 EA documents. Some were runtime receipts. A concrete
+false positive was SA's historical primary-source collection part 3:
 its explicit inert upstream quotations include a command containing `<task>`,
-and the shared runtime-wrapper detector excludes the entire document. Review this
-centrally; do not confuse quoted implementation examples with executable runtime
-instructions or waive credential protection.
+and the shared runtime-wrapper detector excluded the entire document. Quoted
+implementation examples are not executable runtime instructions; making them
+retrievable does not waive credential protection.
+
+That body-admission defect was repaired centrally in Product commits `6442c82`,
+`f9e02c1` and `da488c5`. The shared predicate now protects credentials; heuristic
+content classification is advisory metadata. Distinct native record identities
+and unresolved graph discovery references remain visible. The old counts above
+are pre-repair evidence, not current credential exclusions.
+
+The final change is pushed and active in Hetzner Product and AI-BA services.
+Authenticated full paginated reads matched content hashes for Product (11,119
+characters) and AI-BA (39,978); unauthenticated and wrong-source requests returned
+401 and 404. The actual SA false-positive document passed a full 377,206-character
+shared-reader read on Hetzner. That SA check did not change its network route.
+Focused consumer, source-boundary, graph and credential regression tests passed.
+Receipt: `content-filter-live-proof.json` in the activation evidence directory.
+
+The BA/SA/EA registrations still use the old laptop source route; their Hetzner
+cutover remains step 1/7 below. Overlapping uncommitted laptop reader changes were
+preserved. AI-BA's independent path/extension selection still excludes 868 tracked
+entries in the measured run; this includes non-research files and is not 868
+proven missing research documents. Historical prefiltered exports and legacy
+namespace scope also remain qualified limitations. No data was re-exported or
+migrated by the content-filter repair.
 
 Eleven native read methods also do not census all controller populations. Native
 episode listing exists but is not exposed by this source interface; top-K pattern,
@@ -258,7 +281,10 @@ The initial source-specific backlog is:
   qualify imported memory/learning snapshots separately from live source owners.
 - AI-BA: Markdown authoring inputs, record-addressable JSONL ledgers, opportunity
   specifications, private book projection and published artefact manifests. Keep
-  the known missing book page and unavailable visual extraction explicit.
+  the known missing book page and unavailable visual extraction explicit. Its
+  current `scripts/knowledge/corpus.mjs` path selection is a separate boundary
+  from the shared content predicate; fixing body classification does not expose
+  files outside those selected roots or extensions.
 
 The fresh read-only Hetzner inventory establishes the following baseline. Every
 root is `/home/claude/src/hm/<repository>`, on `main`, without a `/data` symlink.
