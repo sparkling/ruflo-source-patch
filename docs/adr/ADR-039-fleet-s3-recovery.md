@@ -9,9 +9,16 @@
 ## Context
 
 The 5 November learning incident demonstrates that persistent learning can be
-damaged independently of SQLite. No pre-incident backup has been established;
-this proposal cannot recover the missing historical baseline. Changing HOME/CWD
-inside a repository did not isolate a diagnostic from the live root resolver.
+damaged independently of SQLite. No pre-incident backup of the affected neural/EWC
+state has been established; this proposal cannot recover that missing baseline.
+Changing HOME/CWD inside a repository did not isolate a diagnostic from the live
+root resolver.
+
+An existing S3 archive supported the October HZ migration: historical receipts
+record 37,495 files / 351.37 GiB verified, including 503 generated RVF retrieval
+indexes. Managed memory and neural directories were excluded. This is a reusable
+delivery implementation and a retained recovery dependency, not current fleet
+protection or a baseline for the affected laptop learning state.
 
 The discovery in the [inventory](../plans/fleet-s3-inventory-20261105.md)
 covers metadata on Mac, HZ and hm-ec2, plus configured but unresolved hosts.
@@ -36,13 +43,20 @@ physical store has a stable identity and one capture owner; aliases refer to it.
 Every expected store receives a success, failure, unavailable or approved-exclusion
 receipt. A newly discovered unclassified state root makes coverage incomplete.
 
-The proposed primary region is **eu-west-2 (London)**, subject to account and
-residency confirmation. Use a dedicated backup security boundary, preferably a
+The existing migration archive is in **eu-north-1 (Stockholm)**. Requalify its
+ownership and recovery dependencies before choosing a destination; **eu-west-2
+(London)** remains a provisional cost comparison, not a migration decision.
+Use a dedicated backup security boundary, preferably a
 separate AWS account, with private versioned buckets, TLS and encryption.
 Use customer-managed SSE-KMS with S3 Bucket Keys where key-recovery and IAM
 requirements justify it; isolate sensitive credential recovery material using
-an independently recoverable encrypted secret archive. The existing Artalk
-SSE-S3 uploader is a reusable starting point, not the final security contract.
+an independently recoverable encrypted secret archive. Reuse the migration
+uploader's whole-file hash deduplication, checksums, version receipts and bounded
+transfer machinery, plus the existing Artalk packaging/scheduling pattern.
+Neither implementation establishes the final fleet capture/security contract.
+Preserve existing archive versions and manifests: their source payloads were
+subsequently deleted under separate historical owner authorization. No new
+lifecycle policy may silently expire that recovery dependency.
 
 Use unique generation keys, SHA-256 content identities and exact S3 version IDs.
 A complete manifest is written last and names every artifact, capture boundary,

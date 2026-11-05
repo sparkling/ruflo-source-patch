@@ -49,6 +49,56 @@ It includes 1,228 Mac and 15,544 HZ .db paths, whose authority is unclassified.
 One HZ scratch directory disappeared during traversal; the exact ENOENT is
 retained privately. This live metadata scan is not a consistent snapshot.
 
+## Existing HZ migration S3 archive
+
+The owner identifies this as the HZ migration backup. Historical receipts dated
+27-28 October describe selected source paths on Mac; that path origin does not
+turn it into current laptop learning protection or a complete HZ host backup.
+This reconciliation read existing local receipts, manifests, implementation and
+the recorded verification command. It made no new S3 request.
+
+| Historical evidence | Observed result |
+| --- | --- |
+| Completed selected set | 37,495 files; 377,278,108,816 logical bytes / 351.37 GiB; no recorded errors |
+| Recorded new uploads | 17,576 objects; 305,353,375,906 bytes / 284.38 GiB; 19,917 reused file paths |
+| Inventory reconciliation | All 37,495 receipt paths equal the file-inventory path set; 17,578 unique content hashes, including initial smoke-test objects |
+| Selected categories | 514 release files, 36,956 AI-preview files, 25 model-weight files |
+| Retrieval state | 503 RVF retrieval index files, including research/view/shard indexes; seven RVF lock artifacts; no RVF ID-map companions |
+| Historical destination | Stockholm eu-north-1; private, TLS-required, SSE-S3, versioning enabled; no automatic expiry configured |
+| Verification at 23:51 UTC, 27 October | Four remote manifest checksum/length/version checks; two exact-version byte samples passed |
+| Separate authorized deletion | 37,495 source files deleted; 321.99 GiB net disk space recovered; deletion receipts retained |
+
+The two samples compared at most the first 1 MiB of the smallest positive and
+largest file against their sources. They were not full-file or native semantic
+restore drills. The source deletion receipt has separate explicit owner
+authorization; the backup-stage status correctly records deletion as unauthorized
+at that earlier stage. Neither grants authority for another deletion.
+
+The selected set contains relevant RuVector retrieval payloads, not only models
+and build products. However, its candidate manifests retained corpus originals,
+manifests, vector/reference-ID metadata, evidence and active configured releases
+outside the selected set. RVF payloads alone therefore do not prove independent
+research recovery. The uploader explicitly excluded .swarm, .claude-flow,
+.claude, .codex and .ruvnet-brain directories and managed SQLite filenames;
+the receipt path inventory contains none of those protected store paths.
+No affected patterns.json, stats.json or EWC baseline is established here.
+
+Reuse the existing implementation's canonical-path checks, source-change
+detection, streaming SHA-256, whole-file content reuse, bounded multipart upload,
+native S3 checksum/VersionId validation, resumable receipts and atomic status.
+It distinguishes missing objects from denied HEAD. Its upload/verification
+identity is shared, it does not perform native captures, and it lacks proven
+Object Lock, dependency-aware retention, compression/packing and scheduled fleet
+coverage. Requalify these boundaries instead of duplicating its transfer engine.
+Resume receipts also need exact-version remote reconciliation.
+
+Private originals remain in the disk-backup-20261027 diagnostics directory.
+Reconciliation counts, source hashes, transcript evidence and the owner's scope
+correction are retained under `.local/fleet-backup-20261105/`. Present remote
+availability, storage classes, noncurrent versions, lock state and bill were not
+rechecked. Preserve existing objects/manifests pending dependency review; a new
+age-only lifecycle could destroy the surviving copy of deleted source payloads.
+
 ## Registered owner coverage
 
 These are registered ownership claims, not proof of all active writers.
@@ -215,6 +265,9 @@ Primary sources: [London S3 price list](https://pricing.us-east-1.amazonaws.com/
 [London data transfer price list](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSDataTransfer/current/eu-west-2/index.json)
 and [KMS pricing](https://aws.amazon.com/kms/pricing/).
 The KMS operation example is AWS's published example, not an observed regional bill.
+These London rates do not price the existing Stockholm archive. Its current
+billable bytes and regional quote must be established separately before changing
+retention or choosing a destination; no move or duplicate archive is assumed.
 
 IA has a 128 KB minimum billable size and 30-day minimum duration; GIR has
 128 KB and 90 days. GFR requires 90 days; Deep Archive 180 days. GFR and
@@ -275,6 +328,10 @@ Illustrative steady-state scenarios, not measured compression/change rates:
 | Full copies every 15 minutes | D=10 GB, 96/day, seven days = 6,720 GB Standard = $161.28/month, before older daily/weekly/archive sets and requests |
 | One initial copy of observed state | About 185.38 GiB across Mac/HZ/hm-ec2, before supplementary Brain state, compression, authority exclusions or additional hosts; at Standard about $4.45/month for one copy only |
 
+The existing migration archive is an additional recovery obligation, excluded
+from the current-source 185.38 GiB example. Its historical upload bytes are not
+a current bill or a measured live-snapshot deduplication rate.
+
 The small/larger cases require a proved reuse method and measured U. Frequent
 full SQLite snapshots that change throughout can behave like the full-copy case.
 Neither the observed file count nor native RuVector chunk capability establishes
@@ -319,5 +376,11 @@ proposal returned safe=true. Unused search snippets with piiFound flags remain
 private and are not source authority for this decision. Fetched source admission
 and hashes are recorded separately from capability proof.
 
-No host was declared fully protected, no existing backup was certified by this
-research, and no historical learning repair was attempted.
+The historical uploader scan reported two encoding findings for Python base64
+checksum serialization. Contextual review admitted these as false positives;
+raw verdicts, exact matches, source hash and successful native feedback responses
+are retained separately. No change to detector behavior or durability is claimed.
+
+No host was declared fully protected. Historical migration verification is
+acknowledged; present remote availability was not recertified. No historical
+learning repair was attempted.

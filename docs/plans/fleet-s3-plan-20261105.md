@@ -14,8 +14,9 @@ restore credentials. A retention owner controls pruning; producers cannot.
 
 Use the existing project on main. This plan does not create another service
 until the reuse review identifies its existing operational owner. Reuse
-launchd/systemd, native capture interfaces, the SA Artalk S3 checksum/version
-receipt pattern, existing monitoring and native RuVector snapshot facilities.
+the existing HZ migration uploader's whole-file hash reuse and checksum/version
+receipts, launchd/systemd, native capture interfaces, the SA Artalk packaging
+pattern, existing monitoring and native RuVector snapshot facilities.
 Do not reuse Artalk's direct SQLite code for managed Ruflo stores.
 
 ## Phase 1: Complete enrollment
@@ -45,6 +46,12 @@ Do not reuse Artalk's direct SQLite code for managed Ruflo stores.
 6. Track inaccessible host, missing path, unsupported backend and denied scope
    as different outcomes. Reconcile observed candidate roots to approved
    exclusions; a count of zero from a narrow scan never proves absence.
+7. Enroll the existing Stockholm migration archive and its exact-version
+   manifests separately from current source stores. Reconcile historical RVF
+   payloads with corpus/ID metadata retained outside that selected set. Source
+   deletion makes archive custody a recovery dependency. Later authorized
+   read-only cloud qualification must establish present versions, bytes, costs,
+   ownership and protection before choosing reuse, extension or a new boundary.
 
 Exit evidence: signed-off host register, store-to-owner map, all known gaps
 assigned, and a finite first pilot group. Fleet-wide completion waits for every
@@ -115,7 +122,14 @@ without access to the original RVF parent paths.
 Exit evidence: independently restorable local set, manifest dependency closure,
 source unchanged by verification, and measured capture/restore time and resources.
 
-## Phase 4: Add S3 delivery and recovery controls
+## Phase 4: Qualify reused S3 delivery and recovery controls
+
+Adapt the existing migration uploader only after native artifacts are sealed.
+Its changing-file checks are not native capture barriers. Its original identity
+both uploaded and verified; split those privileges and qualify resume reconciliation
+against exact remote versions. Preserve its explicit denial/error handling and
+checksums while adding manifest dependency closure and retention verification.
+Do not rerun the historical candidate/deletion workflow as a fleet backup job.
 
 1. Use infrastructure as code in the existing infrastructure owner. Configure
    private access, TLS, versioning, encryption, bounded Object Lock retention,
@@ -144,7 +158,10 @@ source unchanged by verification, and measured capture/restore time and resource
    cannot activate production workloads or bypass governance retention.
 8. Abort incomplete multipart uploads after seven days. Configure explicit
    noncurrent-version expiration and delete-marker cleanup. Never rely on
-   current-version expiration alone in a versioned bucket.
+   current-version expiration alone in a versioned bucket. Apply these rules
+   only to the newly qualified policy scope; the existing migration archive had
+   no expiry. Preserve it until dependencies and owner-approved retention are
+   established, including payloads no longer present locally.
 
 Exit evidence: actual remote readback by another identity, successful isolated
 S3 restore, denied destructive producer operations and demonstrated stale-backup
@@ -160,7 +177,9 @@ Start one small group, then one representative large group per host/OS/backend.
 Sequence shared user-memory groups by their consumer dependencies. Add one
 store family at a time, preserving existing backups and pause state.
 
-Use exact artifact hash reuse first. For high-churn large snapshots, qualify an
+Reuse the migration uploader's exact artifact hash approach first. Its historical
+19,917 reused file paths do not predict savings for changing databases.
+For high-churn large snapshots, qualify an
 existing deduplicating backup engine against immutable storage, encryption,
 retention and full restore requirements. Assess native RuVector snapshot chunks
 first for that workload. Selection of a library or algorithm is deferred until
