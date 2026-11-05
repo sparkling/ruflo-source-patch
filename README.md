@@ -1471,6 +1471,25 @@ withdrawal preflight remains atomic within each installed bridge/tool pair. An
 unsupported older cache stays visibly incomplete while independently proven
 packages receive their complete patches. Invalid preflight file scopes fail closed.
 
+## AIDefence server configuration
+
+`ruflo-aidefence-config` repairs the MCP configuration gap in
+[#4785](https://github.com/ruvnet/ruflo/issues/4785). Set
+`RUFLO_AIDEFENCE_PACKS=false` in the environment of the Ruflo process that executes
+security tools to select upstream's built-ins-only mode. `true` enables the native
+packs; omission preserves the upstream default. Other values, including an empty
+string, refuse configuration. Restart the executing server after changing it.
+
+This selects the existing `createAIDefence({ packs })` option consistently in all
+three initialisation/retry paths. It leaves built-in detection, PII and learning
+enabled, and changes no caller arguments, regexes, thresholds or tool schemas.
+Disabling packs removes their additional obfuscation, encoded-input and other
+pack detections; it does not promise that every remaining false positive disappears.
+Where clients forward tools to a shared native owner, configure that owner rather
+than only the client. The mod's `guard` option controls learning-sample admission,
+not AIMDS packs. Retire this patch when upstream exposes equivalent validated
+server configuration and passes the same initialisation and native scan tests.
+
 ## Native controller inventories
 
 `ruflo-controller-inventory` binds existing public AgentDB methods through the
@@ -2201,6 +2220,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 |--------|---------------|----------|
 | **`ruflo-pattern-receipt`** | Requires a successful delegated pattern store and exact namespace/key/content readback before acknowledging fallback persistence. Covers the MCP handler and memory bridge; a failed native controller cannot acquire a misleading persisted note. | [#3691 · closed](https://github.com/ruvnet/ruflo/issues/3691) |
 | **`ruflo-pattern-search-result`** | Preserves native and legacy pattern lookup while separating verified empty results from controller/read failures. Missing handles, malformed results and failed legacy reads remain explicit. Retire when upstream preserves both healthy no-match and failed-read distinctions through native tests. | [#4714](https://github.com/ruvnet/ruflo/issues/4714) |
+| **`ruflo-aidefence-config`** | Passes validated server-level pack selection to native AIDefence in all three loading paths. Omitted configuration preserves defaults; invalid values refuse. Built-in detection and PII remain. | [#4785](https://github.com/ruvnet/ruflo/issues/4785) |
 | **`ruflo-tier-consolidation`** | Withdrawn: restores native explicit unsupported consolidation instead of supplying a custom tier-copy algorithm. Exact reversal composes with native context restoration and preserves every historical record. | [#2977](https://github.com/ruvnet/ruflo/issues/2977) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164) |
 | **`ruflo-policy-ledger`** | Separates immutable receipt segments from a bounded working state after an explicit first migration. Native authorization and receipt verification remain authoritative. Archive contents and directories are synced before state publication; the prefix boundary is authenticated. Complete `policy audit`/verification retain all history. Installing alone does not migrate a project. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164); [review of #3892](https://github.com/ruvnet/ruflo/pull/3892#issuecomment-6059183467) |

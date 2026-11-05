@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-04. SessionStart can observe fresh exact installed composition without becoming a writer; unknown or changed sources retain exclusive repair. Explicit-store inventory reads reuse equivalent native policy
+**Updated**: 2026-11-05. The issue-backed AIDefence target wires native server pack configuration without changing detector rules. SessionStart can observe fresh exact installed composition without becoming a writer; unknown or changed sources retain exclusive repair. Explicit-store inventory reads reuse equivalent native policy
 authority; bounded lifecycle handoff and store/read reuse remain. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
