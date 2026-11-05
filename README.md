@@ -1480,9 +1480,9 @@ count-only `agentdb_hierarchical-stats`. [#4712](https://github.com/ruvnet/ruflo
 adds `agentdb_hierarchical-list` and `agentdb_hierarchical-get` inside the existing
 native TieredMemoryStore owner. Native pages retain their records, totals,
 limit and offset; concurrent pages are not a transactional snapshot. Skill reads
-preserve native backend refusals. Tier counts and persisted rows describe different
-representations and retain native durability/fallback qualifiers; they are not a
-hierarchical record census. The patch uses the canonical registry and native
+preserve native backend refusals. Tier statistics describe runtime representations
+and retain native durability/fallback qualifiers; statistics alone are not a
+persisted-record census. The patch uses the canonical registry and native
 operation lease, creates no driver or storage, and exposes no mutations.
 
 Tier inventory defaults to `state: all`, including persisted expired, future and

@@ -2,7 +2,7 @@
 
 **Status**: Accepted; HZ access, declared private holdings and native inventories implemented; remaining capability limits explicit
 **Date**: 2026-11-04
-**Updated**: 2026-11-05. Native tier access and pattern-result repair qualified; activation tracked separately.
+**Updated**: 2026-11-05. Release 4.46.142: tier access, pattern-result repair and 60 consumer connections verified live.
 Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
 overbroad content filters. Shared content admission and the document/native-inventory expansion are
@@ -404,7 +404,7 @@ over persisted IDs/history; `asOf` fixes validity time, never a multi-page snaps
 #4714 preserves legacy pattern lookup but distinguishes healthy empty reads from failures.
 
 The artefact owner (`295e4ba` / `75d9029`) integrates methods, skills and defaults in `02da635`.
-Forty-four initial regressions passed. The verified baseline has 22 tools; tier activation adds two.
+Forty-four initial regressions passed. All 60 current consumer connections now expose 24 tools.
 The resulting interface has eighteen native reads, two document methods, two artefact methods and two
 compatibility methods. Publication/generation catalogues are separated from
 primary document results; discussion and authoring research remain readable.
@@ -434,13 +434,13 @@ private-holdings verification and `product-cold/completion-summary.json`.
 
 ### Actual consumer activation and remaining limits
 
-All three HZ source services now use the canonical current runtime. Fifteen
-source/session combinations across three retained HZ project consumers and all
-five sources in the retained Mac consumer now advertise 22 methods and passed exact
-native reads after route retirement. The inventory release gracefully reloaded
-the five existing owners; configuration and source identities stayed intact.
-Authentication/wrong-source checks returned 401/404. The Mac tunnel and service were
-stopped after verified cutover and zero remaining established connections.
+Release 4.46.142 refreshed 22 native project owners and all three HZ source services.
+All 60 source connections across 12 loaded Mac/HZ parents expose 24 tools and passed
+tier listing plus exact same-row reads; ten absence and ten source-override checks passed.
+Unrelated consumer configuration stayed intact. Tier totals were BA 74, SA 4, EA 24,
+Product 22 and AI-BA 246 at observation. Strategy's original Product query returned
+12 candidates with no coverage gaps in 61.069 seconds; native pattern no-match took
+723 ms. This clears its degraded-empty defect, not the remaining broad-search cost.
 
 Actual consumer searches and complete/hash-checked reads passed for the omitted
 source classes, including TXT/CSV, reviewed assertions, authoring Markdown,
@@ -465,9 +465,9 @@ service activation, expanded-class and Product follow-up proofs. Its HZ and Mac
 `hz-proof/final-runtime-proof.json` records unchanged owners and retired routes.
 Unrelated configuration was preserved at mutation; subsequent independent hook
 trust-hash changes are not falsely described as byte-for-byte global preservation.
-Dormant opportunity projects now inherit the user bindings; no active opportunity
-or Claude session was available for a live consumer proof. Their configuration
-updates do not extend the four retained-parent execution evidence.
+Dormant projects inherit user bindings; Claude registrations were checked, without
+claiming a live Claude-process refresh. Current receipts are in `.local/tier-inventory-20261104/`.
+Twenty search/exact calls used twenty owner policy transactions; no duplicate client evaluation.
 
 ## Consequences
 
