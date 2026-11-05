@@ -117,5 +117,40 @@ ${section(source, '  const restoreStart', '  // Turn health')}`;
   const unavailable = childLoad.replace(JSON.stringify(runtime), JSON.stringify(path.join(home, 'absent.cjs')));
   const withoutLogger = dispatch(unavailable + core(patched.next));
   assert.equal(withoutLogger.status, 0); assert.match(withoutLogger.stdout, /PROJECT STATE/);
+
+  // Failure-local policy evidence survives rotation of the shared timing ring.
+  const policyDir = path.join(home, '.ruflo-source-patch/policy-diagnostics');
+  fs.mkdirSync(policyDir, { mode: 0o700 });
+  const timing = { startedAt: new Date(Date.now() - 100).toISOString(), pid: 123,
+    project: 'a'.repeat(16), private: 'PRIVATE_POLICY_SECRET',
+    phases: [{ phase: 'waiting', elapsedMs: 0 }, { phase: 'anchors-verified', elapsedMs: 80 },
+      { phase: 'released', elapsedMs: 95 }],
+    operations: [{ tool: 'memory_list', inputDigest: 'sha256:' + 'b'.repeat(64),
+      route: 'owner', queueWaitMs: 50, input: 'PRIVATE_POLICY_INPUT' }] };
+  const putTiming = (slot, row) => fs.writeFileSync(path.join(policyDir, `transaction-${slot}.json`),
+    JSON.stringify(row), { mode: 0o600 });
+  putTiming(0, timing);
+  putTiming(1, { ...timing, startedAt: new Date(Date.now() - 120_000).toISOString() });
+  fs.symlinkSync(path.join(policyDir, 'transaction-0.json'), path.join(policyDir, 'transaction-2.json'));
+  putTiming(3, { ...timing, private: 'x'.repeat(20000) });
+  assert.equal(run(`${publish}({failed:true,status:'timed-out',ms:3501,budgetMs:3500});`).status, 0);
+  const snapshotText = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'))
+    .map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('');
+  const snapshots = snapshotText.trim().split('\n').map(JSON.parse).filter(r => r.phase === 'restore-policy-window');
+  assert.equal(snapshots.length, 1);
+  assert.equal(snapshots[0].transactions.length, 1, 'old, symlink and oversized sources excluded');
+  assert.equal(snapshots[0].transactions[0].operations[0].tool, 'memory_list');
+  assert.equal(snapshots[0].transactions[0].phases[1].elapsedMs, 80);
+  assert(!snapshotText.includes('PRIVATE_POLICY_SECRET'));
+  assert(!snapshotText.includes('PRIVATE_POLICY_INPUT'));
+  assert(snapshots[0].scanned <= 128);
+  assert(Buffer.byteLength(JSON.stringify(snapshots[0])) < 66000);
+  putTiming(0, { ...timing, phases: [] });
+  assert.equal(snapshots[0].transactions[0].phases[1].elapsedMs, 80, 'failure copy survives ring overwrite');
+  assert.equal(run(`${publish}({failed:false,status:'restored',ms:5,budgetMs:3500});`).status, 0);
+  const afterSuccess = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl')).flatMap(f =>
+    fs.readFileSync(path.join(dir, f), 'utf8').trim().split('\n').map(JSON.parse));
+  assert.equal(afterSuccess.filter(r => r.phase === 'restore-policy-window').length, 1,
+    'successful restore does not scan the policy ring');
 } finally { fs.rmSync(home, { recursive: true, force: true }); }
 console.log('Brain restore diagnostics: pristine quiet-output failures reproduced; success/partial/refused/empty/throw/deadline outcomes, native budgets, privacy and bounded logger reuse pass');

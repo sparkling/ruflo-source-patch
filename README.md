@@ -961,6 +961,16 @@ regression covers that boundary, successful and failed restore records, and an
 unavailable logger leaving the native outcome unchanged. No global `NODE_OPTIONS`
 or subprocess behavior is changed.
 
+Failed restores now preserve a private snapshot of overlapping native policy
+transactions beside the hook result, before the shared 128-slot timing ring
+can rotate. The snapshot retains only allowlisted phase/queue timings, process
+and project identities, tool names and request digests; no memory values,
+arguments, credentials or raw errors. Reads are bounded by fixed slot, byte and
+elapsed limits; unavailable or unsafe diagnostics never change restoration.
+Overlap is evidence for investigation, not automatic attribution. Successful
+restores do not scan the policy ring. This closes the diagnostic gap exposed by
+R2 and ST03; it is not a latency fix or proof that those failures recovered.
+
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
 both monitors reported no drift. Fresh native reads each produced one completed
