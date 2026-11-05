@@ -25,6 +25,10 @@ the upstream SQLite-file, symlink or caller-context checks.
 
 - Native daemon stop/ownership changes in 3.71.3 are recognized by executable
   retirement proof. Current daemon source remains unmodified by the legacy patch.
+  [#4654](https://github.com/ruvnet/ruflo/issues/4654) is closed for the native
+  health diagnostics and persistent daemon-stop fix. The opt-in memory-owner
+  target remains a downstream forwarding adaptation: pristine 3.71.4 dispatch
+  still invokes its local handler rather than the configured persistent owner.
 - The selective-learning guard retires on the exact published native refusal for
   unsupported `trajectoryIds` ([#4693](https://github.com/ruvnet/ruflo/issues/4693)).
   Ordinary learning remains upstream-owned; explicit selection cannot become a global cycle.
@@ -226,7 +230,8 @@ closure and source compatibility are separate from live activation.
   persistent allocation or one belonging to a held handler; that handler still
   completes once. The owner protocol remains necessary, without a claim that it
   overrides native capacity eviction.
-- [Ruflo #4654](https://github.com/ruvnet/ruflo/issues/4654) remains open.
+- At this 4 November review, [Ruflo #4654](https://github.com/ruvnet/ruflo/issues/4654)
+  remained open; the 5 November review above records its closure and native fix.
   Native `agentdb_health` now exposes initialization failure and a lock hint;
   this diagnostic does not replace explicit owner routing or resolve daemon
   respawn. All eight owner-patched source files pass exact composition,
@@ -1122,8 +1127,9 @@ reconnections are active; full fleet and incident verification remain incomplete
 Rechecked on **3 November** for the requested Mac-then-HZ upgrade: the public
 registry still names Ruflo and CLI 3.71.0 as latest. All seven qualified CLI/native
 dependency integrities and the Ruflo, AgentDB and RuVector source heads are unchanged.
-Issue #4654 remains open; related PR #4667 remains unmerged and changes health
-reporting, not store ownership.
+At that historical review, issue #4654 remained open and related PR #4667 remained
+unmerged; its health reporting changes did not provide store-owner forwarding.
+The 5 November review above records the later native fix and issue closure.
 
 The existing disposable concurrency test was rerun against source bytes verified
 identical to the published package. Its owner stored and retrieved the expected
@@ -2364,7 +2370,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-capture-idempotency`** | Native store/read process reuse, bounded fresh lifecycle handoff and read-only reconciliation through the unchanged complete turn constructor. | [#520](https://github.com/stuinfla/ruvnet-brain/issues/520), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
-| **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |
+| **`ruflo-memory-owner`** | Opt-in downstream owner forwarding, exact path authority, immutable public/CLI results and native daemon client reuse; separate from the completed native daemon-stop fix. | [#4654 · closed: native health and daemon stop](https://github.com/ruvnet/ruflo/issues/4654) |
 | **`ruflo-http-sessions`** | Bind native HTTP requests to their own session and authenticated principal; return session IDs and pre-dispatch expiry responses so clients can reinitialize after replacement. Preserve native completion retirement and legacy SSE binding. | [#3294 · open](https://github.com/ruvnet/ruflo/issues/3294) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`ruflo-controller-inventory`** | Native pattern/skill inventories, exact skills, persisted tier list/get and count-only tier statistics through the existing owner. | [#4707](https://github.com/ruvnet/ruflo/issues/4707), [#4712](https://github.com/ruvnet/ruflo/issues/4712) |
