@@ -34,6 +34,30 @@ function tool(source, counts) {
     intelligence, async () => { counts.sona++; return null; }, async () => { counts.ewc++; return null; });
 }
 const counts = () => ({ distill: 0, background: 0, sona: 0, ewc: 0 });
+const nativeRefusal = fixture.nativeRefusalTool;
+assert.deepEqual(patchSource(nativeRefusal).missing, [], 'recognize the published native #4693 refusal');
+assert.equal(patchSource(nativeRefusal).next, nativeRefusal);
+assert.deepEqual(patchSource(nativeRefusal).applied, []);
+assert.equal(reverse(nativeRefusal), nativeRefusal);
+for (const selection of [['selected'], [], null, 'invalid', 42]) {
+  const effects = counts();
+  const result = await tool(nativeRefusal, effects).handler({ trajectoryIds: selection });
+  assert.equal(result.success, false); assert.equal(result.learned, false);
+  assert.match(result.error, /trajectoryIds is not supported/);
+  assert.deepEqual(effects, counts(), 'native refusal precedes imports, learning and optimizer access');
+}
+for (const params of [{}, { consolidate: false }, { consolidate: true }, { trajectoryIds: undefined }]) {
+  const before = counts(), after = counts();
+  const a = await tool(native, before).handler(params), b = await tool(nativeRefusal, after).handler(params);
+  delete a.duration; delete b.duration;
+  assert.deepEqual(b, a); assert.deepEqual(after, before, 'native omission/default behavior remains intact');
+}
+for (const changed of [nativeRefusal.replace('params.trajectoryIds !== undefined', 'false'),
+  nativeRefusal.replace('distillLearning()', 'differentNativeLearning()')]) {
+  assert.ok(patchSource(changed).missing.length); assert.equal(patchSource(changed).next, changed);
+}
+const adjacentSecurity = 'const projectDataMustRemainUntrusted = true;\n' + nativeRefusal;
+assert.equal(patchSource(adjacentSecurity).next, adjacentSecurity, 'native acceptance never rewrites adjacent security code');
 const oldCounts = counts();
 await tool(native, oldCounts).handler({ trajectoryIds: ['selected'], consolidate: false });
 assert.deepEqual(oldCounts, { distill: 1, background: 1, sona: 1, ewc: 0 }, 'native reproduces #4693');
@@ -65,20 +89,27 @@ try {
   const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: scratch,
     RUFLO_GLOBAL_ROOT: path.join(scratch, 'global'), RUFLO_NPX_ROOT: path.join(scratch, 'npx') };
   const body = `import fs from 'node:fs'; import path from 'node:path'; import assert from 'node:assert/strict';
-import {preflight,NAME,patchSource} from ${JSON.stringify(new URL('../lib/ruflo-selective-learning/patcher.mjs', import.meta.url).href)};
+import {preflight,NAME,patchSource,probeNativeSelection} from ${JSON.stringify(new URL('../lib/ruflo-selective-learning/patcher.mjs', import.meta.url).href)};
 import {applyComposed,reconcile} from ${JSON.stringify(new URL('../lib/plugin-compose.mjs', import.meta.url).href)};
-const native=${JSON.stringify(native)},bridge=${JSON.stringify(bridge)},unknown=native.replace('distillLearning()', 'differentNativeLearning()');
+const native=${JSON.stringify(native)},nativeRefusal=${JSON.stringify(nativeRefusal)},bridge=${JSON.stringify(bridge)},unknown=native.replace('distillLearning()', 'differentNativeLearning()');
 const root=process.env.RUFLO_GLOBAL_ROOT,cache=path.join(process.env.RUFLO_NPX_ROOT,'unknown/node_modules');
 const put=(base,name,value)=>{const f=path.join(base,'@claude-flow/cli/dist/src',name);fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,value);return f;};
 const goodBridge=put(root,'memory/memory-bridge.js',bridge), good=put(root,'mcp-tools/hooks-tools.js',native);
 const badBridge=put(cache,'memory/memory-bridge.js',bridge),bad=put(cache,'mcp-tools/hooks-tools.js',unknown);
 assert.deepEqual(new Set(preflight().blockedFiles),new Set([badBridge,bad]));
+assert.equal((await probeNativeSelection()).state,'unknown');
 const result=applyComposed([NAME]);assert(result.incomplete>0);assert.equal(fs.readFileSync(good,'utf8'),patchSource(native).next);
 assert.equal(fs.readFileSync(bad,'utf8'),unknown);assert.equal(fs.readFileSync(badBridge,'utf8'),bridge);
 assert(!fs.existsSync(bad+'.rsp-backup'));assert(!fs.existsSync(badBridge+'.rsp-backup'));
 fs.rmSync(path.join(process.env.RUFLO_NPX_ROOT,'unknown'),{recursive:true});
+assert.equal((await probeNativeSelection()).state,'live');
 assert.equal(reconcile([],[NAME]).errors,0);assert.equal(fs.readFileSync(good,'utf8'),native);
+fs.writeFileSync(good,nativeRefusal);assert.equal(preflight().ok,true);
+assert.equal((await probeNativeSelection()).state,'fixed');
+const nativeResult=applyComposed([NAME]);assert.equal(nativeResult.incomplete,0);
+assert.equal(fs.readFileSync(good,'utf8'),nativeRefusal,'native tool survives the normal composer unchanged');
 fs.unlinkSync(goodBridge);assert.deepEqual(preflight().blockedFiles,[good]);
+assert.equal((await probeNativeSelection()).state,'unknown');
 `;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', body], { env, encoding: 'utf8', timeout: 30000 });
   assert.equal(result.status, 0, result.stderr + result.stdout);
