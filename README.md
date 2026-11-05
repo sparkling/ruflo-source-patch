@@ -15,6 +15,32 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Ruflo 3.71.4 patch review: 5 November 2026
+
+Version 4.46.144 qualifies the published Ruflo/CLI 3.71.4 security release while
+preserving its new MCP file-path validation and local-CLI capability boundary.
+The owner schema adapter accepts the new context-aware handlers; memory statistics
+continue through that same native path resolver. Neither patch removes or bypasses
+the upstream SQLite-file, symlink or caller-context checks.
+
+- Native daemon stop/ownership changes in 3.71.3 are recognized by executable
+  retirement proof. Current daemon source remains unmodified by the legacy patch.
+- The selective-learning guard retires on the exact published native refusal for
+  unsupported `trajectoryIds` ([#4693](https://github.com/ruvnet/ruflo/issues/4693)).
+  Ordinary learning remains upstream-owned; explicit selection cannot become a global cycle.
+- Native context guidance and row-identity pagination fixes remain recognized.
+  The remaining pagination schema guard, native-owner routing, HTTP session repair,
+  pattern-result handling, controller inventory and AIDefence configuration patches
+  still cover verified gaps; issue closure alone does not retire these different responsibilities.
+- Brain's new publication updates the corpus, not executable source: runtime 4.7.28
+  is unchanged. All 16 active Brain targets remain satisfied on Mac and HZ; the
+  review of 41 linked issues found no new executable fix requiring retirement.
+
+Qualification includes fresh published-package composition, exact restoration,
+native path-security negative tests, daemon ownership, selected-learning refusal,
+and the repository regression suite. Package installation and live activation are
+recorded separately; no database migration or Brain updater replacement is involved.
+
 ## Research API retirement and hourly probe: 5 November 2026
 
 All five authoritative HZ research MCPs expose 22 methods after Product commit
