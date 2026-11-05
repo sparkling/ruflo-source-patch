@@ -47,6 +47,14 @@ native path-security negative tests, daemon ownership, selected-learning refusal
 and the repository regression suite. Package installation and live activation are
 recorded separately; no database migration or Brain updater replacement is involved.
 
+Upgrade sequencing must preserve the owner integration: qualify the new package
+against every physical claimant, including Brain's resolved CLI, before replacing
+live bytes. For each owner, complete the package upgrade, required native dependency
+checks, immediate patch reapplication and installed composition proof, then refresh
+and verify its clients before proceeding to another owner. Batch replacement during
+this rollout left an unpatched interval and caused hook failures; a package version
+or an owner restart alone is not proof that the original clients have recovered.
+
 ## Research API retirement and hourly probe: 5 November 2026
 
 All five authoritative HZ research MCPs expose 22 methods after Product commit

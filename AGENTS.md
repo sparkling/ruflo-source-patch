@@ -119,6 +119,13 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
   permitted when configured; never silently switch transports or persist
   provider credentials in this repository.
 - Do not apply the Brain's `release-proof` skill to this repository (user instruction, 2026-09-13). Follow this repository's main-only, immutable-semver-tag release process; retain scoped regression tests, disclose existing failures, and verify installation separately from live MCP activation.
+- Before replacing a live Ruflo package, qualify the published bytes against every
+  physical patch claimant, including the CLI selected by Brain's native resolver.
+  Complete each owner package's upgrade, required native dependency checks,
+  immediate patch reapplication and installed composition proof, then refresh and
+  verify its actual clients before moving to the next owner. Never batch-replace
+  live packages and leave their owner forwarding absent while later qualification
+  runs. If qualification reveals a gap, resolve it before replacing more packages.
 - Patch only installed npm/npx package or plugin source bytes through a named, issue-backed patch target.
 - Brain executable source, including hooks and MCP handlers in the active installed generation, may be patched by that framework with exact anchors, pristine restoration, monitor re-application, behavioural proof, and an upstream retirement condition.
 - NEVER interfere with RuvNet Brain's native KB and release-update plane: do not disable, delay, pin, redirect, shadow, replace, or bypass its downloads, background updater, `active.json`, version selection/promotion, KB/cache data, update receipts, or self-learning data. Do not rewrite Brain version identity or present locally patched bytes as a different upstream release.
