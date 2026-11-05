@@ -84,6 +84,7 @@ import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/com
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
+import { rufloPatternSearchResultCommand } from '../lib/ruflo-pattern-search-result/commands.mjs';
 import { rufloSelectiveLearningCommand } from '../lib/ruflo-selective-learning/commands.mjs';
 import { rufloTierConsolidationCommand } from '../lib/ruflo-tier-consolidation/commands.mjs';
 import { rufloControllerInventoryCommand } from '../lib/ruflo-controller-inventory/commands.mjs';
@@ -153,6 +154,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
+  'ruflo-pattern-search-result': rufloPatternSearchResultCommand,
   'ruflo-tier-consolidation': rufloTierConsolidationCommand,
   'ruflo-selective-learning': rufloSelectiveLearningCommand,
   'ruflo-controller-inventory': rufloControllerInventoryCommand,
@@ -257,6 +259,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-controller-inventory')} native pattern/skill inventories; count-only tier statistics (#4707)
   ${pad('ruflo-pattern-withdrawal')} selective native ReasoningBank exact get/hash-guarded delete (#3450/#829 context)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
+  ${pad('ruflo-pattern-search-result')} distinguish native no-match from failed pattern reads (#4714)
   ${pad('ruflo-selective-learning')}refuse unsupported native trajectory selection before learning (#4693)
   ${pad('ruflo-tier-consolidation')}withdraw custom consolidation; restore native unsupported controller (#2977)
   ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)

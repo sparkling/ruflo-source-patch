@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { patchSource, reverse, isPatched, TOOL_EDITS, BRIDGE_EDITS } from '../lib/ruflo-pattern-search-result/patcher.mjs';
 const fixture = fs.readFileSync(new URL('./fixtures/pattern-search/native-3.71.1.mjs', import.meta.url), 'utf8');
 const boundary = fixture.indexOf('/**\n * Case-insensitive substring');
@@ -93,3 +96,29 @@ assert.match((await bridgeFunction(args)).error, /Invalid native/);
 for (const [source, edits] of [[toolSource, TOOL_EDITS], [bridgeSource, BRIDGE_EDITS]])
   for (const [anchor] of edits) assert(patchSource(source.replace(anchor, 'changed upstream')).missing.length);
 console.log('PASS pattern search: reproduced healthy-empty degradation; legacy coverage retained; native/semantic/list/exact failures remain failures; exact restoration and changed-source refusal');
+const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-pattern-cli-')));
+try {
+  const home = path.join(scratch, 'home'), globalRoot = path.join(scratch, 'global');
+  fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.claude/settings.json'), '{}');
+  const fixtures = [['mcp-tools/agentdb-tools.js', toolSource], ['memory/memory-bridge.js', bridgeSource]];
+  for (const [name, source] of fixtures) {
+    const file = path.join(globalRoot, '@claude-flow/cli/dist/src', name);
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, source);
+  }
+  const env = { ...process.env, HOME: home, RUFLO_SOURCE_PATCH_HOME: home,
+    RUFLO_GLOBAL_ROOT: globalRoot, RUFLO_NPX_ROOT: path.join(scratch, 'npx'),
+    RSP_CODEX_HOME: path.join(home, '.codex'), RSP_NO_SELF_UPDATE: '1',
+    RSP_NO_LAUNCHCTL: '1', RSP_NO_MONITOR_RECOVER: '1', RSP_NO_STALE_WRITER_KILL: '1' };
+  for (const action of ['install', 'status', 'uninstall']) {
+    const run = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname, 'ruflo-pattern-search-result', action],
+      { cwd: scratch, env, encoding: 'utf8', timeout: 30000 });
+    assert.equal(run.status, 0, action + ': ' + run.stdout + run.stderr);
+    assert.doesNotMatch(run.stderr, /unknown target/);
+    for (const [name, source] of fixtures) {
+      const live = fs.readFileSync(path.join(globalRoot, '@claude-flow/cli/dist/src', name), 'utf8');
+      assert.equal(live, action === 'uninstall' ? source : patchSource(source).next);
+    }
+  }
+} finally { fs.rmSync(scratch, { recursive: true, force: true }); }
+console.log('PASS public CLI pattern-result install/status/uninstall: exact fixture application and restoration');
