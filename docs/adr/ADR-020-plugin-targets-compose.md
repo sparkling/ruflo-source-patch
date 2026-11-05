@@ -65,8 +65,16 @@ exclusive path. Mutable/unavailable stable sources keep the existing no-auto-hea
 policy and status; no new stable-provenance claim follows from vendor observation.
 Heartbeat and uncovered-build reporting remain. Tests prove four startup and two
 monitor followers publish no mutation claims after a writer releases; drift still
-repairs exclusively. Lock ownership and timeout remain unchanged. Live timing and
-startup-contention qualification for this follow-on are pending.
+repairs exclusively. Lock ownership and timeout remain unchanged. Live 4.46.147
+installs took 11.7 seconds on Mac and 21.2 seconds on HZ with one shared composition;
+all discovered vendor/pristine bytes were unchanged. Actual SessionStart followers
+began within 44 milliseconds of lock acquisition and passed with zero mutation
+claims: total durations were 16.6 and 31.8 seconds, including proof after release.
+Neither reached the unchanged 30-second lock-wait failure. A fresh stable hook from
+the original Strategy project also passed without a reapply failure. The complete
+monitor entry retains a separate package-maintenance lock; the Mac passive stack
+attributed its sole claim to that step, not vendor reapplication. These observations
+qualify the reproduced contention case without promising timing under arbitrary load.
 
 Version 4.46.128 reuses the native owner for fixed-source list/stats/export batches of at most four, retaining native policy, trust, one-call retirement, cancellation and draining; other calls retain their prior path. This does not claim an atomic snapshot. The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without

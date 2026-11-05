@@ -2166,8 +2166,8 @@ unchanged. The 5 November 2026 live 4.46.146 installs took 21.3 seconds on Mac a
 34.1 seconds on HZ, with three complete sweeps and no changed discovered vendor or pristine
 backup bytes. Concurrent SessionStart tests begun immediately after lock acquisition
 still reached the unchanged 30-second wait limit: HZ waited for the installer;
-Mac waited for the newly scheduled monitor after the installer released. Batching
-reduces installation work but does not yet resolve that startup-contention case.
+Mac waited for the newly scheduled monitor after the installer released. That
+release reduced installation work but did not resolve the startup-contention case.
 
 The follow-on installer reuses the existing registration and trust helpers around
 one shared composition. The monitor now shares SessionStart's fresh exact
@@ -2176,7 +2176,15 @@ unchanged bytes. Retirement candidates, positive stable-copy drift and failed
 composition proof retain exclusive repair. Mutable or unavailable stable sources
 keep their existing no-auto-heal classification; observation does not certify
 stable-source provenance. Lock ownership and the 30-second wait are unchanged.
-Contention regressions pass; live 4.46.147 timing and startup proof remain pending.
+Live 4.46.147 installation on the same hosts took 11.7 seconds on Mac and 21.2
+seconds on HZ, with one shared composition and unchanged discovered vendor/pristine
+bytes. Actual SessionStart processes launched within 44 milliseconds of installer
+lock acquisition passed without a mutation claim or timeout. Their total durations
+were 16.6 and 31.8 seconds respectively, including verification after the lock was
+released; the 30-second limit applies to waiting for that lock. A subsequent actual
+SessionStart from the original Strategy project also passed. The monitor's separate
+protected package-maintenance step can still claim the lock. These are measured
+runs, not a guarantee for arbitrary machine load or future source drift.
 
 The **script targets stay opt-in**, because they change *your projects or user-level integrations*
 rather than the patched library.
