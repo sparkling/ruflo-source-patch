@@ -2,7 +2,8 @@
 
 **Status**: Accepted; HZ access, declared private holdings and native inventories implemented; remaining capability limits explicit
 **Date**: 2026-11-04
-**Updated**: 2026-11-04. Owner confirmed Hetzner as the authority for all five
+**Updated**: 2026-11-05. Native tier access and pattern-result repair qualified; activation tracked separately.
+Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
 overbroad content filters. Shared content admission and the document/native-inventory expansion are
 verified, committed and activated on Hetzner. Native pattern/skill inventories,
@@ -16,9 +17,8 @@ explicit. Laptop checkouts are not current authorities.
 
 AI Strategy Business Architecture needs research from BA, SA, EA research,
 Product and its own research. Other established consumers use the same sources.
-The owner requires live access without RVF export/import synchronization or a
-replicated common store, and prefers supported Ruflo configuration to building
-another retrieval system.
+The owner requires live access without export/import synchronization or a common replica,
+and prefers supported Ruflo configuration to another retrieval system.
 
 Our current source interfaces combine native reads with document loading,
 namespace enumeration/export, additional candidate retrieval, body admission and
@@ -399,13 +399,13 @@ Issue-backed `ruflo-controller-inventory`, release 4.46.137, exposes native
 same owner, operation lease and authorization path. Pages preserve native totals,
 filters and offsets; they are live reads, not a transaction across concurrent writes.
 `agentdb_hierarchical-stats` exposes native counts and durability/fallback details,
-not tier record enumeration. No standalone driver, raw database read or new
-inventory algorithm is added. Retained SQL graphs remain a distinct representation.
+not tier record enumeration. Qualified #4712 adds native `agentdb_hierarchical-list/get`
+over persisted IDs/history; `asOf` fixes validity time, never a multi-page snapshot.
+#4714 preserves legacy pattern lookup but distinguishes healthy empty reads from failures.
 
-The separate artefact owner is committed as `295e4ba` / `75d9029` and integrated
-with source methods, skills, agents and installation defaults in `02da635`.
-Forty-four initial regressions passed. The current interface has 22 tools:
-sixteen native reads, two research-document methods, two artefact methods and two
+The artefact owner (`295e4ba` / `75d9029`) integrates methods, skills and defaults in `02da635`.
+Forty-four initial regressions passed. The verified baseline has 22 tools; tier activation adds two.
+The resulting interface has eighteen native reads, two document methods, two artefact methods and two
 compatibility methods. Publication/generation catalogues are separated from
 primary document results; discussion and authoring research remain readable.
 
