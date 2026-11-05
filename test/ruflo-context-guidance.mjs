@@ -43,6 +43,27 @@ for (const key of ['tool', 'skill', 'researcher']) {
     assert.equal(reverseSource(changed), changed, 'unknown marked edits cannot be restored');
   }
 }
+
+// Exact current upstream metadata retires locally without touching handlers.
+const upstreamGuidance = {
+  "tool": "export const agentdbContextSynthesize = {\n    name: 'agentdb_context-synthesize',\n    description: 'Summarize validated task episodes (task, reward, success, critique) that match a query: observed success rate, reward and critique-derived patterns. Ordinary documents, research notes and graph entities are not episodes, so for them it answers no-memories or no-eligible-episodes; read those with memory_search or memory_retrieve instead. Use when generic memory_* tools are wrong because you need AgentDB-specific controllers (HNSW vector search, hierarchical tiers, causal-graph links, pattern store/recall, RaBitQ quantization). For simple key-value persistence, memory_store/memory_retrieve are simpler. For unrelated file work, native Read/Write are fine.',\n    inputSchema: {\n        type: 'object',\n        properties: {\n            query: { type: 'string', description: 'Task to find matching validated episodes for' },\n            maxEntries: { type: 'number', description: 'Maximum episodes to include (default: 10)' },\n        },\n        required: ['query'],\n    },",
+  "skill": "   - Synthesize the findings yourself from what the searches return. `mcp__plugin_ruflo-core_ruflo__agentdb_context-synthesize` is not a document synthesizer: it summarizes validated task episodes (task, reward, success) and answers `no-memories` or `no-eligible-episodes` for research notes and sources, which is the correct answer, not missing research",
+  "researcher": [
+    "6. **Synthesize** \u2014 Write the research summary yourself from the graph findings and the records `memory_search` / `memory_retrieve` returned. Use `agentdb_context-synthesize` only for past task outcomes: it summarizes validated task episodes (task, reward, success) and answers `no-eligible-episodes` for documents and graph entities, which is correct, not a gap in the research.",
+    "- `mcp__plugin_ruflo-core_ruflo__agentdb_context-synthesize` \u2014 summarize validated task episodes (past task outcomes); not for documents or graph findings"
+  ]
+};
+const upstreamFixtures = {
+  tool: fixture.tool.slice(0, fixture.tool.indexOf('export const agentdbContextSynthesize')) + upstreamGuidance.tool + '\n' + fixture.tool.slice(fixture.tool.indexOf('    handler:')),
+  skill: fixture.skill.replace(/^   - .*for AI-assisted context building$/m, upstreamGuidance.skill),
+  researcher: fixture.researcher.replace(/6\. \*\*Synthesize\*\*[\s\S]*?   ```\n/, upstreamGuidance.researcher[0] + '\n')
+    .replace(/^- `mcp__plugin_ruflo-core_ruflo__agentdb_context-synthesize`.*$/m, upstreamGuidance.researcher[1]),
+};
+for (const source of Object.values(upstreamFixtures)) {
+  assert(isNative(source)); assert.equal(patchSource(source).next, source); assert.equal(reverseSource(source), source);
+  assert.equal(isNative(source.replace('validated task episodes', 'fabricated task episodes')), false);
+}
+
 const fixedSkill = patchSource(fixture.skill).next, fixedAgent = patchSource(fixture.researcher).next;
 assert.doesNotMatch(fixedSkill, /for AI-assisted context building/);
 assert.doesNotMatch(fixedAgent, /— merge multi-source findings|Merge graph findings into a coherent research summary:/);
