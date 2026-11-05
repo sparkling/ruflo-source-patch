@@ -2156,6 +2156,14 @@ two can never list a different set. A behaviorally superseded target such as cur
 target terminally retires without editing pristine vendor bytes. `all uninstall` / `all status` do the
 reverse and the readout.
 
+Ordinary composing targets install as one batch under the existing mutation lock.
+The full Brain boundary and additive installers keep their lifecycle; wrapper-guard
+still repairs legacy MCP registration, and hook-failure-log reconciles trust after
+the final ordinary composition. For the 37 composing installs observed on HZ in
+4.46.145, this changes dispatch to three full sweeps instead of 37. Retirement,
+preflight refusals and incomplete/error reporting remain; standalone commands are
+unchanged. Actual live elapsed time for the batched installer is not yet measured.
+
 The **script targets stay opt-in**, because they change *your projects or user-level integrations*
 rather than the patched library.
 They are also the most immediately useful thing here, so don't skip past them, and `run` executes

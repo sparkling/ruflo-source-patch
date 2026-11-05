@@ -95,7 +95,8 @@ import { rufloChampionAuthorityCommand } from '../lib/ruflo-champion-authority/c
 import { rufloPolicySerializationCommand } from '../lib/ruflo-policy-serialization/commands.mjs';
 import { rufloPolicyLedgerCommand } from '../lib/ruflo-policy-ledger/commands.mjs';
 import { brainManagedCliDiagnosticsCommand } from '../lib/brain-managed-cli-diagnostics/commands.mjs';
-import { runPluginCommand } from '../lib/plugin-command.mjs';
+import { runPluginCommand, installPluginTargets } from '../lib/plugin-command.mjs';
+import { COMPOSE_TARGETS } from '../lib/plugin-compose.mjs';
 import { brainUserLearningRootCommand } from '../lib/brain-user-learning-root/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
 import { brainWrapperOwnershipCommand } from '../lib/brain-wrapper-ownership/commands.mjs';
@@ -475,16 +476,29 @@ if (target === 'all') {
   // one call, one status table (looping them would re-render the whole table per target).
   if (!patchCommand(PATCH_TARGETS, action)) bad++;
 
-  // The plugin targets are independent, and adr-reindex can be RETIRED. Loop them, and never let `all`
-  // resurrect a retired target on install — the single-target path refuses this, so `all` must not be a
-  // back door around it. (uninstall/status still touch it, harmlessly.)
+  // Additive targets and the full Brain boundary retain their own lifecycle.
+  // Keep custom registration/trust pre/post steps too. Ordinary wrappers share
+  // one complete composition instead of each re-walking every installed file.
+  const installing = action === 'install' || action === 'init';
+  const composing = [];
+  let installHookLogger = false;
   for (const t of Object.keys(PLUGIN_PATCH_TARGETS)) {
     if ((action === 'install' || action === 'init') && isRetired(t, st)) {
       console.log(`[${t}] retired — skipped (upstream now does this; \`${t} status\` for why)`);
       continue;
     }
-    if (!(await PLUGIN_PATCH_TARGETS[t](action))) bad++;
+    if (installing && t === 'hook-failure-log') {
+      installHookLogger = true;
+      continue;
+    }
+    if (installing && COMPOSE_TARGETS.includes(t)
+        && !['brain-managed-memory-boundary', 'ruflo-wrapper-guard'].includes(t)) {
+      composing.push(t);
+    } else if (!(await PLUGIN_PATCH_TARGETS[t](action))) bad++;
   }
+  if (installing && !installPluginTargets(composing)) bad++;
+  // Trust must see the final hooked bytes, after every ordinary contribution.
+  if (installHookLogger && !(await hookFailureLogCommand(action))) bad++;
 
   // The monitor keeps them live; on uninstall it comes down too; status reports it alongside.
   monitorCommand(action === 'install' || action === 'init' ? 'install'

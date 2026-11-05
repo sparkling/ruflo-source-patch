@@ -25,7 +25,7 @@ import { legacyDaemonBytes, DAEMON_AUTOSTART_REL } from './daemon-fixtures.mjs';
 import * as patchLibrary from '../lib/cwd/patch-library.mjs';
 import { stageNativeShellHookDependencies } from '../lib/brain-native/gate-probes.mjs';
 
-const SB = process.argv[2];
+const SB = fs.realpathSync(process.argv[2]);
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
 const STABLE_LIB = path.join(STATE, 'lib');
@@ -727,11 +727,38 @@ console.log('✔ ambiguous anchors (A1 a duplicated anchor is refused, not guess
   // stub, so their coverage is guaranteed by construction — `all` iterates the real PATCH_TARGETS +
   // Object.keys(PLUGIN_PATCH_TARGETS) — and asserted here on the patch set that IS installable in a box.)
   freshSandbox();
-  cli(['all', 'install']);
+  const legacyConfig = path.join(HOME, '.codex/config.toml');
+  fs.mkdirSync(path.dirname(legacyConfig), { recursive: true });
+  fs.writeFileSync(legacyConfig, `[mcp_servers.ruflo]\ncommand = ${JSON.stringify(path.join(HOME, '.npm-global/bin/ruflo'))}\nargs = ["mcp", "start"]\n`);
+  const allInstalled = cli(['all', 'install']);
+  if (!fs.readFileSync(legacyConfig, 'utf8').includes('command = "npx"')) fail('M2 all install skipped wrapper registration repair');
+  // A named install composes the entire desired set. Calling it once per target
+  // used to hold the global writer lock for minutes over unchanged vendor bytes.
+  const summaries = [...out(allInstalled).matchAll(/^\[([^\]]+)\] patched: .*skipped:/gm)];
+  const batches = summaries.filter(row => row[1].includes('+'));
+  const named = summaries.filter(row => !row[1].includes('+')).map(row => row[1]);
+  if (batches.length !== 1 || JSON.stringify(named) !== JSON.stringify(['ruflo-wrapper-guard', 'hook-failure-log'])) {
+    fail(`M2 expected custom wrappers plus one ordinary batch: ${out(allInstalled)}`);
+  }
+  const boundary = out(allInstalled).indexOf('[brain-managed-memory-boundary] patched:');
+  if (boundary < 0 || boundary > batches[0].index) fail('M2 boundary transaction must precede plugin composition');
+  if (/INCOMPLETE|ERRORS:/.test(out(allInstalled)) && allInstalled.status === 0) {
+    fail('M2 batched incomplete/error result was reported as successful');
+  }
   let recorded = [];
   try { recorded = JSON.parse(fs.readFileSync(path.join(STATE, 'state.json'), 'utf8')).patchTargets || []; } catch { /* none */ }
   const missing = PATCH_TARGETS.filter((t) => !recorded.includes(t));
   if (missing.length) fail(`M2 \`all install\` did not install every patch target — missing: ${missing.join(', ')} (state=[${recorded}])`);
+  const desired = JSON.parse(fs.readFileSync(path.join(STATE, 'state.json'), 'utf8'));
+  const missingPlugins = PLUGIN_TARGETS.filter(t => !desired.pluginTargets.includes(t) && !desired.retired?.[t]);
+  if (missingPlugins.length) fail(`M2 batch omitted plugin targets: ${missingPlugins.join(', ')}`);
+
+  const savedConfig = legacyConfig + '.fixture';
+  fs.renameSync(legacyConfig, savedConfig); fs.symlinkSync(savedConfig, legacyConfig);
+  const refusedRepair = cli(['all', 'install']);
+  if (refusedRepair.status === 0 || !out(refusedRepair).includes('MCP repair failed:')) fail('M2 all install hid wrapper preflight refusal');
+  if (!fs.lstatSync(legacyConfig).isSymbolicLink()) fail('M2 refused wrapper repair changed linked config');
+  fs.unlinkSync(legacyConfig); fs.renameSync(savedConfig, legacyConfig);
 
   cli(['all', 'uninstall']);
   let left = [];

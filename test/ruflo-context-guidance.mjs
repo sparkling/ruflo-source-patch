@@ -174,11 +174,14 @@ for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'ut
 // of the new target without requiring every other target's vendor source fixtures.
 const { PATCH_TARGETS } = await import('../lib/cwd/patch-library.mjs');
 const { PLUGIN_TARGETS } = await import('../lib/plugin-registry.mjs');
-const retired = Object.fromEntries([...PATCH_TARGETS, ...PLUGIN_TARGETS].filter(name => name !== NAME)
+const retired = Object.fromEntries([...PATCH_TARGETS, ...PLUGIN_TARGETS].filter(name => ![NAME, 'hook-failure-log'].includes(name))
   .map(name => [name, { at: '2026-11-04T00:00:00.000Z', reason: 'unrelated fixture target', evidence: 'isolated test' }]));
 writeState({ patchTargets: [], pluginTargets: [], retired, all: true });
-cliOk('all', 'install');
-assert.deepEqual(readState().pluginTargets, [NAME], 'all install adopts the new composing target');
+const allOutput = cliOk('all', 'install');
+assert.deepEqual(readState().pluginTargets, ['hook-failure-log', NAME], 'all install adopts ordinary and custom composing targets');
+const composedAt = allOutput.indexOf(`[${NAME}] patched:`);
+const trustAt = allOutput.indexOf('[hook-failure-log] Codex trust:');
+assert(composedAt >= 0 && trustAt > composedAt, 'actual logger trust reconciliation runs after the final ordinary composition');
 assert.equal(readState().all, true);
 for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), patchSource(original).next);
 assert.match(cliOk(NAME, 'status'), /9\/9 file\(s\) patched.*tracked/);
