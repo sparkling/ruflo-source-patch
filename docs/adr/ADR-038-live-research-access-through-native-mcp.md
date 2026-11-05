@@ -442,22 +442,22 @@ Product 22 and AI-BA 246 at observation. Strategy's original Product query retur
 12 candidates with no coverage gaps in 61.069 seconds; native pattern no-match took
 723 ms. This clears its degraded-empty defect, not the remaining broad-search cost.
 
-Actual consumer searches and complete/hash-checked reads passed for the omitted
-source classes, including TXT/CSV, reviewed assertions, authoring Markdown,
-JSONL lines, opportunity specifications and Product benefits/current catalogue
-records. Artefact discovery/exact metadata reads passed for populated bindings;
-Product reports its explicit media-catalogue gap. Sixteen source-to-artefact
-round trips were separately checked. Investigation of the earlier cold timeout
-reproduced duplicate initialization: two requests read the sealed corpus twice,
-took 60.0 seconds and peaked at 2.49 GiB. Shared, atomic initialization reduced the
-unchanged-corpus run to 28.9 seconds and 1.36 GiB, with identical result hashes.
-After deployment and private-source integration, two independent MCP sessions
-completed first searches in 38.9 seconds (39.1 including initialization), under
-the unchanged 70-second verification bound, peaking at 1.39 GiB. An exact original
-was fully read and hash-verified. First-load cost still takes tens of seconds;
-tokenization/ranking is unchanged. Failed loads publish no partial corpus; retries,
-caller cancellation and changed configured cuts are tested. Product regressions
-pass 45/45; the local/native contract set passes 31/31. Root patch suite passes.
+Actual consumer searches and complete/hash-checked reads passed for TXT/CSV,
+assertions, authoring Markdown, JSONL, opportunities and Product benefits/catalogues.
+Artefact metadata reads and sixteen source-to-artefact round trips passed;
+Product retains its explicit media-catalogue gap. Earlier duplicate cold loading
+took 60.0 seconds and 2.49 GiB; shared atomic initialization reduced the same corpus
+to 28.9 seconds and 1.36 GiB with identical result hashes. After private-source
+integration, two independent MCP sessions completed first searches in 38.9 seconds
+(39.1 including initialization), below the unchanged 70-second bound, at 1.39 GiB.
+Exact originals matched hashes; failed loads publish nothing. Retry, cancellation and changed cuts passed 45 Product and 31 local/native tests at that revision.
+
+Product commit `9dff14a` adds shared compact document memberships, replacing the
+whole dictionary when freshly hashed title/body populations change. EA matched
+benchmarks changed cold 19.38 to 23.23 seconds, warm 18.79/18.43 to 6.79/6.61;
+peak RSS fell 2.49 to 1.92 GiB, with about 187 MB extra held heap/typed arrays.
+All ordered identities/counts matched. Five live sources passed after refresh; EA measured 24.23/6.50 seconds, Product 31.08/0.53; exact bodies matched hashes.
+Product sealed cold cost remains. Focused tests pass 13/13; full suite 110/111 has one unchanged Mac-only MetaHarness fixture failure. See `.local/query-performance-20261105/`.
 
 The `routes-consumers/` receipt bundle contains host configuration/installation,
 service activation, expanded-class and Product follow-up proofs. Its HZ and Mac
