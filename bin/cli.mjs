@@ -178,6 +178,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-capture-budget': action => runPluginCommand('brain-capture-budget', action),
   'brain-hook-timeouts': action => runPluginCommand('brain-hook-timeouts', action),
   'brain-capture-diagnostics': action => runPluginCommand('brain-capture-diagnostics', action),
+  'brain-restore-diagnostics': action => runPluginCommand('brain-restore-diagnostics', action),
   'brain-capture-launch': action => runPluginCommand('brain-capture-launch', action),
   'brain-capture-idempotency': action => runPluginCommand('brain-capture-idempotency', action),
   'brain-recall-owner-reuse': action => runPluginCommand('brain-recall-owner-reuse', action),
@@ -283,6 +284,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-capture-budget')}align Stop/PreCompact with existing native capture budget (#513)
   ${pad('brain-hook-timeouts')}temporary bounded recall/capture timeout mitigation (#429/#513)
   ${pad('brain-capture-diagnostics')}retain hashed failure scope and redacted terminal stderr (#518)
+  ${pad('brain-restore-diagnostics')}preserve restore context and bounded private cause/timing evidence (#522)
   ${pad('brain-capture-launch')}release admission after failed child spawn; retain two-slot shedding (#519)
   ${pad('brain-capture-idempotency')} verify immutable turn retries using the original committed capture time (#520)
   ${pad('brain-learning-native-owner')}withdraw capture selection and restore native execution (#4666)

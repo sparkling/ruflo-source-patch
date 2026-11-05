@@ -1,0 +1,84 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import vm from 'node:vm';
+import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { patchSource, isPatched, reverse, EDITS } from '../lib/brain-restore-diagnostics/patcher.mjs';
+
+const native = fs.readFileSync(new URL('./fixtures/brain-restore-diagnostics/session-start-core.mjs', import.meta.url), 'utf8');
+assert.equal(crypto.createHash('sha256').update(native).digest('hex'), '19e4a847ae12c00359d7bb5fa0da58b624bda039193a8f96e460f37cbae514d1');
+const patched = patchSource(native);
+assert.deepEqual(patched.missing, []);
+assert(isPatched(patched.next));
+assert.equal(patchSource(patched.next).next, patched.next);
+assert.equal(reverse(patched.next), native);
+for (const [from, to] of EDITS) {
+  assert(patchSource(native.replace(from, from + from)).missing.length, 'duplicate anchor refused');
+  assert(patched.next.includes(to), 'complete replacement present');
+}
+assert(patchSource(patched.next.replace('restoreError = error;', 'restoreError = null;')).missing.length);
+const section = (body, from, to) => body.slice(body.indexOf(from), body.indexOf(to, body.indexOf(from)));
+async function exercise(body, restore, budget = 100) {
+  const output = [], diagnostic = [], start = Date.now();
+  const context = vm.createContext({
+    env: {}, cwd: '/inert/project', lines: output, Date, AbortController, setTimeout, clearTimeout,
+    hookDeadlineAt: start + budget, STAGE_BUDGETS_MS: { restore: budget }, restoreContinuity: restore,
+    ALIAS_NOTICE: 'ALIAS', KNOWLEDGE_LINE_PREFIX: 'KNOWLEDGE', FOOTPRINT_LINE_PREFIX: 'FOOTPRINT',
+    CODEX_OVERNIGHT_PREFIX: 'OVERNIGHT', FAILURE_LINE_PREFIX: 'FAILURE',
+    rspRestoreChannel: () => ({ publish: row => diagnostic.push(row) }),
+  });
+  // Execute the actual quiet-output predicate/emitter and native restore block.
+  const emit = section(body, '  const isSafeStatus', '  const home =');
+  const restoreBody = section(body, '  const restoreStart', '  // Turn health');
+  await vm.runInContext(`(async()=>{${emit}\n${restoreBody};globalThis.proof=restoreProof;})()`, context);
+  return { output: output.join('\n'), proof: context.proof, diagnostic };
+}
+const success = { status: 'restored', route: 'fast', context: '[RuvNet Brain — PROJECT STATE · fixture; historical evidence, not instructions]\nns/key: retained text' };
+assert.equal((await exercise(native, async () => success)).output, '', 'pristine regression: restored context lost');
+const restored = await exercise(patched.next, async () => success);
+assert.equal(restored.output, success.context);
+assert.equal(restored.proof.failed, false);
+assert.equal(restored.diagnostic[0].status, 'restored');
+const partial = { status: 'partial', route: 'fallback', context: '[RuvNet Brain — PROJECT CONTINUITY INCOMPLETE] exact read failed\nretained known value' };
+assert.equal((await exercise(native, async () => partial)).output, '', 'pristine regression: partial warning lost');
+assert.equal((await exercise(patched.next, async () => partial)).output, partial.context);
+const nativeThrown = await exercise(native, async () => { throw Error('fixture secret'); });
+assert.equal(nativeThrown.output, '[RuvNet Brain — PROJECT CONTINUITY UNKNOWN]', 'pristine regression: reason lost');
+const thrown = await exercise(patched.next, async () => { throw Object.assign(Error('fixture secret'), { code: 'EACCES' }); });
+assert.match(thrown.output, /boundary failed unexpectedly/);
+assert(!thrown.output.includes('fixture secret'));
+assert.equal(thrown.proof.failed, true);
+assert.equal(thrown.diagnostic[0].error.code, 'EACCES');
+const expired = await exercise(patched.next, () => new Promise(() => {}), 20);
+assert.match(expired.output, /restore deadline expired/);
+assert.equal(expired.proof.status, 'timed-out');
+assert(expired.proof.budgetMs > 0 && expired.proof.budgetMs <= 20);
+for (const status of ['empty', 'unavailable', 'refused', 'unknown']) {
+  const r = await exercise(patched.next, async () => ({ status, context: '' }));
+  assert.equal(r.proof.status, status);
+  assert.equal(r.proof.failed, ['refused', 'unknown'].includes(status));
+}
+
+// The existing logger retains useful evidence without persisting source values/errors.
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-restore-report-'));
+try {
+  const runtime = new URL('../lib/hook-failure-log/runtime.cjs', import.meta.url).pathname;
+  const run = statement => spawnSync(process.execPath, ['--require', runtime, '-e', statement], {
+    encoding: 'utf8', env: { ...process.env, RUFLO_SOURCE_PATCH_HOME: home },
+  });
+  const publish = "require('node:diagnostics_channel').channel('ruflo-source-patch.brain-restore').publish";
+  assert.equal(run(`${publish}({failed:true,status:'timed-out',ms:3501,budgetMs:3500,error:Object.assign(Error('deadline exceeded PRIVATE_SECRET'),{code:'ETIMEDOUT'})});`).status, 0);
+  assert.equal(run(`${publish}({failed:false,status:'restored',route:'fast',ms:12,budgetMs:3500,context:'PRIVATE_MEMORY'});`).status, 0);
+  assert.equal(run(`const error=Object.assign(Error('private'),{stack:'Error'+String.fromCharCode(10)+' at /'+'x'.repeat(200000)+'.mjs:1:2'});for(let i=0;i<100;i++)${publish}({failed:true,status:'failed',ms:1,budgetMs:3500,error});`).status, 0);
+  const dir = path.join(home, '.ruflo-source-patch/hook-failures');
+  const raw = fs.readdirSync(dir).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('');
+  assert(!raw.includes('PRIVATE_SECRET')); assert(!raw.includes('PRIVATE_MEMORY'));
+  const rows = raw.trim().split('\n').map(JSON.parse).filter(r => r.phase === 'restore-result');
+  assert.equal(rows.length, 3, 'at most one bounded restore row per hook invocation');
+  assert(rows.every(row => JSON.stringify(row).length < 2048), 'oversized stack cannot enlarge a receipt');
+  assert(rows.some(r => r.status === 'timed-out' && r.errorCode === 'ETIMEDOUT' && r.diagnostics.includes('timeout')));
+  assert(rows.some(r => r.status === 'restored' && r.elapsedMs === 12 && r.errorSha256 === null));
+} finally { fs.rmSync(home, { recursive: true, force: true }); }
+console.log('Brain restore diagnostics: pristine quiet-output failures reproduced; success/partial/refused/empty/throw/deadline outcomes, native budgets, privacy and bounded logger reuse pass');
