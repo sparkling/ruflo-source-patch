@@ -165,6 +165,20 @@ cliOk(NAME, 'uninstall');
 for (const [file, original] of originals) assert.equal(fs.readFileSync(file, 'utf8'), original);
 writeState({ patchTargets: [], pluginTargets: [], retired: {}, all: false });
 
+// Independently fetched unknown CLI bytes remain incomplete without freezing
+// the verified active package or shared plugin guidance.
+const unknownTool = path.join(process.env.RUFLO_NPX_ROOT, 'unknown/node_modules/@claude-flow/cli/dist/src/mcp-tools/agentdb-tools.js');
+const unknownSource = fixture.tool.replace('Synthesize context from stored memories', 'Unknown changed upstream contract');
+write(unknownTool, unknownSource);
+assert.deepEqual(preflight().blockedFiles, [unknownTool]);
+applied = applyComposed([NAME]);
+assert.ok(applied.incomplete > 0);
+assert.equal(fs.readFileSync(unknownTool, 'utf8'), unknownSource);
+assert.equal(fs.existsSync(unknownTool + '.rsp-backup'), false);
+assert.equal(fs.readFileSync(toolFile, 'utf8'), patchSource(fixture.tool).next);
+fs.rmSync(path.join(process.env.RUFLO_NPX_ROOT, 'unknown'), { recursive: true });
+assert.equal(reconcile([], [NAME]).errors, 0);
+
 const selected = [...originals.keys()].find(file => file.endsWith('SKILL.md'));
 write(selected, drift);
 applied = applyComposed([NAME]);
