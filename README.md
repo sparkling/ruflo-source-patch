@@ -955,6 +955,11 @@ semantics, not production throughput; live restore verification is separate.
 The original R5 failure discarded its exception, so that individual occurrence
 cannot be assigned a proven cause retrospectively. Brain #522 diagnostics retain
 future outcomes without increasing the deadline or changing advisory behavior.
+The restore body loads the existing private logger itself: the native Claude
+shim starts a child without inheriting its parent's Node preload. A two-process
+regression covers that boundary, successful and failed restore records, and an
+unavailable logger leaving the native outcome unchanged. No global `NODE_OPTIONS`
+or subprocess behavior is changed.
 
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and

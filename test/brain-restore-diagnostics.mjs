@@ -5,7 +5,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { patchSource, isPatched, reverse, EDITS } from '../lib/brain-restore-diagnostics/patcher.mjs';
+import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH } from '../lib/brain-restore-diagnostics/patcher.mjs';
 
 const native = fs.readFileSync(new URL('./fixtures/brain-restore-diagnostics/session-start-core.mjs', import.meta.url), 'utf8');
 assert.equal(crypto.createHash('sha256').update(native).digest('hex'), '19e4a847ae12c00359d7bb5fa0da58b624bda039193a8f96e460f37cbae514d1');
@@ -14,6 +14,13 @@ assert.deepEqual(patched.missing, []);
 assert(isPatched(patched.next));
 assert.equal(patchSource(patched.next).next, patched.next);
 assert.equal(reverse(patched.next), native);
+const previous = PREVIOUS_EDITS.reduce((s, [from, to]) => s.replace(from, () => to), native);
+assert.equal(patchSource(previous).next, patched.next, 'released148 upgrades exactly');
+assert.equal(reverse(previous), native, 'released148 reverses exactly');
+const changedPrevious = previous.replace('  const restoreStart = Date.now();', '  const restoreStart = 1;');
+assert(patchSource(changedPrevious).missing.length);
+assert.equal(patchSource(changedPrevious).next, changedPrevious, 'unproved148 stays unchanged');
+assert(patchSource(patched.next.replace('Optional diagnostics', 'unknown diagnostics')).missing.length);
 for (const [from, to] of EDITS) {
   assert(patchSource(native.replace(from, from + from)).missing.length, 'duplicate anchor refused');
   assert(patched.next.includes(to), 'complete replacement present');
@@ -80,5 +87,35 @@ try {
   assert(rows.every(row => JSON.stringify(row).length < 2048), 'oversized stack cannot enlarge a receipt');
   assert(rows.some(r => r.status === 'timed-out' && r.errorCode === 'ETIMEDOUT' && r.diagnostics.includes('timeout')));
   assert(rows.some(r => r.status === 'restored' && r.elapsedMs === 12 && r.errorSha256 === null));
+  // The native shim starts a separate Node process without inheriting --require.
+  // Exercise that process boundary with the actual patched restore block.
+  const dispatch = body => {
+    const file = path.join(home, 'session-start-core.mjs');
+    fs.writeFileSync(file, body);
+    return run(`const cp=require('node:child_process');const r=cp.spawnSync(process.execPath,[${JSON.stringify(file)}],{env:process.env,encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status??1);`);
+  };
+  const core = source => `import {channel as rspRestoreChannel} from 'node:diagnostics_channel';
+const hookDeadlineAt=Date.now()+3500, STAGE_BUDGETS_MS={restore:3500},cwd='/inert/project',env={};
+const emit=console.log, restoreContinuity=async()=>(${JSON.stringify(success)});
+${section(source, '  const restoreStart', '  // Turn health')}`;
+  const before = fs.readdirSync(dir).length;
+  assert.equal(dispatch(core(previous)).status, 0);
+  assert.equal(fs.readdirSync(dir).length, before, 'parent preload alone loses child restore diagnostics');
+  const childLoad = EDITS.at(-1)[1].split('  const restoreStart')[0].replace(JSON.stringify(LOGGER_PATH), JSON.stringify(runtime));
+  const actual = dispatch(childLoad + core(patched.next));
+  assert.equal(actual.status, 0, actual.stderr);
+  assert.match(actual.stdout, /PROJECT STATE/);
+  const current = fs.readdirSync(dir).flatMap(f => fs.readFileSync(path.join(dir, f), 'utf8').trim().split('\n').map(JSON.parse));
+  const childRow = current.filter(r => r.phase === 'restore-result').at(-1);
+  assert.equal(childRow.status, 'restored'); assert(childRow.budgetMs > 0 && childRow.budgetMs <= 3500);
+  assert.equal(current.filter(r => r.phase === 'restore-result').length, rows.length + 1);
+  const failedChild = dispatch(childLoad + core(patched.next).replace(`async()=>(${JSON.stringify(success)})`, "async()=>{throw Error('deadline exceeded PRIVATE_CHILD')}"));
+  assert.equal(failedChild.status, 0); assert.match(failedChild.stdout, /restore deadline expired/);
+  const withFailure = fs.readdirSync(dir).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('');
+  assert(!withFailure.includes('PRIVATE_CHILD'));
+  assert(withFailure.split('\n').filter(Boolean).map(JSON.parse).some(r => r.phase === 'restore-result' && r.status === 'timed-out'));
+  const unavailable = childLoad.replace(JSON.stringify(runtime), JSON.stringify(path.join(home, 'absent.cjs')));
+  const withoutLogger = dispatch(unavailable + core(patched.next));
+  assert.equal(withoutLogger.status, 0); assert.match(withoutLogger.stdout, /PROJECT STATE/);
 } finally { fs.rmSync(home, { recursive: true, force: true }); }
 console.log('Brain restore diagnostics: pristine quiet-output failures reproduced; success/partial/refused/empty/throw/deadline outcomes, native budgets, privacy and bounded logger reuse pass');
