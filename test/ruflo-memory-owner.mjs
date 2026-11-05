@@ -26,6 +26,24 @@ const config = () => ({ version: 1,
   contexts: [{ cwd, pin: store, owner: 'source' }], stores: [{ dbPath: store, owner: 'source' }] });
 const write = value => fs.writeFileSync(configFile, JSON.stringify(value), { mode: 0o600 });
 try {
+  // Always exercise the immediately preceding installed runtime, even when the
+  // optional upstream source fixture is not configured for the full suite.
+  const clientBase = '/**\n * V3 CLI MCP Client\n */\nexport async function callMCPTool(toolName, input = {}, context) {\n'
+    + '        // ADR-324: one policy chokepoint for every local CLI/MCP invocation.\n'
+    + 'const decision = await authorizeMcpTool(toolName, input, context, classifyMcpTool(toolName));\n'
+    + '        const result = await tool.handler(input, context);\n}\n';
+  const currentClient = patchSource(clientBase); assert.deepEqual(currentClient.missing, []);
+  const oldRuntime = JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.137.json', import.meta.url))).runtime;
+  const runtimeEnd = currentClient.next.indexOf('/**\n * V3 CLI MCP Client');
+  const previousClient = oldRuntime + currentClient.next.slice(runtimeEnd);
+  assert.notEqual(previousClient, currentClient.next);
+  assert.equal(patchSource(previousClient).next, currentClient.next, 'exact installed 4.46.137 runtime upgrades');
+  assert.equal(reverse(previousClient), clientBase, 'previous release restores pristine anchors');
+  assert.equal(isPatched(currentClient.next), true);
+  const modifiedClient = previousClient.replace('explicitInventoryRead = false', 'explicitInventoryRead = true');
+  assert.notEqual(modifiedClient, previousClient);
+  assert.deepEqual(patchSource(modifiedClient).missing, ['modified-owner-forwarding']);
+  assert.equal(patchSource(modifiedClient).next, modifiedClient, 'unknown prior runtime is never overwritten');
   delete process.env.RUFLO_MEMORY_OWNER_CONFIG;
   process.env.HOME = temporary;
   const api = await createMemoryOwnerClient(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
@@ -360,11 +378,11 @@ export class Client {
       assert.equal(reverse(result.next),source);
     }
     if(file==='mcp-client.js') {
-      for (const version of ['4.46.116', '4.46.117', '4.46.123', '4.46.126', '4.46.128', '4.46.134']) {
+      for (const version of ['4.46.116', '4.46.117', '4.46.123', '4.46.126', '4.46.128', '4.46.134', '4.46.137']) {
       const previous=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-'+version+'.json',import.meta.url),'utf8')).runtime;
       const liveRuntime=result.next.slice(0,result.next.indexOf('/**\n * V3 CLI MCP Client'));
       let prior=result.next.replace(liveRuntime,previous);
-      if (!['4.46.123', '4.46.126', '4.46.128', '4.46.134'].includes(version)) prior=prior.replace('        context = rspMemoryOwner.policyContext(context);\n        const forwarded = await rspMemoryOwner.tryForward(toolName, input, context);\n        if (forwarded.forwarded) return applyContentBoundaryGuardrail(toolName, forwarded.result);\n', '');
+      if (!['4.46.123', '4.46.126', '4.46.128', '4.46.134', '4.46.137'].includes(version)) prior=prior.replace('        context = rspMemoryOwner.policyContext(context);\n        const forwarded = await rspMemoryOwner.tryForward(toolName, input, context);\n        if (forwarded.forwarded) return applyContentBoundaryGuardrail(toolName, forwarded.result);\n', '');
       assert.notEqual(prior,result.next,'reproduces previous multiline refusal decoder');
       assert.equal(reverse(prior),source,'prior released source restores exactly');
       assert.equal(patchSource(prior).next,result.next,'released decoder upgrades without overwriting unknown bytes');
