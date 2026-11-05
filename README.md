@@ -937,6 +937,25 @@ slot operations and native exact/duplicate outcomes. They do not add a queue or
 change native two-slot capacity; overwritten samples and killed invocations
 cannot establish loss counts. Logging is observational and contains no payload.
 
+The 5 November R5 restore trace reproduced a separate interaction with this
+forwarder: parallel namespace reads establish separate one-call MCP connections.
+The former 5 ms policy collection window started synchronous native anchor
+verification before all handshakes completed, splitting the reads into redundant
+transactions and exhausting Brain's unchanged 3,500 ms restore budget before
+exact retrieval. The collection window is now 50 ms, with the same 32-request
+cap, per-request authorization and receipts, authenticated history and session
+retirement. This is a correction to our forwarding composition, not evidence
+that upstream SessionStart itself always fails.
+
+An isolated test using the real native policy engine groups requests arriving
+at 0/15/18 ms into one transaction instead of two, preserving allowed/denied
+decisions, single-use approvals and full ledger audit. It adds approximately
+46 ms to a solitary request. The small test ledger proves grouping and policy
+semantics, not production throughput; live restore verification is separate.
+The original R5 failure discarded its exception, so that individual occurrence
+cannot be assigned a proven cause retrospectively. Brain #522 diagnostics retain
+future outcomes without increasing the deadline or changing advisory behavior.
+
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
 both monitors reported no drift. Fresh native reads each produced one completed
