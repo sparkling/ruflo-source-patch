@@ -353,6 +353,20 @@ export class Client {
     assert.deepEqual(result.missing, [], file);
     assert.equal(reverse(result.next), source, file + ' exact restoration');
     assert.equal(isPatched(result.next), true, file + ' idempotency');
+    if (file === 'mcp-tools/memory-tools.js') {
+      const { descriptor: errors } = await import('../lib/ruflo-memory-entries-only/patcher.mjs');
+      const { isKnownComposition } = await import('../lib/composition-proof.mjs');
+      const entries = ENTRIES.filter(entry => entry.suffix.slice(-2).join('/') === file);
+      const cli = { patchSource: value => composeCliContribution(value, entries) };
+      const core = cli.patchSource(source); assert.deepEqual(core.missing, []);
+      const guarded = errors.patchSource(core.next); assert.deepEqual(guarded.missing, []);
+      const complete = patchSource(guarded.next); assert.deepEqual(complete.missing, []);
+      assert(errors.isPatched(complete.next) && isPatched(complete.next));
+      assert.equal(errors.reverse(reverse(complete.next)), core.next);
+      const owners = [cli, errors, { patchSource }];
+      assert(isKnownComposition(source, complete.next, owners));
+      assert(isKnownComposition(source, patchSource(core.next).next, owners), 'partial install remains exactly recoverable');
+    }
     if(file==='mcp-client.js') for(const version of ['4.46.107','4.46.108']) {
       const prior=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-'+version+'.json',import.meta.url),'utf8'));
       const current='// ruflo-source-patch (ruflo#4654): native owner forwarding\n'+createMemoryOwnerClient.toString()+'\nexport const rspMemoryOwner = await createMemoryOwnerClient(import.meta.url);\n';

@@ -89,6 +89,42 @@ assert.equal((await nativeHandler(async options => {
   assert.equal(options.memoryEntriesOnly, undefined);
   return { error: 'native read refused', found: false };
 })({key: 'k', namespace: 'ns'})).success, false);
+
+// Published 3.71.4 threads caller context through native path validation.
+// The retained error guard must preserve that boundary and exact restoration.
+const contextualPristine = toolsPristine
+  .replace('handler: async (input) => {', 'handler: async (input, context) => {')
+  .replace('resolveDbPathOption(input.dbPath)', 'resolveDbPathOption(input.dbPath, context)')
+  .replace('const resolveDbPathOption = (dbPath) => dbPath;', `const resolveDbPathOption = (dbPath, context) => {
+    if (context?.allowed !== true) throw new Error('native path authority refused');
+    return dbPath;
+  };`);
+const contextual = production.patchSource(contextualPristine);
+assert.deepEqual(contextual.missing, [], 'current native handler is recognized');
+assert(production.isPatched(contextual.next));
+assert.equal(production.reverse(contextual.next), contextualPristine);
+assert.equal(production.patchSource(contextual.next).next, contextual.next);
+assert(!contextual.next.includes('memoryEntriesOnly'));
+const { makeHandler: contextualHandler } = await import('data:text/javascript;base64,' + Buffer.from(contextual.next).toString('base64'));
+let contextualReads = 0;
+const contextualRead = contextualHandler(async options => {
+  contextualReads++; assert.equal(options.dbPath, '/authorized.db');
+  return { success: false, error: 'native backend refusal' };
+});
+await assert.rejects(() => contextualRead({key: 'k', dbPath: '/authorized.db'}, {allowed: false}), /native path authority refused/);
+assert.equal(contextualReads, 0);
+assert.equal((await contextualRead({key: 'k', dbPath: '/authorized.db'}, {allowed: true})).error, 'native backend refusal');
+assert.equal(contextualReads, 1);
+const contextualDrift = contextualPristine.replace('resolveDbPathOption(input.dbPath, context)', 'resolveDbPathOption(input.dbPath, otherContext)');
+assert(production.patchSource(contextualDrift).missing.length);
+assert.equal(production.patchSource(contextualDrift).next, contextualDrift);
+for (const contextualSource of [contextualPristine, contextual.next]) {
+  const ambiguous = contextualSource.replace("name: 'memory_retrieve',", `name: 'memory_retrieve',\n${toolsSpec.edits[0].old}`);
+  assert(production.patchSource(ambiguous).missing.length, 'mixed handler signatures are ambiguous');
+  assert.equal(production.patchSource(ambiguous).next, ambiguous);
+  assert.equal(production.isPatched(ambiguous), false);
+  assert.equal(production.reverse(ambiguous), ambiguous);
+}
 const run = (backend, input = { key: 'k', namespace: 'ns' }) => makeHandler(async () => backend)(input);
 
 // Successful reads are unchanged, including JSON decoding and metadata.

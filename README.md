@@ -17,11 +17,13 @@ installation alone does not prove a native replacement or a healthy running sess
 
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
-Version 4.46.144 qualifies the published Ruflo/CLI 3.71.4 security release while
+Version 4.46.145 qualifies the published Ruflo/CLI 3.71.4 security release while
 preserving its new MCP file-path validation and local-CLI capability boundary.
-The owner schema adapter accepts the new context-aware handlers; memory statistics
-continue through that same native path resolver. Neither patch removes or bypasses
-the upstream SQLite-file, symlink or caller-context checks.
+The owner schema adapter and retained retrieval-error guard accept the new
+context-aware handlers; memory statistics continue through that same native path
+resolver. The patches preserve upstream SQLite-file, symlink and caller-context
+checks. Live installation of 4.46.144 correctly refused the old retrieval-guard
+anchor; 4.46.145 adds its exact current signature and mixed-signature refusal.
 
 - Native daemon stop/ownership changes in 3.71.3 are recognized by executable
   retirement proof. Current daemon source remains unmodified by the legacy patch.
