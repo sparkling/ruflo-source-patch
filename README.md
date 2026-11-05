@@ -2162,7 +2162,12 @@ still repairs legacy MCP registration, and hook-failure-log reconciles trust aft
 the final ordinary composition. For the 37 composing installs observed on HZ in
 4.46.145, this changes dispatch to three full sweeps instead of 37. Retirement,
 preflight refusals and incomplete/error reporting remain; standalone commands are
-unchanged. Actual live elapsed time for the batched installer is not yet measured.
+unchanged. The 5 November 2026 live 4.46.146 installs took 21.3 seconds on Mac and
+34.1 seconds on HZ, with three complete sweeps and no changed discovered vendor or pristine
+backup bytes. Concurrent SessionStart tests begun immediately after lock acquisition
+still reached the unchanged 30-second wait limit: HZ waited for the installer;
+Mac waited for the newly scheduled monitor after the installer released. Batching
+reduces installation work but does not yet resolve that startup-contention case.
 
 The **script targets stay opt-in**, because they change *your projects or user-level integrations*
 rather than the patched library.

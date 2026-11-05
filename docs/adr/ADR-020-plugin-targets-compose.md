@@ -49,7 +49,12 @@ as separate commands: three full sweeps for that target set. The Brain boundary
 and additive lifecycles, exclusive mutation lock, retirement probes, bundle
 preflights and failure reporting remain. Regression tests cover actual registration
 repair/refusal, complete target tracking and trust after the ordinary batch. This
-removes repeated qualification work; live elapsed improvement is not yet measured.
+removes repeated qualification work. Live 4.46.146 installation on 5 November 2026
+took 21.3 seconds on Mac and 34.1 seconds on HZ; each ran three full sweeps and
+left all discovered vendor/pristine bytes unchanged. Immediate concurrent
+SessionStart tests still timed out at the unchanged 30-second lock wait: HZ behind
+the installer, Mac behind the newly scheduled monitor after installer release.
+These measurements qualify the batching improvement, not a resolved startup wait.
 
 Version 4.46.128 reuses the native owner for fixed-source list/stats/export batches of at most four, retaining native policy, trust, one-call retirement, cancellation and draining; other calls retain their prior path. This does not claim an atomic snapshot. The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without
