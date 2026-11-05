@@ -2,7 +2,7 @@
 
 **Status**: Accepted; HZ access, declared private holdings and native inventories implemented; remaining capability limits explicit
 **Date**: 2026-11-04
-**Updated**: 2026-11-05. Release 4.46.142: tier access, pattern-result repair and 60 consumer connections verified live.
+**Updated**: 2026-11-05. Owner retires combined-search compatibility: 22 native, document and artefact methods replace the former 24-tool interface.
 Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
 overbroad content filters. Shared content admission and the document/native-inventory expansion are
@@ -77,9 +77,9 @@ mirrors of methods that Ruflo already exposes.
 | Inspect relationships | Expose relevant existing native graph read methods where configured and authorized. |
 | Consult learned patterns or other learning state | Use the appropriate existing native controller reads; preserve their distinct semantics. |
 
-Discover installed methods/schemas before registration. A verified exposure gap may
-justify a thin binding to a supported operation, not a replacement index, ranker or
-framework. Report unavailable capabilities without inventing successful substitutes.
+`search_knowledge` and `read_evidence` are retired: no registration, dispatch or alias.
+Discover current schemas; verified exposure gaps justify thin native bindings, not
+replacement engines. Report unavailable capabilities without successful substitutes.
 
 Exact memory retrieval returns the stored record. If it contains only a summary or
 reference, follow the existing original-document reader when the task requires
@@ -404,9 +404,9 @@ over persisted IDs/history; `asOf` fixes validity time, never a multi-page snaps
 #4714 preserves legacy pattern lookup but distinguishes healthy empty reads from failures.
 
 The artefact owner (`295e4ba` / `75d9029`) integrates methods, skills and defaults in `02da635`.
-Forty-four initial regressions passed. All 60 current consumer connections now expose 24 tools.
-The resulting interface has eighteen native reads, two document methods, two artefact methods and two
-compatibility methods. Publication/generation catalogues are separated from
+Forty-four initial regressions passed; the initial 60 consumer connections exposed 24 tools.
+The current interface has eighteen native reads, two document methods and two artefact methods;
+Product `4d13f5c` removes both compatibility methods; all 60 Mac/HZ connections verified 22 tools after refresh. Publication/generation catalogues are separated from
 primary document results; discussion and authoring research remain readable.
 
 The catalogue inventory contains BA 1,598, SA 3,057, EA 510 and AI-BA 2,808
@@ -435,7 +435,7 @@ private-holdings verification and `product-cold/completion-summary.json`.
 ### Actual consumer activation and remaining limits
 
 Release 4.46.142 refreshed 22 native project owners and all three HZ source services.
-All 60 source connections across 12 loaded Mac/HZ parents expose 24 tools and passed
+At that release, 60 source connections across 12 loaded Mac/HZ parents exposed 24 tools and passed
 tier listing plus exact same-row reads; ten absence and ten source-override checks passed.
 Unrelated consumer configuration stayed intact. Tier totals were BA 74, SA 4, EA 24,
 Product 22 and AI-BA 246 at observation. Strategy's original Product query returned

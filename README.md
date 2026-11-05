@@ -15,7 +15,14 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
-## Hourly source probe: 5 November 2026
+## Research API retirement and hourly probe: 5 November 2026
+
+All five authoritative HZ research MCPs expose 22 methods after Product commit
+`4d13f5c`: `search_knowledge` and `read_evidence` have no registration, dispatch or
+compatibility alias. Use native memory/controller methods, `search_documents` /
+`read_document`, and separate artefact methods. All 60 source connections in 12
+loaded Mac/HZ parent sessions were refreshed and verified, along with installed
+retrieval instructions. See [ADR-038](docs/adr/ADR-038-live-research-access-through-native-mcp.md).
 
 The hourly source check uses `search_documents`, replacing the retired combined-search
 dependency. Its receipt proves fresh document discovery for the configured authority,
