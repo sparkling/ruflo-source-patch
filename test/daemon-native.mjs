@@ -44,7 +44,28 @@ for (const rel of [DAEMON_AUTOSTART_REL, DAEMON_COMMAND_REL]) {
 }
 if (cli(['monitor', 'check']).status !== 0) fail('monitor check rejected complete native daemon routing');
 
-const nativeCommand = fs.readFileSync(vendor(DAEMON_COMMAND_REL), 'utf8');
+// 3.71.4 expands the import for native stop-marker ownership. Accept that exact
+// import without modifying any daemon command or weakening resolver-route refusal.
+const legacyCommand = fs.readFileSync(vendor(DAEMON_COMMAND_REL), 'utf8');
+const modernImport = "import { AUTOSTART_ENV, clearDaemonStopMarker, isDaemonStopMarked, resolveDaemonProjectRoot, writeDaemonStopMarker, } from '../services/daemon-autostart.js';";
+const modernCommand = legacyCommand.replace("import { resolveDaemonProjectRoot } from '../services/daemon-autostart.js';", modernImport);
+fs.writeFileSync(vendor(DAEMON_COMMAND_REL), modernCommand);
+if (cli(['daemon', 'status']).status !== 0) fail('3.71.4 native stop-marker import not accepted');
+if (cli(['daemon', 'install']).status !== 0
+    || fs.readFileSync(vendor(DAEMON_COMMAND_REL), 'utf8') !== modernCommand
+    || fs.existsSync(`${vendor(DAEMON_COMMAND_REL)}.rsp-backup`)) fail('3.71.4 native command was rewritten');
+let nativeCommand = modernCommand;
+const published = process.env.RSP_TEST_CLI_DIR;
+if (published) {
+  const { nativeDaemonCommandSatisfied } = await import('../lib/cwd/patch-library.mjs');
+  const source = fs.readFileSync(path.join(published, 'dist/src/commands/daemon.js'), 'utf8');
+  if (!nativeDaemonCommandSatisfied(source)) fail('published daemon command failed native routing recognition');
+  if (nativeDaemonCommandSatisfied(source.replace('getDaemon(resolveDaemonProjectRoot(process.cwd())', 'getDaemon(process.cwd()')))
+    fail('published raw daemon identity route mutation was accepted');
+  nativeCommand = source;
+  fs.writeFileSync(vendor(DAEMON_COMMAND_REL), source);
+  fs.writeFileSync(vendor(DAEMON_AUTOSTART_REL), fs.readFileSync(path.join(published, 'dist/src/services/daemon-autostart.js')));
+}
 fs.writeFileSync(vendor(DAEMON_COMMAND_REL), nativeCommand.replace(
   'getDaemon(resolveDaemonProjectRoot(process.cwd()))',
   'getDaemon(process.cwd())',

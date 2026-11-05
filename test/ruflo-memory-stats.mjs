@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { STATS_OLD, STATS_342, STATS_351, STATS_NEW, STATS_SQL, STATS_351_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
+import { STATS_OLD, STATS_342, STATS_351, STATS_3714, STATS_NEW, STATS_SQL, STATS_351_SQL, STATS_PREFIX } from '../lib/ruflo-memory-stats/patcher.mjs';
 
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'memory-stats-test-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
@@ -213,6 +213,47 @@ ${modernBlock}
   apply([]);
   assert.equal(fs.readFileSync(file, 'utf8'), modernSource, 'modern exact restoration');
   delete globalThis.__rspStatsOwner;
+  // The new native context is an authority object, not a tool-input flag.
+  const contextSource = modernSource.replace(modernBlock, STATS_3714).replace(
+    "function resolveDbPathOption(value) { return typeof value === 'string' && value.trim() ? resolve(value) : undefined; }",
+    `const local = Symbol('native local CLI');
+export const localContext = { [local]: true };
+function resolveDbPathOption(value, context) {
+  globalThis.__rspStatsContext = context;
+  if (value !== undefined && !value.endsWith('.db') && context?.[local] !== true)
+    throw Error('native SQLite path refused');
+  return typeof value === 'string' && value.trim() ? resolve(value) : undefined;
+}`);
+  if (process.env.RSP_TEST_CLI_DIR) {
+    const published = fs.readFileSync(path.join(process.env.RSP_TEST_CLI_DIR, 'dist/src/mcp-tools/memory-tools.js'), 'utf8');
+    assert(published.includes(STATS_3714), 'exact published context-aware statistics anchor');
+  }
+  fs.writeFileSync(file, contextSource);
+  assert.equal(apply(['ruflo-memory-stats']).incomplete, 0);
+  const contextPatched = fs.readFileSync(file, 'utf8').replace("'../memory/memory-bridge.js'", JSON.stringify(pathToFileURL(proofBridge).href));
+  const contextModule = await import('data:text/javascript;base64,' + Buffer.from(contextPatched).toString('base64'));
+  paths = [];
+  globalThis.__rspStatsOwner = value => { paths.push(value); return { getAgentDB: () => ({ database: datedHandle }) }; };
+  const remote = { transport: 'mcp' };
+  assert.equal((await contextModule.tool.handler({ dbPath: explicit }, remote)).success, true);
+  assert.equal(globalThis.__rspStatsContext, remote, 'native resolver receives exact context');
+  assert.deepEqual(paths, [explicit]);
+  for (const context of [undefined, remote, { localCliCall: true }]) {
+    const result = await contextModule.tool.handler({ dbPath: '/fixture/unrelated.txt' }, context);
+    assert.equal(result.success, false);
+    assert.equal(result.totalEntries, null);
+    assert.match(result.error, /native SQLite path refused/);
+  }
+  assert.deepEqual(paths, [explicit], 'native refusal cannot acquire a registry');
+  assert.equal((await contextModule.tool.handler({ dbPath: '/fixture/operator-path' }, contextModule.localContext)).success, true);
+  assert.equal(paths.at(-1), '/fixture/operator-path', 'native local CLI authority retained');
+  assert.equal((await contextModule.tool.handler({}, remote)).success, true);
+  assert.equal(paths.at(-1), undefined, 'omitted store keeps native default');
+  assert.equal(apply(['ruflo-memory-stats']).patched, 0);
+  apply([]);
+  assert.equal(fs.readFileSync(file, 'utf8'), contextSource, 'context-aware exact restoration');
+  delete globalThis.__rspStatsOwner;
+  delete globalThis.__rspStatsContext;
   const changedUpstream = pristine.replace('limit: 100000', 'limit: 200000');
   fs.writeFileSync(file, changedUpstream);
   const drift = apply(['ruflo-memory-stats']);
