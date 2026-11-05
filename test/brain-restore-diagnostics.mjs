@@ -5,7 +5,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH } from '../lib/brain-restore-diagnostics/patcher.mjs';
+import { patchSource as capturePatch } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH, OPERATION_EDITS, observeRestoreSession } from '../lib/brain-restore-diagnostics/patcher.mjs';
 
 const native = fs.readFileSync(new URL('./fixtures/brain-restore-diagnostics/session-start-core.mjs', import.meta.url), 'utf8');
 assert.equal(crypto.createHash('sha256').update(native).digest('hex'), '19e4a847ae12c00359d7bb5fa0da58b624bda039193a8f96e460f37cbae514d1');
@@ -68,6 +69,98 @@ for (const status of ['empty', 'unavailable', 'refused', 'unknown']) {
   assert.equal(r.proof.failed, ['refused', 'unknown'].includes(status));
 }
 
+// Reuse the exact native hooks fixture shared with capture diagnostics.
+const hooks = fs.readFileSync(new URL('./fixtures/brain-capture-diagnostics/ruflo-memory-hooks.mjs', import.meta.url), 'utf8');
+const hooksPatched = patchSource(hooks);
+assert.deepEqual(hooksPatched.missing, []);
+assert(isPatched(hooksPatched.next));
+assert.equal(patchSource(hooksPatched.next).next, hooksPatched.next);
+assert.equal(reverse(hooksPatched.next), hooks);
+assert.equal(patchSource(patched.next).next, patched.next, 'released150 core remains byte-identical');
+for (const [from] of OPERATION_EDITS) {
+  assert(patchSource(hooks.replace(from, from + from)).missing.length);
+  assert(patchSource(hooks.replace(from, '')).missing.length);
+}
+const driftedHooks = hooksPatched.next.replace('observed++ >= 32', 'observed++ >= 33');
+assert(patchSource(driftedHooks).missing.length);
+assert.equal(reverse(driftedHooks), driftedHooks, 'modified owned wrapper is not removed');
+const capturedHooks = capturePatch(hooks);
+assert.deepEqual(capturedHooks.missing, []);
+const composedHooks = patchSource(capturedHooks.next).next;
+assert.equal(capturePatch(hooksPatched.next).next, composedHooks, 'capture/restore composition commutes');
+assert.equal(reverse(composedHooks), capturedHooks.next);
+const operationEvents = [];
+const observe = vm.runInNewContext(`(${observeRestoreSession.toString()})`, {
+  Date, crypto, Promise, Reflect,
+  rspRestoreOperationChannel: () => ({ publish: row => operationEvents.push(row) }),
+});
+const value = { state: 'ok', rows: [{ key: 'PRIVATE_KEY', value: 'PRIVATE_VALUE' }] };
+let resolvePending, closeCount = 0, received;
+const pending = new Promise(resolve => { resolvePending = resolve; });
+const session = { list(...args) { received = { self: this, args }; return pending; },
+  get() { return value; }, close() { closeCount++; } };
+const originalClose = session.close;
+observe(session);
+const deadline = Date.now() + 3500, args = ['PRIVATE_NAMESPACE', 100, deadline];
+assert.equal(session.list(...args), pending, 'exact native promise identity is retained');
+assert.equal(received.self, session); assert.deepEqual(received.args, args);
+assert.equal(operationEvents.length, 1, 'pending start is emitted before settlement');
+assert.equal(operationEvents[0].deadlineAt, deadline);
+assert.equal(operationEvents[0].namespaceHash, crypto.createHash('sha256').update(args[0]).digest('hex'));
+resolvePending(value); assert.equal(await pending, value); await Promise.resolve();
+assert.equal(operationEvents[1].event, 'end'); assert.equal(operationEvents[1].count, 1);
+assert.equal(session.get('PRIVATE_NAMESPACE', 'PRIVATE_KEY', deadline), value, 'synchronous results unchanged');
+assert.equal(session.close, originalClose); session.close(); assert.equal(closeCount, 1);
+const failure = Object.assign(Error('PRIVATE_ERROR'), { code: 'EACCES' });
+const rejected = Promise.reject(failure);
+const errors = { list() { throw failure; }, get() { return rejected; } }; observe(errors);
+assert.throws(() => errors.list(...args), error => error === failure);
+assert.equal(errors.get(...args), rejected);
+await assert.rejects(rejected, error => error === failure);
+const controller = new AbortController();
+let closeResolve;
+const cancelled = new Promise(resolve => { closeResolve = resolve; });
+const cancellable = { list() { return cancelled; }, close() { closeResolve({ state: 'timed out' }); } };
+controller.signal.addEventListener('abort', () => cancellable.close());
+observe(cancellable); assert.equal(cancellable.list(...args), cancelled); controller.abort();
+assert.equal((await cancelled).state, 'timed out', 'native cancellation/close controls settlement');
+assert(!JSON.stringify(operationEvents).includes('PRIVATE_'), 'channel carries no raw namespace/key/value/error');
+const boundedEvents = [], bounded = vm.runInNewContext(`(${observeRestoreSession.toString()})`, {
+  Date, crypto, Promise, Reflect, rspRestoreOperationChannel: () => ({ publish: row => boundedEvents.push(row) }),
+});
+let calls = 0; const many = { list() { calls++; return value; } }; bounded(many);
+for (let i = 0; i < 100; i++) assert.equal(many.list(...args), value);
+assert.equal(calls, 100); assert.equal(boundedEvents.length, 64, 'observation cap does not cap native reads');
+const unavailableObserver = vm.runInNewContext(`(${observeRestoreSession.toString()})`, {
+  Date, crypto, Promise, Reflect, rspRestoreOperationChannel: () => { throw Error('unavailable'); },
+});
+const unaffected = { get() { return value; } }; unavailableObserver(unaffected);
+assert.equal(unaffected.get(...args), value);
+
+// Execute the actual native restore function, including its existing finally-close seam.
+for (const source of [hooks, hooksPatched.next]) {
+  let closes = 0;
+  const session = { list() { return Promise.resolve(value); }, get() { return Promise.resolve(value); }, close() { closes++; } };
+  const signal = new AbortController().signal, deadlineAt = Date.now() + 3500;
+  const nativeRestore = section(source, 'export async function restore(', '\nasync function restoreFrom');
+  const context = vm.createContext({ Date, process, Promise, Reflect, crypto,
+    projectStore: () => ({ adopted: true, db: '/inert/store' }), resolveRuflo: () => '/inert/ruflo',
+    openBatchSession: options => { assert.equal(options.deadline, deadlineAt); assert.equal(options.signal, signal); return session; },
+    observeRestoreSession: observe,
+    restoreFrom: async (store, options, deadline) => {
+      assert.equal(options.session, session); assert.equal(options.signal, signal); assert.equal(deadline, deadlineAt);
+      assert.equal(await options.session.list('PRIVATE_NAMESPACE', 100, deadline), value);
+      return value;
+    },
+  });
+  vm.runInContext(nativeRestore.replace('export ', '') + '\nglobalThis.runRestore=restore;', context);
+  assert.equal(await context.runRestore({ cwd: '/inert', deadlineAt, signal }), value);
+  assert.equal(closes, 1, 'native finally closes exactly once');
+  context.restoreFrom = async () => { throw failure; };
+  await assert.rejects(context.runRestore({ cwd: '/inert', deadlineAt, signal }), error => error === failure);
+  assert.equal(closes, 2, 'native failure still closes once');
+}
+
 // The existing logger retains useful evidence without persisting source values/errors.
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-restore-report-'));
 try {
@@ -87,6 +180,24 @@ try {
   assert(rows.every(row => JSON.stringify(row).length < 2048), 'oversized stack cannot enlarge a receipt');
   assert(rows.some(r => r.status === 'timed-out' && r.errorCode === 'ETIMEDOUT' && r.diagnostics.includes('timeout')));
   assert(rows.some(r => r.status === 'restored' && r.elapsedMs === 12 && r.errorSha256 === null));
+  const operationChannel = "require('node:diagnostics_channel').channel('ruflo-source-patch.brain-restore-operation')";
+  const beforeOperations = new Set(fs.readdirSync(dir));
+  const operationRun = run(`const c=${operationChannel};
+    for(let i=0;i<100;i++){const token={};c.publish({event:'start',token,operation:'list',namespaceHash:'a'.repeat(64),limit:5000,deadlineAt:Date.now()+3500,key:'PRIVATE_KEY',namespace:'PRIVATE_NAMESPACE'});
+    if(i!==0){c.publish({event:'end',token,state:'ok',count:1454,elapsedMs:12,value:'PRIVATE_VALUE'});c.publish({event:'error',token,errorName:'PRIVATE_ERROR'});}}
+    process.exit(0);`);
+  assert.equal(operationRun.status, 0, operationRun.stderr);
+  const operationFiles = fs.readdirSync(dir).filter(name => !beforeOperations.has(name));
+  assert.equal(operationFiles.length, 1, 'pending starts survive exit even without restore-result');
+  const operationText = fs.readFileSync(path.join(dir, operationFiles[0]), 'utf8');
+  const operationRows = operationText.trim().split('\n').map(JSON.parse).filter(r => r.phase.startsWith('restore-operation-'));
+  assert.equal(operationRows.filter(r => r.phase === 'restore-operation-start').length, 32);
+  assert.equal(operationRows.filter(r => r.phase === 'restore-operation-end').length, 31);
+  assert(!operationRows.some(r => r.phase === 'restore-operation-error'), 'duplicate terminal rows refused');
+  assert(operationRows.some(r => r.operationId === 1 && r.phase === 'restore-operation-start'));
+  assert(!operationRows.some(r => r.operationId === 1 && r.phase !== 'restore-operation-start'));
+  assert(!operationText.includes('PRIVATE_'));
+  assert(operationRows.every(r => JSON.stringify(r).length < 512));
   // The native shim starts a separate Node process without inheriting --require.
   // Exercise that process boundary with the actual patched restore block.
   const dispatch = body => {
@@ -153,4 +264,4 @@ ${section(source, '  const restoreStart', '  // Turn health')}`;
   assert.equal(afterSuccess.filter(r => r.phase === 'restore-policy-window').length, 1,
     'successful restore does not scan the policy ring');
 } finally { fs.rmSync(home, { recursive: true, force: true }); }
-console.log('Brain restore diagnostics: pristine quiet-output failures reproduced; success/partial/refused/empty/throw/deadline outcomes, native budgets, privacy and bounded logger reuse pass');
+console.log('Brain restore diagnostics: pristine quiet-output failures reproduced; success/partial/refused/empty/throw/deadline outcomes, native budgets, transparent list/get phases, pending starts, privacy and bounded logger reuse pass');

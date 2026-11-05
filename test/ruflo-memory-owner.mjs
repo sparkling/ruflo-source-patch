@@ -29,14 +29,12 @@ const write = value => fs.writeFileSync(configFile, JSON.stringify(value), { mod
 try {
   // Always exercise the immediately preceding installed runtime, even when the
   // optional upstream source fixture is not configured for the full suite.
-  const clientBase = '/**\n * V3 CLI MCP Client\n */\nexport async function callMCPTool(toolName, input = {}, context) {\n'
-    + '        // ADR-324: one policy chokepoint for every local CLI/MCP invocation.\n'
-    + 'const decision = await authorizeMcpTool(toolName, input, context, classifyMcpTool(toolName));\n'
-    + '        const result = await tool.handler(input, context);\n}\n';
+  const release150 = JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.150.json', import.meta.url)));
+  const previous150 = release150.runtime + '/**\n * V3 CLI MCP Client\n */\n' + release150.dispatch + '\n';
+  const clientBase = reverse(previous150);
   const currentClient = patchSource(clientBase); assert.deepEqual(currentClient.missing, []);
   const oldRuntime = JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.147.json', import.meta.url))).runtime;
-  const runtimeEnd = currentClient.next.indexOf('/**\n * V3 CLI MCP Client');
-  const previousClient = oldRuntime + currentClient.next.slice(runtimeEnd);
+  const previousClient = oldRuntime + previous150.slice(release150.runtime.length);
   assert.notEqual(previousClient, currentClient.next);
   assert.equal(patchSource(previousClient).next, currentClient.next, 'exact installed 4.46.147 runtime upgrades');
   assert.equal(reverse(previousClient), clientBase, 'previous release restores pristine anchors');

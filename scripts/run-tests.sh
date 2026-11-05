@@ -98,6 +98,7 @@ SUITES+=(package-maintenance)
 SUITES+=(cwd-session-current)
 SUITES+=(ruflo-hooks-schema codex-skills-registry)
 SUITES+=(ruflo-memory-owner ruflo-memory-owner-retirement ruflo-owner-policy ruflo-policy-anchor-copy brain-capture-timing)
+SUITES+=(ruflo-operation-diagnostics)
 SUITES+=(hourly-regression)
 # Explicit focused suites reuse every protection above; names cannot escape test/.
 if [ "$#" -gt 0 ]; then

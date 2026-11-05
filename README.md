@@ -971,6 +971,21 @@ Overlap is evidence for investigation, not automatic attribution. Successful
 restores do not scan the policy ring. This closes the diagnostic gap exposed by
 R2 and ST03; it is not a latency fix or proof that those failures recovered.
 
+The later release-150 R5 recurrence remains unresolved: a bounded three-hook
+burst plus two native list reads reproduced all three 3,500 ms expirations.
+Initialization responses arrived around 2,670 ms and fast-list responses around
+3,317 ms; no fallback page or exact retrieval began before expiry. This does not
+establish a database failure or isolate the original invocation's missing time.
+Restore diagnostics now retain bounded list/get starts and outcomes, including
+operations still pending at expiry. Owner diagnostics distinguish initialization,
+policy, handler and forwarding phases in 128 private overwrite slots under
+`~/.ruflo-source-patch/mcp-operation-diagnostics`. CPU and event-loop metrics
+describe the whole process interval, including overlapping calls; initialization
+timing starts when JavaScript dispatches the handler, not at network arrival.
+No inputs, memory values, raw keys, credentials or raw errors are recorded.
+`RSP_OPERATION_DIAGNOSTICS=off` disables owner observations. These traces change
+neither deadlines nor session retirement and are diagnostic, not recovery proof.
+
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
 both monitors reported no drift. Fresh native reads each produced one completed

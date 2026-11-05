@@ -2,6 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Diagnostic extension, 2026-11-05**: The release-150 R5 recurrence is reproducible
+under concurrent registered hooks. Extend the existing Brain #522 and native
+owner timing observations with bounded restore list/get and initialization,
+policy, handler and forwarding phases. Preserve all native reads, deadlines,
+authorization and retirement. These observations do not constitute a latency fix;
+process CPU/event-loop intervals include overlapping calls, and initialization
+starts at JavaScript handler dispatch, not network arrival.
 **Updated**: 2026-11-05. Brain #522 adds quiet restore output and bounded private diagnostics; failed restores retain overlapping policy timing samples before shared-ring rotation. Restoration and deadlines remain unchanged. `all install` uses one shared composition with existing registration/trust helpers; healthy monitors reuse fresh SessionStart observation without taking a writer lock. The issue-backed AIDefence target wires native server pack configuration without changing detector rules. SessionStart can observe fresh exact installed composition without becoming a writer; unknown or changed sources retain exclusive repair. Explicit-store inventory reads reuse equivalent native policy
 authority; bounded lifecycle handoff and store/read reuse remain. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
