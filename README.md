@@ -1034,6 +1034,23 @@ and crash tests preserve refusal and native recovery. A disposable 105,000-ancho
 benchmark improved median transaction time from 364.6 to 229.8 ms; this is not
 a production latency claim. First verification still grows with history.
 
+The 5 November follow-up reuses one process-local summary of a successfully
+published, authenticated anchor file. A later transaction may reuse that summary
+only after rereading and hashing the entire file and matching its exact length,
+canonical project/trust/state context and current mirror tip. A changed file,
+foreign writer, different context or missing/older mirror takes the native parser
+path. Every request still receives a new native authorization decision and receipt;
+state, mirror and archive checks remain fresh. The newly serialized append is
+validated before reuse is offered, and only successful native anchor and mirror
+publication can seed it. Nothing is persisted as a cache or removed from history.
+This avoids repeated JSON parsing and per-entry hash computation for unchanged,
+previously authenticated bytes; the complete byte scan still grows with history.
+An isolated read-only copy of 178,756 production anchor entries (73.1 MB) measured
+238.45 ms for native full parsing versus 26.61 ms for complete-byte digest reuse.
+These are component timings, not a live hook or concurrency claim. Native 3.71.4
+tests cover exact released-composition migration, tampering, serialization edges,
+failed publication, crash recovery and full audit; live activation is separate.
+
 The same release fixes our capture-admission race: normal owner retirement
 could remove `admission.lock` just before our claims scan, outside its existing
 ENOENT retry. The scan now participates in that bounded retry. Ownership checks,

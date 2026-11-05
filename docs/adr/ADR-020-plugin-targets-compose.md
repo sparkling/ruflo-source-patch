@@ -34,8 +34,12 @@ enumerable absolute `dbPath` equal to that pin and an advertised selector. Nativ
 request reconstruction, trust, identity, approvals and evidence still must match;
 metadata is never authority. Unsupported capabilities refuse before dispatch.
 Other pin mismatches, constrained identities and different policy contexts retain
-their prior authorization path. Full anchor verification and audit are unchanged;
-history still scales linearly. Exact 4.46.123/earlier reconstruction preserves
+their prior authorization path. Full anchor authentication and audit remain:
+the 5 November extension may reuse one previously published validated summary
+only after a fresh complete-file digest/length check and exact project, trust,
+state and mirror-tip match. All decisions and state/archive checks remain native;
+misses take the native parser. No history is removed or cache persisted, and the
+complete byte scan still scales linearly. Exact 4.46.123/earlier reconstruction preserves
 upgrade, pristine reversal and the canonical failure decoder.
 The independent #4686 pagination contribution pages proven native row identifiers before hydrating payloads; unknown schemas retain native SQL. It changes no schema, driver or pagination consistency contract. Native/sql.js equivalence and shared-owner forward/reverse composition qualify activation. The reviewed 3.71.1 wrapper remains unchanged, including its new missing-installation refusal. Composition provenance now tries exact current-chain equality before historical subsets; all native preflights and fallback proofs remain, without caching health or changing the mutation lock.
 

@@ -5,7 +5,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { patchSource, reverse, hasPatch, isPatched } from '../lib/ruflo-policy-anchor-copy/patcher.mjs';
+import { syncBuiltinESMExports } from 'node:module';
+import { patchSource, reverse, hasPatch, isPatched, historicalPatchSource } from '../lib/ruflo-policy-anchor-copy/patcher.mjs';
 import { patchSource as ownerPatch } from '../lib/ruflo-memory-owner/patcher.mjs';
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-anchor-copy-'));
 const originalEnv = { ...process.env };
@@ -19,6 +20,11 @@ try {
     assert(hasPatch(result.next)); assert(isPatched(result.next));
     assert.equal(reverse(result.next), source, 'exact restoration preserves other patches');
     assert.equal(patchSource(result.next).next, result.next);
+    const previous = historicalPatchSource(source).next;
+    assert.equal(reverse(previous), source, 'exact149 restoration preserves other composition');
+    assert.equal(patchSource(previous).next, result.next, 'exact149 upgrades to byte-bound summary reuse');
+    assert.equal(isPatched(previous), false, 'previous publication-only patch still needs upgrade');
+    assert(patchSource(previous.replace('source.digest', 'source.foreign')).missing.length);
     assert(patchSource(source + source).missing.length);
     assert(patchSource(result.next.replace('source.digest', 'source.corrupted')).missing.length);
     assert(patchSource(source.replace("{ fatal: true }", "{ fatal: false }")).missing.length,
@@ -54,7 +60,7 @@ try {
   fs.writeFileSync(file, canonical(entries));
   const proof = assess(); assert.equal(validations, entries.length, 'full initial validation');
   validations = 0; write(proof);
-  assert.equal(validations, 1, 'only the new anchor needs entry reauthentication during byte-bound copy');
+  assert.equal(validations, 2, 'only the new anchor and its exact serialized form are reauthenticated');
   assert.deepEqual(JSON.parse(fs.readFileSync(output)), { version: 1, entries: [...entries, next] });
   validations = 0; write(proof);
   assert.equal(validations, entries.length + 1, 'consumed proof never grants reuse in another publication');
@@ -103,6 +109,60 @@ try {
   try { assert.throws(() => reader.appendedAnchorLog(file, { ...next, seq: -1 }, validate, invalidNext)[reader.ATOMIC_JSON_WRITER](fd), /policy-anchor-log-corrupt/); }
   finally { fs.closeSync(fd); }
 
+  const publish = (change = {}, transform = value => value) => {
+    fs.writeFileSync(file, canonical(entries));
+    const evidence = assess(), tip = { ...next, ...change };
+    const publication = reader.appendedAnchorLog(file, tip, validate, evidence);
+    const target = fs.openSync(output, 'w');
+    try { publication[reader.ATOMIC_JSON_WRITER](target); } finally { fs.closeSync(target); }
+    fs.renameSync(output, file);
+    reader.publishVerifiedAnchorSummary(transform(publication), file, 'context', tip.hash);
+  };
+  publish(); validations = 0;
+  let bytesRead = 0;
+  const nativeRead = fs.readSync;
+  fs.readSync = (...args) => { const count = nativeRead(...args); bytesRead += count; return count; };
+  syncBuiltinESMExports();
+  let reused;
+  try { reused = reader.readVerifiedAnchorSummary(file, 'context', next.hash); }
+  finally { fs.readSync = nativeRead; syncBuiltinESMExports(); }
+  assert.equal(bytesRead, fs.statSync(file).size, 'reuse freshly reads and hashes every source byte');
+  assert.equal(validations, 0, 'identical authenticated bytes avoid repeated entry parsing and hash-chain work');
+  assert.equal(reused.count, entries.length + 1); assert.deepEqual(reused.last, next); assert.equal(reused.mirrorIncluded, true);
+  assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'one publication summary is consumed once');
+  for (const [context, mirror, selected] of [['other', next.hash, file], ['context', 'older-mirror', file], ['context', undefined, file], ['context', next.hash, other]]) {
+    publish(); assert.equal(reader.readVerifiedAnchorSummary(selected, context, mirror), undefined);
+    assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'a mismatch discards old reuse authority');
+  }
+  for (const alter of [
+    bytes => Buffer.from(bytes.toString().replace('hash-50', 'hash-X0')),
+    bytes => bytes.subarray(0, -1), bytes => Buffer.concat([bytes, Buffer.from(' ')]),
+    bytes => Buffer.from(JSON.stringify(JSON.parse(bytes), null, 2)),
+  ]) {
+    publish(); const stat = fs.statSync(file); fs.writeFileSync(file, alter(fs.readFileSync(file))); fs.utimesSync(file, stat.atime, stat.mtime);
+    assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'same metadata never authenticates changed bytes or grammar');
+  }
+  publish({}, () => ({}));
+  assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'unexecuted or forged publication cannot grant reuse');
+  publish({ toJSON() { return { ...next, seq: -1 }; } });
+  assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'pre-serialization validation cannot bless different output');
+  publish({ toJSON() { return undefined; } });
+  assert(fs.readFileSync(file, 'utf8').endsWith(',\nundefined\n]}\n'), 'summary optimization preserves original undefined serialization behavior');
+  assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined);
+  publish(); const nativeClose = fs.closeSync;
+  fs.closeSync = value => { nativeClose(value); throw Error('close failure'); }; syncBuiltinESMExports();
+  try { assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'failed digest-read cleanup declines reuse'); }
+  finally { fs.closeSync = nativeClose; syncBuiltinESMExports(); }
+  publish(); fs.renameSync(file, other); fs.symlinkSync(other, file);
+  assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'symlink replacement cannot use authenticated summary');
+  fs.unlinkSync(file); fs.renameSync(other, file);
+  publish(); const priorSummary = reader.readVerifiedAnchorSummary(file, 'context', next.hash);
+  fs.writeFileSync(file, canonical(entries));
+  const changedAfterRead = fs.openSync(output, 'w');
+  try { assert.throws(() => reader.appendedAnchorLog(file, { seq: next.seq + 1, hash: 'hash-' + (next.seq + 1) }, validate,
+    priorSummary.rspProof)[reader.ATOMIC_JSON_WRITER](changedAfterRead), /policy-anchor-log-source-changed/); }
+  finally { fs.closeSync(changedAfterRead); }
+
   const nativeRoot = process.env.RSP_POLICY_NATIVE_ROOT;
   if (nativeRoot) {
     process.env.HOME = path.join(temporary, 'home'); process.env.XDG_CONFIG_HOME = path.join(temporary, 'config');
@@ -114,20 +174,29 @@ try {
     fs.cpSync(path.join(nativeRoot, 'dist'), path.join(copy, 'dist'), { recursive: true });
     fs.symlinkSync(path.join(nativeRoot, 'node_modules'), path.join(copy, 'node_modules'));
     for (const name of ['policy-anchor-log.js', 'policy-ledger-anchor.js']) {
-      const target = path.join(copy, 'dist/src/services', name), source = fs.readFileSync(target, 'utf8');
+      const target = path.join(copy, 'dist/src/services', name), pristineSource = fs.readFileSync(target, 'utf8');
+      const source = name === 'policy-anchor-log.js' ? ownerPatch(pristineSource).next : pristineSource;
       const patched = patchSource(source); assert.deepEqual(patched.missing, [], name);
       if (name === 'policy-ledger-anchor.js') assert(patchSource(source.replace(
         'if (!validEntry(value, summary.count, prev))', 'if (false)')).missing.length,
       'missing native initial chain authentication refuses');
       assert.equal(reverse(patched.next), source); assert(isPatched(patched.next));
-      fs.writeFileSync(target, patched.next);
+      assert.equal(patchSource(historicalPatchSource(source).next).next, patched.next, name + ' exact149 migration with owner parser');
+      const instrumented = name === 'policy-ledger-anchor.js' ? patched.next
+        .replace('function validEntry(value, seq, prev) {', 'function validEntry(value, seq, prev) {\n    rspTestStats.validated++;')
+        .replace('if (reused) return reused;', 'if (reused) { rspTestStats.hits++; return reused; }')
+        + '\nexport const rspTestStats = { validated: 0, hits: 0 };\nexport const rspTest = { readLog, validEntry, entryHash, context: rspAnchorSummaryContext };\n' : patched.next;
+      fs.writeFileSync(target, instrumented);
     }
     const native = await import(pathToFileURL(path.join(copy, 'dist/src/services/policy-runtime.js')));
+    const anchors = await import(pathToFileURL(path.join(copy, 'dist/src/services/policy-ledger-anchor.js')));
+    const nativeReader = await import(pathToFileURL(path.join(copy, 'dist/src/services/policy-anchor-log.js')));
     const root = path.join(temporary, 'synthetic-project'); fs.mkdirSync(root);
     const request = () => ({ identity: { id: 'synthetic-test', type: 'agent' }, action: { type: 'memory.read', resource: 'fixture' } });
     for (let i = 0; i < 4; i++) await native.withPolicyTransaction(root, engine => {
       for (let n = 0; n < 8; n++) engine.evaluate(request());
     });
+    assert(anchors.rspTestStats.hits >= 2, 'current native transactions reuse freshly hashed published summaries');
     assert.equal((await native.verifyPolicyLedger(root, { full: true })).length, 32);
     const anchor = path.join(root, '.claude-flow/policy/ledger-anchors.json');
     const state = path.join(root, '.claude-flow/policy/state.json');
@@ -179,6 +248,50 @@ try {
       assert(recovered.valid); assert.equal(recovered.length, 36, 'crashed operation retained once; native catch-up adds no duplicate');
     }
     console.log('native-current composed atomic publication, tamper, crash-order and full audit qualification passed');
+
+    // Component timing only: native full-chain parser versus exact-byte reuse.
+    // Optional real history is copied into this disposable fixture; no live file is written.
+    const benchRoot = path.join(temporary, 'history-benchmark'), benchFile = path.join(benchRoot, '.claude-flow/policy/ledger-anchors.json');
+    fs.mkdirSync(path.dirname(benchFile), { recursive: true });
+    const realHistory = process.env.RSP_ANCHOR_BENCH_SOURCE;
+    if (realHistory) {
+      assert.equal(path.basename(realHistory), 'ledger-anchors.json');
+      const source = fs.openSync(realHistory, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+      try { assert(fs.fstatSync(source).isFile()); fs.writeFileSync(benchFile, fs.readFileSync(source), { mode: 0o600 }); }
+      finally { fs.closeSync(source); }
+    } else {
+      let prev = null; const history = [];
+      for (let seq = 0; seq < 20000; seq++) {
+        const item = { seq, length: 1, headHash: 'fixture-head', prevAnchorHash: prev, ts: seq, event: 'append' };
+        item.hash = anchors.rspTest.entryHash(item); history.push(item); prev = item.hash;
+      }
+      fs.writeFileSync(benchFile, canonical(history), { mode: 0o600 });
+    }
+    const contextState = { ledgerLength: 1, ledgerHead: 'component-benchmark', retainedFrom: 0 };
+    const mark = performance.now(), startValidations = anchors.rspTestStats.validated;
+    const assessed = anchors.rspTest.readLog(benchRoot, undefined, contextState);
+    const coldMs = performance.now() - mark;
+    assert.notEqual(assessed, 'corrupt'); assert(assessed.count > 1);
+    assert.equal(anchors.rspTestStats.validated - startValidations, assessed.count, 'every original anchor initially authenticated natively');
+    const newTip = { ...assessed.last, seq: assessed.count, prevAnchorHash: assessed.last.hash, ts: Date.now() };
+    newTip.hash = anchors.rspTest.entryHash(newTip);
+    const publication = nativeReader.appendedAnchorLog(benchFile, newTip, anchors.rspTest.validEntry, assessed.rspProof);
+    const benchTemp = benchFile + '.temporary', benchFd = fs.openSync(benchTemp, 'w', 0o600);
+    try { publication[nativeReader.ATOMIC_JSON_WRITER](benchFd); fs.fsyncSync(benchFd); } finally { fs.closeSync(benchFd); }
+    fs.renameSync(benchTemp, benchFile);
+    nativeReader.publishVerifiedAnchorSummary(publication, benchFile, anchors.rspTest.context(benchRoot, contextState), newTip.hash);
+    const hotMark = performance.now(), hotValidations = anchors.rspTestStats.validated, hotHits = anchors.rspTestStats.hits;
+    const hot = anchors.rspTest.readLog(benchRoot, newTip.hash, contextState);
+    const warmMs = performance.now() - hotMark;
+    assert.equal(anchors.rspTestStats.hits, hotHits + 1); assert.equal(anchors.rspTestStats.validated, hotValidations);
+    assert.equal(hot.count, assessed.count + 1); assert.deepEqual(hot.last, newTip); assert.equal(hot.mirrorIncluded, true);
+    const fullMark = performance.now();
+    const fullAgain = anchors.rspTest.readLog(benchRoot, newTip.hash, contextState);
+    const fullAgainMs = performance.now() - fullMark;
+    assert.deepEqual({ ...hot, rspProof: null }, { ...fullAgain, rspProof: null }, 'same complete summary on exactly the same final bytes');
+    console.log(JSON.stringify({ anchorHistoryBenchmark: { source: realHistory ? 'read-only real history copy' : 'synthetic native hash chain',
+      entries: hot.count, bytes: fs.statSync(benchFile).size, coldMs, warmMs, fullAgainMs,
+      rssBytes: process.memoryUsage().rss, scope: 'anchor authentication component; not live policy or hook timing' } }));
   } else console.log('native-current qualification not requested (set RSP_POLICY_NATIVE_ROOT)');
 } finally {
   for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
