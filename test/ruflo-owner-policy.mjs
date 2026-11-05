@@ -31,11 +31,20 @@ try {
   fs.copyFileSync(path.join(src, 'mods/policy-projection.js'), path.join(pkg, 'mods/policy-projection.js'));
   const policyFile = path.join(pkg, 'services/policy-runtime.js');
   const policyPatch = patchSource(fs.readFileSync(policyFile, 'utf8')); assert.deepEqual(policyPatch.missing, []);
-  fs.writeFileSync(policyFile, policyPatch.next);
+  // Observe actual native transaction boundaries without replacing authorization,
+  // durable receipts, anchor validation or publication.
+  const transactionAnchor = 'export async function withPolicyTransaction(projectRoot, operation, options = {}) {';
+  assert.equal(policyPatch.next.split(transactionAnchor).length, 2);
+  fs.writeFileSync(policyFile, policyPatch.next.replace(transactionAnchor,
+    'export const transactionProbe = [];\n' + transactionAnchor + '\n    transactionProbe.push({ root: projectRoot, operations: options.diagnostic, at: performance.now() });'));
   // The token parser is already independently tested; this fixture uses one
   // disposable bearer. Transport authentication remains native MCPServer.
   fs.writeFileSync(path.join(pkg, 'mcp-server.js'), "export const resolveMcpHttpAuthToken=()=> 'disposable';");
-  fs.writeFileSync(path.join(pkg, 'factory.mjs'), createOwnerPolicyProtocol.toString() + '\n' + createMemoryOwnerClient.toString() + '\nexport { createMemoryOwnerClient, createOwnerPolicyProtocol };');
+  const queueAnchor='batch.requests.push({ request, resolve, reject, route, queuedAt });';
+  assert.equal(createMemoryOwnerClient.toString().split(queueAnchor).length,2);
+  fs.writeFileSync(path.join(pkg, 'factory.mjs'), 'export const queueProbe={entered:null};\n' + createOwnerPolicyProtocol.toString() + '\n'
+    + createMemoryOwnerClient.toString().replace(queueAnchor,queueAnchor+'\n      queueProbe.entered?.(request);')
+    + '\nexport { createMemoryOwnerClient, createOwnerPolicyProtocol };');
   const factory = await import(pathToFileURL(path.join(pkg, 'factory.mjs')));
   const moduleUrl = pathToFileURL(path.join(pkg, 'mcp-client.js')).href;
   const native = await import(pathToFileURL(policyFile));
@@ -176,6 +185,24 @@ try {
   lifetimeAbort.abort(Error('reader lifetime cancelled'));
   await assert.rejects(lifetimeReader.client.callTool({name:'memory_stats',arguments:{dbPath:pinnedStore}}),/reader lifetime cancelled/);
   await lifetimeReader.client.close();assert.equal(count(),beforeLifetime,'reader lifetime abort prevents dispatch without call options');
+  // Cancellation while waiting for the batch is not proof that the native
+  // server stopped. It must retain exactly one decision and retire after completion.
+  const queueAbort=new AbortController(), queueReader=await client.openInventoryReader({root,dbPath:pinnedStore});
+  const beforeQueue=count(), queueSessions=new Set(server.getSessions().map(row=>row.id));let enqueued;
+  const queueReached=new Promise(resolve=>{enqueued=resolve;});
+  factory.queueProbe.entered=request=>{if(request.action.namespace==='cancelled-queue')enqueued();};
+  const cancelledQueue=queueReader.client.callTool({name:'memory_list',arguments:{dbPath:pinnedStore,namespace:'cancelled-queue'}},undefined,{signal:queueAbort.signal});
+  await queueReached;const queuedSessions=server.getSessions().filter(row=>!queueSessions.has(row.id));
+  assert.equal(queuedSessions.length,1);assert.equal(count(),beforeQueue,'request queued after verification but before policy commit');
+  queueAbort.abort(Error('queued read cancelled'));
+  await assert.rejects(cancelledQueue,/queued read cancelled/);factory.queueProbe.entered=null;
+  const queueLimit=Date.now()+2000;
+  while(!routed.some(row=>row.input.namespace==='cancelled-queue') && Date.now()<queueLimit)await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(routed.filter(row=>row.input.namespace==='cancelled-queue').length,1);
+  assert.equal(count(),beforeQueue+1,'cancelled dispatched request retains one committed decision, never replay');
+  await queueReader.client.close();
+  sweep=await client.openInventoryReader({root,dbPath:pinnedStore});await sweep.client.close();
+  assert(!server.getSessions().some(row=>row.id===queuedSessions[0].id),'cancelled queued one-call session retires after native completion');
   for(const cancel of [false,true]) {
     const abort=new AbortController(), reader=await client.openInventoryReader({root,dbPath:pinnedStore,signal:abort.signal});
     const entered=new Promise(resolve=>{heldEntered=resolve;}), done=new Promise(resolve=>{heldDone=resolve;});
@@ -358,6 +385,40 @@ try {
   before = count(); await assert.rejects(noOwner('memory_retrieve', input), /policy-denied/);
   assert.equal(count(), before + 1); assert.equal(executed, 5);
   assert.equal((await native.verifyPolicyLedger(root, { full: true })).valid, true);
+  // Reproduce the observed 17ms arrival stagger with the exact released runtime
+  // and candidate, both using the real native engine and durable policy ledger.
+  const previous=JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.147.json',import.meta.url))).runtime;
+  fs.writeFileSync(path.join(pkg,'previous.mjs'),previous);
+  const previousOwner=(await import(pathToFileURL(path.join(pkg,'previous.mjs')))).rspMemoryOwner;
+  await previousOwner.enterServerMode(root);
+  const timings=[];
+  try { for(const [label,api,expected,window] of [['released147',previousOwner,[1,2],5],['candidate',owner,[3],50]]) {
+    const probeRoot=path.join(root,label);fs.mkdirSync(probeRoot);
+    await native.withPolicyTransaction(probeRoot,engine=>{
+      engine.setMode('enforce');engine.upsertRule({id:'approval',effect:'require_approval',actions:['memory.read']});
+      for(const id of ['a','c','solo'])engine.issueApproval({id,principal:'legacy-cli',actions:['memory.read'],issuedBy:'fixture-admin',expiresAt:Date.now()+60000,maxUses:1});
+    },{approvalIssuerVerifier:who=>who==='fixture-admin'});
+    const evaluate=api.policyEvaluator({transport:'http'},'memory_list');
+    const authorize=id=>native.authorizeMcpTool('memory_list',{namespace:id},{projectRoot:probeRoot,transport:'http',approvalIds:id==='b'?[]:[id]},native.classifyMcpTool('memory_list'),evaluate);
+    const from=native.transactionProbe.length, started=performance.now();
+    const decisions=await Promise.all([[0,'a'],[15,'b'],[18,'c']].map(([delay,id])=>new Promise(resolve=>setTimeout(resolve,delay)).then(()=>authorize(id))));
+    const groups=native.transactionProbe.slice(from).map(row=>row.operations.length);
+    assert.deepEqual(groups,expected,label+' groups staggered requests');
+    assert.deepEqual(decisions.map(row=>row.enforcedOutcome==='allowed'),[true,false,true]);
+    const ledger=native.loadPolicyState(probeRoot);
+    assert.equal(ledger.receipts.length,3,'every allowed or denied request retains exactly one receipt');
+    assert.deepEqual(ledger.receipts.map(row=>row.payload.request.action.namespace),['a','b','c']);
+    assert.deepEqual(ledger.approvals.filter(row=>row.id!=='solo').map(row=>row.uses),[1,1]);
+    const staggerMs=performance.now()-started, soloStart=performance.now(), soloIndex=native.transactionProbe.length;
+    assert.equal((await authorize('solo')).enforcedOutcome,'allowed');
+    const soloQueueMs=native.transactionProbe[soloIndex].at-soloStart;
+    assert(soloQueueMs>=window-2 && soloQueueMs<window+150,label+' has a bounded solitary-call coalescing delay');
+    assert.equal(native.loadPolicyState(probeRoot).receipts.length,4);
+    assert.equal((await native.verifyPolicyLedger(probeRoot,{full:true})).valid,true);
+    timings.push({label,groups,staggerMs,soloQueueMs,soloTotalMs:performance.now()-soloStart,receipts:4});
+  }} finally { await previousOwner.close(); }
+  assert(timings[1].soloQueueMs-timings[0].soloQueueMs>=30,'candidate explicitly pays the longer solitary-call window');
+  console.log(JSON.stringify({staggeredNativePolicy:timings,queuedCancellation:'one native receipt; no replay'}));
   console.log(JSON.stringify({ nativeHttp: true, defaultDecisions: 1, approvalUses: state().approvals[0].uses, executed, fullAudit: true, mismatchBeforeEvaluation: true, oldOwnerRefusedBeforeEvaluation: true }));
 } finally {
   await client?.close(); await sdk?.close(); await owner?.close();
