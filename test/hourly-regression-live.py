@@ -157,23 +157,21 @@ class ReadOnlyProbe(unittest.TestCase):
         self.assertNotIn('PRIVATE', json.dumps(row))
         self.assertNotIn('secret', json.dumps(row))
 
-    def test_source_completeness_and_private_output(self):
+    def test_source_document_scope_and_private_output(self):
         with tempfile.TemporaryDirectory() as root:
-            result = {'question': 'PRIVATE QUESTION', 'results': [{'body': 'PRIVATE RETAINED BODY'}], 'gaps': [],
-                      'retrievedAt': '2020-01-01T00:00:00Z',
-                      'coverage': {'memory': {'complete': True, 'failedNamespaces': [],
-                       'snapshot': {'mode': 'live-local-native-store', 'sourceRoot': root},
-                       'inventory': {'research': {'enumerated': 10, 'admitted': 8, 'excluded': 2, 'complete': True,
-                                                 'checkedAt': '2020-01-01T00:00:00Z'}}}}}
+            result = {'question': 'PRIVATE QUESTION', 'results': [{'body': 'PRIVATE RETAINED BODY'}],
+                      'total': 1, 'coverage': {'textUnits': 10, 'excludedUnits': 2, 'failures': [],
+                      'indexedAt': '2020-01-01T00:00:00Z',
+                      'privateDocuments': {'authorityRoot': root, 'failures': []}}}
             verified = live.verify_source(live.body({'structuredContent': result}, 'coverage'), root)
-            self.assertEqual(verified['coverage']['memoryComplete'], 1)
-            self.assertEqual(verified['coverage']['enumerated'], 10)
-            self.assertGreater(verified['coverage']['retrievedAtAgeMs'], 0)
-            self.assertEqual(verified['coverage']['resultRetrievedAtEpochMs'], 1577836800000)
+            self.assertEqual(verified['coverage']['textUnits'], 10)
+            self.assertNotIn('memoryComplete', verified['coverage'])
+            self.assertIn('document-discovery', verified['scope'])
+            self.assertGreater(verified['coverage']['observedAgeMs'], 0)
+            self.assertEqual(verified['coverage']['sourceObservedAtEpochMs'], 1577836800000)
             self.assertEqual(verified['coverage']['cachedResponse'], 1)
             during = live.verify_source(result, root, 1577836799000)
             self.assertEqual(during['coverage']['cachedResponse'], 0)
-            self.assertEqual(verified['coverage']['inventoryAgeKnownNamespaces'], 1)
             self.assertNotIn('PRIVATE', json.dumps(verified))
             self.assertNotIn(root, json.dumps(verified))
             calls = []
@@ -189,19 +187,26 @@ class ReadOnlyProbe(unittest.TestCase):
             with patch.dict(sys.modules, {'websockets': types.SimpleNamespace(unix_connect=lambda *_a, **_k: Socket())}):
                 rows = asyncio.run(live.worker([{'kind': 'knowledge-source', 'host': 'hz', 'label': 'source',
                     'threadId': '00000000-0000-0000-0000-000000000000', 'expectedSourceRoot': root}]))
-            self.assertEqual(rows[0]['status'], 'not-verified', 'cached route proof is not fresh inventory proof')
-            self.assertEqual(rows[0]['error'], 'cached-source-response-no-fresh-inventory-proof')
+            self.assertEqual(rows[0]['status'], 'not-verified', 'cached proof is not fresh document discovery')
+            self.assertEqual(rows[0]['error'], 'cached-source-response-no-fresh-document-proof')
             tool_calls = [call['params'] for call in calls if call['method'] == 'mcpServer/tool/call']
             self.assertEqual(len(tool_calls), 1, 'one source call, no retry or cache bypass')
             self.assertEqual(tool_calls[0]['server'], 'knowledge_ai_ba')
-            self.assertEqual(tool_calls[0]['tool'], 'search_knowledge')
-            self.assertEqual(tool_calls[0]['arguments'], {'question': 'ADR091 research reconciliation synthesis', 'offset': 0, 'limit': 4})
+            self.assertEqual(tool_calls[0]['tool'], 'search_documents')
+            self.assertEqual(tool_calls[0]['arguments'], live.SOURCE_ARGUMENTS)
             self.refused('unexpected-source-root', lambda: live.verify_source(result, root + '-other'))
-            result['gaps'] = ['private error']
+            result['coverage']['failures'] = ['private error']
             self.refused('source-coverage-gaps', lambda: live.verify_source(result, root))
-            result['gaps'] = []
-            result['coverage']['memory']['complete'] = False
-            self.refused('incomplete-source-memory', lambda: live.verify_source(result, root))
+            result['coverage']['failures'] = []
+            result['coverage']['privateDocuments']['failures'] = ['private error']
+            self.refused('source-coverage-gaps', lambda: live.verify_source(result, root))
+            result['coverage']['privateDocuments']['failures'] = []
+            result['total'] = 0
+            self.refused('invalid-document-count', lambda: live.verify_source(result, root))
+            result['results'] = []
+            self.assertEqual(live.verify_source(result, root)['coverage']['totalMatches'], 0)
+            result['coverage']['textUnits'] = -1
+            self.refused('invalid-document-count', lambda: live.verify_source(result, root))
 
 
 unittest.main()

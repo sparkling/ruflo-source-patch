@@ -15,6 +15,15 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Hourly source probe: 5 November 2026
+
+The hourly source check uses `search_documents`, replacing the retired combined-search
+dependency. Its receipt proves fresh document discovery for the configured authority,
+with explicit coverage failures; it does not claim a native-memory census or exact
+document-body verification. The four existing native health/list/exact-memory checks
+are unchanged. The configured HZ AI-BA source probe passed in 1.52 seconds; focused
+Python and scheduler tests pass. The existing hourly job reads this checkout directly.
+
 ## Shared HTTP session recovery and cleanup: 4 November 2026
 
 Version 4.46.135 removes a redundant release notification in our

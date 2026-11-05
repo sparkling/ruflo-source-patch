@@ -121,54 +121,36 @@ def verify_native_health(value):
 
 
 def verify_source(result, expected_root, requested_at_ms=None):
+    """Prove current document discovery only, never a native-memory census."""
     coverage = result.get('coverage')
-    memory = coverage.get('memory') if isinstance(coverage, dict) else None
-    if not isinstance(memory, dict) or memory.get('complete') is not True:
-        raise Refused('incomplete-source-memory')
-    if result.get('gaps') != [] or memory.get('failedNamespaces') != []:
+    private = coverage.get('privateDocuments') if isinstance(coverage, dict) else None
+    if not isinstance(coverage, dict) or not isinstance(private, dict):
+        raise Refused('missing-document-coverage')
+    if coverage.get('failures') != [] or private.get('failures') != []:
         raise Refused('source-coverage-gaps')
-    snapshot = memory.get('snapshot')
-    if not isinstance(snapshot, dict) or snapshot.get('mode') != 'live-local-native-store':
-        raise Refused('unexpected-source-mode')
-    root = snapshot.get('sourceRoot') if isinstance(snapshot, dict) else None
+    root = private.get('authorityRoot')
     if (not isinstance(root, str) or not os.path.isabs(root) or not pathlib.Path(root).is_dir()
             or os.path.realpath(root) != os.path.realpath(expected_root)):
         raise Refused('unexpected-source-root')
-    inventory = memory.get('inventory')
-    if not isinstance(inventory, dict) or not inventory:
-        raise Refused('missing-source-inventory')
-    counts = {field: 0 for field in ('enumerated', 'admitted', 'excluded')}
-    checked = []
-    def epoch_ms(value):
-        try:
-            return round(datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp() * 1000)
-        except (AttributeError, TypeError, ValueError, OverflowError):
-            return -1
-    for row in inventory.values():
-        if not isinstance(row, dict) or row.get('complete') is not True:
-            raise Refused('incomplete-source-inventory')
-        for field in counts:
-            value = row.get(field)
-            if type(value) is not int or value < 0:
-                raise Refused('invalid-source-inventory-count')
-            counts[field] += value
-        observed = epoch_ms(row.get('checkedAt'))
-        if observed >= 0:
-            checked.append(observed)
+    rows = result.get('results')
+    counts = {field: coverage.get(field) for field in ('textUnits', 'excludedUnits')}
+    if (not isinstance(rows, list) or type(result.get('total')) is not int
+            or result['total'] < len(rows)
+            or any(type(value) is not int or value < 0 for value in counts.values())):
+        raise Refused('invalid-document-count')
+    try:
+        observed = round(datetime.datetime.fromisoformat(coverage['indexedAt'].replace('Z', '+00:00')).timestamp() * 1000)
+    except (KeyError, AttributeError, TypeError, ValueError, OverflowError):
+        observed = -1
     now = round(time.time() * 1000)
-    retrieved = epoch_ms(result.get('retrievedAt'))
     requested = now if requested_at_ms is None else requested_at_ms
     return {'resultDigest': digest(result), 'sourceRootDigest': digest(os.path.realpath(root)),
-            'coverage': {**counts, 'namespaces': len(inventory), 'memoryComplete': 1,
-                         'gapCount': 0, 'failedNamespaceCount': 0, 'inventoryAgeKnownNamespaces': len(checked),
-                         'inventoryOldestCheckedAtEpochMs': min(checked) if checked else -1,
-                         'inventoryNewestCheckedAtEpochMs': max(checked) if checked else -1,
-                         'inventoryOldestAgeMs': max(0, now - min(checked)) if checked else -1,
-                         'inventoryNewestAgeMs': max(0, now - max(checked)) if checked else -1,
-                         'resultRetrievedAtEpochMs': retrieved,
+            'scope': 'document-discovery; no complete native-memory inventory or exact-body proof',
+            'coverage': {**counts, 'returned': len(rows), 'totalMatches': result['total'],
+                         'gapCount': 0, 'sourceObservedAtEpochMs': observed,
                          'requestStartedAtEpochMs': int(requested),
-                         'retrievedAtAgeMs': max(0, now - retrieved) if retrieved >= 0 else -1,
-                         'cachedResponse': int(retrieved < int(requested)) if retrieved >= 0 else -1}}
+                         'observedAgeMs': max(0, now - observed) if observed >= 0 else -1,
+                         'cachedResponse': int(observed < int(requested)) if observed >= 0 else -1}}
 
 
 def validate_targets(targets):
@@ -237,13 +219,13 @@ async def worker(targets):
                                       'tool': name, 'arguments': arguments})
                 if target.get('kind') == 'knowledge-source':
                     requested_at_ms = time.time() * 1000
-                    result = body(await tool('search_knowledge', SOURCE_ARGUMENTS), 'coverage')
+                    result = body(await tool('search_documents', SOURCE_ARGUMENTS), 'coverage')
                     row.update(verify_source(result, target['expectedSourceRoot'], requested_at_ms))
                     cached = row['coverage']['cachedResponse']
                     row.update(status='verified' if cached == 0 else 'not-verified',
                                elapsedMs=round((time.monotonic() - started) * 1000))
                     if cached != 0:
-                        row['error'] = 'cached-source-response-no-fresh-inventory-proof' if cached == 1 else 'source-freshness-unknown'
+                        row['error'] = 'cached-source-response-no-fresh-document-proof' if cached == 1 else 'source-freshness-unknown'
                     results.append(row)
                     continue
                 registry = await call('mcpServerStatus/list', {'threadId': target['threadId'],
