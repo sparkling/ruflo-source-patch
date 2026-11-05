@@ -1476,12 +1476,30 @@ packages receive their complete patches. Invalid preflight file scopes fail clos
 `ruflo-controller-inventory` binds existing public AgentDB methods through the
 current Ruflo owner for [#4707](https://github.com/ruvnet/ruflo/issues/4707):
 `agentdb_pattern-list`, `agentdb_skill-list`, `agentdb_skill-get`, and explicitly
-count-only `agentdb_hierarchical-stats`. Native pages retain their records, totals,
+count-only `agentdb_hierarchical-stats`. [#4712](https://github.com/ruvnet/ruflo/issues/4712)
+adds `agentdb_hierarchical-list` and `agentdb_hierarchical-get` inside the existing
+native TieredMemoryStore owner. Native pages retain their records, totals,
 limit and offset; concurrent pages are not a transactional snapshot. Skill reads
 preserve native backend refusals. Tier counts and persisted rows describe different
 representations and retain native durability/fallback qualifiers; they are not a
 hierarchical record census. The patch uses the canonical registry and native
 operation lease, creates no driver or storage, and exposes no mutations.
+
+Tier inventory defaults to `state: all`, including persisted expired, future and
+superseded history; it preserves original IDs, keys, values, tier, timestamps and
+temporal fields. It reads the durable table through that store's existing handle,
+so bounded recall maps, duplicate keys and archive caps cannot hide persisted rows.
+`limit` (1 to 500), `offset`, optional `tier` and `state` filter pages in descending
+timestamp/ID order. State filters overlap: expired/future follow native date parsing,
+superseded requires actual `supersededBy`, and active means nonarchived, nonsuperseded
+and temporally valid; it does not mean a recall-map winner. Archive and temporal
+flags remain separate. Exact reads accept stable `id` only and return historical
+records too; confirmed absence differs from unsupported or failed reads.
+
+Each list call scans all matching metadata in batches of 500 and fetches only the
+requested page's payloads. `asOf` (epoch milliseconds) fixes temporal evaluation
+across pages, not concurrent data: records, totals and offsets remain live reads,
+not a snapshot. Volatile stores refuse inventory. Recall semantics are unchanged.
 
 Retire only after equivalent upstream methods pass native owner identity,
 pagination, exact read, failure and actual-consumer checks. A matching method name
@@ -2286,7 +2304,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`ruflo-memory-owner`** | Opt-in authenticated native owner routing, exact path authority, immutable public/CLI results and native daemon client reuse. | [#4654 · open](https://github.com/ruvnet/ruflo/issues/4654) |
 | **`ruflo-http-sessions`** | Bind native HTTP requests to their own session and authenticated principal; return session IDs and pre-dispatch expiry responses so clients can reinitialize after replacement. Preserve native completion retirement and legacy SSE binding. | [#3294 · open](https://github.com/ruvnet/ruflo/issues/3294) |
 | **`ruflo-memory-entries-only`** | Adapter withdrawn; retain only native retrieve failure propagation and exact historical reversal. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
-| **`ruflo-controller-inventory`** | Delegate native paginated pattern/skill inventories, exact skills and count-only tier statistics through the existing owner. | [#4707](https://github.com/ruvnet/ruflo/issues/4707) |
+| **`ruflo-controller-inventory`** | Native pattern/skill inventories, exact skills, persisted tier list/get and count-only tier statistics through the existing owner. | [#4707](https://github.com/ruvnet/ruflo/issues/4707), [#4712](https://github.com/ruvnet/ruflo/issues/4712) |
 | **`ruflo-pattern-withdrawal`** | Expose exact native ReasoningBank get and hash-guarded delete for explicit correction. Preserve unrelated patterns and refuse changed identities; no cross-process compare-and-swap guarantee. | Related [#3450](https://github.com/ruvnet/ruflo/issues/3450) and [#829](https://github.com/ruvnet/ruflo/issues/829), not complete repairs of those issues |
 | **`brain-learning-receipts`** | **Retired on native 4.7.28 behavior proof; older compatibility only.** Native exact readback, consent and child-result handling establish capture before marking an observation complete. | [#377 · closed](https://github.com/stuinfla/ruvnet-brain/issues/377) |
 | **`brain-adr-envelope`** | Preserve the complete decision envelope through native asynchronous bounded stdin reading up to 1 MiB, including tail fields. Native verdict and fail-open policy semantics remain unchanged. | [#515 · open](https://github.com/stuinfla/ruvnet-brain/issues/515) |

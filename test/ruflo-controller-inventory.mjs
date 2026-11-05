@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-controller-inventory-')));
 process.env.RUFLO_SOURCE_PATCH_HOME = scratch;
-process.env.RUFLO_GLOBAL_ROOT = path.join(scratch, 'global');
+process.env.RUFLO_GLOBAL_ROOT = path.join(scratch, 'global/node_modules');
 process.env.RUFLO_NPX_ROOT = path.join(scratch, 'npx');
 const patch = await import('../lib/ruflo-controller-inventory/patcher.mjs');
 const { BRIDGE_RUNTIME } = await import('../lib/ruflo-controller-inventory/runtime.mjs');
@@ -60,7 +60,7 @@ export const agentdbTools = [
   const toolsFile = path.join(scratch, 'tools.mjs'); fs.writeFileSync(toolsFile, toolsFixed.next);
   const { agentdbTools } = await import(pathToFileURL(toolsFile));
   const tools = new Map(agentdbTools.filter(t => t.name).map(t => [t.name, t]));
-  assert.equal(tools.size, 4);
+  assert.equal(tools.size, 6);
   const call = (name, args) => tools.get('agentdb_' + name).handler(args);
   const invoked = [], rows = [{ id: 30, taskType: 'research', approach: 'method', metadata: { status: 'retained' } }, { id: 20 }, { id: 10 }];
   const rb = { listPatterns: query => { invoked.push(query); const limit = query.limit ?? 50, offset = query.offset ?? 0; return { items: rows.slice(offset, offset + limit), total: rows.length, limit, offset }; } };
@@ -79,6 +79,17 @@ export const agentdbTools = [
   const count = await call('hierarchical-stats', {}); assert.equal(count.coverage, 'count-only'); assert.equal(count.persistedRows, 14); assert.equal(count.tierStats.semantic, 4); assert.equal(count.controller, 'tieredMemoryStore'); assert.equal(count.fallbackFrom, 'native-export-unavailable'); assert.equal(count.durable, true); checks++;
   tiers.isDurable = () => false; tiers.getPersistence = () => 'volatile'; tiers.countPersisted = () => null;
   const volatile = await call('hierarchical-stats', {}); assert.equal(volatile.persistedRows, null); assert.equal(volatile.durable, false); checks++;
+  tiers.listEntries = rb.listPatterns; tiers.getEntry = id => id === 'tm_fixture' ? { id, value: 'original historical value' } : null;
+  assert.equal((await call('hierarchical-list', {})).reason, 'durable-tier-inventory-unavailable'); checks++;
+  tiers.isDurable = () => true; tiers.getPersistence = () => 'sqlite';
+  assert.equal((await call('hierarchical-list', { limit: 1, state: 'all', asOf: 0 })).page.total, 3);
+  assert.equal((await call('hierarchical-get', { id: 'tm_fixture' })).entry.value, 'original historical value');
+  assert.equal((await call('hierarchical-get', { id: 'absent' })).found, false); checks++;
+  tiers.getEntry = () => undefined;
+  assert.equal((await call('hierarchical-get', { id: 'bad' })).reason, 'invalid-native-tier-entry'); checks++;
+  for (const args of [{ state: 'unknown' }, { tier: 'constructor' }, { asOf: -1 }, { asOf: 8640000000000001 }])
+    assert.equal((await call('hierarchical-list', args)).reason, 'invalid-inventory-arguments');
+  for (const args of [{}, { id: '' }, { id: 5 }]) assert.equal((await call('hierarchical-get', args)).success, false); checks++;
   for (const [name, args] of [['pattern-list', { dbPath: '/foreign.db' }], ['pattern-list', { limit: 0 }], ['pattern-list', { offset: -1 }], ['pattern-list', { limit: 501 }], ['pattern-list', { taskType: 5 }], ['skill-list', { minSuccessRate: NaN }], ['skill-get', {}], ['skill-get', { skillId: -1 }], ['hierarchical-stats', { topK: 10 }], ['pattern-list', null], ['pattern-list', []]]) {
     const before = mod.leaseCount(); const denied = await call(name, args); assert.equal(denied.success, false); assert.equal(typeof denied.error, 'string'); assert.equal(mod.leaseCount(), before); checks++;
   }
@@ -94,10 +105,16 @@ export const agentdbTools = [
   assert.equal((await mod.bridgeControllerInventory('constructor', {})).success, false); checks++;
   for (const tool of tools.values()) { assert.equal(tool.annotations.readOnlyHint, true); assert.equal(tool.inputSchema.additionalProperties, false); assert.equal('dbPath' in tool.inputSchema.properties, false); } checks++;
   const root = path.join(process.env.RUFLO_GLOBAL_ROOT, '@claude-flow/cli/dist/src');
+  const memoryRoot = path.join(process.env.RUFLO_GLOBAL_ROOT, '@claude-flow/memory');
+  fs.mkdirSync(path.join(memoryRoot, 'dist'), { recursive: true });
+  fs.writeFileSync(path.join(memoryRoot, 'package.json'), '{"name":"@claude-flow/memory","main":"dist/index.js"}');
+  fs.writeFileSync(path.join(memoryRoot, 'dist/index.js'), '');
+  const tierPristine = fs.readFileSync(new URL('./fixtures/tiered-memory/native-3.0.0.mjs', import.meta.url), 'utf8');
+  fs.writeFileSync(path.join(memoryRoot, 'dist/tiered-memory.js'), tierPristine);
   for (const [name, body] of [['memory/memory-bridge.js', pristine], ['mcp-tools/agentdb-tools.js', toolsPristine]]) { const target = path.join(root, name); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, body); }
-  assert.equal(patch.preflight().ok, true);
+  assert.equal(patch.preflight().ok, true, JSON.stringify(patch.preflight()));
   const compose = await import('../lib/plugin-compose.mjs');
-  const installed = compose.applyComposed([withdrawal.NAME, patch.NAME]); assert.equal(installed.errors, 0, JSON.stringify(installed)); assert.equal(installed.incomplete, 0); assert.equal(installed.patched, 2);
+  const installed = compose.applyComposed([withdrawal.NAME, patch.NAME]); assert.equal(installed.errors, 0, JSON.stringify(installed)); assert.equal(installed.incomplete, 0); assert.equal(installed.patched, 3);
   assert.equal(compose.applyComposed([withdrawal.NAME, patch.NAME]).patched, 0);
   assert.equal(compose.reconcile([], [patch.NAME, withdrawal.NAME]).errors, 0); assert.equal(fs.readFileSync(path.join(root, 'memory/memory-bridge.js'), 'utf8'), pristine); checks++;
   fs.writeFileSync(path.join(root, 'mcp-tools/agentdb-tools.js'), toolsPristine.replace('async function getBridge(', 'async function missingBridge('));
