@@ -28,7 +28,7 @@ const write = (file, bytes) => { fs.mkdirSync(path.dirname(file), { recursive: t
 const cli = await import('../lib/cwd/patch-library.mjs');
 const compose = await import('../lib/plugin-compose.mjs');
 const state = await import('../lib/cwd/state.mjs');
-const { checkDrift } = await import('../lib/cwd/monitor.mjs');
+const { checkDrift, runOnce } = await import('../lib/cwd/monitor.mjs');
 const instruction = await import('../lib/ruflo-instruction-contract/patcher.mjs');
 const entry = cli.ENTRIES.find(candidate => candidate.id === 'init/no-skills-sh');
 const cliOnly = source => cli.composeCliContribution(source, [entry]).next;
@@ -114,19 +114,46 @@ try {
   `], { env: process.env, cwd: sandbox, encoding: 'utf8', timeout: 15000 });
   assert.equal(hook.status, 0, hook.stdout + hook.stderr);
   assert(hook.stdout.includes('__OBSERVATION__{"candidates":0}'), 'actual SessionStart entry must use the observation path: ' + hook.stdout);
+  // A RunAtLoad monitor must not take the next writer lease ahead of a waiting
+  // SessionStart when the installer has already left exact current bytes.
+  const { syncLibFrom, stableLibDrift } = await import('../lib/cwd/stable.mjs');
+  const { STABLE_LIB, HEARTBEAT_PATH, PROBLEMS_PATH } = await import('../lib/cwd/paths.mjs');
+  const immutableLib = path.join(sandbox, 'published-package/lib');
+  write(path.join(immutableLib, 'probe.mjs'), 'export const current = true;');
+  syncLibFrom(immutableLib);
+  assert.deepEqual(stableLibDrift(), []);
+  assert.equal(runOnce().observed, true);
+  fs.mkdirSync(path.join(sandbox, 'published-package/.git'));
+  assert.equal(stableLibDrift(), null);
+  assert.equal(runOnce().observed, true, 'manual source keeps its no-auto-heal policy while exact vendor proof is reused');
+  assert.equal(checkDrift().stableLibSource, 'mutable-checkout', 'observation must not turn manual source into current-source proof');
+  fs.rmdirSync(path.join(sandbox, 'published-package/.git'));
+  assert(fs.existsSync(HEARTBEAT_PATH), 'observing monitor still records scheduler life');
+  const stray = path.join(roots[0], '@unknown/cli');
+  write(path.join(stray, 'package.json'), JSON.stringify({ name: '@unknown/cli', version: '1.0.0' }));
+  write(path.join(stray, 'dist/src/commands/daemon.js'), '// runnable foreign build fixture');
+  assert.equal(runOnce().observed, true);
+  assert.match(fs.readFileSync(PROBLEMS_PATH, 'utf8'), /uncovered ruflo CLI/);
+  fs.rmSync(stray, { recursive: true });
+  const savedState = state.readState();
+  assert.equal(compose.installedStateHealthy(() => {
+    state.writeState({ ...savedState, all: !savedState.all }); return true;
+  }), false, 'state changes during monitor qualification invalidate the proof');
+  state.writeState(savedState);
   const leaderRelease = state.acquirePatchMutationLock();
   const childSource = `
     import fs from 'node:fs';
     import { reapply } from ${JSON.stringify(new URL('../lib/cwd/commands.mjs', import.meta.url).href)};
+    import { runOnce } from ${JSON.stringify(new URL('../lib/cwd/monitor.mjs', import.meta.url).href)};
     let candidates = 0; const open = fs.openSync;
     fs.openSync = (file, ...args) => { if (String(file).includes('.mutation.lock.candidate-')) candidates++; return open(file, ...args); };
     console.log('ready');
-    try { console.log(JSON.stringify({ result: reapply({ observe: true }), candidates })); }
+    try { console.log(JSON.stringify({ result: process.env.TEST_MONITOR === '1' ? runOnce() : reapply({ observe: true }), candidates })); }
     catch(error) { console.log(JSON.stringify({ error: error.message, candidates })); process.exitCode = 1; }
   `;
-  const followers = Array.from({ length: 6 }, () => {
+  const followers = Array.from({ length: 6 }, (_, index) => {
     const child = spawn(process.execPath, ['--input-type=module', '--eval', childSource], {
-      env: { ...process.env, RSP_PATCH_LOCK_TIMEOUT_MS: '5000' }, stdio: ['ignore', 'pipe', 'pipe'] });
+      env: { ...process.env, RSP_PATCH_LOCK_TIMEOUT_MS: '5000', TEST_MONITOR: index < 2 ? '1' : '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '', stderr = '', ready;
     const timer = setTimeout(() => child.kill('SIGKILL'), 15000);
     const started = new Promise(resolve => { ready = resolve; });
@@ -155,6 +182,12 @@ try {
     try { assert.equal(release, null); } finally { release?.(); }
     assert.equal(observationCalls, 1);
   } finally { fs.existsSync = exists; }
+  write(path.join(STABLE_LIB, 'probe.mjs'), '// stale installed package module');
+  assert.notEqual(runOnce().observed, true, 'stable-source drift requires the exclusive healing path');
+  assert.deepEqual(stableLibDrift(), []);
+  write(files[1], legacy);
+  assert.notEqual(runOnce().observed, true, 'monitor repairs dropped vendor patches under its writer lock');
+  expectFiles(combined(legacy));
   write(files[0], legacy); // A genuinely dropped patch still requires the writer.
   assert.equal(compose.installedCompositionHealthy(state.readState()), false);
   assert.notEqual(reapply({ observe: true }).observed, true);
@@ -186,7 +219,7 @@ try {
   assert.equal(observeComposition([descriptor], () => ++discoveries === 1 ? discovery() : new Map()), false);
   assert.equal(observeComposition([{ ...descriptor, name: 'missing' }], discovery), false);
   assert.equal(observeComposition([{ name: 'absent', applicability: () => ({ state: 'not-applicable' }) }], () => new Map()), true);
-  console.log('✓ SessionStart: six followers observe exact source without mutation; drift repairs under lock; unknown/dependency/stability failures refuse');
+  console.log('✓ SessionStart: four SessionStart and two monitor followers observe exact source without mutation; drift repairs under lock; unknown/dependency/stability failures refuse');
   reset(); state.addTargets(['init']); state.addPluginTargets([plugin]);
   const { patchPreviousPlatformGenerator } = await import('../lib/ruflo-instruction-contract/skill-contract.mjs');
   for (const file of files) { write(file, patchPreviousPlatformGenerator(cliOnly(legacy)).next); write(backup(file), legacy); }

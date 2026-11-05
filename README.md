@@ -2160,7 +2160,7 @@ Ordinary composing targets install as one batch under the existing mutation lock
 The full Brain boundary and additive installers keep their lifecycle; wrapper-guard
 still repairs legacy MCP registration, and hook-failure-log reconciles trust after
 the final ordinary composition. For the 37 composing installs observed on HZ in
-4.46.145, this changes dispatch to three full sweeps instead of 37. Retirement,
+4.46.145, version 4.46.146 reduced dispatch to three full sweeps instead of 37. Retirement,
 preflight refusals and incomplete/error reporting remain; standalone commands are
 unchanged. The 5 November 2026 live 4.46.146 installs took 21.3 seconds on Mac and
 34.1 seconds on HZ, with three complete sweeps and no changed discovered vendor or pristine
@@ -2168,6 +2168,15 @@ backup bytes. Concurrent SessionStart tests begun immediately after lock acquisi
 still reached the unchanged 30-second wait limit: HZ waited for the installer;
 Mac waited for the newly scheduled monitor after the installer released. Batching
 reduces installation work but does not yet resolve that startup-contention case.
+
+The follow-on installer reuses the existing registration and trust helpers around
+one shared composition. The monitor now shares SessionStart's fresh exact
+state/file/pristine/dependency proof instead of taking another writer lock over
+unchanged bytes. Retirement candidates, positive stable-copy drift and failed
+composition proof retain exclusive repair. Mutable or unavailable stable sources
+keep their existing no-auto-heal classification; observation does not certify
+stable-source provenance. Lock ownership and the 30-second wait are unchanged.
+Contention regressions pass; live 4.46.147 timing and startup proof remain pending.
 
 The **script targets stay opt-in**, because they change *your projects or user-level integrations*
 rather than the patched library.

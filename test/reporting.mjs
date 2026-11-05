@@ -737,9 +737,11 @@ console.log('✔ ambiguous anchors (A1 a duplicated anchor is refused, not guess
   const summaries = [...out(allInstalled).matchAll(/^\[([^\]]+)\] patched: .*skipped:/gm)];
   const batches = summaries.filter(row => row[1].includes('+'));
   const named = summaries.filter(row => !row[1].includes('+')).map(row => row[1]);
-  if (batches.length !== 1 || JSON.stringify(named) !== JSON.stringify(['ruflo-wrapper-guard', 'hook-failure-log'])) {
-    fail(`M2 expected custom wrappers plus one ordinary batch: ${out(allInstalled)}`);
+  if (batches.length !== 1 || named.length !== 0) {
+    fail(`M2 expected one shared composition including custom wrappers: ${out(allInstalled)}`);
   }
+  const repairAt = out(allInstalled).indexOf('[ruflo-wrapper-guard] restored missing legacy MCP launcher');
+  if (repairAt < 0 || repairAt > batches[0].index) fail('M2 wrapper preparation must precede the shared composition');
   const boundary = out(allInstalled).indexOf('[brain-managed-memory-boundary] patched:');
   if (boundary < 0 || boundary > batches[0].index) fail('M2 boundary transaction must precede plugin composition');
   if (/INCOMPLETE|ERRORS:/.test(out(allInstalled)) && allInstalled.status === 0) {

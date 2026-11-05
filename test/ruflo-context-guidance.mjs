@@ -179,7 +179,7 @@ const retired = Object.fromEntries([...PATCH_TARGETS, ...PLUGIN_TARGETS].filter(
 writeState({ patchTargets: [], pluginTargets: [], retired, all: true });
 const allOutput = cliOk('all', 'install');
 assert.deepEqual(readState().pluginTargets, ['hook-failure-log', NAME], 'all install adopts ordinary and custom composing targets');
-const composedAt = allOutput.indexOf(`[${NAME}] patched:`);
+const composedAt = allOutput.indexOf(`[hook-failure-log+${NAME}] patched:`);
 const trustAt = allOutput.indexOf('[hook-failure-log] Codex trust:');
 assert(composedAt >= 0 && trustAt > composedAt, 'actual logger trust reconciliation runs after the final ordinary composition');
 assert.equal(readState().all, true);

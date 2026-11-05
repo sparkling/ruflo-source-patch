@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
-**Updated**: 2026-11-05. `all install` batches ordinary composing targets while preserving the mutation lock and custom installer steps. The issue-backed AIDefence target wires native server pack configuration without changing detector rules. SessionStart can observe fresh exact installed composition without becoming a writer; unknown or changed sources retain exclusive repair. Explicit-store inventory reads reuse equivalent native policy
+**Updated**: 2026-11-05. `all install` uses one shared composition with existing registration/trust helpers; healthy monitors reuse fresh SessionStart observation without taking a writer lock. The issue-backed AIDefence target wires native server pack configuration without changing detector rules. SessionStart can observe fresh exact installed composition without becoming a writer; unknown or changed sources retain exclusive repair. Explicit-store inventory reads reuse equivalent native policy
 authority; bounded lifecycle handoff and store/read reuse remain. Capture admission serializes metadata ownership,
 including stale renewal, takeover, handoff, release and pruning. Persistence,
 consent and exact readback remain native. Version 4.46.102 preserves native capture, recall,
@@ -39,11 +39,11 @@ history still scales linearly. Exact 4.46.123/earlier reconstruction preserves
 upgrade, pristine reversal and the canonical failure decoder.
 The independent #4686 pagination contribution pages proven native row identifiers before hydrating payloads; unknown schemas retain native SQL. It changes no schema, driver or pagination consistency contract. Native/sql.js equivalence and shared-owner forward/reverse composition qualify activation. The reviewed 3.71.1 wrapper remains unchanged, including its new missing-installation refusal. Composition provenance now tries exact current-chain equality before historical subsets; all native preflights and fallback proofs remain, without caching health or changing the mutation lock.
 
-SessionStart reuses those transforms and dependency preflights to observe the current desired state, physical-file set, pristine backups and composed bytes. It checks file/state identity again and declines observation while a mutation or recovery claim is present. Healthy followers can therefore finish after the writer releases instead of serially repeating installation qualification. This is a fresh read-only observation, not a persistent health cache or mutation permission; unknown, changed, unsupported or incomplete composition still uses the existing exclusive apply, retirement and failure-reporting path. Monitor/install behavior and lock ownership, recovery and timeout remain unchanged.
+SessionStart reuses those transforms and dependency preflights to observe the current desired state, physical-file set, pristine backups and composed bytes. It checks file/state identity again and declines observation while a mutation or recovery claim is present. Healthy followers can therefore finish after the writer releases instead of serially repeating installation qualification. This is a fresh read-only observation, not a persistent health cache or mutation permission; unknown, changed, unsupported or incomplete composition still uses the existing exclusive apply, retirement and failure-reporting path. Lock ownership, recovery and timeout remain unchanged.
 
 The installer previously invoked the complete installed composition once per named
 plugin target: the HZ 4.46.145 log records 37 sweeps over 448 files, including 36
-wholly unchanged sweeps. `all install` now batches ordinary wrappers once, retaining
+wholly unchanged sweeps. Version 4.46.146 batched ordinary wrappers once, retaining
 the wrapper-guard registration step and final hook-failure-log trust reconciliation
 as separate commands: three full sweeps for that target set. The Brain boundary
 and additive lifecycles, exclusive mutation lock, retirement probes, bundle
@@ -55,6 +55,18 @@ left all discovered vendor/pristine bytes unchanged. Immediate concurrent
 SessionStart tests still timed out at the unchanged 30-second lock wait: HZ behind
 the installer, Mac behind the newly scheduled monitor after installer release.
 These measurements qualify the batching improvement, not a resolved startup wait.
+
+The 4.46.147 follow-on reuses the custom registration preflight and trust post-step
+around one shared composition. Monitor and SessionStart share the same fresh
+state identity, physical file, pristine and dependency proof; a healthy monitor
+can observe after installer release without taking the next writer lease.
+Retirement candidates and positive stable-copy drift still require the original
+exclusive path. Mutable/unavailable stable sources keep the existing no-auto-heal
+policy and status; no new stable-provenance claim follows from vendor observation.
+Heartbeat and uncovered-build reporting remain. Tests prove four startup and two
+monitor followers publish no mutation claims after a writer releases; drift still
+repairs exclusively. Lock ownership and timeout remain unchanged. Live timing and
+startup-contention qualification for this follow-on are pending.
 
 Version 4.46.128 reuses the native owner for fixed-source list/stats/export batches of at most four, retaining native policy, trust, one-call retirement, cancellation and draining; other calls retain their prior path. This does not claim an atomic snapshot. The same slice adds bounded policy queue timings and capture admission timings.
 Capture snapshots observe existing metadata ownership and child results without

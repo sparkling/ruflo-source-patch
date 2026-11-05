@@ -82,7 +82,7 @@ import { brainProgressionCollisionCommand } from '../lib/brain-progression-colli
 import { brainRouterImportsCommand } from '../lib/brain-router-imports/commands.mjs';
 import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/commands.mjs';
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
-import { rufloWrapperGuardCommand } from '../lib/ruflo-wrapper-guard/commands.mjs';
+import { rufloWrapperGuardCommand, prepareRufloWrapperInstall } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
 import { rufloPatternSearchResultCommand } from '../lib/ruflo-pattern-search-result/commands.mjs';
 import { rufloAidefenceConfigCommand } from '../lib/ruflo-aidefence-config/commands.mjs';
@@ -103,7 +103,7 @@ import { brainWrapperOwnershipCommand } from '../lib/brain-wrapper-ownership/com
 import { brainHostRecoveryCommand } from '../lib/brain-host-recovery/commands.mjs';
 import { brainContinuitySummaryCommand } from '../lib/brain-continuity-summary/commands.mjs';
 import { brainOutboxStreamingCommand } from '../lib/brain-outbox-streaming/commands.mjs';
-import { hookFailureLogCommand } from '../lib/hook-failure-log/commands.mjs';
+import { hookFailureLogCommand, finishHookFailureLogCommand } from '../lib/hook-failure-log/commands.mjs';
 
 const ACTIONS = new Set(['install', 'init', 'uninstall', 'remove', 'status', 'run', 'check']);
 // `plugin-only` is the current name (it does more than dedupe a bundle now: strips the plugin-duplicated
@@ -487,18 +487,16 @@ if (target === 'all') {
       console.log(`[${t}] retired — skipped (upstream now does this; \`${t} status\` for why)`);
       continue;
     }
-    if (installing && t === 'hook-failure-log') {
-      installHookLogger = true;
-      continue;
-    }
+    if (installing && t === 'hook-failure-log') installHookLogger = true;
+    if (installing && t === 'ruflo-wrapper-guard' && !prepareRufloWrapperInstall()) continue;
     if (installing && COMPOSE_TARGETS.includes(t)
-        && !['brain-managed-memory-boundary', 'ruflo-wrapper-guard'].includes(t)) {
+        && t !== 'brain-managed-memory-boundary') {
       composing.push(t);
     } else if (!(await PLUGIN_PATCH_TARGETS[t](action))) bad++;
   }
   if (installing && !installPluginTargets(composing)) bad++;
   // Trust must see the final hooked bytes, after every ordinary contribution.
-  if (installHookLogger && !(await hookFailureLogCommand(action))) bad++;
+  if (installHookLogger && !process.exitCode) await finishHookFailureLogCommand(action);
 
   // The monitor keeps them live; on uninstall it comes down too; status reports it alongside.
   monitorCommand(action === 'install' || action === 'init' ? 'install'
