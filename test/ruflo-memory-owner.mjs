@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import './ruflo-policy-diagnostics.mjs';
+import './ruflo-owner-schema.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
