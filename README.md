@@ -1654,6 +1654,24 @@ packages receive their complete patches. Invalid preflight file scopes fail clos
 
 ## AIDefence server configuration
 
+`ruflo-pii-policy` applies the operator's 6 November 2026 instruction to remove
+PII-only gates everywhere ([Ruflo #4861](https://github.com/ruvnet/ruflo/issues/4861)).
+It removes only the reviewed federation SSN/card refusal, intelligence transfer
+email refusal and Console guidance PII condition. CLI `security defend` also separates admission from its unchanged raw verdict,
+using thin accessors over existing native credential patterns. Native secret, reset-confirmation,
+threat and error paths remain unchanged. PII detection remains informational.
+Install with `ruflo-source-patch ruflo-pii-policy install`; status and the existing
+monitor verify all discovered Claude/Codex cache and marketplace copies. Existing
+in-process function modules need their host's normal reload before new source is
+selected; disk verification alone does not prove a running module was replaced.
+Unknown upstream shapes refuse. Retire only on the exact reviewed native removal
+or a separately qualified native PII-only option preserving the other guards.
+The global owner instruction independently supersedes older plugin/skill PII
+admission, storage, redaction and feedback requirements. It does not retract a
+previous missed-threat report: native exact retraction is missing in the inspected
+API ([Ruflo #4862](https://github.com/ruvnet/ruflo/issues/4862)). No manual registry
+or learned-store edits are part of this patch.
+
 `ruflo-aidefence-config` repairs the MCP configuration gap in
 [#4785](https://github.com/ruvnet/ruflo/issues/4785). Set
 `RUFLO_AIDEFENCE_PACKS=false` in the environment of the Ruflo process that executes

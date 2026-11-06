@@ -2,6 +2,17 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**PII-only policy, 2026-11-06**: The owner removes PII-only gates globally.
+Named target `ruflo-pii-policy` ([#4861](https://github.com/ruvnet/ruflo/issues/4861))
+uses exact reviewed native guards to remove federation PII and intelligence email
+refusals and the Console guidance PII condition. CLI `security defend` admission
+reuses native credential patterns through thin selectors, retaining raw verdicts. Preserve native secret checks,
+reset confirmation, threat screening and existing error semantics. The shared
+composition owns pristine backup, monitor and restoration. Unknown source refuses;
+native retirement requires exact reviewed removal or separately proven option.
+Global instructions supersede older PII-only workflow/feedback requirements.
+No detector or learned store is altered; erroneous known-miss reconciliation remains
+an upstream supported-accessor gap tracked in [#4862](https://github.com/ruvnet/ruflo/issues/4862).
 **Temporary restore mitigation, 2026-11-06** ([Brain #523](https://github.com/stuinfla/ruvnet-brain/issues/523)): Incident021 retained actual
 3500ms restore budgets and 3503/3505ms failed results during overlapping native
 Codex hooks. The operator authorizes a 10000ms restore budget while contention

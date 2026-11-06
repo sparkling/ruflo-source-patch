@@ -85,6 +85,7 @@ import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contra
 import { rufloWrapperGuardCommand, prepareRufloWrapperInstall } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
 import { rufloPatternSearchResultCommand } from '../lib/ruflo-pattern-search-result/commands.mjs';
+import { rufloPiiPolicyCommand } from '../lib/ruflo-pii-policy/commands.mjs';
 import { rufloAidefenceConfigCommand } from '../lib/ruflo-aidefence-config/commands.mjs';
 import { rufloSelectiveLearningCommand } from '../lib/ruflo-selective-learning/commands.mjs';
 import { rufloTierConsolidationCommand } from '../lib/ruflo-tier-consolidation/commands.mjs';
@@ -158,6 +159,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
   'ruflo-pattern-search-result': rufloPatternSearchResultCommand,
+  'ruflo-pii-policy': rufloPiiPolicyCommand,
   'ruflo-aidefence-config': rufloAidefenceConfigCommand,
   'ruflo-tier-consolidation': rufloTierConsolidationCommand,
   'ruflo-selective-learning': rufloSelectiveLearningCommand,
