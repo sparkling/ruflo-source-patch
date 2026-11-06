@@ -2,6 +2,17 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Temporary restore mitigation, 2026-11-06** ([Brain #523](https://github.com/stuinfla/ruvnet-brain/issues/523)): Incident021 retained actual
+3500ms restore budgets and 3503/3505ms failed results during overlapping native
+Codex hooks. The operator authorizes a 10000ms restore budget while contention
+is investigated. Extend the existing `brain-hook-timeouts` owner, including
+both 16-second registrations and Codex's 15500ms outer launcher. Native stage
+sum plus boot is 13400ms, below the 15250ms Codex derived envelope. Preserve
+inherited absolute deadlines, aborts, unknown/partial outcomes, every native
+authorization and exact read. No update-plane, storage or selection changes.
+Exact prior-profile upgrade and pristine restoration remain required. Retire
+the temporary profile only on representative concurrent native default-budget
+proof; successful longer-budget operation is mitigation evidence, not a latency fix.
 **Diagnostic extension, 2026-11-05**: The release-150 R5 recurrence is reproducible
 under concurrent registered hooks. Extend the existing Brain #522 and native
 owner timing observations with bounded restore list/get and initialization,

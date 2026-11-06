@@ -15,6 +15,16 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+The [incident021 mitigation](https://github.com/stuinfla/ruvnet-brain/issues/523)
+in 4.46.159 extends `brain-hook-timeouts` with a 10-second
+SessionStart restore budget, 16-second host registrations and a 15.5-second
+Codex launcher limit. The native stage sum plus boot allowance is 13.4 seconds;
+the Codex derived envelope is 15.25 seconds. Inherited deadlines, cancellation,
+native authorization, checkpoint selection and exact reads remain required.
+This is an operator-requested finite mitigation for concurrent restore latency,
+not a root-cause fix. Remove the temporary profile when upstream default budgets
+pass representative concurrent registered restores with complete exact values.
+
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
 Version 4.46.145 qualifies the published Ruflo/CLI 3.71.4 security release while
@@ -2518,7 +2528,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`ruflo-policy-anchor-copy`** | Reuse fully authenticated history only with a single-use exact-byte digest checked during atomic publication; preserve native fallback and all receipts. | [#3164](https://github.com/ruvnet/ruflo/issues/3164) |
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
-| **`brain-hook-timeouts`** | Operator-requested temporary 20s recall / 30s capture budgets with matching outer limits; preserves native checks and SessionEnd host cap. Remove after latency repair qualifies upstream defaults. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
+| **`brain-hook-timeouts`** | Operator-requested temporary 10s restore / 20s recall / 30s capture budgets with matching outer limits; preserves native checks and SessionEnd host cap. Remove after latency repair qualifies upstream defaults. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513), [#523](https://github.com/stuinfla/ruvnet-brain/issues/523) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
 | **`brain-capture-launch`** | Serialize capture metadata across admission, dead-owner reclamation, handoff, pruning and token-matched cleanup. Preserve two native writers and at most eight metadata-only waiters within the original host deadline, truthful overload and exact acknowledgement. No payload queue or replay. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
 | **`brain-capture-idempotency`** | Native store/read process reuse, bounded fresh lifecycle handoff and read-only reconciliation through the unchanged complete turn constructor. | [#520](https://github.com/stuinfla/ruvnet-brain/issues/520), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
