@@ -971,7 +971,7 @@ Overlap is evidence for investigation, not automatic attribution. Successful
 restores do not scan the policy ring. This closes the diagnostic gap exposed by
 R2 and ST03; it is not a latency fix or proof that those failures recovered.
 
-The later release-150 R5 recurrence remains unresolved: a bounded three-hook
+The later release-150 R5 recurrence was still unresolved at that release: a bounded three-hook
 burst plus two native list reads reproduced all three 3,500 ms expirations.
 Initialization responses arrived around 2,670 ms and fast-list responses around
 3,317 ms; no fallback page or exact retrieval began before expiry. This does not
@@ -985,6 +985,28 @@ timing starts when JavaScript dispatches the handler, not at network arrival.
 No inputs, memory values, raw keys, credentials or raw errors are recorded.
 `RSP_OPERATION_DIAGNOSTICS=off` disables owner observations. These traces change
 neither deadlines nor session retirement and are diagnostic, not recovery proof.
+
+Version 4.46.153 repairs the owner starvation reproduced in incident 020.
+Native unified search first materialized up to 100,000 full memory rows just to
+discover namespaces, then ran sequential native corpus calculations without
+serving pending owner I/O. The same real search reproduced R5's 3,500 ms restore
+expiry before any initialization response. Internal namespace discovery now
+projects only namespace values through the existing native list query, retaining
+its selected rows, filters and cap. Native tokenization, term-frequency and
+scoring loops yield between documents after approximately 8 ms; namespace fan-out
+also yields between searches. Native calculations, ranking, authorization,
+receipts and the restore deadline remain unchanged. No alternative memory driver,
+index or cache is introduced. Retirement requires equivalent native scheduling
+and namespace projection with the same result and contention proofs.
+
+The registered R5 hook recovered its exact checkpoint during the original real
+search at three offsets: 1,995, 2,764 and 2,487 ms while the searches took 21 to 26
+seconds. The six returned search results matched the baseline exactly. Native
+selection limits remain explicit: two restores used a 5,000-row fallback page;
+the early restore reported `fast-unverified`, which does not prove the newest
+checkpoint. A single SQL operation or very large document can still block until
+it returns. Inert regressions reproduce the original I/O starvation and verify
+unchanged SQL selection, scores, ranking, failures and exact patch reversal.
 
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
