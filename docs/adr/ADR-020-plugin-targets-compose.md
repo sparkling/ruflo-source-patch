@@ -2,6 +2,21 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Turn-status composition correction, 2026-11-06**: `brain-turn-status`
+([#524](https://github.com/stuinfla/ruvnet-brain/issues/524)) follows
+`brain-capture-idempotency` on the same pristine source. Our pending receipts and
+bounded two-worker handoff were not understood by the native status consumer.
+Reuse `turnAttemptPending` for live ownership; pending is visible and never proof
+of persistence. Dead, expired or unavailable owners remain unconfirmed. Read
+bounded native current/rotated receipt tails and order both before and after
+latest-per-key selection. Keep project historical failures separate from current
+session attribution; unscoped failures have unknown project applicability. A
+later exact receipt must match the same key and store before resolving history.
+Malformed or unreadable evidence cannot become a healthy status. Preserve native
+capture, consent, capacity refusal, failure receipts and storage. Retire only on
+qualified native pending/unknown-owner, rotation and scoped-history behavior;
+changed anchors refuse until that behavior is proven. No missing capture is
+reconstructed or replayed by this diagnostic correction.
 **PII source-policy withdrawal, 2026-11-06**: The owner chooses instructions
 and reviewed source admission instead of a PII source patch. `ruflo-pii-policy`
 ([#4861](https://github.com/ruvnet/ruflo/issues/4861)) now restores only its exact

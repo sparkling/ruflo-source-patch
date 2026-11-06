@@ -25,6 +25,17 @@ This is an operator-requested finite mitigation for concurrent restore latency,
 not a root-cause fix. Remove the temporary profile when upstream default budgets
 pass representative concurrent registered restores with complete exact values.
 
+Version 4.46.162 adds `brain-turn-status` for
+[Brain #524](https://github.com/stuinfla/ruvnet-brain/issues/524). SessionStart
+shows a live, bounded capture attempt as pending exact readback, while dead,
+expired or unknown owners remain unconfirmed. It reads bounded current and
+rotated receipt tails, orders evidence before deduplication, and distinguishes
+project or unscoped historical failures from an unproven current-session failure.
+Only a later exact receipt for the same key clears a scoped ledger failure;
+malformed or unreadable evidence remains visible. This repairs the composition
+between our pending-capture receipts and the native status consumer. It does not
+increase worker capacity, replay missing captures, or erase historical failures.
+
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
 Version 4.46.145 qualifies the published Ruflo/CLI 3.71.4 security release while
@@ -2546,6 +2557,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
 | **`brain-capture-launch`** | Serialize capture metadata across admission, dead-owner reclamation, handoff, pruning and token-matched cleanup. Preserve two native writers and at most eight metadata-only waiters within the original host deadline, truthful overload and exact acknowledgement. No payload queue or replay. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
 | **`brain-capture-idempotency`** | Native store/read process reuse, bounded fresh lifecycle handoff and read-only reconciliation through the unchanged complete turn constructor. | [#520](https://github.com/stuinfla/ruvnet-brain/issues/520), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
+| **`brain-turn-status`** | Distinguish live pending capture, unconfirmed ownership and scoped historical warnings using bounded current/rotated receipts. | [#524](https://github.com/stuinfla/ruvnet-brain/issues/524) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
 | **`ruflo-memory-owner`** | Opt-in downstream owner forwarding, exact path authority, immutable public/CLI results and native daemon client reuse; separate from the completed native daemon-stop fix. | [#4654 · closed: native health and daemon stop](https://github.com/ruvnet/ruflo/issues/4654) |
