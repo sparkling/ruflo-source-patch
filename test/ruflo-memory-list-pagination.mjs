@@ -139,7 +139,7 @@ for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique',
     mode==='shadow-nonunique' ? " DEFAULT 'shared'" : mode==='shadow-generated' ? " GENERATED ALWAYS AS ('shared') VIRTUAL" : ''}`);
   const insert = db.prepare(`INSERT INTO memory_entries(id,key,namespace,content,embedding,created_at,updated_at,status,expires_at,tags,provenance_type)
     VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
-  for (let i=0;i<640;i++) insert.run(!withoutRowid && i<2 ? null : 'id-'+i, 'key-'+i, i%3 ? 'selected' : 'other',
+  for (let i=0;i<640;i++) insert.run(!withoutRowid && i<2 ? null : 'id-'+i, 'key-'+i, i%3 ? 'selected' : 'other-'+i,
     `Original 😀 漢字 \u0000 ${i}`, JSON.stringify([.1,.2,-.3,.4]), 100+i, 1000+Math.floor(i/4),
     i%17===0 ? 'deleted' : i%11===0 ? null : 'active', i%13===0 ? 1 : null,
     JSON.stringify(i%2 ? ['prod','exact"tag'] : ['PROD']), i%5 ? 'tool_result' : 'user_claim');
@@ -158,26 +158,36 @@ for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique',
     assert.equal(newLegacy.success, true); assert.deepEqual(normalized(newLegacy), normalized(oldLegacy)); checks+=2;
     if (nativePagination) {
       // Native updated_at ordering leaves equal timestamps unordered. Discovery
-      // sorts the distinct names, so compare the complete selected multiset.
+      // sorts distinct names. Keep LIMIT inside the native selected-row subquery,
+      // before DISTINCT, including fallback schemas and tied page boundaries.
       const namespaceResult = result => ({ success: true, total: result.total,
-        entries: result.entries.map(entry => entry.namespace).sort() });
+        entries: [...new Set(result.entries.map(entry => entry.namespace))].sort() });
       const queries = [];
       const observed = { prepare(sql) {
         queries.push(sql); const statement = db.prepare(sql);
-        if (!sql.trimStart().startsWith('SELECT namespace')) return statement;
+        if (!sql.trimStart().startsWith('SELECT DISTINCT namespace')) return statement;
         return { all(...args) {
           const rows = statement.all(...args);
           assert(rows.every(row => Object.keys(row).join(',') === 'namespace'), 'payloads never cross the native row boundary');
+          assert.equal(rows.length, new Set(rows.map(row => row.namespace)).size,
+            'regression: duplicate rows must remain in SQLite, not block the owner through 100k JS objects');
           return rows;
         } };
       } };
       assert.deepEqual(namespaceResult(await makeBridge(patched[0], observed)({ ...options, namespaceOnly: true })), namespaceResult(expected));
-      assert(queries.some(sql => sql.trimStart().startsWith('SELECT namespace')));
+      assert(queries.some(sql => sql.trimStart().startsWith('SELECT DISTINCT namespace FROM (')));
       assert.deepEqual(namespaceResult(await makeLegacy(patched[1], bytes)({ ...options, namespaceOnly: true })), namespaceResult(oldLegacy));
       checks += 2;
     }
   }
   if (nativePagination) {
+    const previous = descriptor.historicalPatchSource(sources[0], 'options.namespaceOnly === true').next;
+    assert.equal(patchSource(previous).next, patched[0], '153 projection upgrades exactly to selected-row distinct projection');
+    const before = await makeBridge(previous, db)({ limit: 1000, namespaceOnly: true });
+    const after = await makeBridge(patched[0], db)({ limit: 1000, namespaceOnly: true });
+    assert(before.entries.length > after.entries.length, '153 materialized duplicate namespace rows');
+    assert.deepEqual([...new Set(before.entries.map(row => row.namespace))].sort(),
+      after.entries.map(row => row.namespace).sort(), 'same namespace set after native row selection');
     const options = { limit: 20, includeContent: true };
     for (const [index, read] of [[0, source => makeBridge(source, db)], [1, source => makeLegacy(source, db.serialize())]]) {
       const expected = await read(references[index])(options), upstream = await read(sources[index])(options);
