@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { stripTypeScriptTypes } from 'node:module';
 import { NATIVE, INTELLIGENCE } from '../lib/ruflo-pii-policy/native.mjs';
-import { patchSource, reverse, isPatched, RETIRED } from '../lib/ruflo-pii-policy/patcher.mjs';
+import { historicalPatchSource as patchSource, reverse, historicalIsPatched as isPatched, RETIRED, patchSource as withdraw, isPatched as isWithdrawn } from '../lib/ruflo-pii-policy/patcher.mjs';
 // Pure functions only: no MCP, detector, stores, HOME resolution or learning.
 function guard(source) {
   const js = stripTypeScriptTypes(source.replace(/^import .*\n/gm, '')).replace('export function verdict', 'function verdict');
@@ -14,6 +14,7 @@ for (const native of [NATIVE, INTELLIGENCE]) {
   assert.deepEqual(result.missing, []); assert(isPatched(result.next));
   assert.equal(reverse(result.next), native);
   assert.equal(patchSource(result.next).next, result.next);
+  assert.equal(withdraw(result.next).next, native); assert(isWithdrawn(native)); assert.equal(withdraw(native).next,native);
   assert(patchSource(native + '// changed').missing.length);
   assert(patchSource(native + native).missing.length);
   const before = guard(native), after = guard(result.next);
@@ -49,7 +50,7 @@ try {
   fs.mkdirSync(path.join(root, 'hooks'), { recursive: true });
   fs.mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
   fs.writeFileSync(path.join(root, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'ruflo-federation' }));
-  const file = path.join(root, 'hooks/guard.ts'); fs.writeFileSync(file, NATIVE);
+  const file = path.join(root, 'hooks/guard.ts'); fs.writeFileSync(file, patchSource(NATIVE).next); fs.writeFileSync(file + '.rsp-backup', NATIVE);
   fs.writeFileSync(path.join(home, '.claude/settings.json'), '{}');
   const env = { PATH: process.env.PATH, HOME: home, RUFLO_SOURCE_PATCH_HOME: home,
     RUFLO_GLOBAL_ROOT: path.join(scratch, 'global'), RUFLO_NPX_ROOT: path.join(scratch, 'npx'),
@@ -58,7 +59,7 @@ try {
   for (const action of ['install', 'status', 'uninstall']) {
     const result = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname, 'ruflo-pii-policy', action], { cwd: scratch, env, encoding: 'utf8', timeout: 30000 });
     assert.equal(result.status, 0, result.stdout + result.stderr);
-    assert.equal(fs.readFileSync(file, 'utf8'), action === 'uninstall' ? NATIVE : patchSource(NATIVE).next);
+    assert.equal(fs.readFileSync(file, 'utf8'), NATIVE);
   }
-  console.log('PASS isolated public PII policy install/status/uninstall, exact backup restoration');
+  console.log('PASS withdrawn target install/status/uninstall restores native and never reapplies PII bypass');
 } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
