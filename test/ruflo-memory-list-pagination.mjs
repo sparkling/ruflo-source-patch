@@ -12,6 +12,7 @@ import { nativeMemoryBridgeSatisfied } from '../lib/cwd/native-memory-bridge.mjs
 import { ENTRIES, composeCliContribution } from '../lib/cwd/patch-library.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 import { isKnownComposition } from '../lib/composition-proof.mjs';
+import { descriptor as ownerDescriptor } from '../lib/ruflo-memory-owner/patcher.mjs';
 const relative = 'dist/src/memory/memory-bridge.js';
 const vendor = findVendorRootWith(relative, ['export async function bridgeListEntries(options) {', 'const registryInstances = new Map();', 'MAX_LIST_EMBEDDINGS']);
 const root = path.join(vendor, '@claude-flow/cli'), require = createRequire(path.join(root, 'package.json'));
@@ -46,11 +47,21 @@ for (const [index, file] of files.entries()) {
   assert(isKnownComposition(core.next, previous, [descriptor]), 'released native pagination remains exactly recognized');
   assert.equal(reverse(previous), core.next, 'released pagination restores the same pristine');
   assert.equal(patchSource(previous).next, patchSource(core.next).next, 'released pagination upgrades to namespace projection');
-  const target = 'ruflo-memory-list-pagination', owners = file === 'memory-initializer.js' ? ['ruflo-memory-owner'] : [];
+  const target = 'ruflo-memory-list-pagination', owners = ['ruflo-memory-owner'];
   const combined = composeSource(core.next, [...owners, target]);
   assert.equal(reverse(combined), composeSource(core.next, owners), 'reverse retains other native owners');
   assert.equal(composeSource(combined, [...owners, target]), combined, 'shared composition is idempotent');
   assert.equal(composeSource(core.next, [target, ...owners]), combined, 'disjoint owner order preserves bytes');
+  if (file === 'memory-bridge.js') {
+    const priorOwner = ownerDescriptor.historicalPatchSource(core.next).next;
+    const release154 = descriptor.historicalPatchSource(priorOwner, 'SELECT DISTINCT namespace').next;
+    assert.equal(isKnownComposition(core.next, release154,
+      [{ ...ownerDescriptor, historicalPatchSource: undefined }, descriptor]), false,
+    'before-fix reproduction: standalone owner recovery cannot prove a composed 154 bridge');
+    assert(isKnownComposition(core.next, release154, [ownerDescriptor, descriptor]),
+      'complete release-154 owner/list provenance must permit the installed upgrade');
+    assert(!isKnownComposition(core.next, release154 + '\n// unowned change', [ownerDescriptor, descriptor]));
+  }
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-list-pages-'));
 try {

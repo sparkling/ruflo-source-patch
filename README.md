@@ -1028,6 +1028,10 @@ row-identity projection for the native search window. Filters, expiry evaluation
 row limits, scoring, authorization and deadlines stay unchanged. Disposable native
 SQLite fixtures verify exact selected rows and fallback schemas; installed
 contention evidence is a separate requirement from these source checks.
+Release 4.46.155 correctly refused the combined historical bridge bytes during
+installation; no owner was refreshed. Version 4.46.156 adds the exact historical
+forward proof for the owner/list composition, with a regression that reproduces
+the refusal and still rejects unowned edits.
 
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
