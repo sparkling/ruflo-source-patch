@@ -7,10 +7,11 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { findVendorRootWith, pristineBytes } from './fixtures.mjs';
-import { patchSource, reverse, isPatched, prepareMemoryListPage } from '../lib/ruflo-memory-list-pagination/patcher.mjs';
+import { descriptor, patchSource, reverse, isPatched, prepareMemoryListPage } from '../lib/ruflo-memory-list-pagination/patcher.mjs';
 import { nativeMemoryBridgeSatisfied } from '../lib/cwd/native-memory-bridge.mjs';
 import { ENTRIES, composeCliContribution } from '../lib/cwd/patch-library.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
+import { isKnownComposition } from '../lib/composition-proof.mjs';
 const relative = 'dist/src/memory/memory-bridge.js';
 const vendor = findVendorRootWith(relative, ['export async function bridgeListEntries(options) {', 'const registryInstances = new Map();', 'MAX_LIST_EMBEDDINGS']);
 const root = path.join(vendor, '@claude-flow/cli'), require = createRequire(path.join(root, 'package.json'));
@@ -41,6 +42,10 @@ for (const [index, file] of files.entries()) {
   const core = composeCliContribution(source, ENTRIES.filter(entry => ['cwd', 'memory'].includes(entry.target)
     && entry.suffix.slice(-2).join('/') === 'memory/' + file));
   assert.deepEqual(core.missing, []);
+  const previous = descriptor.historicalPatchSource(core.next).next;
+  assert(isKnownComposition(core.next, previous, [descriptor]), 'released native pagination remains exactly recognized');
+  assert.equal(reverse(previous), core.next, 'released pagination restores the same pristine');
+  assert.equal(patchSource(previous).next, patchSource(core.next).next, 'released pagination upgrades to namespace projection');
   const target = 'ruflo-memory-list-pagination', owners = file === 'memory-initializer.js' ? ['ruflo-memory-owner'] : [];
   const combined = composeSource(core.next, [...owners, target]);
   assert.equal(reverse(combined), composeSource(core.next, owners), 'reverse retains other native owners');
@@ -151,6 +156,26 @@ for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique',
     const bytes = db.serialize();
     const oldLegacy = await makeLegacy(references[1], bytes)(options), newLegacy = await makeLegacy(patched[1], bytes)(options);
     assert.equal(newLegacy.success, true); assert.deepEqual(normalized(newLegacy), normalized(oldLegacy)); checks+=2;
+    if (nativePagination) {
+      // Native updated_at ordering leaves equal timestamps unordered. Discovery
+      // sorts the distinct names, so compare the complete selected multiset.
+      const namespaceResult = result => ({ success: true, total: result.total,
+        entries: result.entries.map(entry => entry.namespace).sort() });
+      const queries = [];
+      const observed = { prepare(sql) {
+        queries.push(sql); const statement = db.prepare(sql);
+        if (!sql.trimStart().startsWith('SELECT namespace')) return statement;
+        return { all(...args) {
+          const rows = statement.all(...args);
+          assert(rows.every(row => Object.keys(row).join(',') === 'namespace'), 'payloads never cross the native row boundary');
+          return rows;
+        } };
+      } };
+      assert.deepEqual(namespaceResult(await makeBridge(patched[0], observed)({ ...options, namespaceOnly: true })), namespaceResult(expected));
+      assert(queries.some(sql => sql.trimStart().startsWith('SELECT namespace')));
+      assert.deepEqual(namespaceResult(await makeLegacy(patched[1], bytes)({ ...options, namespaceOnly: true })), namespaceResult(oldLegacy));
+      checks += 2;
+    }
   }
   if (nativePagination) {
     const options = { limit: 20, includeContent: true };

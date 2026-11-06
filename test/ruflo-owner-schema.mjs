@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canonicalEdits, priorCanonicalEdits, canonicalSchemaEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
-import { patchSource, reverse, isPatched } from '../lib/ruflo-memory-owner/patcher.mjs';
+import { patchSource, reverse, isPatched, unifiedSearchYield, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
 
 const names = ['memory_store', 'memory_retrieve', 'memory_list', 'memory_search', 'memory_delete'];
 const property = "                dbPath: { type: 'string', description: 'Explicit SQLite store to read/write; omit to use the MCP default (the native/AgentDB sibling).' },";
@@ -73,13 +73,18 @@ for (const args of ['input', 'input, context']) {
 
   // Installed prior bytes upgrade exactly and restore the pristine anchors.
   const tools = 'export const memoryTools = [\n' + names.map(name => section(name, 'input, context')).join('\n') + '\n'
-    + canonicalEdits.slice(1).map(([from]) => from).join('\n') + '\n];\n';
+    + canonicalEdits.slice(1).map(([from]) => from).join('\n') + '\n'
+    + fs.readFileSync(new URL('./fixtures/ruflo-memory-owner/unified-search-3.71.4.js', import.meta.url), 'utf8') + '\n];\n';
   const patched = patchSource(tools);
   assert.deepEqual(patched.missing, []);
   assert.equal(isPatched(patched.next), true);
   assert.equal(reverse(patched.next), tools);
   assert(patched.next.includes('{ ...rspCanonicalMemoryOptions(input, dbPath), value }'));
-  const installedPrior = patched.next.replace('{ ...rspCanonicalMemoryOptions(input, dbPath), value }', 'rspCanonicalMemoryOptions(input, dbPath)');
+  const release152 = patched.next.replace(unifiedSearchYield[1], unifiedSearchYield[0])
+    .replace(unifiedNamespaceProjection[1], unifiedNamespaceProjection[0]);
+  assert.equal(patchSource(release152).next, patched.next, '152 upgrades without losing canonical string normalization');
+  assert.equal(reverse(release152), tools, '152 restores pristine source exactly');
+  const installedPrior = release152.replace('{ ...rspCanonicalMemoryOptions(input, dbPath), value }', 'rspCanonicalMemoryOptions(input, dbPath)');
   assert.notEqual(installedPrior, patched.next);
   assert.equal(isPatched(installedPrior), false, 'monitor reports the released raw-value rendition as drift');
   assert.deepEqual(patchSource(installedPrior).missing, []);
