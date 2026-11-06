@@ -1018,6 +1018,17 @@ original incident timing; all six search results remained identical. Native
 fallback schemas retain the same row cap before deduplication. The deadline and
 checkpoint-selection qualifications above still apply.
 
+The final release-154 early-overlap check still expired at 3,505 ms; its later
+original-phase sibling restored in 1,823 ms. Warm and fresh-owner repeats restored
+in 2,281 and 2,434 ms, so these successes do not erase the failed contention case.
+Bounded profiles identify synchronous namespace selection before initialization
+dispatch and full-payload search sorting before restore reads. The next correction
+reuses the original thin namespace SELECT directly and the existing guarded
+row-identity projection for the native search window. Filters, expiry evaluation,
+row limits, scoring, authorization and deadlines stay unchanged. Disposable native
+SQLite fixtures verify exact selected rows and fallback schemas; installed
+contention evidence is a separate requirement from these source checks.
+
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
 both monitors reported no drift. Fresh native reads each produced one completed

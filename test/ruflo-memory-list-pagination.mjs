@@ -176,6 +176,8 @@ for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique',
       } };
       assert.deepEqual(namespaceResult(await makeBridge(patched[0], observed)({ ...options, namespaceOnly: true })), namespaceResult(expected));
       assert(queries.some(sql => sql.trimStart().startsWith('SELECT DISTINCT namespace FROM (')));
+      assert(!queries.some(sql => sql.includes('WHERE _rowid_ IN')),
+        'namespace-only discovery must not reselect and sort the native selected rows a second time');
       assert.deepEqual(namespaceResult(await makeLegacy(patched[1], bytes)({ ...options, namespaceOnly: true })), namespaceResult(oldLegacy));
       checks += 2;
     }
@@ -188,6 +190,16 @@ for (const mode of ['rowid', 'without-rowid', 'shadow-null', 'shadow-nonunique',
     assert(before.entries.length > after.entries.length, '153 materialized duplicate namespace rows');
     assert.deepEqual([...new Set(before.entries.map(row => row.namespace))].sort(),
       after.entries.map(row => row.namespace).sort(), 'same namespace set after native row selection');
+    const release154 = descriptor.historicalPatchSource(sources[0], 'SELECT DISTINCT namespace').next;
+    assert.equal(reverse(release154), sources[0]);
+    assert.equal(patchSource(release154).next, patched[0], '154 duplicate row-identity projection upgrades exactly');
+    const release154Queries = [];
+    const observed154 = { prepare(sql) { release154Queries.push(sql); return db.prepare(sql); } };
+    const namespaceSet = result => ({ ...result, entries: result.entries.map(row => row.namespace).sort() });
+    assert.deepEqual(namespaceSet(await makeBridge(release154, observed154)({ limit: 1000, namespaceOnly: true })),
+      namespaceSet(await makeBridge(patched[0], db)({ limit: 1000, namespaceOnly: true })));
+    if (mode === 'rowid') assert(release154Queries.some(sql => sql.includes('WHERE _rowid_ IN')),
+      'before-fix reproduction: 154 selects row identities then looks up and sorts namespaces again');
     const options = { limit: 20, includeContent: true };
     for (const [index, read] of [[0, source => makeBridge(source, db)], [1, source => makeLegacy(source, db.serialize())]]) {
       const expected = await read(references[index])(options), upstream = await read(sources[index])(options);
@@ -268,6 +280,17 @@ if (process.env.RSP_LIST_BENCHMARK === '1') {
       console.log(JSON.stringify({ benchmark:name, offset, elapsedMs, returned:result.entries.length,
         plan:db.prepare('EXPLAIN QUERY PLAN '+query).all(10000,offset).map(row=>row.detail) }));
     }
+  }
+  if (nativePagination) for (const [name, source] of [
+    ['namespace154', descriptor.historicalPatchSource(sources[0], 'SELECT DISTINCT namespace').next],
+    ['namespace-thin', patched[0]],
+  ]) {
+    const queries = [], observed = { prepare(sql) { queries.push(sql); return db.prepare(sql); } };
+    const started = performance.now(), result = await makeBridge(source, observed)({ limit: 100000, namespaceOnly: true });
+    assert.equal(result.success, true);
+    const query = queries.find(sql => sql.trimStart().startsWith('SELECT DISTINCT namespace'));
+    console.log(JSON.stringify({ benchmark: name, elapsedMs: performance.now() - started,
+      namespaces: result.entries.length, plan: db.prepare('EXPLAIN QUERY PLAN ' + query).all(100000, 0).map(row => row.detail) }));
   }
   db.close();
 }
