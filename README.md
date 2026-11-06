@@ -1008,6 +1008,16 @@ checkpoint. A single SQL operation or very large document can still block until
 it returns. Inert regressions reproduce the original I/O starvation and verify
 unchanged SQL selection, scores, ranking, failures and exact patch reversal.
 
+The 4.46.153 release still timed out during early search overlap after activation.
+Version 4.46.154 also removes duplicate namespace rows inside SQLite, after the
+same native selected-row subquery and its limit. This keeps namespace discovery
+from materializing 100,000 repeated JavaScript objects to find 79 distinct names.
+The 4.46.153 failure receipts remain retained. The additional correction recovered
+the exact checkpoint in 2,999 and 2,470 ms at early overlap and 2,076 ms at the
+original incident timing; all six search results remained identical. Native
+fallback schemas retain the same row cap before deduplication. The deadline and
+checkpoint-selection qualifications above still apply.
+
 Activation on 3 November: commit `7c86823`, tag `v4.46.118`, active on Mac/HZ.
 All 10/16 owners respectively passed health after native graceful refresh, and
 both monitors reported no drift. Fresh native reads each produced one completed
