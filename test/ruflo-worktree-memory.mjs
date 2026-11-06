@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { runAutoMemoryHook } from '../lib/ruflo-worktree-memory/runtime.mjs';
-import { EDITS, MARKER, patchSource, reverse, isPatched, preflight } from '../lib/ruflo-worktree-memory/patcher.mjs';
+import { EDITS, MARKER, RELEASED157, patchSource, reverse, isPatched, preflight } from '../lib/ruflo-worktree-memory/patcher.mjs';
 
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-worktree-memory-')));
 const originals = Object.fromEntries(Object.entries(EDITS).map(([name, edits]) => [name,
@@ -13,6 +13,9 @@ const originals = Object.fromEntries(Object.entries(EDITS).map(([name, edits]) =
     ? fs.readFileSync(new URL(`./fixtures/worktree-memory/${name}`, import.meta.url), 'utf8')
     : edits.map(([anchor]) => anchor).join('\n')]));
 try {
+  const prior157 = originals['memory-package-resolver.js'].replace(EDITS['memory-package-resolver.js'][0][0], RELEASED157);
+  assert.equal(reverse(prior157), originals['memory-package-resolver.js']);
+  assert.equal(patchSource(prior157).next, patchSource(originals['memory-package-resolver.js']).next);
   for (const original of Object.values(originals)) {
     const result = patchSource(original);
     assert.deepEqual(result.missing, []);
@@ -33,7 +36,9 @@ try {
     let resolved = options.resolved ?? null;
     const env = { ...(options.env ?? {}) };
     const contextFs = { existsSync: p => entries.has(p), statSync: () => ({ isFile: () => true }), realpathSync: p => options.realHelper || p };
-    const contextProcess = { env, cwd: () => '/fixture/worktree', execPath: '/fixture/node' };
+    const output = [];
+    const contextProcess = { env, cwd: () => '/fixture/worktree', execPath: '/fixture/node',
+      stdout: { write: value => output.push(['stdout', value]) }, stderr: { write: value => output.push(['stderr', value]) } };
     const record = (root, reason) => {
       events.push(['record', root, reason]);
       if (options.recordError) return null;
@@ -52,7 +57,7 @@ try {
     const run = new Function('path', 'fs', 'process', 'resolveMemoryPackageFromProject', 'recordMemoryPackagePath', 'importDependency',
       `return (${body});`)(path, contextFs, contextProcess,
       root => { events.push(['resolve', root]); return resolved; }, record, importDependency);
-    return { run, events, env };
+    return { run, events, env, output };
   }
   for (const action of ['prepare', 'import', 'sync']) for (const resolved of [null, '/fixture/stale.js', '/fixture/healthy.js']) {
     const h = harness({ resolved }); const result = await h.run(action, 'project');
@@ -65,7 +70,8 @@ try {
     const spawns = h.events.filter(e => e[0] === 'spawn');
     assert.equal(spawns.length, action === 'prepare' ? 0 : 1);
     if (spawns.length) {
-      assert.deepEqual(spawns[0].slice(1), ['/fixture/node', ['/fixture/worktree/.claude/helpers/auto-memory-hook.mjs', action], { stdio: 'inherit', timeout: 25000 }]);
+      assert.deepEqual(spawns[0].slice(1), ['/fixture/node', ['/fixture/worktree/.claude/helpers/auto-memory-hook.mjs', action],
+        { stdio: ['inherit', 'pipe', 'pipe'], timeout: 25000, maxBuffer: 8 * 1024 * 1024 }]);
       assert.equal(h.events.at(-1)[0], 'spawn', 'preparation and usable export precede execution');
     }
     assert.deepEqual(h.env, {}, 'no blanket environment override');
@@ -93,6 +99,14 @@ try {
     await assert.rejects(harness({ child }).run('import', 'project'), /helper failed/);
   const failed = await harness({ child: { status: 7 } }).run('import', 'project');
   assert.equal(failed.success, false); assert.equal(failed.exitCode, 7);
+  for (const channel of ['stdout', 'stderr']) {
+    const warning = Buffer.from('[AutoMemory] @claude-flow/memory not resolvable — self-learning imports are DISABLED.\n');
+    const h = harness({ child: { status: 0, [channel]: warning } });
+    await assert.rejects(h.run('import', 'project'), /reported disabled imports/);
+    assert.deepEqual(h.output, [[channel, warning]], 'preserve exact native diagnostic bytes');
+  }
+  const successOutput = harness({ child: { status: 0, stdout: Buffer.from('Imported 0 entries (8 skipped), verified\n') } });
+  assert.equal((await successOutput.run('import', 'project')).success, true);
 
   // Exercise the actual native generator and classifier with the patch, including
   // every old generated launch shape. Importing this module performs no I/O.
