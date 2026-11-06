@@ -115,6 +115,7 @@ const ALIASES = { dual: 'dual-codex-claude', dedupe: 'dedupe-bundle', 'plugin-on
 // Plugin patches — same shape as PATCH_TARGETS, but they patch installed plugin
 // copies rather than @claude-flow/cli, so they dispatch separately.
 const PLUGIN_PATCH_TARGETS = {
+  'ruflo-worktree-memory': action => runPluginCommand('ruflo-worktree-memory', action),
   'hook-failure-log': hookFailureLogCommand,
   'ruflo-wrapper-guard': rufloWrapperGuardCommand,
   'adr-template': adrTemplateCommand,
