@@ -630,8 +630,12 @@ Release 4.46.169 extends the existing capture diagnostics for
 store and confirmation-read timing, effective step budget, terminal status and
 exact-match booleans share the existing bounded private snapshot. Observation and
 response text are excluded. Consent, limits, call order and failure outcomes are
-unchanged. This is diagnostic coverage, not an admission-timeout fix. Deployment
-is pending verification.
+unchanged. This is diagnostic coverage, not an admission-timeout fix. Both hosts
+verify all eight intended files and 13 trusted Brain hooks. The first natural HZ
+capture measured a 2.304 s preliminary-read timeout, 4.310 s duplicate-store
+refusal and 1.522 s successful exact confirmation: 8.156 s total slot occupancy.
+Two pre-existing suite fixture failures and unrelated Mac npx AIDefence
+configuration drift remain; neither is represented as repaired.
 
 Version 4.46.101 adds `brain-capture-idempotency` for
 [Brain #520](https://github.com/stuinfla/ruvnet-brain/issues/520). The native turn key

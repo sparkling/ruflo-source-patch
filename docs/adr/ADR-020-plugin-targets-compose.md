@@ -6,7 +6,11 @@
 capture timing sink (#521). Exact prior capture compositions remain accepted for
 upgrade and reverse to the same pristine. The additional callback cannot change
 native call outcomes; no raw arguments or output enter its receipts. Deployment
-is pending; the recurrent admission timeout is not yet repaired.
+verified eight intended files and 13 trusted hooks on each host. A natural HZ
+capture emitted all three native-step receipts and exact final confirmation;
+8.156 s occupancy included a timed-out preliminary read and duplicate store.
+The recurrent admission timeout is not yet repaired. Two pre-existing suite
+fixture failures and unrelated Mac npx AIDefence configuration drift remain.
 **Updated**: 2026-11-07. Release 4.46.168 repairs Brain #524 retained-receipt
 coverage. Exact prior status bytes participate in historical composition proof
 and reverse to the same native pristine. The status reader covers normal retained
