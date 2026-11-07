@@ -391,7 +391,11 @@ consume a whole JSON line before truncating to their native inspection limits.
 A 900 KB event exhausts their 2-second decision budget on HZ. Count-bounded Bash
 reads preserve the same inspected prefix, timeout, policy bodies and refusals;
 they stop consuming input beyond that prefix. Mac and Linux regressions cover
-open pipes, Unicode and protected-settings refusal. Activation is not yet verified.
+open pipes, Unicode and protected-settings refusal. Deployment verified 12/12 files
+and 13 trusted Brain hooks on each host. Installed decision-gate probes completed
+the ordinary event in 181 ms on Mac and 948 ms on HZ without missing verdicts;
+protected-settings events correctly refused in 148/821 ms. These probes dispatched
+no application writes. The unrelated Mac npx AIDefence configuration drift remains.
 The independent 32/64 KiB inspection limits remain; this does not establish
 complete inspection of large content or resolve every historical missing verdict.
 

@@ -8,7 +8,11 @@ native truncation, deadlines, refusal behavior and all sibling patches. The read
 stops at a UTF-8-width bound derived from the existing inspection capacity;
 the unchanged native substring determines the exact inspected prefix. Native
 upstream retirement requires bounded-read and refusal proof. This is a read-cost
-repair, not complete large-content inspection. Deployment is not yet verified.
+repair, not complete large-content inspection. Deployment verified 12/12 files
+and 13 trusted Brain hooks per host. Installed 900 KB ordinary-event probes took
+181 ms Mac / 948 ms HZ without missing verdicts; protected-settings probes correctly
+refused in 148/821 ms. No application write was dispatched. Unrelated Mac npx
+AIDefence configuration drift remains; historical verdict gaps are not cleared.
 The managed-memory boundary now shares ownership of `hijack-ruvnet.sh` through
 the same pristine composition used by its MCP and shim files. Both installation
 orders, reapplication and either removal order preserve the remaining owner.
