@@ -2,6 +2,20 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Codex input correction, 2026-11-07**: Release 4.46.164 adds
+`brain-codex-input` ([Brain #525](https://github.com/stuinfla/ruvnet-brain/issues/525)).
+The native wrapper consumes each pipe chunk both through `data` and explicitly
+after `read()`. Split full-document hook payloads become invalid duplicated JSON;
+one-chunk responses can hide the defect. Remove only the redundant subscription,
+retaining the readable drain, polling fallback, limits and deadlines. Qualify the
+entire native reader by hash and require one exact anchor. Patch the native active
+generation, matching host copies, stable executable and its exact retained owner;
+preserve native stable-wrapper ownership without modifying the updater, generation
+selection, KB or stamps. Unknown source and unproven retained ownership refuse.
+Retire after native split-input, open-pipe, UTF-8, bounded-input and ownership
+behavior passes, followed by a real full-document search and original write-admission
+proof. Historical refusals remain preserved; no application operation is replayed.
+
 **Updated**: 2026-11-07. Bounded first-attempt turn admission follows the existing
 Brain #513/#520 handoff without increasing its two-write execution limit.
 

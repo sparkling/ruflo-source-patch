@@ -2002,6 +2002,21 @@ qualification alone does not certify a running process or a project programme.
 
 ## Brain automatic-update repair (#420)
 
+Release 4.46.164 adds `brain-codex-input` for
+[Brain #525](https://github.com/stuinfla/ruvnet-brain/issues/525). Brain's native
+Codex wrapper consumes split stdin chunks twice, corrupting full-document hook
+payloads even when the search itself succeeds. Small one-chunk results can still
+renew grounding, masking the defect. The patch removes the redundant `data`
+subscription and retains the native readable/polling path, input cap and deadlines.
+It changes no grounding rules or stamps. Installation requires an exact qualified
+reader and preserves the stable executable's exact retained-generation owner;
+native updates, selection and KB assets remain untouched. Unknown bytes refuse.
+Run `npx github:sparkling/ruflo-source-patch brain-codex-input install`.
+Regression coverage includes the original split-pipe failure, unchanged UTF-8,
+complete JSON without EOF, polling, malformed/oversized input, exact reversal and
+stable ownership. Windows pipe behavior has not been exercised on Windows.
+Installed bytes and live full-document search/write admission are verified separately.
+
 `brain-wrapper-ownership` accepts reviewed Brain 4.7.6 native ownership without
 modification. For older installers, it repairs rejection of their own older Codex bridge. It accepts only exact SHA-256 hashes independently verified
 against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1/v4.6.2 wrapper bytes. The existing

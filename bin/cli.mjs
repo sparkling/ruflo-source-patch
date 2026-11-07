@@ -102,6 +102,7 @@ import { COMPOSE_TARGETS } from '../lib/plugin-compose.mjs';
 import { brainUserLearningRootCommand } from '../lib/brain-user-learning-root/commands.mjs';
 import { brainProgressionSuspensionCommand } from '../lib/brain-progression-suspension/commands.mjs';
 import { brainWrapperOwnershipCommand } from '../lib/brain-wrapper-ownership/commands.mjs';
+import { brainCodexInputCommand } from '../lib/brain-codex-input/commands.mjs';
 import { brainHostRecoveryCommand } from '../lib/brain-host-recovery/commands.mjs';
 import { brainContinuitySummaryCommand } from '../lib/brain-continuity-summary/commands.mjs';
 import { brainOutboxStreamingCommand } from '../lib/brain-outbox-streaming/commands.mjs';
@@ -193,6 +194,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-progression-suspension': brainProgressionSuspensionCommand,
   'brain-host-recovery': brainHostRecoveryCommand,
   'brain-wrapper-ownership': brainWrapperOwnershipCommand,
+  'brain-codex-input': brainCodexInputCommand,
   'brain-continuity-summary': brainContinuitySummaryCommand,
   'brain-outbox-streaming': brainOutboxStreamingCommand,
   'brain-managed-cli-capture': brainManagedCliCaptureCommand,
@@ -296,6 +298,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-user-learning-root')}keep the adopted user learner independent of parent Git roots (#377)
   ${pad('brain-progression-suspension')}suspend automatic progression; preserve records, search and updates (#390)
   ${pad('brain-wrapper-ownership')}accept exact published older Codex wrappers during native updates (#420)
+  ${pad('brain-codex-input')}preserve split Codex hook input without duplicate chunks (#525)
   ${pad('brain-host-recovery')}prove fresh host readiness without rewriting failed update history (#391)
   ${pad('brain-continuity-summary')}bound optional observations and conflict metadata without dropping memory (#389)
   ${pad('brain-outbox-streaming')}read complete journals incrementally beyond the whole-string limit (#387)
