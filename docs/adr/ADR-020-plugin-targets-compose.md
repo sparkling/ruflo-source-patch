@@ -2,6 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Release 4.46.171 normalizes store defaults at the
+forwarding client before policy projection (source-patch #9). MCP upsert remains
+default true; canonical public-native calls remain default false. The owner-side
+canonical handler is unchanged, allowing safe coexistence with older clients.
+Exact 4.46.170 client bytes participate in historical restoration and upgrade.
+Disposable native MCP and public calls against an unchanged owner verified update,
+strict refusal, immutable refusal and exact values. Live activation remains to prove.
 **Updated**: 2026-11-07. Release 4.46.170 extends the existing four-file native
 reader bundle to exact learning-observation reads (#521). Prior three-file
 compositions remain exact migration inputs; the new learning-store member shares

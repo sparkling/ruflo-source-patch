@@ -1317,6 +1317,18 @@ controllers. Public memory functions also route through that owner, including
 Brain batch recall and native daemon trajectory embeddings. Existing daemon workers
 and their configured lifetime remain unchanged.
 
+Release 4.46.171 corrects the forwarded `memory_store` upsert default
+([source-patch #9](https://github.com/sparkling/ruflo-source-patch/issues/9),
+upstream context [#4654](https://github.com/ruvnet/ruflo/issues/4654)). Before
+policy projection, MCP calls normalize omitted `upsert` to true, including calls
+requesting `nativeResult`; public native calls normalize it to false. Explicit
+values follow each entry point's existing predicate. The owner-side canonical
+contract stays unchanged so older strict clients remain safe during rollout.
+Append-only conditions, exact store selection and uncertain-write handling remain
+native. This affects refreshed forwarding clients; a package install alone does
+not prove existing processes loaded it. Direct canonical HTTP calls that bypass
+the forwarding client retain their native defaults and should specify `upsert`.
+
 Routing is operator-configured in `~/.config/ruflo/memory-owners.json` (or the explicit
 `RUFLO_MEMORY_OWNER_CONFIG` path). Version 1 declares `owners` keyed by identity,
 `contexts` mapping exact cwd/pin pairs, and `stores` mapping exact database paths.

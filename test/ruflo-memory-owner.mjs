@@ -179,8 +179,9 @@ export class Client {
   async notification({method}) { state.calls.push(method); if(state.mode==='cleanup-fails')throw Error('cleanup unavailable'); if(state.mode==='hang')return state.fetch('http://127.0.0.1:19872/mcp',{}); }
   async connect() { if (state.block) await new Promise(resolve => { state.resume = resolve; }); }
   async listTools() { return { tools: ['memory_owner_identity','memory_owner_release','memory_store'].map(name => ({name,inputSchema:{properties:{nativeResult:{},requireNative:{},appendOnly:{},appendConditions:{},generateEmbeddingFlag:{}}}})) }; }
-  async callTool({name}) {
+  async callTool({name, arguments: args}) {
     state.calls.push(name);
+    if (name === 'memory_store') state.storeArgs = args;
     if (name === 'memory_owner_identity') return {structuredContent:state.identity};
     if (name === 'memory_store' && state.mode === 'unknown') throw new Error('response lost');
     if (name === 'memory_store' && state.response) return state.response;
@@ -197,6 +198,21 @@ export class Client {
   const { createMemoryOwnerClient: isolatedFactory } = await import(pathToFileURL(factoryFile));
   const { state } = await import(sdkUrl);
   state.identity = {protocol:1,cwd,pin:store};
+  // source-patch#9: verify the actual SDK arguments, not a duplicate default helper.
+  for (const canonical of [false, true]) for (const upsert of [undefined, null, false, true]) {
+    const client = await isolatedFactory(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
+    const input = { key: 'default-contract', value: 'v', nativeResult: true, upsert,
+      requireNative: true, appendOnly: true, appendConditions: [{ key: 'guard' }] };
+    const before = structuredClone(input);
+    await client.call('memory_store', input, {}, canonical);
+    assert.equal(state.storeArgs.upsert, canonical ? Boolean(upsert) : upsert !== false);
+    assert.equal(state.storeArgs.nativeResult, true);
+    assert.equal(state.storeArgs.appendOnly, true);
+    assert.deepEqual(state.storeArgs.appendConditions, input.appendConditions);
+    assert.deepEqual(input, before, 'normalization never changes caller-owned options');
+    await client.close();
+  }
+  state.calls.length = 0;
   state.block = true;
   const pooled = await isolatedFactory(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);
   const first = pooled.call('missing_operation', {}, {sessionId:'shared'});
