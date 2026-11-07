@@ -842,6 +842,18 @@ registry and embedding/vector runtime. The HTML-request incident reproduced
 search deadline misses both before result emission and during CLI retirement.
 Tracing itself increased latency, so untraced controls are retained separately.
 
+Release 4.46.170 also reuses that reader for exact `workflow-*` observation reads
+in `learning-observations` ([Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521)).
+It calls the installed public `getEntry` with the same explicit database, key and
+namespace. The reader drains accepted requests and flushes responses before EOF
+exit. Strict stores remain on the original CLI; consent, step deadlines, native
+authorization and exact comparison remain unchanged. A failed native read returns
+to the original capture logic without an extra CLI retry. Unsupported executable
+qualification or reader capability retains the CLI before dispatch, within the
+original deadline. Isolated tests reproduce the old premature EOF
+exit and verify delayed/large responses, refusal, timeout, composition and unchanged
+writes. Live deployment and admission recovery remain pending verification.
+
 The patch secures curated exact reads first, then calls the same published
 `searchEntries` function through that reader for its exact store. Native
 initialization, database authority, embeddings, scoring, the 1,900 ms ceiling,

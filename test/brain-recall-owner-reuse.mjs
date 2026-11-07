@@ -9,6 +9,8 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/brain-recall-native-4.7.28.json', import.meta.url), 'utf8'));
+const learningNative = fs.readFileSync(new URL('./fixtures/brain-user-learning-root/learning-store-native-4.7.21.mjs', import.meta.url), 'utf8');
+const nativeSource = file => path.basename(file) === 'learning-store.mjs' ? learningNative : fixture.sources[path.basename(file)].source;
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-recall-owner-')));
 for (const [key, folder] of Object.entries({ RUFLO_SOURCE_PATCH_HOME: 'home', RUFLO_NPX_ROOT: 'npx',
@@ -279,7 +281,7 @@ try {
     assert(value);
     assert.equal(called, sameStore ? 'shared' : '/consented-user');
   }
-  // A dependent three-file protocol cannot partially install. Reuse the actual
+  // A dependent four-file protocol cannot partially install. Reuse the actual
   // composition/discovery owners against two isolated native Brain surfaces.
   const put = (file, body) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, body); };
   const { fixtureSources, VENDOR_SPECS } = await import('../lib/brain-managed-memory-boundary/transforms.mjs');
@@ -291,7 +293,7 @@ try {
     for (const spec of VENDOR_SPECS) put(path.join(surface, spec.relative),
       spec.id === 'shim' ? native.nativeShim : spec.id === 'hijack' ? native.nativeHijack : native.mcp4310);
     put(path.join(surface, 'scripts/hook-input.mjs'), 'export const parseHookEvent=()=>null;');
-    for (const spec of SPECS) put(path.join(surface, spec.relative), fixture.sources[path.basename(spec.relative)].source);
+    for (const spec of SPECS) put(path.join(surface, spec.relative), nativeSource(spec.relative));
   }
   const active = path.join(process.env.RSP_RUVNET_BRAIN_HOME, 'active.json');
   const selector = JSON.stringify({ version: '4.7.28', codeRoot: 'versions/4.7.28' });
@@ -311,7 +313,7 @@ try {
       assert.deepEqual(fs.readFileSync(candidate), bytes);
       assert(!fs.existsSync(candidate + '.rsp-backup'), 'blocked first install creates no partial backup');
     }
-    assert.equal(compose.statusComposed([NAME])[NAME].files, 6);
+    assert.equal(compose.statusComposed([NAME])[NAME].files, 8);
     assert.equal(compose.statusComposed([NAME])[NAME].patched, 0);
     put(file, source);
   }
@@ -320,14 +322,14 @@ try {
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
     const spec = SPECS.find(row => file.endsWith(row.relative));
-    const released = spec.edits.filter(([id]) => !['presence-only-option', 'presence-only-limit', 'turn-presence-only'].includes(id))
+    const released = spec.edits.filter(([id]) => !id.startsWith('reader-') && !id.startsWith('learning-reader-') && !['presence-only-option', 'presence-only-limit', 'turn-presence-only'].includes(id))
       .reduce((text, [, from, to]) => text.replace(from, () => to), source);
     put(file + '.rsp-backup', source);
     put(file, released);
   }
   const releasedUpgrade = compose.applyComposed([withdrawn.NAME, NAME]);
   assert.equal(releasedUpgrade.incomplete, 0, releasedUpgrade.log.join('\n'));
-  for (const file of files) assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), fixture.sources[path.basename(file)].source);
+  for (const file of files) assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), nativeSource(file));
   assert.equal(compose.reconcile([], [NAME]).incomplete, 0);
   // An installed pre-diagnostics owner is an exact historical composition,
   // so upgrading never re-baselines or loses the pristine bytes.
@@ -340,7 +342,7 @@ try {
   assert.equal(previousUpgrade.incomplete, 0, previousUpgrade.log.join('\n'));
   for (const file of files) {
     assert(isPatched(fs.readFileSync(file, 'utf8')));
-    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), fixture.sources[path.basename(file)].source);
+    assert.equal(fs.readFileSync(file + '.rsp-backup', 'utf8'), nativeSource(file));
   }
   assert.equal(compose.reconcile([], [NAME]).incomplete, 0);
   // Upgrade from the exact withdrawn composition is qualified before preflight
@@ -356,11 +358,12 @@ try {
   const installed = compose.applyComposed(owners);
   assert.equal(installed.errors, 0, installed.log.join('\n'));
   assert.equal(installed.incomplete, 0, installed.log.join('\n'));
-  assert.deepEqual(compose.statusComposed([NAME])[NAME], { files: 6, patched: 6 });
+  assert.deepEqual(compose.statusComposed([NAME])[NAME], { files: 8, patched: 8 });
   assert.deepEqual(compose.statusComposed(owners), {
-    [withdrawn.NAME]: { files: 6, patched: 6 }, [NAME]: { files: 6, patched: 6 },
+    [withdrawn.NAME]: { files: 6, patched: 6 }, [NAME]: { files: 8, patched: 8 },
   }, 'retired #514 health recognizes the exact new native owner composition');
   for (const file of files) {
+    if (path.basename(file) === 'learning-store.mjs') continue; // Never owned by withdrawn #514.
     const current = fs.readFileSync(file, 'utf8');
     assert(withdrawn.descriptor.isPatched(current));
     assert.deepEqual(withdrawn.descriptor.patchSource(current), { next: current, applied: [], missing: [] });
@@ -377,7 +380,7 @@ try {
     fs.unlinkSync(file);
     const preserved = files.filter(candidate => candidate !== file).map(candidate => [candidate, fs.readFileSync(candidate), fs.readFileSync(candidate + '.rsp-backup')]);
     assert(compose.applyComposed(owners).incomplete > 0);
-    assert.deepEqual(compose.statusComposed([NAME])[NAME], { files: 6, patched: 5 });
+    assert.deepEqual(compose.statusComposed([NAME])[NAME], { files: 8, patched: 7 });
     for (const [candidate, bytes, backup] of preserved) {
       assert.deepEqual(fs.readFileSync(candidate), bytes);
       assert.deepEqual(fs.readFileSync(candidate + '.rsp-backup'), backup);
@@ -403,7 +406,7 @@ try {
   put(foreignFile, knownBytes);
   const restored = compose.reconcile([withdrawn.NAME], [NAME]);
   assert.equal(restored.incomplete, 0, restored.log.join('\n'));
-  for (const file of files) assert.equal(fs.readFileSync(file, 'utf8'), fixture.sources[path.basename(file)].source);
+  for (const file of files) assert.equal(fs.readFileSync(file, 'utf8'), nativeSource(file));
   assert.equal(fs.readFileSync(active, 'utf8'), selector);
 } finally {
   process.kill = nativeKill;

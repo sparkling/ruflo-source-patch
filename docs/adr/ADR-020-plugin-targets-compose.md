@@ -2,6 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Release 4.46.170 extends the existing four-file native
+reader bundle to exact learning-observation reads (#521). Prior three-file
+compositions remain exact migration inputs; the new learning-store member shares
+its pristine with capture diagnostics and admission. EOF drains accepted reads
+and flushes their results. Writes, consent and deadlines remain native. Bundle
+preflight must qualify every member before mutation. Deployment is not yet proven.
 **Updated**: 2026-11-07. Release 4.46.169 adds per-call metadata to the existing
 capture timing sink (#521). Exact prior capture compositions remain accepted for
 upgrade and reverse to the same pristine. The additional callback cannot change
