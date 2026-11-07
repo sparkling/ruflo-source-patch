@@ -870,6 +870,17 @@ The full suite retains two pre-existing fixture failures (`ruflo-tier-consolidat
 and `cwd-session-current`). Release 4.46.172 subsequently qualified the Mac npx
 native AIDefence configuration and refreshed the observed Mac clients.
 
+A further admission expiry at 23:03 UTC on 7 November confirms recurrence remains
+open. Its logical observation also matched an exact native user-store read; the
+owning root received that scoped evidence without a write replay. A separate
+digest-correlated probe measured 1.44 ms in the memory handler and 418.98 ms in
+authorization. Pristine 3.72.2 anchor components reproduce the remaining scaling:
+at 100,000 anchors, full assessment took 186 to 193 ms and append/fsync 236 to 245 ms,
+revalidating every prior entry. These are component measurements, not a lifecycle
+benchmark. [Ruflo #4883](https://github.com/ruvnet/ruflo/issues/4883) tracks this
+remaining history cost separately from the closed receipt-retention issue; no
+authentication bypass or new history format has been deployed.
+
 The patch secures curated exact reads first, then calls the same published
 `searchEntries` function through that reader for its exact store. Native
 initialization, database authority, embeddings, scoring, the 1,900 ms ceiling,
@@ -4294,7 +4305,7 @@ above includes the older repairs and their issue mappings too.
 |-------|-------------------|-----------------------------------|
 | [Ruflo #3693](https://github.com/ruvnet/ruflo/issues/3693) | `ruflo-sqlite-owner` | One native dependency owner across graph/repair and registry paths; no competing library or closed borrowed handle. |
 | [Ruflo #3691](https://github.com/ruvnet/ruflo/issues/3691) | `ruflo-pattern-receipt` | Successful native store plus exact namespace/key/content readback; failed persistence must remain a failure in both MCP and bridge handlers. |
-| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164) | `ruflo-policy-serialization`, `ruflo-policy-ledger`, `ruflo-memory-owner` | Qualified native 3.71 receipt retention supersedes the older local ledger overlays. Its separate anchor history still incurs full traversal and rewriting. Owner-side queuing and bounded native JSON parsing reduce that cost without changing history, authentication or the native ledger format. |
+| [Ruflo #3164](https://github.com/ruvnet/ruflo/issues/3164), [anchor follow-up #4883](https://github.com/ruvnet/ruflo/issues/4883) | `ruflo-policy-serialization`, `ruflo-policy-ledger`, `ruflo-memory-owner`, `ruflo-policy-anchor-copy` | Qualified native 3.71 receipt retention supersedes the older local ledger overlays. Pristine 3.72.2 still traverses and rewrites the separate anchor history. Owner-side queuing, bounded native JSON parsing and authenticated copy reduce cost without changing history or authorization; bounded transaction cost remains unresolved. |
 | [Ruflo #3229](https://github.com/ruvnet/ruflo/issues/3229) | `ruflo-flywheel-evidence` | Residual 3.52.0 evidence encoding; retirement requires native nested-fraction signing and strict tamper refusal. No historical migration or gate weakening. |
 | [Ruflo #2579, source context](https://github.com/ruvnet/ruflo/issues/2579) | `ruflo-champion-authority` | Reproduced 3.52.0 startup conflict with ADR-322A promotion authority; no defect-specific upstream issue found. Retirement requires unpatched native authority/lock behavior, normal framework updates, and preservation of foreign locks. |
 | [Ruflo #3688](https://github.com/ruvnet/ruflo/issues/3688) | `ruflo-swarm-codex-hooks` | Declared command hooks must reach a strict Codex manifest without changing Claude modules or granting hook trust. |
