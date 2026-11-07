@@ -858,9 +858,17 @@ confirmation; sampled new writes took 2.82 to 3.53 seconds including confirmatio
 Two sampled preliminary reads still hit their two-second deadline, then confirmed
 the existing value through the unchanged strict-store path in 3.90/4.52 seconds.
 These are observations under varying load, not a controlled benchmark or proof
-that all admission failures are resolved. Historical unverified keys remain open.
+that all admission failures are resolved. A subsequent native reconciliation found
+nine reported logical observations exactly present: seven in their project stores
+and two in the configured user-learning store. Complete raw values matched the
+unchanged native deterministic constructor; creation/update metadata predated the
+reported failures. No writes were replayed or hook acknowledgements changed.
+This resolves persistence uncertainty for those nine records, not the original
+failed invocations or every historical key. Scoped evidence was delivered to the
+responsible roots; the admission investigation remains open.
 The full suite retains two pre-existing fixture failures (`ruflo-tier-consolidation`
-and `cwd-session-current`); unrelated Mac npx AIDefence configuration drift remains.
+and `cwd-session-current`). Release 4.46.172 subsequently qualified the Mac npx
+native AIDefence configuration and refreshed the observed Mac clients.
 
 The patch secures curated exact reads first, then calls the same published
 `searchEntries` function through that reader for its exact store. Native
