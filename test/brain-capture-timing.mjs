@@ -8,7 +8,7 @@ import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { patchSource, reverseSource, isPatched, historicalPatchSource } from '../lib/brain-capture-launch/patcher.mjs';
-import { TIMING_EDITS, undoTiming } from '../lib/brain-capture-launch/diagnostics.mjs';
+import { TIMING_EDITS, undoTiming, undoFailureRetention } from '../lib/brain-capture-launch/diagnostics.mjs';
 import { undoWait } from '../lib/brain-capture-launch/backpressure.mjs';
 import { undoSteps } from '../lib/brain-capture-launch/step-timing.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
@@ -66,7 +66,15 @@ if (process.argv[2] === '--fifo') {
   assert.equal(h.capture('fifo-secret', false), true); assert.equal(h.writes, 1);
   assert(fs.lstatSync(file).isFIFO()); console.log('FIFO diagnostics refused; native success unchanged');
 } else try {
-  const uninstrumented = undoTiming(undoWait(undoSteps(candidate.next)));
+  const released173 = undoFailureRetention(candidate.next);
+  assert.equal(historicalPatchSource(native, released173).next, released173);
+  assert.equal(reverseSource(released173), native);
+  assert.equal(patchSource(released173).next, candidate.next);
+  assert.equal(isPatched(released173), false);
+  const foreignRetention = candidate.next.replace('failed ? 32 : 128', 'failed ? 33 : 128');
+  assert(!isPatched(foreignRetention)); assert(patchSource(foreignRetention).missing.length);
+  assert.equal(reverseSource(foreignRetention), foreignRetention);
+  const uninstrumented = undoTiming(undoWait(undoSteps(released173)));
   assert(isPatched(candidate.next)); assert.equal(reverseSource(candidate.next), native);
   assert.equal(patchSource(uninstrumented).next, candidate.next);
   assert.equal(historicalPatchSource(native, uninstrumented).next, uninstrumented);
@@ -76,7 +84,7 @@ if (process.argv[2] === '--fifo') {
   assert.equal(undiagnose(reverseSource(diagnose(candidate.next).next)), native);
   assert.equal(patchSource(diagnose(native).next).next, diagnose(candidate.next).next);
   for (const [, , to] of TIMING_EDITS) {
-    const timed = undoWait(undoSteps(candidate.next)), changed = timed.replace(to, '// foreign change');
+    const timed = undoWait(undoSteps(released173)), changed = timed.replace(to, '// foreign change');
     assert.notEqual(changed, timed); assert(!isPatched(changed));
     assert(patchSource(changed).missing.length); assert.equal(reverseSource(changed), changed);
   }
@@ -116,6 +124,27 @@ if (process.argv[2] === '--fifo') {
   assert.equal(failure.capture('failed-secret', false), false); assert.equal(failure.writes, 1);
   assert(failure.rows()[0].events.some(e => e.phase === 'native-store-readback-failed' && e.reason === 'EIO'));
   assert(!JSON.stringify(failure.rows()).includes('private-error-secret'));
+  let refuse = true;
+  const retained = harness({ sameBucket: true, write(ctx) {
+    if (refuse) {
+      for (let i = 0; i < 40; i++) ctx.captureInFlight(retained.home, 'inert-key');
+      throw Object.assign(Error('private-error-secret'), { code: 'EIO' });
+    }
+  } });
+  assert.equal(retained.capture('retained-failure', false), false);
+  const failureFile = path.join(retained.log, 'capture-failure-0.json');
+  assert(fs.existsSync(failureFile), 'failure has separate bounded retention');
+  const failureBytes = fs.readFileSync(failureFile);
+  const failureRow = JSON.parse(failureBytes);
+  assert.equal(failureRow.failure.phase, 'refused');
+  assert.equal(failureRow.failure.reason, 'EIO');
+  assert(failureRow.droppedEvents > 0, 'terminal failure survives the event cap');
+  refuse = false;
+  for (let i = 0; i < 140; i++) assert(retained.capture('healthy-' + i, false));
+  assert.deepEqual(fs.readFileSync(failureFile), failureBytes,
+    'routine samples cannot overwrite a failure even with the same hash bucket');
+  assert.deepEqual(fs.readdirSync(retained.log).sort(), ['capture-0.json', 'capture-failure-0.json']);
+  assert(!failureBytes.toString().includes('private-error-secret'));
   const off = harness({ enabled: false }); assert(off.capture('off', false)); assert(!fs.existsSync(off.log));
   const noLog = harness({ facade: { ...fs, mkdirSync(file, ...args) {
     if (String(file).includes('capture-diagnostics')) throw Object.assign(Error('disk full'), { code: 'ENOSPC' });
@@ -123,14 +152,16 @@ if (process.argv[2] === '--fifo') {
   } } });
   assert(noLog.capture('no-log', false)); assert.equal(noLog.writes, 1); assert.equal(noLog.failures.length, 0);
 
-  for (const kind of ['symlink', 'hardlink', 'public']) {
-    const unsafe = harness({ sameBucket: true }), target = path.join(root, kind + '-target');
+  for (const failing of [false, true]) for (const kind of ['symlink', 'hardlink', 'public']) {
+    const unsafe = harness({ sameBucket: true, write() {
+      if (failing) throw Object.assign(Error('private-error-secret'), { code: 'EIO' });
+    } }), target = path.join(root, kind + '-' + failing + '-target');
     fs.mkdirSync(unsafe.log, { recursive: true, mode: 0o700 }); fs.writeFileSync(target, 'preserve', { mode: 0o600 });
-    const file = path.join(unsafe.log, 'capture-0.json');
+    const file = path.join(unsafe.log, failing ? 'capture-failure-0.json' : 'capture-0.json');
     if (kind === 'symlink') fs.symlinkSync(target, file);
     if (kind === 'hardlink') fs.linkSync(target, file);
     if (kind === 'public') { fs.writeFileSync(file, 'preserve', { mode: 0o644 }); fs.chmodSync(file, 0o644); }
-    assert(unsafe.capture('unsafe', false)); assert.equal(fs.readFileSync(target, 'utf8'), 'preserve');
+    assert.equal(unsafe.capture('unsafe', false), !failing); assert.equal(fs.readFileSync(target, 'utf8'), 'preserve');
     assert.equal(fs.readFileSync(file, 'utf8'), 'preserve');
   }
   const bounded = harness({ write(ctx) { for (let i = 0; i < 40; i++) ctx.captureInFlight(bounded.home, 'inert-key'); } });
@@ -140,6 +171,14 @@ if (process.argv[2] === '--fifo') {
   assert(fs.readdirSync(bounded.log).length <= 128);
   for (const name of fs.readdirSync(bounded.log)) {
     const stat = fs.statSync(path.join(bounded.log, name)); assert(stat.size <= 16384); assert.equal(stat.mode & 0o077, 0);
+  }
+  for (let i = 0; i < 150; i++) assert.equal(failure.capture('bounded-failure-' + i, false), false);
+  const failedNames = fs.readdirSync(failure.log);
+  assert(failedNames.length > 1 && failedNames.length <= 32);
+  for (const name of failedNames) {
+    assert(/^capture-failure-\d+\.json$/.test(name));
+    const stat = fs.statSync(path.join(failure.log, name));
+    assert(stat.size <= 16384); assert.equal(stat.mode & 0o077, 0);
   }
   if (process.platform !== 'win32') for (const mode of ['existing', 'race']) {
     const childRoot = path.join(root, 'fifo-' + mode); fs.mkdirSync(childRoot);

@@ -1062,12 +1062,20 @@ forged authority/evidence, policy denials, old-peer refusal and full ledger audi
 
 Policy diagnostic snapshots now distinguish `owner` and `owner-coalesced` and
 report bounded `queueWaitMs`. Capture admission adds bounded private timing
-snapshots in `~/.ruflo-source-patch/capture-diagnostics`: 128 overwrite slots,
-at most 32 events and 16 KiB per snapshot. `RSP_CAPTURE_DIAGNOSTICS=off` disables
+snapshots in `~/.ruflo-source-patch/capture-diagnostics`: 128 routine overwrite slots
+and, from 4.46.174, 32 separate failure slots, at most 32 events and 16 KiB per
+snapshot. Terminal failure metadata survives the event cap. Routine traffic cannot
+overwrite failure samples; failures can still collide with other failures, so this
+is bounded diagnostic evidence rather than a complete incident ledger.
+`RSP_CAPTURE_DIAGNOSTICS=off` disables
 emission. Timings cover existing admission waiting/holding, adoption, pruning,
 slot operations and native exact/duplicate outcomes. They do not add a queue or
 change native two-slot capacity; overwritten samples and killed invocations
 cannot establish loss counts. Logging is observational and contains no payload.
+The separate failure slots address the lost diagnostic evidence from the
+7 November 23:17 admission-expiry burst; they do not repair or replay that burst.
+Retire this extension when native diagnostics provide the same bounded failure
+retention and terminal-reason proof. Exact previous compositions remain reversible.
 
 The 5 November R5 restore trace reproduced a separate interaction with this
 forwarder: parallel namespace reads establish separate one-call MCP connections.

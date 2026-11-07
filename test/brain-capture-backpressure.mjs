@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { patchSource, reverseSource, historicalPatchSource, isPatched } from '../lib/brain-capture-launch/patcher.mjs';
 import { WAIT_EDITS, undoWait } from '../lib/brain-capture-launch/backpressure.mjs';
 import { undoSteps } from '../lib/brain-capture-launch/step-timing.mjs';
+import { undoFailureRetention } from '../lib/brain-capture-launch/diagnostics.mjs';
 import { patchSource as diagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 
@@ -99,7 +100,7 @@ if (['--parent', '--observe', '--publication-crash'].includes(process.argv[2])) 
     return { h, release() { for (const row of held) h.ctx.releaseObserveSlot(row.slot, process.pid, row.token, dir); } };
   }
   try {
-    const released = undoWait(undoSteps(candidate.next));
+    const released = undoWait(undoSteps(undoFailureRetention(candidate.next)));
     assert.equal(sha(diagnose(released).next), '9eda5dd3e151e85e871641fba254856cf161a0ef45e46baa5b910f971c7dd863');
     assert.equal(historicalPatchSource(native, released).next, released);
     assert.equal(patchSource(released).next, candidate.next);
