@@ -1076,6 +1076,12 @@ The separate failure slots address the lost diagnostic evidence from the
 7 November 23:17 admission-expiry burst; they do not repair or replay that burst.
 Retire this extension when native diagnostics provide the same bounded failure
 retention and terminal-reason proof. Exact previous compositions remain reversible.
+Release 4.46.174 passed the full protected suite and focused Linux checks. Both
+hosts verified eight exact installed capture/learning files and all 13 trusted
+Brain hooks. Isolated execution of the installed scripts retained a failure across
+140 colliding healthy samples; fresh natural captures also completed exact reads.
+No natural post-deployment failure was observed in that bounded sample, so the
+underlying admission-expiry investigation remains open.
 
 The 5 November R5 restore trace reproduced a separate interaction with this
 forwarder: parallel namespace reads establish separate one-call MCP connections.
