@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { patchSource, reverseSource, isPatched, historicalPatchSource } from '../lib/brain-capture-launch/patcher.mjs';
 import { TIMING_EDITS, undoTiming } from '../lib/brain-capture-launch/diagnostics.mjs';
 import { undoWait } from '../lib/brain-capture-launch/backpressure.mjs';
+import { undoSteps } from '../lib/brain-capture-launch/step-timing.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 
@@ -65,7 +66,7 @@ if (process.argv[2] === '--fifo') {
   assert.equal(h.capture('fifo-secret', false), true); assert.equal(h.writes, 1);
   assert(fs.lstatSync(file).isFIFO()); console.log('FIFO diagnostics refused; native success unchanged');
 } else try {
-  const uninstrumented = undoTiming(undoWait(candidate.next));
+  const uninstrumented = undoTiming(undoWait(undoSteps(candidate.next)));
   assert(isPatched(candidate.next)); assert.equal(reverseSource(candidate.next), native);
   assert.equal(patchSource(uninstrumented).next, candidate.next);
   assert.equal(historicalPatchSource(native, uninstrumented).next, uninstrumented);
@@ -75,7 +76,7 @@ if (process.argv[2] === '--fifo') {
   assert.equal(undiagnose(reverseSource(diagnose(candidate.next).next)), native);
   assert.equal(patchSource(diagnose(native).next).next, diagnose(candidate.next).next);
   for (const [, , to] of TIMING_EDITS) {
-    const timed = undoWait(candidate.next), changed = timed.replace(to, '// foreign change');
+    const timed = undoWait(undoSteps(candidate.next)), changed = timed.replace(to, '// foreign change');
     assert.notEqual(changed, timed); assert(!isPatched(changed));
     assert(patchSource(changed).missing.length); assert.equal(reverseSource(changed), changed);
   }
