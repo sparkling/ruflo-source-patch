@@ -8,8 +8,12 @@ injecting or removing source. The existing descriptor keeps distinct provenance
 and satisfaction predicates, preserving stale-backup protection and older patch
 support. All three factory branches, lazy selection, native named packs, invalid
 refusal/recovery and install/status/uninstall are exercised. Unknown or partial
-native bytes remain refused. This qualification does not change scanner settings
-or establish freshness of an existing MCP process.
+native bytes remain refused. Installation verified 6/6 Mac copies (one native)
+and 8/8 HZ copies. A separate native reload produced six fresh Mac clients and
+an exact unchanged checkpoint readback. The disposable native 3.72.2 client also
+passed the strict/update matrix against the unchanged 3.71.4 owner. Scanner
+settings and HTTP owner processes remain unchanged; historical captures and
+other Brain status gaps remain open. The full suite retains two existing failures.
 **Updated**: 2026-11-07. Release 4.46.171 normalizes store defaults at the
 forwarding client before policy projection (source-patch #9). MCP upsert remains
 default true; canonical public-native calls remain default false. The owner-side

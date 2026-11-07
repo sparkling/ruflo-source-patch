@@ -1332,9 +1332,12 @@ Installation verified 54 owner-bundle files on Mac and 72 on HZ. The HZ native
 client rollout produced fresh Builder, Query, Product, Fabric and Oxigraph clients;
 the affected Builder session passed an exact read of its existing record. The
 disposable mixed-version test separately proves update and strict-refusal behavior.
-Mac client activation remains pending qualification of its `npx ...@latest` entrypoint;
-installed bytes alone are not live-client proof. Existing project overrides and
-direct HTTP connections are not covered by the HZ user-level client refresh.
+Release 4.46.172 qualified the Mac `npx` Ruflo 3.72.2 entrypoint against the unchanged
+3.71.4 owner in disposable stores, then refreshed six Mac clients through native
+configuration reload. Five use the qualified npx copy; one retains its configured
+global entrypoint. An existing source-patch checkpoint read back exactly unchanged.
+This does not claim freshness for every project override, standalone Claude client
+or direct HTTP connection; the existing HTTP owners were not restarted.
 
 Routing is operator-configured in `~/.config/ruflo/memory-owners.json` (or the explicit
 `RUFLO_MEMORY_OWNER_CONFIG` path). Version 1 declares `owners` keyed by identity,
