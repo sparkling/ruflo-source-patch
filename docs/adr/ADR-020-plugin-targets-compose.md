@@ -2,6 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Qualify the Brain #521 duplicate-read occupancy correction.
+The capture composition now recognizes and reverses the exact former 1-second
+duplicate-read bytes, then gives the read up to 2 seconds of unreserved child
+budget. Both 6-second native persistence steps remain reserved. Exact complete
+readback is required to omit a duplicate write; admission capacity, consent and
+unknown-write handling remain unchanged. Deployment proof is tracked separately.
 **Codex input correction, 2026-11-07**: Release 4.46.164 adds
 `brain-codex-input` ([Brain #525](https://github.com/stuinfla/ruvnet-brain/issues/525)).
 The native wrapper consumes each pipe chunk both through `data` and explicitly

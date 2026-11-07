@@ -77,7 +77,7 @@ for (const original of [source, diagnose(source).next]) {
   assert.equal(descriptor.patchSource(readFirst.next).next, readFirst.next);
   assert.deepEqual(descriptor.patchSource(readFirst.next).applied, []);
   for (const unknown of [
-    readFirst.next.replace('Math.min(1000,', 'Math.min(1001,'),
+    readFirst.next.replace('Math.min(2000,', 'Math.min(2001,'),
     readFirst.next.replace("'--no-upsert', '--provenance'", "'--no-upsert', '--require-native', '--provenance'"),
     readFirst.next + '\n// ruflo-source-patch (ruflo#4622 learning-native-owner)',
   ]) {

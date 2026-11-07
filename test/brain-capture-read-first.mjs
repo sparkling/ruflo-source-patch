@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { patchRead, undoRead, isReading, READ_EDITS } from '../lib/brain-capture-launch/learning-read-first.mjs';
+import { patchRead, undoRead, isReading, READ_EDITS, PREVIOUS_TO } from '../lib/brain-capture-launch/learning-read-first.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import * as capture from '../lib/brain-capture-launch/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
@@ -55,7 +55,31 @@ const exact = run({ replies: () => ({ status: 0, stdout: value }) });
 assert.equal(exact.calls.length, 1); assert.equal(exact.calls[0].argv[1], 'retrieve');
 assert.equal(exact.result.readOnlyDuplicate, true); assert.equal(exact.result.alreadyStored, true);
 assert.equal(exact.result.exactCli, true); assert.equal(exact.result.digest, hash(value));
-assert(exact.calls[0].opts.maxStepMs <= 1000);
+assert(exact.calls[0].opts.maxStepMs <= 2000);
+// Detached child (14 s, two 6 s native steps): the whole 2000 ms slack, never a native step's share.
+assert(exact.calls[0].opts.maxStepMs > 1900, 'loaded-host duplicate proof gets the full unreserved slack');
+const tight = run({ options: { deadline: Date.now() + 12_500 }, replies: () => ({ status: 0, stdout: value }) });
+assert(tight.calls[0].opts.maxStepMs <= 500, 'both native steps stay reserved');
+
+// Released 4.46.119-151 bytes migrate exactly and reverse to native; never a second marker.
+const released = native.replace(READ_EDITS[0][1], () => PREVIOUS_TO);
+assert.notEqual(released, native); assert(!isReading(released));
+assert.equal(patchRead(released).next, fixed.next); assert.deepEqual(patchRead(released).applied, ['native-exact-read-first-occupancy']);
+assert.equal(undoRead(released), native);
+// A 1.2 s native CLI read misses the released budget, then pays store+readback.
+// The candidate proves that same complete durable value with no write attempt.
+const slowRead = (n, argv, opts) => argv[1] === 'retrieve' && opts.maxStepMs < 1200
+  ? { status: null, error: { code: 'ETIMEDOUT' } }
+  : argv[1] === 'store' ? { status: 1, stderr: 'already exists' }
+    : { status: 0, stdout: value };
+const slowReleased = run({ source: released, replies: slowRead });
+const slowFixed = run({ replies: slowRead });
+assert.deepEqual(slowReleased.calls.map(c => c.argv[1]), ['retrieve', 'store', 'retrieve']);
+assert.deepEqual(slowFixed.calls.map(c => c.argv[1]), ['retrieve']);
+assert.equal(slowFixed.result.digest, slowReleased.result.digest);
+assert.equal(slowFixed.result.readOnlyDuplicate, true);
+assert.equal(capture.patchSource(released).next, fixed.next); assert.equal(capture.reverseSource(released), native);
+assert(patchRead(released.replace('Math.min(1000,', 'Math.min(1001,')).missing.length, 'unknown edits of released bytes refused');
 
 for (const initial of [
   { status: 0, stdout: '' }, { status: 0, stdout: 'different complete value' },
@@ -83,4 +107,4 @@ assert.equal(recovered.result.alreadyStored, true); assert.equal(recovered.resul
 assert.equal(recovered.calls.filter(c => c.argv[1] === 'store').length, 1);
 const sibling = run({ db: '/inert/other-project/memory.db', replies: () => ({ status: 0, stdout: value }) });
 assert.equal(sibling.result.db, '/inert/other-project/memory.db');
-console.log('Capture exact-read-first: native constructor/path/consent preserved, durable duplicate uses zero writes, bounded read budget, strict fresh insert/readback, conflict/timeout/unknown outcomes and exact inverse PASS');
+console.log('Capture exact-read-first: native constructor/path/consent preserved, durable duplicate uses zero writes, full-slack bounded read budget, released-bytes migration, strict fresh insert/readback, conflict/timeout/unknown outcomes and exact inverse PASS');
