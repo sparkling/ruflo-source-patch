@@ -4,7 +4,27 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canonicalEdits, priorCanonicalEdits, canonicalSchemaEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
-import { patchSource, reverse, isPatched, unifiedSearchYield, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
+import { patchSource, reverse, isPatched, historicalPatchSource, descriptor,
+  unifiedSearchYield, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
+import { isKnownComposition } from '../lib/composition-proof.mjs';
+
+// A physical-file claimant may not support an older source shape. That refusal
+// must not throw out an independently exact sibling's historical composition.
+{
+  const source = 'export const unrelated = true;\n';
+  const current = source + '// verified sibling contribution\n';
+  const sibling = { name: 'fixture-sibling', atomic: true, patchSource: value => ({
+    next: value === source ? current : value, applied: value === source ? ['sibling'] : [], missing: [],
+  }) };
+  const refused = historicalPatchSource(source, current);
+  assert.equal(refused.next, source);
+  assert.deepEqual(refused.applied, []);
+  assert.ok(refused.missing.length, 'unsupported owner shape stays refused');
+  assert.equal(isKnownComposition(source, current, [descriptor, sibling]), true);
+  assert.equal(isKnownComposition(source, current + '// foreign change\n', [descriptor, sibling]), false);
+  assert.equal(isKnownComposition(source, current, [descriptor]), false,
+    'an unsupported owner cannot claim a sibling contribution');
+}
 
 const names = ['memory_store', 'memory_retrieve', 'memory_list', 'memory_search', 'memory_delete'];
 const property = "                dbPath: { type: 'string', description: 'Explicit SQLite store to read/write; omit to use the MCP default (the native/AgentDB sibling).' },";

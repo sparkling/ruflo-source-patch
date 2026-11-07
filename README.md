@@ -866,9 +866,15 @@ reported failures. No writes were replayed or hook acknowledgements changed.
 This resolves persistence uncertainty for those nine records, not the original
 failed invocations or every historical key. Scoped evidence was delivered to the
 responsible roots; the admission investigation remains open.
-The full suite retains two pre-existing fixture failures (`ruflo-tier-consolidation`
-and `cwd-session-current`). Release 4.46.172 subsequently qualified the Mac npx
-native AIDefence configuration and refreshed the observed Mac clients.
+Release 4.46.172 qualified the Mac npx native AIDefence configuration and refreshed
+the observed Mac clients. Its full suite retained two failures, addressed in
+4.46.173: an unsupported historical owner source shape threw during exact sibling
+composition proof ([source-patch #4](https://github.com/sparkling/ruflo-source-patch/issues/4)),
+and the session-hook fixture omitted the native `realpath-containment.js` dependency.
+The owner matcher now returns its existing unsupported-shape diagnostic; exact
+sibling provenance can still be proved, while foreign bytes remain refused.
+This changes patch qualification, not the emitted memory-owner runtime or capture
+admission behavior.
 
 A further admission expiry at 23:03 UTC on 7 November confirms recurrence remains
 open. Its logical observation also matched an exact native user-store read; the
