@@ -1802,8 +1802,17 @@ operational errors retain their controls.
 [#4785](https://github.com/ruvnet/ruflo/issues/4785). Set
 `RUFLO_AIDEFENCE_PACKS=false` in the environment of the Ruflo process that executes
 security tools to select upstream's built-ins-only mode. `true` enables the native
-packs; omission preserves the upstream default. Other values, including an empty
-string, refuse configuration. Restart the executing server after changing it.
+packs; omission preserves the upstream default. The legacy patch refuses other
+values, including an empty string. Restart the executing server after changing it.
+
+Release 4.46.172 recognizes the qualified native Ruflo 3.72.2 selector and complete
+loader without modifying them. Native selection also accepts empty/whitespace
+as omission, case-insensitive booleans and validated comma-separated pack names.
+It reads configuration at lazy construction and caches the successful instance;
+the legacy patch captures configuration at module evaluation. Exact source-boundary
+checks and tests cover all three factory paths, invalid values and unchanged
+install/uninstall. Older packages retain the legacy patch; unknown source refuses
+qualification. This does not change any deployed detector configuration.
 
 This selects the existing `createAIDefence({ packs })` option consistently in all
 three initialisation/retry paths. It leaves built-in detection, PII and learning

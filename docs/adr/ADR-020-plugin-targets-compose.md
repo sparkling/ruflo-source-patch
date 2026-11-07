@@ -2,6 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Release 4.46.172 accepts the exact qualified native
+AIDefence selector and complete lazy loader from Ruflo 3.72.2 (#4785), without
+injecting or removing source. The existing descriptor keeps distinct provenance
+and satisfaction predicates, preserving stale-backup protection and older patch
+support. All three factory branches, lazy selection, native named packs, invalid
+refusal/recovery and install/status/uninstall are exercised. Unknown or partial
+native bytes remain refused. This qualification does not change scanner settings
+or establish freshness of an existing MCP process.
 **Updated**: 2026-11-07. Release 4.46.171 normalizes store defaults at the
 forwarding client before policy projection (source-patch #9). MCP upsert remains
 default true; canonical public-native calls remain default false. The owner-side
