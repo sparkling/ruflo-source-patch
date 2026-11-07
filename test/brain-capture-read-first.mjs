@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { patchRead, undoRead, isReading, READ_EDITS, PREVIOUS_TO } from '../lib/brain-capture-launch/learning-read-first.mjs';
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import * as capture from '../lib/brain-capture-launch/patcher.mjs';
+import { addSteps, undoSteps } from '../lib/brain-capture-launch/step-timing.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 import { isKnownComposition } from '../lib/composition-proof.mjs';
 import { descriptor as diagnosticsDescriptor } from '../lib/brain-capture-diagnostics/patcher.mjs';
@@ -17,9 +18,12 @@ const fixed = patchRead(native); assert.deepEqual(fixed.missing, []); assert(isR
 assert.equal(patchRead(fixed.next).next, fixed.next); assert.equal(undoRead(fixed.next), native);
 assert.equal(patchRead(diagnose(native).next).next, diagnose(fixed.next).next);
 assert.equal(undiagnose(undoRead(diagnose(fixed.next).next)), native);
-assert.equal(capture.patchSource(native).next, fixed.next); assert(capture.isPatched(fixed.next));
+const timed = addSteps(fixed.next);
+assert.equal(capture.patchSource(native).next, timed); assert(capture.isPatched(timed));
+assert.equal(undoSteps(timed), fixed.next);
+assert(isKnownComposition(native, fixed.next, [capture.descriptor]));
 assert.equal(capture.reverseSource(fixed.next), native);
-assert.equal(composeSource(diagnose(native).next, ['brain-capture-launch', 'brain-capture-diagnostics']), diagnose(fixed.next).next);
+assert.equal(composeSource(diagnose(native).next, ['brain-capture-launch', 'brain-capture-diagnostics']), diagnose(timed).next);
 for (const [, from, to] of READ_EDITS) {
   assert(patchRead(native.replace(from, '// foreign')).missing.length);
   assert(patchRead(native + from).missing.length);
@@ -30,8 +34,8 @@ assert.equal(spawnSync(process.execPath, ['--input-type=module', '--check'], { i
 const observation = { tool: 'Bash', action: 'git status', session: 'inert-session' };
 const value = JSON.stringify({ schemaVersion: 1, tool: observation.tool, action: observation.action, scope: 'project',
   authoritative: false, provenance: 'system-observation', outcome: 'host-reported-success' });
-function run({ replies, source = fixed.next, options = {}, allowed = () => true, db = '/inert/project/memory.db' } = {}) {
-  const calls = []; let targetCalls = 0;
+function run({ replies, source = timed, diagnosticStep, options = {}, allowed = () => true, db = '/inert/project/memory.db' } = {}) {
+  const calls = [], stages = []; let targetCalls = 0;
   const ctx = vm.createContext({ Date, createHash: crypto.createHash, LEARNING_NAMESPACE: 'learning-observations',
     observationKey: row => 'workflow-' + hash(JSON.stringify([String(row.session), row.tool, row.action])),
     learningTarget: () => { targetCalls++; return db; },
@@ -43,7 +47,7 @@ function run({ replies, source = fixed.next, options = {}, allowed = () => true,
   vm.runInContext(source.slice(begin, end).replace('export ', ''), ctx);
   let result, error;
   const selected = { deadline: Date.now() + 14000, env: { FIXTURE: 'unchanged' }, allowed, ...options };
-  try { result = ctx.recordLearningObservation('/inert/ruflo', { enabled: true, scope: 'project' }, observation, selected); }
+  try { result = ctx.recordLearningObservation('/inert/ruflo', { enabled: true, scope: 'project', diagnosticStep: diagnosticStep || (row => stages.push(row)) }, observation, selected); }
   catch (caught) { error = caught; }
   assert.equal(targetCalls, 1);
   for (const call of calls) {
@@ -51,7 +55,7 @@ function run({ replies, source = fixed.next, options = {}, allowed = () => true,
     assert.equal(call.argv.at(-1), db); assert.equal(call.opts.env, selected.env);
     assert.equal(call.opts.deadline, selected.deadline); assert.equal(call.opts.allowed, allowed);
   }
-  return { result, error, calls };
+  return { result, error, calls, stages };
 }
 const exact = run({ replies: () => ({ status: 0, stdout: value }) });
 assert.equal(exact.calls.length, 1); assert.equal(exact.calls[0].argv[1], 'retrieve');
@@ -83,7 +87,7 @@ assert.deepEqual(slowReleased.calls.map(c => c.argv[1]), ['retrieve', 'store', '
 assert.deepEqual(slowFixed.calls.map(c => c.argv[1]), ['retrieve']);
 assert.equal(slowFixed.result.digest, slowReleased.result.digest);
 assert.equal(slowFixed.result.readOnlyDuplicate, true);
-assert.equal(capture.patchSource(released).next, fixed.next); assert.equal(capture.reverseSource(released), native);
+assert.equal(capture.patchSource(released).next, timed); assert.equal(capture.reverseSource(released), native);
 assert(patchRead(released.replace('Math.min(1000,', 'Math.min(1001,')).missing.length, 'unknown edits of released bytes refused');
 
 for (const initial of [
@@ -113,3 +117,16 @@ assert.equal(recovered.calls.filter(c => c.argv[1] === 'store').length, 1);
 const sibling = run({ db: '/inert/other-project/memory.db', replies: () => ({ status: 0, stdout: value }) });
 assert.equal(sibling.result.db, '/inert/other-project/memory.db');
 console.log('Capture exact-read-first: native constructor/path/consent preserved, durable duplicate uses zero writes, full-slack bounded read budget, released-bytes migration, strict fresh insert/readback, conflict/timeout/unknown outcomes and exact inverse PASS');
+
+assert.equal(exact.stages.length, 1); assert.equal(exact.stages[0].exactMatch, true);
+assert.equal(exact.stages[0].operation, 'retrieve');
+const measuredTimeout = run({ replies: n => n === 1 ? {status:null,error:{code:'ETIMEDOUT'}} : n === 2 ? {status:1,stderr:'already exists'} : {status:0,stdout:value} });
+assert.deepEqual(measuredTimeout.stages.map(x => x.operation), ['retrieve','store','retrieve']);
+assert.equal(measuredTimeout.stages[0].timedOut, true);
+assert.equal(measuredTimeout.stages[2].exactMatch, true);
+assert(!JSON.stringify(measuredTimeout.stages).includes('git status'));
+assert(!JSON.stringify(measuredTimeout.stages).includes('already exists'));
+const brokenSink = run({diagnosticStep:()=>{throw Error('sink failed');},replies:()=>({status:0,stdout:value})});
+assert.equal(brokenSink.result.digest, exact.result.digest);
+const thrown = run({replies:()=>{throw Error('native throw');}});
+assert.match(thrown.error.message,/native throw/); assert.equal(thrown.stages[0].threw,true);

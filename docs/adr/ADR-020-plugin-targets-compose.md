@@ -2,6 +2,11 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Release 4.46.169 adds per-call metadata to the existing
+capture timing sink (#521). Exact prior capture compositions remain accepted for
+upgrade and reverse to the same pristine. The additional callback cannot change
+native call outcomes; no raw arguments or output enter its receipts. Deployment
+is pending; the recurrent admission timeout is not yet repaired.
 **Updated**: 2026-11-07. Release 4.46.168 repairs Brain #524 retained-receipt
 coverage. Exact prior status bytes participate in historical composition proof
 and reverse to the same native pristine. The status reader covers normal retained

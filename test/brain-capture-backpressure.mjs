@@ -8,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { patchSource, reverseSource, historicalPatchSource, isPatched } from '../lib/brain-capture-launch/patcher.mjs';
 import { WAIT_EDITS, undoWait } from '../lib/brain-capture-launch/backpressure.mjs';
+import { undoSteps } from '../lib/brain-capture-launch/step-timing.mjs';
 import { patchSource as diagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 
@@ -18,15 +19,17 @@ const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const keyOf = ({ session = '', tool, action }) => 'workflow-' + sha(JSON.stringify([String(session), tool, action]));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function sandbox(cfg) {
+  const started = process.uptime(); // Each sandbox represents a fresh native hook process.
   const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: cfg.home, RUVNET_BRAIN_HOME: cfg.home };
   const failures = [];
   const record = value => fs.appendFileSync(path.join(cfg.home, 'events.jsonl'), JSON.stringify(value) + '\n', { mode: 0o600 });
-  const ctx = vm.createContext({ fs, os, path, Date, process: { ...process, env },
+  const ctx = vm.createContext({ fs, os, path, Date, process: { ...process, env, uptime: () => process.uptime() - started },
     randomUUID: crypto.randomUUID, captureTimingHash: crypto.createHash, observationKey: keyOf,
     learningContext: () => ({ enabled: !fs.existsSync(path.join(cfg.home, 'disabled')), scope: 'project', projectDir: cfg.home, home: cfg.home }),
     resolveRuflo: () => '/inert/ruflo', distillObservations() { throw Error('unexpected distillation'); },
     recordHookFailure: row => { failures.push(row); record({ kind: 'failure', pid: process.pid, error: row.error }); },
     recordLearningObservation(_binary, _context, observation) {
+      _context.diagnosticStep?.({ sequence: 0, operation: 'retrieve', durationMs: 1, status: 0, exactMatch: true });
       const key = keyOf(observation); record({ kind: 'start', pid: process.pid, key });
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, cfg.delay ?? 120);
       if (cfg.behavior === 'crash') process.exit(7);
@@ -96,7 +99,7 @@ if (['--parent', '--observe', '--publication-crash'].includes(process.argv[2])) 
     return { h, release() { for (const row of held) h.ctx.releaseObserveSlot(row.slot, process.pid, row.token, dir); } };
   }
   try {
-    const released = undoWait(candidate.next);
+    const released = undoWait(undoSteps(candidate.next));
     assert.equal(sha(diagnose(released).next), '9eda5dd3e151e85e871641fba254856cf161a0ef45e46baa5b910f971c7dd863');
     assert.equal(historicalPatchSource(native, released).next, released);
     assert.equal(patchSource(released).next, candidate.next);
@@ -135,6 +138,13 @@ if (['--parent', '--observe', '--publication-crash'].includes(process.argv[2])) 
       assert(maximum <= 2); assert.equal(rows.filter(e => e.kind === 'start').length, expected);
       assert.equal(new Set(rows.filter(e => e.kind === 'end').map(e => e.key)).size, expected);
       assert.equal(waiters(dir).length, 0); assert(rows.every(e => e.kind !== 'failure'));
+      const diagnosticDir = path.join(dir, '.ruflo-source-patch/capture-diagnostics');
+      await until(() => {
+        try { return fs.readdirSync(diagnosticDir).some(name => {
+          const receipt = JSON.parse(fs.readFileSync(path.join(diagnosticDir, name), 'utf8'));
+          return receipt.mode === 'child' && receipt.events.some(e => e.phase === 'native-step' && e.exactMatch === true);
+        }); } catch { return false; }
+      });
       proof.push({ case: duplicate ? 'coalesced-duplicate' : 'occupied-distinct-burst', callers: count, exactWrites: expected,
         maximumAuthorizedWrites: maximum, parentResults: results });
     }
@@ -213,14 +223,15 @@ if (['--parent', '--observe', '--publication-crash'].includes(process.argv[2])) 
     // Reproduce ENOENT between complete gate observation and the subsequent exists check.
     const replaced = home(), raced = sandbox({ home: replaced }), gate = path.join(replaced, 'learn-capture/admission.lock');
     fs.mkdirSync(gate, { recursive: true });
-    const dead = spawnSync(process.execPath, ['-e', '']);
-    fs.writeFileSync(path.join(gate, 'owner.json'), JSON.stringify({ pid: dead.pid, start: null, token: crypto.randomUUID() }));
+    const dead = spawnSync(process.execPath, ['-e', "if(process.platform==='linux')process.stdout.write(require('node:fs').readFileSync('/proc/self/stat','utf8').split(') ').at(-1).split(' ')[19]);"], { encoding: 'utf8' });
+    assert.equal(dead.status, 0, dead.stderr);
+    fs.writeFileSync(path.join(gate, 'owner.json'), JSON.stringify({ pid: dead.pid, start: dead.stdout || null, token: crypto.randomUUID() }));
     let injected = false;
     raced.ctx.fs = { ...fs, readFileSync(file, ...args) {
       if (!injected && file === path.join(gate, 'owner.json')) { injected = true; throw Object.assign(Error('fixture concurrent replacement'), { code: 'ENOENT' }); }
       return fs.readFileSync(file, ...args);
     } };
-    assert.equal(raced.capture('gate-replacement'), true); assert(injected);
+    assert.equal(raced.capture('gate-replacement'), true, JSON.stringify(raced.failures)); assert(injected);
     await until(() => events(replaced).filter(e => e.kind === 'end').length === 1 && slots(replaced).length === 0);
 
     for (const kind of ['unknown', 'symlink', 'fifo']) {
