@@ -853,8 +853,8 @@ qualification or reader capability retains the CLI before dispatch, within the
 original deadline. Isolated tests reproduce the old premature EOF
 exit and verify delayed/large responses, refusal, timeout, composition and unchanged
 writes. Deployment verified all 16 bundle files and 13 trusted Brain hooks on
-each host. Natural HZ duplicate captures took 1.01–1.76 seconds with whole-value
-confirmation; sampled new writes took 2.82–3.53 seconds including confirmation.
+each host. Natural HZ duplicate captures took 1.01 to 1.76 seconds with whole-value
+confirmation; sampled new writes took 2.82 to 3.53 seconds including confirmation.
 Two sampled preliminary reads still hit their two-second deadline, then confirmed
 the existing value through the unchanged strict-store path in 3.90/4.52 seconds.
 These are observations under varying load, not a controlled benchmark or proof

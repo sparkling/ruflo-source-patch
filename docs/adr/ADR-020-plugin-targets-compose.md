@@ -9,7 +9,7 @@ its pristine with capture diagnostics and admission. EOF drains accepted reads
 and flushes their results. Writes, consent and deadlines remain native. Bundle
 preflight must qualify every member before mutation. Deployment verified 16/16
 bundle files and 13 trusted hooks on each host. Natural HZ exact duplicate reads
-took 1.01–1.76 s; new-write confirmation took 2.82–3.53 s. Two preliminary reads
+took 1.01 to 1.76 s; new-write confirmation took 2.82 to 3.53 s. Two preliminary reads
 still timed out, then confirmed existing values in 3.90/4.52 s. This proves the
 installed path works, not complete admission recovery or historical persistence.
 The two existing suite failures and unrelated Mac npx drift remain disclosed.
