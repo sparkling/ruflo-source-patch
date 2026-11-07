@@ -6,7 +6,10 @@
 coverage. Exact prior status bytes participate in historical composition proof
 and reverse to the same native pristine. The status reader covers normal retained
 256 KiB receipt files within a 512 KiB bound and explicitly warns on larger files.
-It does not replay captures or change store binding. Deployment is pending.
+It does not replay captures or change store binding. Deployment verified 4/4 files
+and 13 trusted hooks per host. Builder's installed status changed from the stale
+pending warning to 20/20 exact readbacks in bounded coverage; the laptop's separate
+historical failure remains visible. Two pre-existing suite fixture failures remain.
 **Updated**: 2026-11-07. Release 4.46.167 implements Brain #526 bounded policy input.
 Compose bounded Bash reads on the existing three shell policy files, preserving
 native truncation, deadlines, refusal behavior and all sibling patches. The read

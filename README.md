@@ -40,7 +40,11 @@ in the rotated file could outlive its confirmation near the start of the current
 file, outside the former 128 KiB tail. Both files are now read through 512 KiB
 (native rotation is 256 KiB); larger files explicitly report incomplete coverage.
 Regression tests reproduce the false warning, preserve same-key confirmation,
-and verify exact upgrade/restoration of the previous patch. Deployment is pending.
+and verify exact upgrade/restoration of the previous patch. Deployment verified
+4/4 files and 13 trusted hooks per host. Builder's installed status changed from
+the stale pending warning to 20/20 exact readbacks within bounded coverage. Its
+record was read through the explicit producer database; default MCP binding was
+not changed. The laptop's unrelated historical failure remains visible.
 
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
