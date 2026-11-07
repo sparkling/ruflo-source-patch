@@ -852,7 +852,15 @@ to the original capture logic without an extra CLI retry. Unsupported executable
 qualification or reader capability retains the CLI before dispatch, within the
 original deadline. Isolated tests reproduce the old premature EOF
 exit and verify delayed/large responses, refusal, timeout, composition and unchanged
-writes. Live deployment and admission recovery remain pending verification.
+writes. Deployment verified all 16 bundle files and 13 trusted Brain hooks on
+each host. Natural HZ duplicate captures took 1.01–1.76 seconds with whole-value
+confirmation; sampled new writes took 2.82–3.53 seconds including confirmation.
+Two sampled preliminary reads still hit their two-second deadline, then confirmed
+the existing value through the unchanged strict-store path in 3.90/4.52 seconds.
+These are observations under varying load, not a controlled benchmark or proof
+that all admission failures are resolved. Historical unverified keys remain open.
+The full suite retains two pre-existing fixture failures (`ruflo-tier-consolidation`
+and `cwd-session-current`); unrelated Mac npx AIDefence configuration drift remains.
 
 The patch secures curated exact reads first, then calls the same published
 `searchEntries` function through that reader for its exact store. Native
