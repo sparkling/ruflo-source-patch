@@ -15,6 +15,11 @@ selection, KB or stamps. Unknown source and unproven retained ownership refuse.
 Retire after native split-input, open-pipe, UTF-8, bounded-input and ownership
 behavior passes, followed by a real full-document search and original write-admission
 proof. Historical refusals remain preserved; no application operation is replayed.
+Deployment verified on Mac/HZ with six wrappers each and unchanged native ownership.
+The ordinary full-document search renewed the HZ stamp at 08:58:23.746753 UTC;
+the original Query write payload passed registered admission afterward, without
+dispatching an application write. This closes the scoped transport repair, not
+historical persistence incidents or project runtime adoption.
 
 **Updated**: 2026-11-07. Bounded first-attempt turn admission follows the existing
 Brain #513/#520 handoff without increasing its two-write execution limit.

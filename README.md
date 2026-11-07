@@ -2017,6 +2017,17 @@ complete JSON without EOF, polling, malformed/oversized input, exact reversal an
 stable ownership. Windows pipe behavior has not been exercised on Windows.
 Installed bytes and live full-document search/write admission are verified separately.
 
+**Live verification, 7 November 2026:** v4.46.164 is installed on Mac and HZ,
+with six wrapper copies patched per host, exact stable/retained ownership, 346
+matching stable library files, and all 13 Brain hooks trusted. The same native
+12,453-byte full-document search that previously left grounding unchanged renewed
+the HZ MetaHarness stamp at 08:58:23.746753 UTC. Evaluating the registered write
+gate with the original refused Query payload then returned exit 0; no application
+write was dispatched. Project owners retain continuation and runtime custody.
+Focused Mac/Linux and affected composition regressions pass. The full run retains
+two existing fixture failures (`ruflo-tier-consolidation`, `cwd-session-current`);
+Mac's unrelated AIDefence configuration drift remains outside this repair.
+
 `brain-wrapper-ownership` accepts reviewed Brain 4.7.6 native ownership without
 modification. For older installers, it repairs rejection of their own older Codex bridge. It accepts only exact SHA-256 hashes independently verified
 against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1/v4.6.2 wrapper bytes. The existing
