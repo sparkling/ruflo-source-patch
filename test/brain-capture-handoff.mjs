@@ -24,14 +24,16 @@ const readStdinBounded=async()=>fs.readFileSync(0);
 const runSteps=(job,options)=>{
  if(options.deadlineMs!==job.deadlineMs||options.projectDir!==job.projectDir||options.brainHome!==job.brainHome)throw Error('lost native boundary');
  fs.writeFileSync(job.steps[0].started,'started');
+ fs.appendFileSync(${JSON.stringify(path.join(root, 'execution.jsonl'))},JSON.stringify({event:'start',pid:process.pid})+'\\n');
  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500);
  appendReceipt(job.receipts,{kind:'store',key:flagValue(job.steps[0].args,'--key'),verified:true,status:0,event:job.event});
+ fs.appendFileSync(${JSON.stringify(path.join(root, 'execution.jsonl'))},JSON.stringify({event:'end',pid:process.pid})+'\\n');
 };
 ${HANDOFF_HELPER}
 try{await runFreshTurn();}catch{process.exitCode=1;}
 `);
 const context = vm.createContext({ fs, os, path, crypto, process, Buffer, Date, Atomics, Int32Array, SharedArrayBuffer,
-  spawn, fileURLToPath: () => worker, recordHookFailure: row => failures.push(row) });
+  spawn, setTimeout, fileURLToPath: () => worker, recordHookFailure: row => failures.push(row) });
 vm.runInContext(shared + HANDOFF_HELPER.replaceAll('import.meta.url', JSON.stringify(pathToFileURL(worker).href)), context);
 const launch = (key, event = 'SessionEnd') => {
   const step = { kind: 'store', started: path.join(root, key + '.started'), args: ['memory', 'store', '--key', key,
@@ -63,22 +65,49 @@ try {
   assert.equal(context.turnAttemptPending({ pending: true, deadlineMs: Date.now() + 1000, owner: { pid: -1 } }), false);
   assert.equal(context.turnAttemptPending({ pending: true, deadlineMs: Date.now() + 1000, owner: { pid: process.pid } }), true);
   const a = launch('one'), b = launch('two', 'PreCompact');
+  for (let i = 3; i <= 8; i++) launch('burst-' + i);
   assert.equal(a.pending, true); assert.equal(b.pending, true);
-  assert.throws(() => launch('three'), /capacity exhausted before dispatch/);
-  assert.equal(rows().filter(x => x.pending).length, 2);
+  assert.throws(() => launch('nine'), /pending capacity exhausted before dispatch/);
+  assert.equal(rows().filter(x => x.pending).length, 8);
   assert.equal(rows().filter(x => x.verified).length, 0, 'pending never claims persistence');
   const argv = spawnSync('ps', ['-p', String(a.pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
   assert(!argv.includes('PRIVATE_TURN_BODY_NOT_IN_ARGV') && !argv.includes('inert.db'));
-  for (const name of fs.readdirSync(path.join(root, 'turn-capture/workers/slots'))) {
-    const text = fs.readFileSync(path.join(root, 'turn-capture/workers/slots', name), 'utf8');
+  for (const name of fs.readdirSync(path.join(root, 'turn-capture/workers/pending'))) {
+    const text = fs.readFileSync(path.join(root, 'turn-capture/workers/pending', name), 'utf8');
     assert(!text.includes('PRIVATE_TURN') && !text.includes('inert.db'));
     assert(Buffer.byteLength(text) < 4096);
   }
-  for (let i = 0; i < 80 && rows().filter(x => x.verified).length < 2; i++) await pause(25);
-  assert.equal(rows().filter(x => x.verified).length, 2);
-  assert.deepEqual(rows().filter(x => x.verified).map(x => x.event).sort(), ['PreCompact', 'SessionEnd']);
+  for (let i = 0; i < 160 && rows().filter(x => x.verified).length < 8; i++) await pause(25);
+  assert.equal(rows().filter(x => x.verified).length, 8);
+  assert.equal(rows().filter(x => x.verified && x.event === 'PreCompact').length, 1);
+  let running = 0, peak = 0;
+  for (const row of fs.readFileSync(path.join(root, 'execution.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)) {
+    running += row.event === 'start' ? 1 : -1; peak = Math.max(peak, running);
+  }
+  assert.equal(peak, 2); assert.equal(running, 0, 'eight first attempts settle with no increased write concurrency');
   for (let i = 0; i < 40 && fs.readdirSync(path.join(root, 'turn-capture/workers/slots')).length; i++) await pause(25);
   assert.equal(fs.readdirSync(path.join(root, 'turn-capture/workers/slots')).length, 0);
+  // A pre-upgrade/live worker still owns an execution slot. New waiters cannot
+  // steal it by age or exceed the shared two-write limit.
+  const executionDir = path.join(root, 'turn-capture/workers/slots');
+  const live = { pid: process.pid, token: crypto.randomUUID() };
+  for (let i = 0; i < 2; i++) fs.writeFileSync(path.join(executionDir, 'slot-' + i), JSON.stringify(live));
+  const queued = launch('waiting-on-old-workers');
+  await pause(150);
+  assert(!fs.existsSync(path.join(root, 'waiting-on-old-workers.started')));
+  for (let i = 0; i < 2; i++) fs.unlinkSync(path.join(executionDir, 'slot-' + i));
+  for (let i = 0; i < 80 && !rows().some(x => x.key === 'waiting-on-old-workers' && x.verified); i++) await pause(25);
+  assert(rows().some(x => x.key === 'waiting-on-old-workers' && x.verified));
+  // Deadline exhaustion is a pre-dispatch failure, without a store or lease theft.
+  await pause(50);
+  const ownSlot = path.join(root, 'turn-capture/workers/pending/slot-0');
+  const own = { ...live, at: Date.now() };
+  fs.writeFileSync(ownSlot, JSON.stringify(own));
+  for (let i = 0; i < 2; i++) fs.writeFileSync(path.join(executionDir, 'slot-' + i), JSON.stringify({ ...live, token: crypto.randomUUID() }));
+  await assert.rejects(context.turnWaitForExecution({ brainHome: root, slot: ownSlot, token: own.token, deadlineMs: Date.now() + 100 }), /wait expired before dispatch/);
+  assert.equal(fs.readdirSync(executionDir).length, 2);
+  for (let i = 0; i < 2; i++) fs.unlinkSync(path.join(executionDir, 'slot-' + i));
+  fs.unlinkSync(ownSlot);
   const killed = launch('killed', 'Stop');
   for (let i = 0; i < 80 && !fs.existsSync(path.join(root, 'killed.started')); i++) await pause(10);
   assert(fs.existsSync(path.join(root, 'killed.started'))); process.kill(killed.pid, 'SIGKILL');
@@ -87,10 +116,10 @@ try {
   launch('fresh-after-dead');
   await pause(700);
   assert.equal(rows().filter(x => x.key === 'killed').length, 1, 'dead lease recovery does not replay payload');
-  const slot = path.join(root, 'turn-capture/workers/slots/slot-0');
+  const slot = path.join(root, 'turn-capture/workers/pending/slot-0');
   fs.writeFileSync(slot, '{}');
   assert.throws(() => launch('unknown'), /owner unknown/);
-  console.log('Fresh turn handoff: two independent workers, stdin-only body, pending receipts, absolute native deadline/context, dead lease recovery, unknown refusal and no replay PASS');
+  console.log('Fresh turn handoff: eight bounded first attempts, two executing workers, stdin-only body, pending receipts, native deadline/context, dead lease recovery, unknown refusal and no replay PASS');
 } finally {
   for (const pid of children) { try { process.kill(pid, 'SIGKILL'); } catch {} }
   fs.rmSync(root, { recursive: true, force: true });

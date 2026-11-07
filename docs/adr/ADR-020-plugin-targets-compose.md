@@ -2,6 +2,24 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Bounded first-attempt turn admission follows the existing
+Brain #513/#520 handoff without increasing its two-write execution limit.
+
+Release 4.46.163 replaces immediate two-slot turn rejection with eight bounded
+pending children. The existing token/process-birth gate owns both pending and
+execution leases. Children wait in admission order for at most 60 seconds, then
+use the unchanged native consent/root/privacy/store/read path for at most 30
+seconds, within a 90-second handoff deadline. Bodies remain on stdin/in memory;
+only ownership metadata is persisted. Prior executing workers keep their leases.
+Overflow, unknown ownership, wait expiry and unavailable readback remain explicit
+failures. Historical records and uncertain writes are never replayed. Exact
+release-162 migration and reversal preserve all sibling contributions. Retire
+only when native bounded burst admission and equivalent evidence are proven.
+This supersedes the immediate turn refusal described in the earlier lifecycle
+paragraph; observation-capture admission remains separate. Native HTTP timeout
+configuration for unified search is tracked in Ruflo #4876 and changes no search
+algorithm or memory-owner source.
+
 **Turn-status composition correction, 2026-11-06**: `brain-turn-status`
 ([#524](https://github.com/stuinfla/ruvnet-brain/issues/524)) follows
 `brain-capture-idempotency` on the same pristine source. Our pending receipts and

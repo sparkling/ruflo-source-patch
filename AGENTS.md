@@ -116,6 +116,15 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
+- Shared MCP, memory and hook error handoffs are repair assignments, including
+  incidents whose retry succeeded: analyse, fix, test, deploy, verify live behavior,
+  then notify the sender. A diagnostic report alone does not complete the repair.
+  If the cause belongs elsewhere or deployment is blocked, state the exact evidence
+  and limitation without claiming recovery or restarting the sender's authors.
+- For every patch, search existing upstream issues first; update the relevant issue
+  or file a new one. Record the reproduction, scope, downstream fix, validation,
+  release and retirement condition. Update README in the same verified slice,
+  including issue links, behavior, limits and actual activation status.
 - Use the model transport selected by the caller or harness. OpenRouter is
   permitted when configured; never silently switch transports or persist
   provider credentials in this repository.

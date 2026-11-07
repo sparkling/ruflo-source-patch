@@ -627,6 +627,18 @@ bounded, and concurrent first attempts retain native append-only collision check
 exhaustion and unavailable evidence still fail explicitly. This addresses the
 Claude SessionEnd 1.2-second budget without increasing that host deadline.
 
+Release 4.46.163 corrects that handoff's shutdown-burst refusal: up to eight
+first-attempt children may hold payload-free pending leases, while only two
+execute native store/read operations. Children wait in admission order for at
+most 60 seconds; native execution remains capped at 30 seconds and the whole
+handoff at 90 seconds. The parent still returns promptly. Turn bodies travel
+only over stdin and stay in child memory. Existing execution leases, live or
+unknown owners, consent, exact readback and read-only reconciliation remain
+authoritative. Excess admission, expired waits and process failures are visible;
+this is not a durable queue or a historical replay facility. Eight-child burst,
+two-write concurrency, old-worker coexistence, deadline, crash, composition and
+exact reversal tests cover the change. Upstream: [Brain #513](https://github.com/stuinfla/ruvnet-brain/issues/513).
+
 The accompanying [Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521)
 repair retains two observation workers while at most eight existing hooks wait
 for admission. Seven seconds is the upper bound; native Codex and inherited
@@ -1241,6 +1253,17 @@ Each owner declares absolute `cwd`, nullable `pin`, literal loopback `url`, priv
 means unchanged native behavior. With configuration, missing or ambiguous bindings,
 identity mismatch, unavailable owner and uncertain writes fail without local fallback
 or automatic replay. Server mode is process-local; child CLI invocations stay clients.
+
+The client setting does not override Ruflo's separate native HTTP server deadline
+(30,000 ms by default in 3.71.4). Unified search can exceed that deadline while
+visiting many namespaces sequentially. Use the server's supported
+`--request-timeout-ms` setting, with margin below the caller's budget; this repair
+qualifies 120,000 ms server / 180,000 ms client for the affected HZ owner. This is
+a timeout mitigation, not a search-speed improvement. Namespace scope, native
+ranking, authentication and storage bindings stay unchanged. A successful retry
+does not fix the cause; the current `searchTime` field is an epoch timestamp,
+not elapsed time. Detailed latency and suppressed namespace errors are tracked in
+[Ruflo #4876](https://github.com/ruvnet/ruflo/issues/4876).
 
 Fresh real-process Mac and HZ checks pass: CLI immutable store/exact raw readback;
 two stdio clients sharing live records; separate retained graph roles with no result
