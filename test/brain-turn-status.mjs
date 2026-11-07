@@ -18,6 +18,8 @@ try {
   assert.ok(patch.isPatched(result.next));
   assert.equal(patch.reverse(result.next), NATIVE, 'byte-exact restoration');
   assert.equal(patch.patchSource(result.next).next, result.next, 'idempotent');
+  assert.equal(patch.patchSource(patch.PREVIOUS).next, result.next);
+  assert.equal(patch.reverse(patch.PREVIOUS), NATIVE);
   for (const source of [NATIVE + NATIVE, NATIVE.replace('resolveTurnDb', 'changedRoot'), result.next.replace('pendingKeys:', 'changedKeys:')]) {
     assert.ok(patch.patchSource(source).missing.length, 'unknown boundaries refuse mutation');
     assert.equal(patch.patchSource(source).next, source);
@@ -31,7 +33,9 @@ let input={}; export function configure(value){input=value;}
 const resolveTurnDb=()=>({db:'/fixture/project/.swarm/memory.db',skipped:input.skipped});
 const storeEncryptedAtRest=()=>input.encrypted; const ENCRYPTED_STORE_REASON='encrypted';
 const firstTurnCaptureNotice=()=>input.notice; const turnCapturePolicyFile=()=>'/fixture/policy';
-const readTail=file=>{const name=path.basename(file);if(input.errors?.[name])throw Object.assign(Error('fixture'),{code:input.errors[name]});return input[name]||[];};
+const bytesFor=file=>Buffer.from((input[path.basename(file)]||[]).join('\\n')+'\\n');
+const fs={statSync:file=>({size:bytesFor(file).length})};
+const readTail=(file,limit)=>{const name=path.basename(file);if(input.errors?.[name])throw Object.assign(Error('fixture'),{code:input.errors[name]});const all=bytesFor(file),offset=Math.max(0,all.length-limit),lines=all.subarray(offset).toString().split(/\\r?\\n/);if(offset>0)lines.shift();return lines;};
 const turnAttemptPending=r=>r.pending===true&&r.owner?.alive===true&&r.deadlineMs>input.now;
 const redactText=s=>s; const TURN_STATUS_FRESH_MS=3600000;
 ${result.next}
@@ -58,6 +62,16 @@ ${result.next}
   }
   status=invoke([row('r3',now+2000)],{now:now+3000,'receipts.jsonl.1':[JSON.stringify(pending)]});
   assert.equal(status.state,'ok','same-key terminal receipt supersedes rotated pending');
+  const padding=Array.from({length:250},(_,i)=>JSON.stringify(row('foreign-'+i,now,{storeIdentity:'foreign',padding:'x'.repeat(700)})));
+  const rotated={'receipts.jsonl.1':[JSON.stringify({...pending,owner:{alive:false}})],
+    'receipts.jsonl':[JSON.stringify(row('r3',now)),...padding]};
+  status=invoke([],rotated);
+  assert.equal(status.state,'ok','confirmation at start of >128KiB current file supersedes rotated pending');
+  fs.writeFileSync(path.join(sandbox,'old-runtime.mjs'),fixture.replace(result.next,patch.PREVIOUS));
+  const old=await import(pathToFileURL(path.join(sandbox,'old-runtime.mjs')));
+  old.configure({now,...rotated});
+  assert.match(old.turnRecordingStatus({home:'/fixture',env:{},now}).line,/failed or unconfirmed/,'mutation: prior tail resurrected pending');
+  assert.match(invoke([],{'receipts.jsonl':[JSON.stringify(row('big',now,{padding:'x'.repeat(530000)}))]}).line,/exceeds bounded coverage/);
   const failure={at:new Date(now-10000).toISOString(),hook:'turn-capture',store:store.slice(0,16),session:'r6-session-hash',expectedKey:digest('r6').slice(0,16),error:'capacity exhausted before dispatch'};
   const ledger={'hook-failures.jsonl':[JSON.stringify(failure)]};
   status=invoke([row('other',now)],ledger);
@@ -103,6 +117,10 @@ ${result.next}
   assert.equal(statusComposed([patch.NAME])[patch.NAME].patched,1);
   assert.equal(fs.readFileSync(file+'.rsp-backup','utf8'),NATIVE);
   assert.equal(applyComposed([patch.NAME]).unchanged,1);
+  write(file,patch.PREVIOUS);
+  composition=applyComposed([patch.NAME]);
+  assert.equal(composition.errors,0,JSON.stringify(composition));
+  assert.equal(fs.readFileSync(file,'utf8'),result.next,'historical composition upgrades from unchanged pristine');
   const olderRoot=path.join(process.env.RSP_RUVNET_BRAIN_HOME,'versions/4.7.27');
   fs.cpSync(root,olderRoot,{recursive:true});
   write(path.join(olderRoot,'.claude-plugin/plugin.json'),JSON.stringify({name:'ruvnet-brain',version:'4.7.27'}));

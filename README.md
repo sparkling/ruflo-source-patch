@@ -35,6 +35,12 @@ Only a later exact receipt for the same key clears a scoped ledger failure;
 malformed or unreadable evidence remains visible. This repairs the composition
 between our pending-capture receipts and the native status consumer. It does not
 increase worker capacity, replay missing captures, or erase historical failures.
+Release 4.46.168 corrects a retained-receipt window defect: an older pending row
+in the rotated file could outlive its confirmation near the start of the current
+file, outside the former 128 KiB tail. Both files are now read through 512 KiB
+(native rotation is 256 KiB); larger files explicitly report incomplete coverage.
+Regression tests reproduce the false warning, preserve same-key confirmation,
+and verify exact upgrade/restoration of the previous patch. Deployment is pending.
 
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
@@ -390,7 +396,8 @@ Release 4.46.167 adds `brain-policy-input` for a separate read-cost defect
 consume a whole JSON line before truncating to their native inspection limits.
 A 900 KB event exhausts their 2-second decision budget on HZ. Count-bounded Bash
 reads preserve the same inspected prefix, timeout, policy bodies and refusals;
-they stop consuming input beyond that prefix. Mac and Linux regressions cover
+they bound input consumption using that prefix limit and maximum UTF-8 width.
+Mac and Linux regressions cover
 open pipes, Unicode and protected-settings refusal. Deployment verified 12/12 files
 and 13 trusted Brain hooks on each host. Installed decision-gate probes completed
 the ordinary event in 181 ms on Mac and 948 ms on HZ without missing verdicts;
