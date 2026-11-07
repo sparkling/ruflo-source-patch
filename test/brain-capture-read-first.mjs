@@ -7,6 +7,8 @@ import { patchRead, undoRead, isReading, READ_EDITS, PREVIOUS_TO } from '../lib/
 import { patchSource as diagnose, reverseSource as undiagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 import * as capture from '../lib/brain-capture-launch/patcher.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
+import { isKnownComposition } from '../lib/composition-proof.mjs';
+import { descriptor as diagnosticsDescriptor } from '../lib/brain-capture-diagnostics/patcher.mjs';
 const native = fs.readFileSync(new URL('./fixtures/brain-user-learning-root/learning-store-native-4.7.21.mjs', import.meta.url), 'utf8');
 // Same published native learning-store bytes in installed Brain4.7.28's pristine baseline.
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -66,6 +68,9 @@ const released = native.replace(READ_EDITS[0][1], () => PREVIOUS_TO);
 assert.notEqual(released, native); assert(!isReading(released));
 assert.equal(patchRead(released).next, fixed.next); assert.deepEqual(patchRead(released).applied, ['native-exact-read-first-occupancy']);
 assert.equal(undoRead(released), native);
+assert.equal(capture.historicalPatchSource(native, released).next, released);
+assert(isKnownComposition(native, diagnose(released).next, [capture.descriptor, diagnosticsDescriptor]));
+assert.equal(capture.historicalPatchSource(native, released.replace('Math.min(1000,', 'Math.min(1001,')).next, native);
 // A 1.2 s native CLI read misses the released budget, then pays store+readback.
 // The candidate proves that same complete durable value with no write attempt.
 const slowRead = (n, argv, opts) => argv[1] === 'retrieve' && opts.maxStepMs < 1200

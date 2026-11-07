@@ -751,7 +751,7 @@ There is no queue, replay, capacity increase or change to Brain's update plane.
 
 The earlier #519 and #521 transforms remain available solely to reconstruct and
 upgrade or remove their exact released compositions. Unknown edits remain refused.
-The next capture occupancy correction gives the optional duplicate read up to
+Release 4.46.166 gives the optional duplicate read up to
 2 seconds of the existing 14-second child budget, while reserving both original
 6-second store/readback steps. The former 1-second cap could time out during CLI
 startup and make an already durable observation consume another store/readback
