@@ -2,6 +2,16 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-07. Release 4.46.167 implements Brain #526 bounded policy input.
+Compose bounded Bash reads on the existing three shell policy files, preserving
+native truncation, deadlines, refusal behavior and all sibling patches. The read
+stops at a UTF-8-width bound derived from the existing inspection capacity;
+the unchanged native substring determines the exact inspected prefix. Native
+upstream retirement requires bounded-read and refusal proof. This is a read-cost
+repair, not complete large-content inspection. Deployment is not yet verified.
+The managed-memory boundary now shares ownership of `hijack-ruvnet.sh` through
+the same pristine composition used by its MCP and shim files. Both installation
+orders, reapplication and either removal order preserve the remaining owner.
 **Updated**: 2026-11-07. Qualify the Brain #521 duplicate-read occupancy correction.
 The capture composition now recognizes and reverses the exact former 1-second
 duplicate-read bytes, then gives the read up to 2 seconds of unreserved child

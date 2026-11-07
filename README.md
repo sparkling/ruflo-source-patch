@@ -385,6 +385,16 @@ qualifications are recorded above. Already-loaded source clients still require r
 
 ## ADR envelope repair: updated 4 November 2026
 
+Release 4.46.167 adds `brain-policy-input` for a separate read-cost defect
+([Brain #526](https://github.com/stuinfla/ruvnet-brain/issues/526)). Three shell policies
+consume a whole JSON line before truncating to their native inspection limits.
+A 900 KB event exhausts their 2-second decision budget on HZ. Count-bounded Bash
+reads preserve the same inspected prefix, timeout, policy bodies and refusals;
+they stop consuming input beyond that prefix. Mac and Linux regressions cover
+open pipes, Unicode and protected-settings refusal. Activation is not yet verified.
+The independent 32/64 KiB inspection limits remain; this does not establish
+complete inspection of large content or resolve every historical missing verdict.
+
 The larger envelope exposed a second native defect: `decision-gate` touches
 `process.stdin`, then synchronously reads its nonblocking pipe. A caught `EAGAIN`
 can become empty policy input; larger inputs also produce `EPIPE` in the parent.
@@ -2636,6 +2646,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`ruflo-pattern-withdrawal`** | Expose exact native ReasoningBank get and hash-guarded delete for explicit correction. Preserve unrelated patterns and refuse changed identities; no cross-process compare-and-swap guarantee. | Related [#3450](https://github.com/ruvnet/ruflo/issues/3450) and [#829](https://github.com/ruvnet/ruflo/issues/829), not complete repairs of those issues |
 | **`brain-learning-receipts`** | **Retired on native 4.7.28 behavior proof; older compatibility only.** Native exact readback, consent and child-result handling establish capture before marking an observation complete. | [#377 · closed](https://github.com/stuinfla/ruvnet-brain/issues/377) |
 | **`brain-adr-envelope`** | Preserve the complete decision envelope through native asynchronous bounded stdin reading up to 1 MiB, including tail fields. Native verdict and fail-open policy semantics remain unchanged. | [#515 · open](https://github.com/stuinfla/ruvnet-brain/issues/515) |
+| **`brain-policy-input`** | Bound shell input consumption before native prefix inspection; preserve content limits, timeouts and refusal decisions. | [#526 · open](https://github.com/stuinfla/ruvnet-brain/issues/526) |
 | **`ruflo-memory-list-pagination`** | Page native row identifiers before hydrating payloads; preserve original queries for unknown or incompatible schemas. | [#4686 · open](https://github.com/ruvnet/ruflo/issues/4686) |
 | **`brain-learning-native-owner`** | Withdrawn adapter selection; restore upstream learning/checkpoint code. | [#4666 · closed: downstream cause](https://github.com/ruvnet/ruflo/issues/4666) |
 | **`verify-interface`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** The predicate accepts either Brain's fixed command gate or its newer advisory-only raw-Bash hook backed by structured `ruvnet_cli_help` / `ruvnet_cli_run`, and rejects a partial blocking replacement | [stuinfla/ruvnet-brain#12 · closed](https://github.com/stuinfla/ruvnet-brain/issues/12) · [#48 · closed](https://github.com/stuinfla/ruvnet-brain/issues/48) |

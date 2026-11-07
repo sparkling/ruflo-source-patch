@@ -434,5 +434,45 @@ check('BMB53 removing boundary preserves envelope and original pristine', remove
 check('BMB54 removing last owner restores exact native shim', envelopeCli('uninstall').status === 0
   && fs.readFileSync(sharedShim, 'utf8') === shimNative);
 
+console.log('\nShared shell input lifecycle (#526)');
+const inputOwner = await import('../lib/brain-policy-input/patcher.mjs');
+const loop = cap => `INPUT=""; _l=""
+while IFS= read -r -t 2 _l; do
+  INPUT="$INPUT$_l"
+  [ \${#INPUT} -ge ${cap} ] && break
+done
+[ -n "$_l" ] && INPUT="$INPUT$_l"
+INPUT="\${INPUT:0:${cap}}"
+`;
+for (const surface of patcher.discover().filter(s => s.kind === 'full')) {
+  for (const spec of inputOwner.SPECS) {
+    const file = path.join(surface.root, spec.relative);
+    const original = spec.relative.endsWith('hijack-ruvnet.sh') ? fs.readFileSync(file, 'utf8') : '';
+    write(file, loop(spec.cap) + original);
+  }
+}
+const inputCli = action => spawnSync(process.execPath, [path.join(REPO, 'bin/cli.mjs'), inputOwner.NAME, action], {
+  env: process.env, encoding: 'utf8', timeout: 30_000,
+});
+const sharedHijack = path.join(nextRoot, 'scripts/hijack-ruvnet.sh');
+const sharedNativeHijack = fs.readFileSync(sharedHijack, 'utf8');
+const inputFirst = inputCli('install');
+check('BMB55 input owner installs on native shell first', inputFirst.status === 0, inputFirst.stdout + inputFirst.stderr);
+const boundarySecond = cli('install');
+const bothHijack = fs.readFileSync(sharedHijack, 'utf8');
+check('BMB56 boundary transaction retains input sibling', boundarySecond.status === 0
+  && inputOwner.isPatched(bothHijack) && transforms.isPatched('hijack', bothHijack)
+  && fs.readFileSync(sharedHijack + '.rsp-backup', 'utf8') === sharedNativeHijack, boundarySecond.stdout + boundarySecond.stderr);
+check('BMB57 full boundary reapply preserves both exact contributions', cli('install').status === 0
+  && fs.readFileSync(sharedHijack, 'utf8') === bothHijack);
+check('BMB58 removing input retains managed-memory boundary', inputCli('uninstall').status === 0
+  && fs.readFileSync(sharedHijack, 'utf8') === transforms.patchHijack(sharedNativeHijack).next);
+check('BMB59 input installs after boundary', inputCli('install').status === 0
+  && fs.readFileSync(sharedHijack, 'utf8') === bothHijack);
+check('BMB60 removing boundary retains input sibling', cli('uninstall').status === 0
+  && fs.readFileSync(sharedHijack, 'utf8') === inputOwner.patchSource(sharedNativeHijack).next);
+check('BMB61 removing final owner restores exact native shell', inputCli('uninstall').status === 0
+  && fs.readFileSync(sharedHijack, 'utf8') === sharedNativeHijack);
+
 if (failures) process.exit(1);
 console.log('\n✓ brain-managed-memory-boundary: detector, denial, diagnostic, updater coexistence, and removal proven');
