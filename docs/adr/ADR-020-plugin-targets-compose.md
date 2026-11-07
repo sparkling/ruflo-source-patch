@@ -8,7 +8,10 @@ default true; canonical public-native calls remain default false. The owner-side
 canonical handler is unchanged, allowing safe coexistence with older clients.
 Exact 4.46.170 client bytes participate in historical restoration and upgrade.
 Disposable native MCP and public calls against an unchanged owner verified update,
-strict refusal, immutable refusal and exact values. Live activation remains to prove.
+strict refusal, immutable refusal and exact values. Installation verified 54 bundle
+files on Mac and 72 on HZ. Fresh HZ user-level clients and the affected Builder exact
+read passed. Mac npx client qualification and project overrides remain separate;
+direct canonical HTTP native defaults were deliberately preserved.
 **Updated**: 2026-11-07. Release 4.46.170 extends the existing four-file native
 reader bundle to exact learning-observation reads (#521). Prior three-file
 compositions remain exact migration inputs; the new learning-store member shares

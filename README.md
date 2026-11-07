@@ -1328,6 +1328,13 @@ Append-only conditions, exact store selection and uncertain-write handling remai
 native. This affects refreshed forwarding clients; a package install alone does
 not prove existing processes loaded it. Direct canonical HTTP calls that bypass
 the forwarding client retain their native defaults and should specify `upsert`.
+Installation verified 54 owner-bundle files on Mac and 72 on HZ. The HZ native
+client rollout produced fresh Builder, Query, Product, Fabric and Oxigraph clients;
+the affected Builder session passed an exact read of its existing record. The
+disposable mixed-version test separately proves update and strict-refusal behavior.
+Mac client activation remains pending qualification of its `npx ...@latest` entrypoint;
+installed bytes alone are not live-client proof. Existing project overrides and
+direct HTTP connections are not covered by the HZ user-level client refresh.
 
 Routing is operator-configured in `~/.config/ruflo/memory-owners.json` (or the explicit
 `RUFLO_MEMORY_OWNER_CONFIG` path). Version 1 declares `owners` keyed by identity,
