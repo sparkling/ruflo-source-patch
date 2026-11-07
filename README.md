@@ -639,6 +639,14 @@ this is not a durable queue or a historical replay facility. Eight-child burst,
 two-write concurrency, old-worker coexistence, deadline, crash, composition and
 exact reversal tests cover the change. Upstream: [Brain #513](https://github.com/stuinfla/ruvnet-brain/issues/513).
 
+Activated on Mac and HZ on 7 November 2026: four capture copies per host are
+patched and all 344 stable library files match release 4.46.163. The deployed
+helper passes the eight-child test on both hosts with an inert persistence seam;
+separate natural HZ captures retain successful native store/exact-read receipts.
+Historical missing records remain missing and were not replayed. The full suite
+retains its pre-existing tier-consolidation and cwd-session-current fixture
+failures; Mac also retains its unrelated AIDefence configuration anchor drift.
+
 The accompanying [Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521)
 repair retains two observation workers while at most eight existing hooks wait
 for admission. Seven seconds is the upper bound; native Codex and inherited
@@ -1264,6 +1272,11 @@ ranking, authentication and storage bindings stay unchanged. A successful retry
 does not fix the cause; the current `searchTime` field is an epoch timestamp,
 not elapsed time. Detailed latency and suppressed namespace errors are tracked in
 [Ruflo #4876](https://github.com/ruvnet/ruflo/issues/4876).
+
+The affected HZ owner is activated with that configuration. Both original queries
+completed concurrently across 74 namespaces in 36.43 and 38.02 seconds, beyond
+the former 30-second cutoff. Its canonical storage binding is unchanged. Native
+HTTP qualification also returned success for a 31-second fixture request.
 
 Fresh real-process Mac and HZ checks pass: CLI immutable store/exact raw readback;
 two stdio clients sharing live records; separate retained graph roles with no result
