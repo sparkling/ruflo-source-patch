@@ -874,7 +874,9 @@ and the session-hook fixture omitted the native `realpath-containment.js` depend
 The owner matcher now returns its existing unsupported-shape diagnostic; exact
 sibling provenance can still be proved, while foreign bytes remain refused.
 This changes patch qualification, not the emitted memory-owner runtime or capture
-admission behavior.
+admission behavior. The full protected suite passes. Deployment exercised the
+installed matcher on both hosts and verified unchanged owner source bytes across
+54 Mac and 72 HZ files; composition reapplication changed zero vendor files.
 
 A further admission expiry at 23:03 UTC on 7 November confirms recurrence remains
 open. Its logical observation also matched an exact native user-store read; the
