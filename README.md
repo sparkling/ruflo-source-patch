@@ -46,6 +46,27 @@ the stale pending warning to 20/20 exact readbacks within bounded coverage. Its
 record was read through the explicit producer database; default MCP binding was
 not changed. The laptop's unrelated historical failure remains visible.
 
+## Native learning persistence: 8 November 2026
+
+Version 4.46.175 adds `ruflo-learning-persistence` for
+[Ruflo #4880](https://github.com/ruvnet/ruflo/issues/4880): a failed native
+ReasoningBank flush must not become a successful trajectory or pattern receipt.
+It preserves native writes, locking, merge behavior and dirty in-memory learning.
+The flush returns an explicit failure without throwing from its timer; trajectory
+and native-pattern bridge callers propagate that failure. Four MCP consumers now
+honor the trajectory result instead of inferring success from counter changes.
+Command execution/storage and learning remain distinct outcomes.
+
+The existing intelligence/persistence status reports process-scoped dirty state
+and the last flush outcome; `hooks_intelligence_stats` exposes it under
+`ruvllm.patternPersistence`. A fresh process reports no historical flush proof.
+In-memory pattern counts are not durable-record counts. This target does not
+repair an earlier disk-full write, reconstruct counters, replay learning, restart
+an owner, or replace the storage algorithm. Older direct-write packages retain
+that upstream behavior; newer native locked merges remain intact. Retirement
+requires executable pristine-native failure propagation, timer safety and status
+proof, not an issue closure or a package version alone.
+
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
 Version 4.46.145 qualifies the published Ruflo/CLI 3.71.4 security release while
@@ -2653,6 +2674,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 | Target | What it fixes | Upstream |
 |--------|---------------|----------|
 | **`ruflo-pattern-receipt`** | Requires a successful delegated pattern store and exact namespace/key/content readback before acknowledging fallback persistence. Covers the MCP handler and memory bridge; a failed native controller cannot acquire a misleading persisted note. | [#3691 · closed](https://github.com/ruvnet/ruflo/issues/3691) |
+| **`ruflo-learning-persistence`** | Propagates failed native ReasoningBank flushes through trajectory/pattern/MCP callers and exposes process-local dirty/last-flush status. No replay or replacement storage algorithm. | [#4880](https://github.com/ruvnet/ruflo/issues/4880) |
 | **`ruflo-pattern-search-result`** | Preserves native and legacy pattern lookup while separating verified empty results from controller/read failures. Missing handles, malformed results and failed legacy reads remain explicit. Retire when upstream preserves both healthy no-match and failed-read distinctions through native tests. | [#4714](https://github.com/ruvnet/ruflo/issues/4714) |
 | **`ruflo-aidefence-config`** | Passes validated server-level pack selection to native AIDefence in all three loading paths. Omitted configuration preserves defaults; invalid values refuse. Built-in detection and PII remain. | [#4785](https://github.com/ruvnet/ruflo/issues/4785) |
 | **`ruflo-worktree-memory`** | Prepares external memory-package bindings through the native resolver before invoking the unchanged signed AutoMemory helper. Exact generated hook forms migrate during native init upgrade; custom commands remain intact. `ruflo hooks auto-memory-hook --action prepare --scope project` prepares and verifies without importing memory, so managed launchers can require success before starting an author. User helpers remain pinned to HOME and data roots remain separate. Retire on proven equivalent native startup, migration and failure behavior. | [#4851](https://github.com/ruvnet/ruflo/issues/4851) |

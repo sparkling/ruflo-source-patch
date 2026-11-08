@@ -84,6 +84,7 @@ import { metaharnessCodexHooksCommand } from '../lib/metaharness-codex-hooks/com
 import { rufloInstructionContractCommand } from '../lib/ruflo-instruction-contract/commands.mjs';
 import { rufloWrapperGuardCommand, prepareRufloWrapperInstall } from '../lib/ruflo-wrapper-guard/commands.mjs';
 import { rufloPatternReceiptCommand } from '../lib/ruflo-pattern-receipt/commands.mjs';
+import { rufloLearningPersistenceCommand } from '../lib/ruflo-learning-persistence/commands.mjs';
 import { rufloPatternSearchResultCommand } from '../lib/ruflo-pattern-search-result/commands.mjs';
 import { brainTurnStatusCommand } from '../lib/brain-turn-status/commands.mjs';
 import { rufloPiiPolicyCommand } from '../lib/ruflo-pii-policy/commands.mjs';
@@ -160,6 +161,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-transition-notice': brainTransitionNoticeCommand,
   'brain-transition-validation': brainTransitionValidationCommand,
   'ruflo-pattern-receipt': rufloPatternReceiptCommand,
+  'ruflo-learning-persistence': rufloLearningPersistenceCommand,
   'ruflo-pattern-search-result': rufloPatternSearchResultCommand,
   'brain-turn-status': brainTurnStatusCommand,
   'ruflo-pii-policy': rufloPiiPolicyCommand,
@@ -271,6 +273,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-controller-inventory')} native pattern/skill inventories; count-only tier statistics (#4707)
   ${pad('ruflo-pattern-withdrawal')} selective native ReasoningBank exact get/hash-guarded delete (#3450/#829 context)
   ${pad('ruflo-pattern-receipt')}require successful fallback storage and exact pattern readback (#3691)
+  ${pad('ruflo-learning-persistence')}report failed native pattern flushes through learning callers (#4880)
   ${pad('ruflo-pattern-search-result')} distinguish native no-match from failed pattern reads (#4714)
   ${pad('ruflo-aidefence-config')} configure native AIDefence packs once per server (#4785)
   ${pad('ruflo-selective-learning')}refuse unsupported native trajectory selection before learning (#4693)
