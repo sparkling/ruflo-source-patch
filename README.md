@@ -1896,6 +1896,21 @@ no raw registry/store edit, feedback replay or mandatory clean rescan is require
 for the owner's reviewed admission decision. Actual non-PII threats and genuine
 operational errors retain their controls.
 
+`ruflo-hook-id-schema` advertises the existing `hooks_post-task` identifier
+contract for [#4887](https://github.com/ruvnet/ruflo/issues/4887). Task, agent and
+parent IDs expose the native character pattern, 128-character bound and reserved
+names. Optional IDs stay optional, including the native empty-agent behavior.
+Descriptions distinguish registered native IDs from slash-separated host paths.
+No ID is renamed, normalized or inferred, and the complete handler is unchanged.
+
+Installation qualifies both the CLI reserved-name wrapper and its actual
+cli-core validator. Unknown validation changes refuse installation. Tests compare
+schema acceptance with the native validation prefix before persistence, including
+reserved names, invalid paths, length boundaries and native newline behavior.
+Retire only after equivalent pristine native schemas pass that same proof.
+Cached tool registrations need refresh before the metadata is visible; this
+patch does not replay completion hooks or prove historical persistence.
+
 `ruflo-aidefence-schema` exposes the existing `aidefence_scan` input bound for
 [#4886](https://github.com/ruvnet/ruflo/issues/4886). Its input description states
 the maximum of 10,000 UTF-16 code units (`JavaScript string.length`), and its
