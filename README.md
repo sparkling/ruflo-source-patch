@@ -1911,6 +1911,13 @@ Retire only after equivalent pristine native schemas pass that same proof.
 Cached tool registrations need refresh before the metadata is visible; this
 patch does not replay completion hooks or prove historical persistence.
 
+Release 4.46.179 installed on six Mac and eight HZ copies. Fresh native MCP
+`tools/list` responses expose the new constraints on both hosts; existing cached
+registrations are not claimed refreshed. The focused Mac/Linux schema proofs
+pass. The full run passed 143 of 144 code suites; the unchanged capture-timing
+assertion failed once and passed its focused rerun. Seven existing Markdown
+findings in private issue drafts remain. No owner restart or hook replay occurred.
+
 `ruflo-aidefence-schema` exposes the existing `aidefence_scan` input bound for
 [#4886](https://github.com/ruvnet/ruflo/issues/4886). Its input description states
 the maximum of 10,000 UTF-16 code units (`JavaScript string.length`), and its
