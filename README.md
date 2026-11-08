@@ -1896,6 +1896,20 @@ no raw registry/store edit, feedback replay or mandatory clean rescan is require
 for the owner's reviewed admission decision. Actual non-PII threats and genuine
 operational errors retain their controls.
 
+`ruflo-atomic-write` fixes the native `fs-secure.writeFileAtomic` short-write
+publication gap ([#4888](https://github.com/ruvnet/ruflo/issues/4888)). It reuses
+Node's `writeFileSync` on the helper's exclusively opened temporary descriptor,
+so the complete buffer is written before native fsync and rename. The native
+temporary naming, mode, cleanup, directory sync, WAL and integrity guards remain.
+It changes no encryption, lock, merge, owner or storage-binding rules.
+
+Tests reproduce the native truncated replacement under an injected short write,
+then exercise real Node write-all behavior and old-file preservation on partial
+ENOSPC, fsync and rename failures. No managed database or learning initializer is
+used. Retire on equivalent pristine native behavior. This helper correction does
+not retrofit cached owners or recover historical learning; older learning saves
+that bypass this helper remain a separate concern.
+
 `ruflo-hook-id-schema` advertises the existing `hooks_post-task` identifier
 contract for [#4887](https://github.com/ruvnet/ruflo/issues/4887). Task, agent and
 parent IDs expose the native character pattern, 128-character bound and reserved
