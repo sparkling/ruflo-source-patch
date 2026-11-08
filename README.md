@@ -1910,6 +1910,12 @@ used. Retire on equivalent pristine native behavior. This helper correction does
 not retrofit cached owners or recover historical learning; older learning saves
 that bypass this helper remain a separate concern.
 
+Release 4.46.180 installed on six Mac and eight HZ copies. Fresh native helper
+calls on owned inert files verified complete short writes and old-file retention
+after partial ENOSPC on both hosts. All 145 code suites and Linux focused tests
+passed; seven existing private Markdown findings remain. Existing processes may
+retain cached helper code. The original learning owner was not restarted.
+
 `ruflo-hook-id-schema` advertises the existing `hooks_post-task` identifier
 contract for [#4887](https://github.com/ruvnet/ruflo/issues/4887). Task, agent and
 parent IDs expose the native character pattern, 128-character bound and reserved
