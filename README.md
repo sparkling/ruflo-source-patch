@@ -1288,7 +1288,23 @@ These are component timings, not a live hook or concurrency claim. Native 3.71.4
 tests cover exact released-composition migration, tampering, serialization edges,
 failed publication, crash recovery and full audit; live activation is separate.
 
-The same release fixes our capture-admission race: normal owner retirement
+Version 4.46.176 removes duplicate SHA-256 work from that copy operation
+([#4883](https://github.com/ruvnet/ruflo/issues/4883)). It hashes the copied prefix
+once, forks the native hash state, and authenticates the actual original footer
+separately from the newly serialized append. Every input byte is still read and
+authenticated; native locking, atomic publication, receipts and audit history
+remain unchanged. Exact earlier overlays upgrade and uninstall reversibly.
+An isolated 76.6 MB synthetic copy including fsync measured median 65.0 to
+40.9 ms on macOS and 145.7 to 110.5 ms on Linux. Both hosts passed 33 component
+boundary/tamper cases. These are component measurements, not live capture
+latencies. Full-history work remains linear; this does not close #4883 or prove
+capture-admission failures resolved. Installation and cached-owner activation
+must be verified separately; the original ENOSPC owner remains preserved.
+All 142 regression suites pass; the aggregate command still reports seven
+pre-existing Markdown errors in private KB issue drafts. The changed README
+and the isolated native transaction suite on both hosts pass.
+
+The 5 November follow-up also fixes our capture-admission race: normal owner retirement
 could remove `admission.lock` just before our claims scan, outside its existing
 ENOENT retry. The scan now participates in that bounded retry. Ownership checks,
 the 100 ms admission deadline and native two-slot shedding remain unchanged.

@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
-import { patchSource, reverse, hasPatch, isPatched, historicalPatchSource } from '../lib/ruflo-policy-anchor-copy/patcher.mjs';
+import { patchSource, reverse, hasPatch, isPatched, historicalPatchSource, historicalSummaryPatchSource } from '../lib/ruflo-policy-anchor-copy/patcher.mjs';
 import { patchSource as ownerPatch } from '../lib/ruflo-memory-owner/patcher.mjs';
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-anchor-copy-'));
 const originalEnv = { ...process.env };
@@ -24,6 +24,11 @@ try {
     assert.equal(reverse(previous), source, 'exact149 restoration preserves other composition');
     assert.equal(patchSource(previous).next, result.next, 'exact149 upgrades to byte-bound summary reuse');
     assert.equal(isPatched(previous), false, 'previous publication-only patch still needs upgrade');
+    const summaryCopy = historicalSummaryPatchSource(source).next;
+    assert.equal(reverse(summaryCopy), source, 'released summary-copy restores exact native bytes');
+    assert.equal(patchSource(summaryCopy).next, result.next, 'released summary-copy upgrades without losing sibling patches');
+    assert.equal(isPatched(summaryCopy), false);
+    assert(patchSource(summaryCopy.replace('digest.digest', 'digest.foreign')).missing.length);
     assert(patchSource(previous.replace('source.digest', 'source.foreign')).missing.length);
     assert(patchSource(source + source).missing.length);
     assert(patchSource(result.next.replace('source.digest', 'source.corrupted')).missing.length);
@@ -66,6 +71,7 @@ try {
   assert.equal(validations, entries.length + 1, 'consumed proof never grants reuse in another publication');
   for (const mutate of [
     bytes => Buffer.from(bytes.toString().replace('hash-50', 'hash-X0')),
+    bytes => Buffer.concat([bytes.subarray(0, -1), Buffer.from('x')]),
     bytes => bytes.subarray(0, bytes.length - 1),
     bytes => Buffer.concat([bytes, Buffer.from('x')]),
   ]) {
@@ -130,6 +136,30 @@ try {
   assert.equal(validations, 0, 'identical authenticated bytes avoid repeated entry parsing and hash-chain work');
   assert.equal(reused.count, entries.length + 1); assert.deepEqual(reused.last, next); assert.equal(reused.mirrorIncluded, true);
   assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'one publication summary is consumed once');
+  // Exercise all footer/chunk alignments and forced partial reads/writes. The
+  // output summary digest must authenticate exactly the bytes actually written.
+  const realWrite = fs.writeSync;
+  for (const endingOffset of [-3, -2, -1, 0, 1, 2, 3, 4]) {
+    const row = { seq: 0, hash: 'hash-0', text: '' };
+    row.text = 'x'.repeat(65536 + endingOffset - Buffer.byteLength(canonical([row])));
+    fs.writeFileSync(file, canonical([row]));
+    const evidence = assess();
+    fs.readSync = (fd, buffer, offset, length, position) => nativeRead(fd, buffer, offset, Math.min(length, 3), position);
+    fs.writeSync = (fd, buffer, offset, length) => realWrite(fd, buffer, offset, Math.min(length, 2));
+    syncBuiltinESMExports();
+    const tip = { seq: 1, hash: 'hash-1' };
+    const publication = reader.appendedAnchorLog(file, tip, validate, evidence);
+    const target = fs.openSync(output, 'w');
+    try { publication[reader.ATOMIC_JSON_WRITER](target); }
+    finally { fs.closeSync(target); fs.readSync = nativeRead; fs.writeSync = realWrite; syncBuiltinESMExports(); }
+    assert.equal(fs.readFileSync(output, 'utf8'), canonical([row, tip]));
+    fs.renameSync(output, file);
+    reader.publishVerifiedAnchorSummary(publication, file, 'boundary', tip.hash);
+    const summary = reader.readVerifiedAnchorSummary(file, 'boundary', tip.hash);
+    assert(summary, 'forked digest matches exact output under partial I/O');
+    assert.equal(summary.count, 2);
+    assert.deepEqual(summary.last, tip);
+  }
   for (const [context, mirror, selected] of [['other', next.hash, file], ['context', 'older-mirror', file], ['context', undefined, file], ['context', next.hash, other]]) {
     publish(); assert.equal(reader.readVerifiedAnchorSummary(selected, context, mirror), undefined);
     assert.equal(reader.readVerifiedAnchorSummary(file, 'context', next.hash), undefined, 'a mismatch discards old reuse authority');
@@ -182,6 +212,7 @@ try {
       'missing native initial chain authentication refuses');
       assert.equal(reverse(patched.next), source); assert(isPatched(patched.next));
       assert.equal(patchSource(historicalPatchSource(source).next).next, patched.next, name + ' exact149 migration with owner parser');
+      assert.equal(patchSource(historicalSummaryPatchSource(source).next).next, patched.next, name + ' prior summary-copy migration');
       const instrumented = name === 'policy-ledger-anchor.js' ? patched.next
         .replace('function validEntry(value, seq, prev) {', 'function validEntry(value, seq, prev) {\n    rspTestStats.validated++;')
         .replace('if (reused) return reused;', 'if (reused) { rspTestStats.hits++; return reused; }')
