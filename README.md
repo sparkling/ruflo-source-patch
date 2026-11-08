@@ -1913,6 +1913,13 @@ Retirement requires a qualified native schema that accurately advertises the
 same bound. Existing clients must refresh their tool registrations to see it;
 installation alone is not proof that a cached client exposes the new metadata.
 
+Release 4.46.178 is installed in six laptop and eight HZ copies. Fresh native
+MCP `tools/list` checks on both hosts expose the bound, and the owned check clients
+exited. Cached client refresh and unrelated owner activation are not claimed.
+All 143 code suites passed; the full command still reports seven existing
+Markdown findings in private issue drafts. The changed README and Linux focused
+suites pass. No live detector call, learning write or owner restart was needed.
+
 `ruflo-aidefence-config` repairs the MCP configuration gap in
 [#4785](https://github.com/ruvnet/ruflo/issues/4785). Set
 `RUFLO_AIDEFENCE_PACKS=false` in the environment of the Ruflo process that executes
