@@ -1308,6 +1308,10 @@ Release 4.46.176's installer refused the previous summary-copy composition on
 six laptop files without changing them. Version 4.46.177 registers that exact
 historical variant with the existing composition verifier; modified bytes remain
 refused. The installer-level regression covers both earlier revisions.
+Installation is verified on 12 macOS and 16 Linux policy files, with pristine
+backups retained and both stable copies matching immutable source. All 358 files
+in each global package match the release artifact. No owners were restarted;
+cached-process activation and actual capture-latency recovery remain unverified.
 
 The 5 November follow-up also fixes our capture-admission race: normal owner retirement
 could remove `admission.lock` just before our claims scan, outside its existing
