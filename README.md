@@ -2836,9 +2836,12 @@ Native proof identified one unique historical `SOURCE.json` per copy; all four
 archived values matched their original SHA256. The updater's read-only retained-copy
 preflight then returned `updateMayProceed:true` on Mac and HZ. All previously
 inventoried scratch roots remained present (308 Mac, 3,244 HZ). This was a native
-administrative recovery, not a new patch or memory-losslessness proof. Corpus
-refresh remains pending native lifecycle completion; retained learning-state size
-still exceeds the aggregate footprint budget. See the
+administrative recovery, not a new patch or memory-losslessness proof. The later
+owner-authorized native refresh failed on both hosts at 10:29 UTC: all three
+download attempts returned HTTP 504 from the published bundle endpoint
+([Brain #527](https://github.com/stuinfla/ruvnet-brain/issues/527)). Previous live KBs
+remain in place; no fresh corpus is claimed. Retained learning-state size still
+exceeds the aggregate footprint budget. See the
 [scoped recovery evidence in Brain #335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6719910202).
 
 **Upstream status reviewed 2026-10-05:** Brain 4.5.7 includes native outbox containment and
