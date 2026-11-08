@@ -89,6 +89,7 @@ import { rufloPatternSearchResultCommand } from '../lib/ruflo-pattern-search-res
 import { brainTurnStatusCommand } from '../lib/brain-turn-status/commands.mjs';
 import { rufloPiiPolicyCommand } from '../lib/ruflo-pii-policy/commands.mjs';
 import { rufloAidefenceConfigCommand } from '../lib/ruflo-aidefence-config/commands.mjs';
+import { rufloAidefenceSchemaCommand } from '../lib/ruflo-aidefence-schema/commands.mjs';
 import { rufloSelectiveLearningCommand } from '../lib/ruflo-selective-learning/commands.mjs';
 import { rufloTierConsolidationCommand } from '../lib/ruflo-tier-consolidation/commands.mjs';
 import { rufloControllerInventoryCommand } from '../lib/ruflo-controller-inventory/commands.mjs';
@@ -166,6 +167,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-turn-status': brainTurnStatusCommand,
   'ruflo-pii-policy': rufloPiiPolicyCommand,
   'ruflo-aidefence-config': rufloAidefenceConfigCommand,
+  'ruflo-aidefence-schema': rufloAidefenceSchemaCommand,
   'ruflo-tier-consolidation': rufloTierConsolidationCommand,
   'ruflo-selective-learning': rufloSelectiveLearningCommand,
   'ruflo-controller-inventory': rufloControllerInventoryCommand,
@@ -276,6 +278,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-learning-persistence')}report failed native pattern flushes through learning callers (#4880)
   ${pad('ruflo-pattern-search-result')} distinguish native no-match from failed pattern reads (#4714)
   ${pad('ruflo-aidefence-config')} configure native AIDefence packs once per server (#4785)
+  ${pad('ruflo-aidefence-schema')} advertise the native scan input limit without changing detection (#4886)
   ${pad('ruflo-selective-learning')}refuse unsupported native trajectory selection before learning (#4693)
   ${pad('ruflo-tier-consolidation')}withdraw custom consolidation; restore native unsupported controller (#2977)
   ${pad('ruflo-flywheel-evidence')}encode fractional receipt evidence before identity/signing (#3229)

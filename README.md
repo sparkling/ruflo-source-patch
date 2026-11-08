@@ -1896,6 +1896,23 @@ no raw registry/store edit, feedback replay or mandatory clean rescan is require
 for the owner's reviewed admission decision. Actual non-PII threats and genuine
 operational errors retain their controls.
 
+`ruflo-aidefence-schema` exposes the existing `aidefence_scan` input bound for
+[#4886](https://github.com/ruvnet/ruflo/issues/4886). Its input description states
+the maximum of 10,000 UTF-16 code units (`JavaScript string.length`), and its
+schema adds `maxLength: 10000`. JSON Schema counts Unicode code points, so native
+validation remains authoritative: supplementary Unicode can pass the schema
+bound but exceed the UTF-16 limit. The patch checks the exact native validator
+before installation and refuses an unqualified change to that bound.
+
+This changes schema metadata only. The handler, detector, native refusal, PII
+results and supplied text remain unchanged. It neither truncates nor splits
+input; separate scans do not establish a whole-document verdict. Focused tests
+exercise BMP and supplementary Unicode boundaries, exact detector input,
+unchanged threat/PII results and composition with the configuration patch.
+Retirement requires a qualified native schema that accurately advertises the
+same bound. Existing clients must refresh their tool registrations to see it;
+installation alone is not proof that a cached client exposes the new metadata.
+
 `ruflo-aidefence-config` repairs the MCP configuration gap in
 [#4785](https://github.com/ruvnet/ruflo/issues/4785). Set
 `RUFLO_AIDEFENCE_PACKS=false` in the environment of the Ruflo process that executes
@@ -2710,6 +2727,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 | **`ruflo-learning-persistence`** | Propagates failed native ReasoningBank flushes through trajectory/pattern/MCP callers and exposes process-local dirty/last-flush status. No replay or replacement storage algorithm. | [#4880](https://github.com/ruvnet/ruflo/issues/4880) |
 | **`ruflo-pattern-search-result`** | Preserves native and legacy pattern lookup while separating verified empty results from controller/read failures. Missing handles, malformed results and failed legacy reads remain explicit. Retire when upstream preserves both healthy no-match and failed-read distinctions through native tests. | [#4714](https://github.com/ruvnet/ruflo/issues/4714) |
 | **`ruflo-aidefence-config`** | Passes validated server-level pack selection to native AIDefence in all three loading paths. Omitted configuration preserves defaults; invalid values refuse. Built-in detection and PII remain. | [#4785](https://github.com/ruvnet/ruflo/issues/4785) |
+| **`ruflo-aidefence-schema`** | Advertises the native scan limit of 10,000 UTF-16 code units while retaining the exact validator, detector and original input. | [#4886](https://github.com/ruvnet/ruflo/issues/4886) |
 | **`ruflo-worktree-memory`** | Prepares external memory-package bindings through the native resolver before invoking the unchanged signed AutoMemory helper. Exact generated hook forms migrate during native init upgrade; custom commands remain intact. `ruflo hooks auto-memory-hook --action prepare --scope project` prepares and verifies without importing memory, so managed launchers can require success before starting an author. User helpers remain pinned to HOME and data roots remain separate. Retire on proven equivalent native startup, migration and failure behavior. | [#4851](https://github.com/ruvnet/ruflo/issues/4851) |
 | **`ruflo-tier-consolidation`** | Withdrawn: restores native explicit unsupported consolidation instead of supplying a custom tier-copy algorithm. Exact reversal composes with native context restoration and preserves every historical record. | [#2977](https://github.com/ruvnet/ruflo/issues/2977) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164) |
