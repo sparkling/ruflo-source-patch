@@ -1288,7 +1288,7 @@ These are component timings, not a live hook or concurrency claim. Native 3.71.4
 tests cover exact released-composition migration, tampering, serialization edges,
 failed publication, crash recovery and full audit; live activation is separate.
 
-Version 4.46.176 removes duplicate SHA-256 work from that copy operation
+Version 4.46.177 removes duplicate SHA-256 work from that copy operation
 ([#4883](https://github.com/ruvnet/ruflo/issues/4883)). It hashes the copied prefix
 once, forks the native hash state, and authenticates the actual original footer
 separately from the newly serialized append. Every input byte is still read and
@@ -1300,9 +1300,14 @@ boundary/tamper cases. These are component measurements, not live capture
 latencies. Full-history work remains linear; this does not close #4883 or prove
 capture-admission failures resolved. Installation and cached-owner activation
 must be verified separately; the original ENOSPC owner remains preserved.
-All 142 regression suites pass; the aggregate command still reports seven
-pre-existing Markdown errors in private KB issue drafts. The changed README
-and the isolated native transaction suite on both hosts pass.
+The hash-fork change passed all 142 regression suites; the migration follow-up
+also passes the anchor, composition and plugin-notification suites. Aggregate
+commands still report seven pre-existing Markdown errors in private KB issue
+drafts. The changed README and isolated native transaction tests on both hosts pass.
+Release 4.46.176's installer refused the previous summary-copy composition on
+six laptop files without changing them. Version 4.46.177 registers that exact
+historical variant with the existing composition verifier; modified bytes remain
+refused. The installer-level regression covers both earlier revisions.
 
 The 5 November follow-up also fixes our capture-admission race: normal owner retirement
 could remove `admission.lock` just before our claims scan, outside its existing

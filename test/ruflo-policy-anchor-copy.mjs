@@ -8,6 +8,8 @@ import { spawnSync } from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { patchSource, reverse, hasPatch, isPatched, historicalPatchSource, historicalSummaryPatchSource } from '../lib/ruflo-policy-anchor-copy/patcher.mjs';
 import { patchSource as ownerPatch } from '../lib/ruflo-memory-owner/patcher.mjs';
+import { descriptor } from '../lib/ruflo-policy-anchor-copy/patcher.mjs';
+import { isKnownComposition } from '../lib/composition-proof.mjs';
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-anchor-copy-'));
 const originalEnv = { ...process.env };
 const sha = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -29,6 +31,11 @@ try {
     assert.equal(patchSource(summaryCopy).next, result.next, 'released summary-copy upgrades without losing sibling patches');
     assert.equal(isPatched(summaryCopy), false);
     assert(patchSource(summaryCopy.replace('digest.digest', 'digest.foreign')).missing.length);
+    const claimants = [{ patchSource: ownerPatch, atomic: true }, descriptor];
+    assert(isKnownComposition(pristine, summaryCopy, claimants), 'installer recognizes the complete prior summary composition');
+    assert(isKnownComposition(pristine, previous, claimants), 'installer still recognizes released149 composition');
+    assert(!isKnownComposition(pristine, summaryCopy.replace('digest.digest', 'digest.foreign'), claimants),
+      'installer refuses mutated historical ownership');
     assert(patchSource(previous.replace('source.digest', 'source.foreign')).missing.length);
     assert(patchSource(source + source).missing.length);
     assert(patchSource(result.next.replace('source.digest', 'source.corrupted')).missing.length);
