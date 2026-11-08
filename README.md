@@ -2830,6 +2830,17 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-dual-host-receipt`** | Preserves Brain's complete subscription-only dual-host deliberation while removing its direct `ruflo memory store` child process. The coordinator emits an exact `memory_store` request for its MCP-aware caller and reports learning persisted only when an injected callback proves the same key was stored and read back. It patches the already-active persistent runtime and deployed helper after native activation; it does not touch Brain releases, updater state, AgentDB files, WAL sidecars, host authentication, or model execution | [stuinfla/ruvnet-brain#272 · closed](https://github.com/stuinfla/ruvnet-brain/issues/272) |
 | **`brain-dual-host-stdin`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Keeps complete cross-host proposals and critiques off argv, where Linux caps a single argument at roughly 128 KiB on common 4 KiB-page systems. It pipes the prompt to both native subscription CLIs over stdin without truncation or plaintext temporary files, while retaining Claude's plan/tool boundary and Codex's ephemeral read-only boundary | [stuinfla/ruvnet-brain#273 · closed](https://github.com/stuinfla/ruvnet-brain/issues/273) |
 
+**Native KB recovery verified 2026-11-08:** An owner-authorized Brain 4.7.28
+`--clean --archive --json` cleared two retained full-KB copies on each host.
+Native proof identified one unique historical `SOURCE.json` per copy; all four
+archived values matched their original SHA256. The updater's read-only retained-copy
+preflight then returned `updateMayProceed:true` on Mac and HZ. All previously
+inventoried scratch roots remained present (308 Mac, 3,244 HZ). This was a native
+administrative recovery, not a new patch or memory-losslessness proof. Corpus
+refresh remains pending native lifecycle completion; retained learning-state size
+still exceeds the aggregate footprint budget. See the
+[scoped recovery evidence in Brain #335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6719910202).
+
 **Upstream status reviewed 2026-10-05:** Brain 4.5.7 includes native outbox containment and
 operator suspension for [#390](https://github.com/stuinfla/ruvnet-brain/issues/390#issuecomment-5990955062).
 The later [4.5.8 release](https://github.com/stuinfla/ruvnet-brain/compare/v4.5.7...v4.5.8)
