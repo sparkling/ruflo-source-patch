@@ -67,6 +67,14 @@ that upstream behavior; newer native locked merges remain intact. Retirement
 requires executable pristine-native failure propagation, timer safety and status
 proof, not an issue closure or a package version alone.
 
+Release qualification passed the full regression suite and focused Linux tests.
+Installation verified 18 laptop and 24 HZ source files against the qualified
+composition, with immutable source and monitor tracking. Native stats reads on
+two existing owners succeeded but lacked the new field: those processes still
+use cached modules. The original ENOSPC owner is preserved because its pending
+learning is unknown. Full live activation and historical recovery remain open;
+installation is not permission to replay learning or restart that owner.
+
 ## Ruflo 3.71.4 patch review: 5 November 2026
 
 Version 4.46.145 qualifies the published Ruflo/CLI 3.71.4 security release while
