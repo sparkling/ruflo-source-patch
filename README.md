@@ -2839,9 +2839,18 @@ inventoried scratch roots remained present (308 Mac, 3,244 HZ). This was a nativ
 administrative recovery, not a new patch or memory-losslessness proof. The later
 owner-authorized native refresh failed on both hosts at 10:29 UTC: all three
 download attempts returned HTTP 504 from the published bundle endpoint
-([Brain #527](https://github.com/stuinfla/ruvnet-brain/issues/527)). Previous live KBs
-remain in place; no fresh corpus is claimed. Retained learning-state size still
-exceeds the aggregate footprint budget. See the
+([Brain #527](https://github.com/stuinfla/ruvnet-brain/issues/527)). The endpoint later
+returned HTTP 200. HZ's native update reported success at 12:59 UTC, with upstream
+freshness unknown and a host restart pending; the laptop's 14:33 UTC attempt rolled
+back on guard validation. Read-only diagnosis reproduced the validation fault on
+both hosts: Node 24.22's line reader splits a valid Unicode separator inside one
+JSON string, reporting 18,986 passages instead of the 18,985 valid JSONL records.
+An isolated LF-framing prototype passes eight parser regression cases and matches
+the unchanged corpus to its metadata. The native guard still fails; this is not a
+deployed fix or full refresh clearance. [Brain #528](https://github.com/stuinfla/ruvnet-brain/issues/528)
+tracks the parser correction and the differing update receipts. No updater, corpus,
+guard, version selection or receipt was changed locally. Retained learning-state
+size still exceeds the aggregate footprint budget. See the
 [scoped recovery evidence in Brain #335](https://github.com/stuinfla/ruvnet-brain/issues/335#issuecomment-6719910202).
 
 **Upstream status reviewed 2026-10-05:** Brain 4.5.7 includes native outbox containment and
