@@ -17,6 +17,10 @@ The named `ruflo-tier-value-schema` target (#4892) exposes the effective native
 nonempty/10,000 UTF-16-unit value limit and corrects the contradictory “100KB”
 empty-value diagnostic. Exact native guard/validator qualification is required;
 storage, supersedes effects, source values and all runtime limits stay unchanged.
+Release 4.46.182 verifies 367 package files in each of three prefixes and fourteen
+installed tool-source copies. Fresh native metadata on Mac/HZ exposes the bound;
+existing client caches and historical writes are not declared recovered. Native
+handler fixtures prove exact value forwarding and no bridge effects on refusal.
 Retire this overlay when pristine native schemas and diagnostics pass the same
 boundary and no-write-on-refusal proof; installation alone is not client activation.
 2026-11-04. Release 4.46.136 qualifies CLI 3.71.2's native pagination

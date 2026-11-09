@@ -36,6 +36,11 @@ replaces the misleading later “100KB” message while retaining native validat
 storage, temporal validity and supersedes behavior. No values are truncated or
 retried. The schema distinguishes Unicode code points from the additional native
 UTF-16 limit ([Ruflo #4892](https://github.com/ruvnet/ruflo/issues/4892)).
+Release **4.46.182** verifies all 367 packaged files in three prefixes and the
+six Mac / eight HZ tool-source copies. Fresh native `tools/list` responses on both
+hosts advertise the bound; no production memory write or original-client restart
+was used. Focused tests pass on both hosts. The full suite passes 144/146 cases,
+with the same two baseline failures and seven private-evidence lint findings.
 
 The [incident021 mitigation](https://github.com/stuinfla/ruvnet-brain/issues/523)
 in 4.46.159 extends `brain-hook-timeouts` with a 10-second
