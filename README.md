@@ -30,6 +30,13 @@ lifecycle effects are not declared recovered. Owner regressions pass; 143/145
 full-suite cases pass, with the two failures reproduced on unchanged `main` and
 seven existing private-evidence Markdown findings retained.
 
+`ruflo-tier-value-schema` publishes the existing hierarchical-store value limit:
+non-empty and at most 10,000 UTF-16 code units. It adds the schema bound and
+replaces the misleading later “100KB” message while retaining native validation,
+storage, temporal validity and supersedes behavior. No values are truncated or
+retried. The schema distinguishes Unicode code points from the additional native
+UTF-16 limit ([Ruflo #4892](https://github.com/ruvnet/ruflo/issues/4892)).
+
 The [incident021 mitigation](https://github.com/stuinfla/ruvnet-brain/issues/523)
 in 4.46.159 extends `brain-hook-timeouts` with a 10-second
 SessionStart restore budget, 16-second host registrations and a 15.5-second
@@ -2792,6 +2799,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 | **`ruflo-pattern-search-result`** | Preserves native and legacy pattern lookup while separating verified empty results from controller/read failures. Missing handles, malformed results and failed legacy reads remain explicit. Retire when upstream preserves both healthy no-match and failed-read distinctions through native tests. | [#4714](https://github.com/ruvnet/ruflo/issues/4714) |
 | **`ruflo-aidefence-config`** | Passes validated server-level pack selection to native AIDefence in all three loading paths. Omitted configuration preserves defaults; invalid values refuse. Built-in detection and PII remain. | [#4785](https://github.com/ruvnet/ruflo/issues/4785) |
 | **`ruflo-aidefence-schema`** | Advertises the native scan limit of 10,000 UTF-16 code units while retaining the exact validator, detector and original input. | [#4886](https://github.com/ruvnet/ruflo/issues/4886) |
+| **`ruflo-tier-value-schema`** | Advertises the native hierarchical-store nonempty/10,000 UTF-16-unit value contract and corrects the misleading empty-value message; preserves storage and supersedes behavior. | [#4892](https://github.com/ruvnet/ruflo/issues/4892) |
 | **`ruflo-worktree-memory`** | Prepares external memory-package bindings through the native resolver before invoking the unchanged signed AutoMemory helper. Exact generated hook forms migrate during native init upgrade; custom commands remain intact. `ruflo hooks auto-memory-hook --action prepare --scope project` prepares and verifies without importing memory, so managed launchers can require success before starting an author. User helpers remain pinned to HOME and data roots remain separate. Retire on proven equivalent native startup, migration and failure behavior. | [#4851](https://github.com/ruvnet/ruflo/issues/4851) |
 | **`ruflo-tier-consolidation`** | Withdrawn: restores native explicit unsupported consolidation instead of supplying a custom tier-copy algorithm. Exact reversal composes with native context restoration and preserves every historical record. | [#2977](https://github.com/ruvnet/ruflo/issues/2977) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164) |

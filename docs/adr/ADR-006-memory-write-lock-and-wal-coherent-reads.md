@@ -13,6 +13,12 @@ source surfaces across Mac/HZ. Fresh native before/after proof preserves the
 specific validation refusal and the complete successful value; original clients
 and lifecycle writes remain untouched. Focused tests pass; two full-suite failures
 also reproduce on unchanged main, and seven private-evidence lint findings remain.
+The named `ruflo-tier-value-schema` target (#4892) exposes the effective native
+nonempty/10,000 UTF-16-unit value limit and corrects the contradictory “100KB”
+empty-value diagnostic. Exact native guard/validator qualification is required;
+storage, supersedes effects, source values and all runtime limits stay unchanged.
+Retire this overlay when pristine native schemas and diagnostics pass the same
+boundary and no-write-on-refusal proof; installation alone is not client activation.
 2026-11-04. Release 4.46.136 qualifies CLI 3.71.2's native pagination
 and reuses the existing schema/error guard around its unchanged SQL and arguments.
 Native shadowed-rowid pages can silently lose or overselect rows, so the target
