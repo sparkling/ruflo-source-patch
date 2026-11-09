@@ -69,6 +69,13 @@ scripts resolve from their own installed project location, not from whatever cwd
 
 ## Consequences
 
+AgentDB vector-path overrides remain withdrawn. Release 4.46.183 recognizes the
+exact published 3.7.2 core alongside the prior qualified source: constructor paths
+are unchanged, while native close now waits for asynchronous backend shutdown.
+Behavioral tests verify persistent/in-memory selection, close ordering and fallback;
+unrecognized bytes remain unqualified. Recognition never rewrites AgentDB data or
+restores the withdrawn path policy.
+
 ### Positive
 
 - Durable state stops silently resetting. Verified end to end: from `src/deep/nested`, state lands at the

@@ -290,6 +290,23 @@ fs.writeFileSync(behaviorRunner, [
     : 'assert.equal(globalThis.__agentdbBackendConfigs[0].config.storagePath, undefined);',
   'const memoryPath = globalThis.__agentdbBackendConfigs[1].config.storagePath;',
   'assert.equal(memoryPath, undefined);',
+  ...(agentCore.includes("typeof backend.closeAsync === 'function'") ? [
+    'const closing = new AgentDB(); const events = []; let finish;',
+    'closing.db = { close() { events.push("database"); } };',
+    'closing.vectorBackend = { flush: async () => events.push("flush"),',
+    '  closeAsync: () => new Promise(resolve => { finish = resolve; events.push("async"); }),',
+    '  close: () => events.push("sync") };',
+    'const pending = closing.close();',
+    'await new Promise(resolve => setImmediate(resolve));',
+    'assert.deepEqual(events, ["flush", "async"]);',
+    'finish(); await pending;',
+    'assert.deepEqual(events, ["flush", "async", "database"]);',
+    'events.length = 0;',
+    'closing.vectorBackend.closeAsync = async () => { throw Error("fixture"); };',
+    'await closing.close(); assert.deepEqual(events, ["flush", "sync", "database"]);',
+    'events.length = 0; delete closing.vectorBackend.closeAsync;',
+    'await closing.close(); assert.deepEqual(events, ["flush", "sync", "database"]);',
+  ] : []),
   'const explicitPath = path.join(os.tmpdir(), `explicit-${process.pid}.db`);',
   "const explicit = new RuVectorBackend({ dimensions: 384, metric: 'cosine', storagePath: explicitPath });",
   'await explicit.initialize();',
@@ -323,6 +340,7 @@ const behavior = spawnSync(process.execPath, [behaviorRunner], { cwd: deep, enco
 if (behavior.status !== 0) fail(`AgentDB RuVector storage behavior failed:\n${out(behavior)}`);
 if (fs.existsSync(path.join(deep, 'ruvector.db'))) fail('AgentDB backend created ruvector.db in the invocation directory');
 if (nativeCore && nativeVectorCoreSatisfied(agentCore.replace("storagePath: dbPath === ':memory:' ? undefined : `${dbPath}.ruvector`", "storagePath: 'shared.db'"))) fail('native core mutation accepted');
+if (nativeCore && nativeVectorCoreSatisfied(agentCore + '\n// unknown native source')) fail('unknown native core bytes accepted');
 if (nativeVectorStorageSatisfied(agentBackend)) {
   for (const [from, to] of [
     ['return pathModule.resolve(this.config.storagePath);', "return '/fixed/index.db';"],

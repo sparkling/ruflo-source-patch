@@ -540,6 +540,11 @@ introduce a different storage or initialization architecture to compensate for
 its own mistakes. Exact saved-pristine restoration preserves all existing
 SQLite stores, vector indexes, sidecars and unrelated patch contributions.
 Unknown or incomplete source provenance refuses restoration.
+Version 4.46.183 also recognizes the exact published AgentDB 3.7.2 core. Its
+constructor retains native companion/private-temp selection; the only source
+change from the previously qualified core awaits asynchronous backend close.
+Constructor and shutdown tests cover that version without changing installed
+AgentDB code, storage paths or existing data. Unknown source hashes remain refused.
 The 4.46.95 follow-up distinguishes a sibling capture edit from the old recall
 rendition when proving the existing shared bridge before restoration.
 
