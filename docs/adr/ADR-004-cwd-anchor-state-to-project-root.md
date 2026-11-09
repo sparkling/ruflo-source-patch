@@ -75,6 +75,9 @@ are unchanged, while native close now waits for asynchronous backend shutdown.
 Behavioral tests verify persistent/in-memory selection, close ordering and fallback;
 unrecognized bytes remain unqualified. Recognition never rewrites AgentDB data or
 restores the withdrawn path policy.
+Mac/HZ activation verifies the immutable stable engines and 28 unchanged native
+source files. The complete 146-suite code regression set passes, including the
+480-step install/uninstall property check; private-evidence lint findings remain.
 
 ### Positive
 
