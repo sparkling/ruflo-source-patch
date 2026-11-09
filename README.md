@@ -540,6 +540,9 @@ introduce a different storage or initialization architecture to compensate for
 its own mistakes. Exact saved-pristine restoration preserves all existing
 SQLite stores, vector indexes, sidecars and unrelated patch contributions.
 Unknown or incomplete source provenance refuses restoration.
+Version 4.46.185 recognizes the existing exact capture step-timing composition
+when checking the withdrawn learning-owner adapter. Reverse/forward proof keeps
+unknown edits refused; recognition does not change Brain code or replay captures.
 Version 4.46.183 also recognizes the exact published AgentDB 3.7.2 core. Its
 constructor retains native companion/private-temp selection; the only source
 change from the previously qualified core awaits asynchronous backend close.

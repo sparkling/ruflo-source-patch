@@ -2,6 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-09. Release 4.46.185 corrects the withdrawn learning-owner
+target's status predicate for the existing capture step-timing contribution
+(Brain #521; Ruflo #4666). Recognition requires exact reverse/forward composition
+and the existing native-owner checks. Altered timing, read budgets, or restored
+adapter selectors remain refused. This changes source-patch recognition only;
+it does not change installed Brain bytes, capture calls, deadlines or storage.
 **Updated**: 2026-11-07. Release 4.46.172 accepts the exact qualified native
 AIDefence selector and complete lazy loader from Ruflo 3.72.2 (#4785), without
 injecting or removing source. The existing descriptor keeps distinct provenance

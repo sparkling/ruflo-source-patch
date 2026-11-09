@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { patchSource, reverseSource, isPatched, descriptor } from '../lib/brain-learning-native-owner/patcher.mjs';
 import { patchRead } from '../lib/brain-capture-launch/learning-read-first.mjs';
+import { addSteps, STEP_MARKER } from '../lib/brain-capture-launch/step-timing.mjs';
 import { patchSource as diagnose } from '../lib/brain-capture-diagnostics/patcher.mjs';
 
 const source = fs.readFileSync(new URL('./fixtures/brain-learning-native-owner/native-4.7.28.mjs', import.meta.url), 'utf8');
@@ -76,7 +77,17 @@ for (const original of [source, diagnose(source).next]) {
   assert(descriptor.isPatched(readFirst.next));
   assert.equal(descriptor.patchSource(readFirst.next).next, readFirst.next);
   assert.deepEqual(descriptor.patchSource(readFirst.next).applied, []);
+  const timed = addSteps(readFirst.next);
+  assert.equal(typeof timed, 'string');
+  assert(descriptor.isPatched(timed), 'exact step timing preserves native owner health');
+  assert.equal(descriptor.patchSource(timed).next, timed);
+  assert.deepEqual(descriptor.patchSource(timed).applied, []);
   for (const unknown of [
+    timed.replace('diagnosticSequence++', 'diagnosticSequence += 2'),
+    timed.replace('Math.min(2000,', 'Math.min(2001,'),
+    timed.replace("'--no-upsert', '--provenance'", "'--no-upsert', '--require-native', '--provenance'"),
+    timed + '\n// ruflo-source-patch (ruflo#4622 learning-native-owner)',
+    readFirst.next + `\n// ${STEP_MARKER}`,
     readFirst.next.replace('Math.min(2000,', 'Math.min(2001,'),
     readFirst.next.replace("'--no-upsert', '--provenance'", "'--no-upsert', '--require-native', '--provenance'"),
     readFirst.next + '\n// ruflo-source-patch (ruflo#4622 learning-native-owner)',
