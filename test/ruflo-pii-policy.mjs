@@ -38,7 +38,7 @@ const block = new Function(js + ';return blocksGuidance;')();
 assert.equal(block({ status: 'pii' }), false); assert.equal(block({ status: 'pii', secret: true }), true); assert.equal(block({ status: 'unsafe' }), true);
 assert.equal(block(null), false); assert.equal(block({ status: 'unavailable' }), false, 'existing error semantics unchanged');
 assert(patchSource(guidance + '\n' + guidance).missing.length);
-console.log('PASS PII-only federation/intelligence/console gates removed; secret, reset, threat guards retained; drift refusal, idempotence, pristine restoration and bounded native retirement');
+console.log('PASS historical PII transforms reverse exactly; native guards restored; drift refusal retained');
 
 // Public composition lifecycle in a fully isolated account layout.
 const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
@@ -60,6 +60,23 @@ try {
     const result = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname, 'ruflo-pii-policy', action], { cwd: scratch, env, encoding: 'utf8', timeout: 30000 });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.equal(fs.readFileSync(file, 'utf8'), NATIVE);
+    if (action === 'status') {
+      assert.match(result.stdout, /1\/1 file\(s\) native restoration verified/);
+      assert.match(result.stdout, /WITHDRAWN/);
+      assert.doesNotMatch(result.stdout, /file\(s\) patched|run `ruflo-pii-policy install`/);
+    }
   }
+  fs.writeFileSync(file, patchSource(NATIVE).next);
+  const unresolved = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname, 'ruflo-pii-policy', 'status'], { cwd: scratch, env, encoding: 'utf8', timeout: 30000 });
+  assert.equal(unresolved.status, 1, unresolved.stdout + unresolved.stderr);
+  assert.match(unresolved.stdout, /0\/1 file\(s\) native restoration verified/);
+  assert.match(unresolved.stdout, /WITHDRAWN/);
+  assert.doesNotMatch(unresolved.stdout, /run `ruflo-pii-policy install`/);
+  assert.equal(fs.readFileSync(file, 'utf8'), patchSource(NATIVE).next, 'status must not restore or mutate source');
+  fs.unlinkSync(file);
+  const absent = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname, 'ruflo-pii-policy', 'status'], { cwd: scratch, env, encoding: 'utf8', timeout: 30000 });
+  assert.equal(absent.status, 1, absent.stdout + absent.stderr);
+  assert.match(absent.stdout, /0\/0 file\(s\) native restoration verified/);
+  assert.doesNotMatch(absent.stdout, /run `ruflo-pii-policy install`/);
   console.log('PASS withdrawn target install/status/uninstall restores native and never reapplies PII bypass');
 } finally { fs.rmSync(scratch, { recursive: true, force: true }); }

@@ -1924,6 +1924,9 @@ native CLI, federation, intelligence and Console guards keep upstream behavior;
 research does not need a PII source bypass. The retained target only restores
 its exact historical contribution and never reapplies it, including through
 `all install` or the monitor ([#4861](https://github.com/ruvnet/ruflo/issues/4861)).
+Release 4.46.184 reports this target as WITHDRAWN with native-restoration counts,
+never as an active policy patch or an instruction to reinstall it. Read-only
+status fails when restoration is unproved, including when no files are discovered.
 A native known-miss wrongly recorded by PII feedback remains evidence of that
 feedback artifact, not proof that a contextually reviewed document is malicious.
 No supported exact retraction was found ([#4862](https://github.com/ruvnet/ruflo/issues/4862));
