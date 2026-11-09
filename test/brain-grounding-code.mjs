@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { patchSource, reverseSource, isPatched, ANCHOR, preflight, applicability } from '../lib/brain-grounding-code/patcher.mjs';
-import { nativeSatisfied } from '../lib/brain-grounding-code/native.mjs';
+import { nativeSatisfied, readNativeGroundingBundle } from '../lib/brain-grounding-code/native.mjs';
+import { patchSource as boundInput } from '../lib/brain-policy-input/patcher.mjs';
 import { exerciseNativeGrounding, probeGroundingCodeReplacement } from '../lib/brain-grounding-code/probe.mjs';
 import { MULTI_ANCHOR, MULTI_REPLACEMENT, patchMultiSource, isMultiPatched, reverseMultiPatch } from '../lib/brain-grounding-code/multi-patch.mjs';
 import { preflight as preflightMultifile, probeMultifileReplacement } from '../lib/brain-grounding-code/multifile.mjs';
@@ -99,6 +100,13 @@ console.log(`PASS brain-grounding-code: ${assertions} native gate replays, resto
 const nativeGuard = fs.readFileSync(new URL('./fixtures/brain-grounding-code/native-4.5.9.sh', import.meta.url), 'utf8');
 const nativeHelper = fs.readFileSync(new URL('./fixtures/brain-grounding-code/projection-native-4.5.9.mjs', import.meta.url), 'utf8');
 assert(nativeSatisfied(nativeGuard));
+const boundedGuard = boundInput(nativeGuard);
+assert.deepEqual(boundedGuard.missing, []);
+assert(nativeSatisfied(boundedGuard.next), 'reviewed bounded input must not hide grounding discovery');
+for (const drift of [boundedGuard.next.replace('4 * (65536', '3 * (65536'),
+  boundedGuard.next + '\n# unknown edit', boundedGuard.next + boundedGuard.next]) {
+  assert(!nativeSatisfied(drift), 'only exact reversible policy composition is accepted');
+}
 assert.equal(isPatched(nativeGuard), true);
 assert.deepEqual(patchSource(nativeGuard), { next: nativeGuard, applied: [], missing: [] });
 assert.equal(reverseSource(nativeGuard), nativeGuard);
@@ -188,6 +196,15 @@ assert.equal(probeMultifileReplacement({ files: [helperFile] }).state, 'live',
 const repairedRoot = path.join(root, 'repaired'); fs.mkdirSync(repairedRoot);
 const repairedProof = exerciseNativeGrounding({ guard: nativeGuard, helper: multiPatched.next, entrypoint }, repairedRoot, { multiFile: true });
 assert.equal(repairedProof.assertions, 45);
+fs.writeFileSync(nativeFile, boundedGuard.next);
+assert.equal(preflightMultifile([helperFile]).ok, true);
+assert.equal(readNativeGroundingBundle(nativeFile).guard, nativeGuard,
+  'retirement proves pristine behavior, never the sibling overlay');
+assert.equal(probeMultifileReplacement({ files: [helperFile] }).state, 'live');
+assert.equal(fs.readFileSync(nativeFile, 'utf8'), boundedGuard.next);
+const boundedRoot = path.join(root, 'bounded'); fs.mkdirSync(boundedRoot);
+assert.equal(exerciseNativeGrounding({ guard: boundedGuard.next, helper: multiPatched.next, entrypoint },
+  boundedRoot, { multiFile: true }).assertions, 45);
 
 const codeFile = path.join(root, 'acquire.py');
 const methodFile = path.join(root, 'method.json');
@@ -250,17 +267,22 @@ for (const dir of [active, host, old]) {
 }
 write(path.join(brain, 'active.json'), JSON.stringify({ version: '4.7.28', codeRoot: active }));
 assert.equal(discover().length, 2);
+for (const dir of [active, host]) write(path.join(dir, 'scripts/ground-before-write.sh'), ${JSON.stringify(boundedGuard.next)});
+assert.equal(discover().length, 2, 'bounded input sibling must preserve monitor discovery');
 const applied = applyComposed(['brain-grounding-multifile']);
 assert.equal(applied.errors, 0, JSON.stringify(applied));
 assert.equal(applied.incomplete, 0, JSON.stringify(applied));
 assert.equal(applied.patched, 2);
 assert.equal(statusComposed(['brain-grounding-multifile'])['brain-grounding-multifile'].patched, 2);
 assert.equal(applyComposed(['brain-grounding-multifile']).patched, 0);
+write(path.join(active, 'scripts/grounding-code-projection.mjs'), ${JSON.stringify(entrypointHelper)});
+assert.equal(statusComposed(['brain-grounding-multifile'])['brain-grounding-multifile'].patched, 1);
+assert.equal(applyComposed(['brain-grounding-multifile']).patched, 1, 'monitor can repair a reverted helper');
 assert.equal(fs.readFileSync(path.join(old, 'scripts/grounding-code-projection.mjs'), 'utf8'), ${JSON.stringify(entrypointHelper)});
 const reverted = reconcile([], ['brain-grounding-multifile']);
 assert.equal(reverted.errors, 0, JSON.stringify(reverted));
 for (const dir of [active, host]) {
-  assert.equal(fs.readFileSync(path.join(dir, 'scripts/ground-before-write.sh'), 'utf8'), ${JSON.stringify(nativeGuard)});
+  assert.equal(fs.readFileSync(path.join(dir, 'scripts/ground-before-write.sh'), 'utf8'), ${JSON.stringify(boundedGuard.next)});
   assert.equal(fs.readFileSync(path.join(dir, 'scripts/grounding-code-projection.mjs'), 'utf8'), ${JSON.stringify(entrypointHelper)});
 }
 // Exercise terminal retirement through the public dispatcher, not an internal compose shortcut.

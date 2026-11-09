@@ -3087,6 +3087,10 @@ permissions and the updater remain unchanged. Marker-free upstream code must pas
 matrix before the new target retires; the original single-file proof is insufficient for this
 separate recurrence. The old target's terminal retirement record is preserved. Public install
 and all-install tests start with that record present and verify the new target applies.
+Version 4.46.186 keeps discovery and monitoring active when the exact bounded-input
+repair shares the native guard. Qualification reconstructs the reviewed native
+bytes in memory; retirement still tests pristine behavior. Isolated tests prove
+helper drift is detected and repaired while the sibling guard remains unchanged.
 
 `brain-transition-notice install` fixes [Brain #380](https://github.com/stuinfla/ruvnet-brain/issues/380)
 by sharing the native bounded session notice ledger across both transition entrypoints. The first

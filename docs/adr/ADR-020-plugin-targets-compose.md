@@ -2,6 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-09. Release 4.46.186 preserves grounding discovery when
+the exact bounded-input contribution (Brain #526) shares the native guard with
+the per-file projection target (#373). Qualification reverses that sibling in
+memory, requires the reviewed native hash and exact forward reconstruction,
+and still tests pristine behavior for retirement. The composed guard passes the
+45-case behavior matrix; isolated monitor tests detect and repair helper drift
+without changing the bounded-input guard. Unknown source remains refused.
 **Updated**: 2026-11-09. Release 4.46.185 corrects the withdrawn learning-owner
 target's status predicate for the existing capture step-timing contribution
 (Brain #521; Ruflo #4666). Recognition requires exact reverse/forward composition
