@@ -22,6 +22,13 @@ objects and malformed JSON-like payloads are not printed as diagnostics. This
 changes neither caller arguments nor authorization and never retries a rejected call.
 The owner patch also recognizes the native 3.74 store anchor and preserves its
 validated metadata in both canonical and ordinary results.
+Release **4.46.181** is installed in both Mac prefixes and HZ: all 365 packaged
+files per prefix and 54 Mac / 72 HZ owner source surfaces are verified. Fresh
+native clients on both hosts preserve the validation diagnostic; HZ's corrected
+read matches the complete original value. Existing cached clients and historical
+lifecycle effects are not declared recovered. Owner regressions pass; 143/145
+full-suite cases pass, with the two failures reproduced on unchanged `main` and
+seven existing private-evidence Markdown findings retained.
 
 The [incident021 mitigation](https://github.com/stuinfla/ruvnet-brain/issues/523)
 in 4.46.159 extends `brain-hook-timeouts` with a 10-second

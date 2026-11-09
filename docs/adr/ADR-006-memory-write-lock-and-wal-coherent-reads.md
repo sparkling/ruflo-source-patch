@@ -8,6 +8,11 @@ withholding unknown object or malformed JSON-like payloads. Activation is verifi
 separately from source installation; historical lifecycle effects remain unclaimed.
 The exact native 3.74 store anchor retains metadata in both presentations; no
 package upgrade or new storage implementation is introduced.
+Release 4.46.181 verifies all 365 artifact files in three prefixes and 126 owner
+source surfaces across Mac/HZ. Fresh native before/after proof preserves the
+specific validation refusal and the complete successful value; original clients
+and lifecycle writes remain untouched. Focused tests pass; two full-suite failures
+also reproduce on unchanged main, and seven private-evidence lint findings remain.
 2026-11-04. Release 4.46.136 qualifies CLI 3.71.2's native pagination
 and reuses the existing schema/error guard around its unchanged SQL and arguments.
 Native shadowed-rowid pages can silently lose or overselect rows, so the target
