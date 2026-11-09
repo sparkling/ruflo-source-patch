@@ -35,6 +35,10 @@ try {
   const previous150 = release150.runtime + '/**\n * V3 CLI MCP Client\n */\n' + release150.dispatch + '\n';
   const clientBase = reverse(previous150);
   const currentClient = patchSource(clientBase); assert.deepEqual(currentClient.missing, []);
+  const release180 = JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.180.json', import.meta.url)));
+  const previous180 = release180.runtime + currentClient.next.slice(currentClient.next.indexOf('/**\n * V3 CLI MCP Client'));
+  assert.equal(reverse(previous180), clientBase, '4.46.180 exact runtime restores pristine source');
+  assert.equal(patchSource(previous180).next, currentClient.next, '4.46.180 migrates to diagnostic preservation');
   const oldRuntime = JSON.parse(fs.readFileSync(new URL('../lib/ruflo-memory-owner/released-4.46.147.json', import.meta.url))).runtime;
   const previousClient = oldRuntime + previous150.slice(release150.runtime.length);
   assert.notEqual(previousClient, currentClient.next);
@@ -198,6 +202,26 @@ export class Client {
   const { createMemoryOwnerClient: isolatedFactory } = await import(pathToFileURL(factoryFile));
   const { state } = await import(sdkUrl);
   state.identity = {protocol:1,cwd,pin:store};
+  // source-patch#10: native schema refusals use plain text, not a JSON envelope.
+  for (const [text, expected] of [
+    ['Invalid input: patternId: Required property "patternId" is missing', /Required property "patternId" is missing/],
+    ['Invalid input:\n\u0000 missing field', /Invalid input: missing field/],
+    ['Invalid input: ' + 'x'.repeat(2000), /^Native memory owner refused: Invalid input: x+$/],
+    ['{"value":"PRIVATE_PAYLOAD"', /without a diagnostic/],
+    ['["PRIVATE_PAYLOAD"', /without a diagnostic/],
+    ['"PRIVATE_PAYLOAD', /without a diagnostic/],
+    ['  ', /without a diagnostic/],
+  ]) {
+    state.response = {isError:true,content:[{type:'text',text}]}; state.calls = [];
+    const client = await isolatedFactory(pathToFileURL(path.join(temporary,'mcp-client.js')).href);
+    await assert.rejects(client.call('memory_store'), error => {
+      assert.match(error.message, expected); assert(!error.message.includes('PRIVATE_PAYLOAD'));
+      assert(error.message.length <= 'Native memory owner refused: '.length + 1024); return true;
+    });
+    assert.equal(state.calls.filter(name => name === 'memory_store').length, 1, 'refused operation never replayed');
+    await client.close();
+  }
+  delete state.response;
   // source-patch#9: verify the actual SDK arguments, not a duplicate default helper.
   for (const canonical of [false, true]) for (const upsert of [undefined, null, false, true]) {
     const client = await isolatedFactory(pathToFileURL(path.join(temporary, 'mcp-client.js')).href);

@@ -2,7 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
-**Updated**: 2026-11-04. Release 4.46.136 qualifies CLI 3.71.2's native pagination
+**Updated**: 2026-11-09. Owner forwarding preserves bounded native plain-text
+validation errors (source-patch #10), retaining refusal/no-replay semantics and
+withholding unknown object or malformed JSON-like payloads. Activation is verified
+separately from source installation; historical lifecycle effects remain unclaimed.
+The exact native 3.74 store anchor retains metadata in both presentations; no
+package upgrade or new storage implementation is introduced.
+2026-11-04. Release 4.46.136 qualifies CLI 3.71.2's native pagination
 and reuses the existing schema/error guard around its unchanged SQL and arguments.
 Native shadowed-rowid pages can silently lose or overselect rows, so the target
 cannot fully retire. Older source compatibility remains intact; disposable

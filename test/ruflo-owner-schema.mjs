@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { canonicalEdits, priorCanonicalEdits, canonicalSchemaEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
+import { canonicalEdits, currentCanonicalEdits, priorCanonicalEdits, canonicalSchemaEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
 import { patchSource, reverse, isPatched, historicalPatchSource, descriptor,
   unifiedSearchYield, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
 import { isKnownComposition } from '../lib/composition-proof.mjs';
@@ -64,7 +64,7 @@ for (const args of ['input', 'input, context']) {
     const seen = [];
     const body = `const rawValue = input.value;
       const value = typeof rawValue === 'string' ? rawValue : (rawValue !== undefined ? JSON.stringify(rawValue) : '');
-      const { key, namespace = 'default', tags = [], ttl, provenance_type: provenanceType } = input; const upsert = input.upsert !== false;
+      const { key, namespace = 'default', tags = [], metadata, ttl, provenance_type: provenanceType } = input; const upsert = input.upsert !== false;
       ${storeCall(edits)}
       return result;`;
     const handler = new Function('rspCanonicalMemoryOptions', 'storeEntry', 'input', 'dbPath', `return (async () => { ${body} })();`);
@@ -100,6 +100,18 @@ for (const args of ['input', 'input, context']) {
   assert.equal(isPatched(patched.next), true);
   assert.equal(reverse(patched.next), tools);
   assert(patched.next.includes('{ ...rspCanonicalMemoryOptions(input, dbPath), value }'));
+  const native374 = tools.replace('                    tags,\n                    ttl,',
+    '                    tags,\n                    metadata,\n                    ttl,');
+  const patched374 = patchSource(native374);
+  assert.deepEqual(patched374.missing, []);
+  assert.equal(reverse(patched374.next), native374, 'native metadata anchor restores exactly');
+  assert.equal(isPatched(patched374.next), true);
+  const metadata = { confidence: 0.9, source: 'native' };
+  for (const nativeResult of [true, false]) {
+    const stored = await run(currentCanonicalEdits(native374), { ...input, nativeResult, metadata });
+    assert.equal(stored.options.metadata, metadata, 'native metadata retained in either presentation');
+    assert.equal(stored.options.value, JSON.stringify(value));
+  }
   const release152 = patched.next.replace(unifiedSearchYield[1], unifiedSearchYield[0])
     .replace(unifiedNamespaceProjection[1], unifiedNamespaceProjection[0]);
   assert.equal(patchSource(release152).next, patched.next, '152 upgrades without losing canonical string normalization');

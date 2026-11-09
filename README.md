@@ -15,6 +15,14 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+`ruflo-memory-owner` preserves bounded native plain-text validation failures
+instead of masking them as missing diagnostics ([source-patch #10](https://github.com/sparkling/ruflo-source-patch/issues/10)).
+Errors remain refusals; structured failures retain their existing behavior. Unknown
+objects and malformed JSON-like payloads are not printed as diagnostics. This
+changes neither caller arguments nor authorization and never retries a rejected call.
+The owner patch also recognizes the native 3.74 store anchor and preserves its
+validated metadata in both canonical and ordinary results.
+
 The [incident021 mitigation](https://github.com/stuinfla/ruvnet-brain/issues/523)
 in 4.46.159 extends `brain-hook-timeouts` with a 10-second
 SessionStart restore budget, 16-second host registrations and a 15.5-second
