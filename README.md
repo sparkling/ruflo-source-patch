@@ -52,7 +52,7 @@ No further blanket rollback follows from issue closure or repeated caller errors
 | `ruflo-memory-entries-only` | The old adapter stays withdrawn. Retain failed-retrieval propagation on Brain's selected CLI, including 3.75 namespace scope validation and response metadata; successful absence remains distinct from backend failure. |
 | Full Ruflo source composition | All 105 claim checks pass; 70 physical files compose with zero errors or incomplete claims, and a second application changes no bytes. |
 | Private native runtime | Mac and HZ SQLite/RuVector/RVF bindings load; native MCP store, exact readback and fresh-process readback pass in disposable stores. These are qualification results, not production activation. |
-| Installed rollout | Source-patch 4.46.189 is verified in two Mac prefixes and HZ: 373 exact packaged files per prefix, immutable stable copies without drift. The independent Mac mise Node 24.22.0 prefix now runs Ruflo/CLI 3.75.0 with 69 cleanly composed files and native dependency checks. |
+| Installed rollout | Source-patch 4.46.190 is verified in two Mac prefixes and HZ: 373 exact packaged files per prefix, immutable stable copies without drift. The independent Mac mise Node 24.22.0 prefix now runs Ruflo/CLI 3.75.0 with 69 cleanly composed files and native dependency checks. |
 | Live clients | A fresh MCP process from that upgraded Mac prefix passes native store/readback and a second-process readback. Shared owners are not upgraded: identity passed for all 10 Mac and 16 of 17 HZ configured owners, but loaded services lack pending-learning proof; HZ Product also has a distinct `receipt-chain-mismatch` owner. |
 
 The Mac status verifier's single-target ordering bug is corrected in source-patch
@@ -74,6 +74,10 @@ install/status/uninstall preserves native file bytes and inodes. The historical
 PII bypass stays withdrawn, and no runtime configuration is changed. Source
 recognition does not establish any client's effective PII setting or complete
 the remaining owner upgrades.
+The active stable verifier passes 53/53 on Mac and 50/50 on HZ; every guard hash
+checked before deployment is unchanged. Mac installed `all status` exits zero.
+The PII, CLI and cross-engine composition suites pass; existing private Markdown
+lint findings remain disclosed above.
 
 Qualified native behavior retains compatibility patches for older source and
 refuses unrecognized changes. Native root detection chooses the nearest durable
