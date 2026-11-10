@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
-import { patchSource, reverse, isPatched, rspPatternFlushStatus } from '../lib/ruflo-learning-persistence/patcher.mjs';
+import { patchSource, reverse, isPatched, rspPatternFlushStatus, rspNativePatternFlushStatus } from '../lib/ruflo-learning-persistence/patcher.mjs';
+import { patchSource as patchSearch, reverse as reverseSearch } from '../lib/ruflo-pattern-search-result/patcher.mjs';
 import { FLUSH_VARIANTS } from '../lib/ruflo-learning-persistence/native.mjs';
 
 const read = name => fs.readFileSync(new URL(`./fixtures/ruflo-learning-persistence/${name}.js`, import.meta.url), 'utf8');
@@ -22,6 +23,7 @@ function runtime(source, fail = true) {
   const state = { fail, writes: 0, statsWrites: 0, locks: 0, logs: [], counters: {} };
   const box = vm.createContext({ Date, Math, Map, Set, Array,
     console: { error: (...a) => state.logs.push(a), warn: () => {} },
+    getDataDir: () => '/virtual', getStatsPath: () => '/virtual/stats.json',
     ensureDataDir: () => '/virtual', getPatternsPath: () => '/virtual/patterns.json',
     writeFileSync: (file, value) => { state.writes++; if (state.fail) throw Object.assign(Error('private diagnostic'), { code: 'ENOSPC' }); disk.set(file, value); },
     readFileSync: file => disk.get(file), existsSync: file => disk.has(file),
@@ -96,6 +98,54 @@ for (const flush of FLUSH_VARIANTS) {
 }
 assert.equal(rspPatternFlushStatus(null).dirty, null, 'fresh process does not prove older owner clean');
 
+// Published 3.75 fixture: exercise its own lock/merge and status implementation.
+const native375 = read('intelligence-3.75.0');
+assert.equal(sha(native375), '0eb65e5a415947acca9b69de64069853493bbb66ce62add862dd153408c32a4f');
+const original375 = runtime(native375);
+assert.equal(await original375.record(), false, 'native failure boolean is already fixed');
+assert.equal(original375.state.counters.trajectoriesRecorded, 1, 'native counter still acknowledges failed flush');
+const fixed375 = patchSource(native375);
+assert.deepEqual(fixed375.missing, []);
+assert(isPatched(fixed375.next));
+assert.equal(reverse(fixed375.next), native375);
+assert.equal(patchSource(fixed375.next).next, fixed375.next);
+const flush375 = native375.slice(native375.indexOf('    flushToDisk() {'), native375.indexOf('    /**'));
+assert(fixed375.next.includes(flush375.replace('return true;', 'return this.persistenceEnabled === true;')),
+  'native flush implementation preserved except disabled acknowledgment');
+const run375 = runtime(fixed375.next);
+run375.box.bank.lastFlushAt = null;
+assert.equal(rspNativePatternFlushStatus(run375.box.bank).lastFlush, null);
+assert.equal(rspNativePatternFlushStatus(null).dirty, null);
+run375.box.bank.deletedIds.add('deleted');
+run375.box.bank.clearRequested = true;
+assert.equal(await run375.record(), false);
+assert.equal(run375.state.counters.trajectoriesRecorded || 0, 0);
+assert.equal(run375.state.statsWrites, 0);
+assert(run375.box.bank.dirtyIds.size > 0);
+assert(run375.box.bank.deletedIds.has('deleted'));
+assert.equal(run375.box.bank.clearRequested, true);
+let nativeStatus = run375.box.getPersistenceStatus().patternPersistence;
+assert.equal(nativeStatus.lastFlush.success, false);
+assert.equal(nativeStatus.lastFlush.code, 'PERSISTENCE_FAILED');
+assert(!JSON.stringify(nativeStatus).includes('private diagnostic'));
+assert.equal(run375.box.bank.flushToDisk(), false, 'native timer failure does not throw');
+run375.box.bank.clearRequested = false;
+run375.state.fail = false;
+assert.equal(await run375.record(), true);
+assert.equal(run375.state.counters.trajectoriesRecorded, 1);
+assert.equal(run375.state.statsWrites, 1);
+assert(JSON.parse(run375.disk.get('/virtual/patterns.json')).some(p => p.id === 'other'));
+assert.equal(run375.box.bank.dirtyIds.size, 0);
+assert.equal(run375.box.bank.deletedIds.size, 0);
+assert.equal(run375.box.getPersistenceStatus().patternPersistence.lastFlush.success, true);
+run375.box.bank.persistenceEnabled = false;
+assert.equal(await run375.record(), false);
+assert.equal(run375.state.counters.trajectoriesRecorded, 1);
+assert.equal(run375.box.bank.flushToDisk(), false);
+assert.equal(run375.box.getPersistenceStatus().patternPersistence.enabled, false);
+for (const damaged of [native375 + native375, fixed375.next.replace('if (!reasoningBank || reasoningBank.flushToDisk() !== true) return false;', 'if (!reasoningBank || reasoningBank.flushToDisk() !== true) return true;')])
+  assert(patchSource(damaged).missing.length);
+
 async function command(source, intel) {
   const box = vm.createContext({ Date, Math, Number, process: { env: {} },
     validateText: () => ({ valid: true }), recordCommandOutcome() {}, commandRecordingDisabled: () => false,
@@ -143,3 +193,20 @@ assert.equal(failedBridge.result.success, false); assert.equal(failedBridge.stor
 assert.equal((await storePattern(fixedBridge.next, () => true)).result.success, true);
 assert.equal((await storePattern(fixedBridge.next, () => undefined)).result.success, true, 'unmodified external controller contract retained');
 console.log('PASS native learning persistence: failure propagation, dirty state, timer safety, native merge, caller/bridge guards, exact reversal');
+
+// Both overlays share memory-bridge.js and must commute, restore exactly, and
+// retain native 3.75 search failures without replacing their implementation.
+const store375 = read('bridge-pattern-3.75.0');
+assert.equal(sha(store375), 'f46d7e0af7fdc8d4cd28ad3cd1234f9937bcd6995f672005850363c6d6d31de7');
+const search375 = fs.readFileSync(new URL('./fixtures/pattern-search/native-bridge-3.75.0.mjs', import.meta.url), 'utf8');
+const combined375 = store375 + '\n' + search375;
+const learningThenSearch = patchSearch(patchSource(combined375).next);
+const searchThenLearning = patchSource(patchSearch(combined375).next);
+assert.deepEqual(learningThenSearch.missing, []);
+assert.deepEqual(searchThenLearning.missing, []);
+assert.equal(learningThenSearch.next, searchThenLearning.next);
+assert.equal(reverseSearch(reverse(learningThenSearch.next)), combined375);
+assert.equal(reverse(reverseSearch(learningThenSearch.next)), combined375);
+assert.equal((await storePattern(patchSource(store375).next, () => false)).result.success, false);
+assert.equal((await storePattern(patchSource(store375).next, () => true)).result.success, true);
+console.log('PASS published 3.75 learning persistence: native flush/counters/status, bridge guards and pattern-search composition');

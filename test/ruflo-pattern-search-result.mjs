@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { patchSource, reverse, isPatched, TOOL_EDITS, BRIDGE_EDITS } from '../lib/ruflo-pattern-search-result/patcher.mjs';
+import { patchSource, reverse, isPatched, TOOL_EDITS, BRIDGE_EDITS, NATIVE375_BRIDGE_EDITS } from '../lib/ruflo-pattern-search-result/patcher.mjs';
 const fixture = fs.readFileSync(new URL('./fixtures/pattern-search/native-3.71.1.mjs', import.meta.url), 'utf8');
 const boundary = fixture.indexOf('/**\n * Case-insensitive substring');
 const toolSource = fixture.slice(0, boundary), bridgeSource = fixture.slice(boundary);
@@ -122,3 +123,37 @@ try {
   }
 } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
 console.log('PASS public CLI pattern-result install/status/uninstall: exact fixture application and restoration');
+
+// Exact 3.75 published bridge: native errors stay native, only residual gaps change.
+const native375 = fs.readFileSync(new URL('./fixtures/pattern-search/native-bridge-3.75.0.mjs', import.meta.url), 'utf8');
+assert.equal(createHash('sha256').update(native375).digest('hex'), '2c3e699d24dad07af4dfa8733fac6390aa33908efe4f0afa143d18f9f1f97ae3');
+const fixed375 = patchSource(native375);
+assert.deepEqual(fixed375.missing, []); assert(isPatched(fixed375.next));
+assert.equal(reverse(fixed375.next), native375);
+assert.equal(patchSource(fixed375.next).next, fixed375.next);
+for (const [anchor] of NATIVE375_BRIDGE_EDITS)
+  assert(patchSource(native375.replace(anchor, 'changed upstream')).missing.length);
+let mode, bank = { searchPatterns: async () => { if (mode === 'controller') throw Error('controller failed'); return mode === 'nonarray' ? null : mode === 'hit' ? [{ id: 1, approach: 'original', similarity: 0.9 }] : []; } };
+const nativeRegistry = { get: () => bank, getAgentDB: () => mode === 'handle' ? null : ({ database: {
+  prepare: () => { if (mode === 'sql') throw Error('SQL refused'); return { all: () => [] }; },
+} }) };
+function nativeSearch(source) {
+  return new Function('getRegistry', 'operationContext', 'withBridgeOperation', 'bridgeFailureReasons', 'canonicalDbPath', 'bridgeSearchEntries', 'embedding',
+    source.replace('export async function bridgeSearchPatterns', 'async function bridgeSearchPatterns')
+      .replace("await import('./memory-initializer.js')", 'embedding') + '\nreturn bridgeSearchPatterns;')(
+      async () => nativeRegistry, { getStore: () => ({ active: true }) }, fn => fn(), new Map(), x => x,
+      async () => { throw Error('fallback refused'); }, { generateEmbedding: async () => ({ embedding: [] }) });
+}
+const before375 = nativeSearch(native375), search375 = nativeSearch(fixed375.next);
+mode = 'handle'; assert.equal((await before375(args)).error, undefined);
+assert.match((await search375(args)).error, /reader unavailable/);
+mode = undefined; assert.deepEqual(await search375(args), empty());
+mode = 'hit'; assert.equal((await search375(args)).results[0].content, 'original');
+for (mode of ['controller', 'nonarray', 'sql']) assert((await search375(args)).error);
+bank = { findSimilar() {}, getAll() { throw Error('local bank refused'); } };
+assert.equal(await before375(args), null);
+assert.match((await search375(args)).error, /local bank refused/);
+bank = null;
+assert.equal(await before375(args), null);
+assert.match((await search375(args)).error, /fallback refused/);
+console.log('PASS published 3.75 native pattern search: residual missing-reader/outer-catch failures, native errors, healthy reads and exact reversal');

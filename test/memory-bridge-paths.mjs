@@ -71,14 +71,16 @@ const packageDir = path.join(nodeModules, '@claude-flow', 'cli');
 fs.mkdirSync(path.join(HOME, '.claude'), { recursive: true });
 fs.writeFileSync(path.join(HOME, '.claude', 'settings.json'), '{}');
 const helperRels = ['live-memory-row.js', 'feedback-patterns.js', 'append-conditions.js',
-  'shared-sqlite.js', 'search-defaults.js', 'embedding-q8.js']
+  'shared-sqlite.js', 'search-defaults.js', 'embedding-q8.js', 'embedding-config.js']
   .map(file => path.join('@claude-flow', 'cli', 'dist', 'src', 'memory', file))
   .filter(rel => fs.existsSync(path.join(vendor, rel)));
 for (const rel of [bridgeRel, initRel, fsRel, ...helperRels]) {
   const source = path.join(vendor, rel);
   const target = path.join(nodeModules, rel);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, pristineBytes(source));
+  fs.writeFileSync(target, path.basename(rel) === 'embedding-config.js'
+    ? 'export const DEFAULT_EMBEDDING_MODEL = "proof-only"; export function resolveEmbeddingConfig() { return { model: DEFAULT_EMBEDDING_MODEL, dimension: 384 }; } export async function resolveEffectiveEmbeddingConfig() { return resolveEmbeddingConfig(); }'
+    : pristineBytes(source));
 }
 fs.copyFileSync(
   path.join(vendor, '@claude-flow', 'cli', 'package.json'),

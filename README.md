@@ -35,7 +35,9 @@ or that all closed issues are fixed in the installed packages.
 | `ruflo-hook-id-schema` | Native required/optional ID schemas agree with validation, including empty optional agent and reserved names; leave native source unchanged. |
 | `ruflo-tier-value-schema` | Native nonempty/10,000-unit contract passes; exact value, temporal and supersedes forwarding remain native. |
 | `ruflo-atomic-write` | Native write-all loop passes short-write, no-progress, partial ENOSPC, sync and rename failure tests; leave it unchanged. |
-| `ruflo-learning-persistence` | Native flush support is present, but remaining caller failure propagation still requires qualification; do not retire the whole target. |
+| `ruflo-learning-persistence` | Preserve the native locked flush/merge implementation; retain failure propagation at pattern/trajectory/MCP acknowledgment boundaries and process-local status. |
+| `ruflo-pattern-search-result` | Native direct-controller and SQL error propagation are retained; missing substring-reader and outer-catch failures still need the narrow patch. |
+| Memory bridge identity | Path-keyed native identity passes after inert qualification imports were updated for the published embedding configuration dependency. |
 | Remaining targets and clients | Review and activation pending; the initial status checks report unsatisfied source claims. |
 
 The four qualified targets retain compatibility patches for older source and
@@ -139,6 +141,15 @@ an owner, or replace the storage algorithm. Older direct-write packages retain
 that upstream behavior; newer native locked merges remain intact. Retirement
 requires executable pristine-native failure propagation, timer safety and status
 proof, not an issue closure or a package version alone.
+
+Published 3.75.0 now owns dirty-state retention, lock/merge behavior and flush
+error receipts. Qualification preserves that implementation. The remaining
+downstream changes require confirmed persistence before acknowledgment and
+trajectory-counter updates, propagate failures through four MCP callers and the
+pattern bridge, and normalize the native process-local status. Disabled
+persistence cannot acknowledge a durable write. Tests cover those boundaries,
+exact reversal and composition with the pattern-search guard; they do not prove
+recovery of older pending in-memory learning.
 
 Release qualification passed the full regression suite and focused Linux tests.
 Installation verified 18 laptop and 24 HZ source files against the qualified
