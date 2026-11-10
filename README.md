@@ -55,6 +55,15 @@ No further blanket rollback follows from issue closure or repeated caller errors
 | Installed rollout | Source-patch 4.46.188 is verified in two Mac prefixes and HZ: 373 exact packaged files per prefix, immutable stable copies without drift. The independent Mac mise Node 24.22.0 prefix now runs Ruflo/CLI 3.75.0 with 69 cleanly composed files and native dependency checks. |
 | Live clients | A fresh MCP process from that upgraded Mac prefix passes native store/readback and a second-process readback. Shared owners are not upgraded: identity passed for all 10 Mac and 16 of 17 HZ configured owners, but loaded services lack pending-learning proof; HZ Product also has a distinct `receipt-chain-mismatch` owner. |
 
+The final Mac `all status` still exits nonzero. Two verifier limitations remain:
+the single-target memory-owner check reports 53/54 because it changes sibling
+composition order, while the canonical full-order check proves 54/54; the withdrawn
+PII target verifies 50/55 because five newer native plugin files exceed its older
+recognizer. Those five files exactly match upstream Git blobs and contain no
+detectable withdrawn patch. Neither finding warrants a source rollback. Actual
+client PII configuration is unverified, and these limitations remain open rather
+than being reported as an all-green fleet check. HZ `all status` exits zero.
+
 Qualified native behavior retains compatibility patches for older source and
 refuses unrecognized changes. Native root detection chooses the nearest durable
 Ruflo project marker and stops at an uninitialized Git/worktree boundary; a lone
