@@ -12,6 +12,13 @@ process.env.RSP_CODEX_HOME = path.join(root, '.codex');
 const patch = await import('../lib/ruflo-atomic-write/patcher.mjs');
 const compose = await import('../lib/plugin-compose.mjs');
 const source = fs.readFileSync(new URL('./fixtures/atomic-write-native.js', import.meta.url), 'utf8');
+const published = fs.readFileSync(new URL('./fixtures/atomic-write-3.75.0.js', import.meta.url), 'utf8');
+assert(patch.nativeSatisfied(published));
+assert.equal(patch.patchSource(published).next, published);
+assert.equal(patch.reverse(published), published);
+for (const mutant of [published.replace('written += n', 'written += data.length'),
+  published.replace('n <= 0', 'n < 0'), published.replace('fsyncSync(fd)', 'unprovedSync(fd)')])
+  assert(!patch.nativeSatisfied(mutant));
 const fixed = patch.patchSource(source);
 assert.deepEqual(fixed.missing, []);
 assert(patch.isPatched(fixed.next));
@@ -39,6 +46,7 @@ function exercise(text, mode, bytes = Buffer.from('new complete content')) {
   let calls = 0, syncs = 0, renames = 0, guardCalls = 0, failure;
   const shortWrite = (fd, data, offset, length, position) => {
     calls++;
+    if (mode === 'no-progress') return 0;
     if (mode === 'enospc' && calls > 1) throw Object.assign(Error('injected'), { code: 'ENOSPC' });
     return originalWrite(fd, data, offset, Math.min(3, length), position);
   };
@@ -58,7 +66,7 @@ function exercise(text, mode, bytes = Buffer.from('new complete content')) {
   finally { fs.writeSync = originalWrite; }
   const actual = fs.readFileSync(file);
   assert.deepEqual(fs.readdirSync(dir), ['inert.bin'], 'native cleanup leaves no owned temporary file');
-  if (['enospc', 'sync', 'rename', 'guard'].includes(mode)) {
+  if (['enospc', 'sync', 'rename', 'guard', 'no-progress'].includes(mode)) {
     assert(failure); assert.deepEqual(actual, prior, 'old complete file survives failure');
   } else {
     assert(!failure); assert.deepEqual(actual, mode === 'native-short' ? bytes.subarray(0, 3) : bytes);
@@ -71,6 +79,13 @@ try {
   assert.equal(exercise(source, 'native-short').calls, 1, 'reproduce unchecked native short write');
   assert(exercise(fixed.next, 'short').calls > 1, 'native Node drains all bytes');
   for (const mode of ['enospc', 'sync', 'rename']) exercise(fixed.next, mode);
+  assert(exercise(published, 'short').calls > 1);
+  for (const mode of ['enospc', 'sync', 'rename', 'no-progress']) exercise(published, mode);
+  assert.equal(exercise(published, 'empty', Buffer.alloc(0)).calls, 0);
+  const nativeGuarded = published.replace(start, start + '    __rufloRefuseWalSidecars(path);\n    __rufloIntegrityCheck(path);\n');
+  assert(patch.nativeSatisfied(nativeGuarded));
+  assert.equal(exercise(nativeGuarded, 'short').guardCalls, 2);
+  exercise(nativeGuarded, 'guard');
   assert.equal(exercise(fixed.next, 'empty', Buffer.alloc(0)).calls, 0);
   const guardedFixed = patch.patchSource(guarded).next;
   assert.equal(exercise(guardedFixed, 'short').guardCalls, 2);

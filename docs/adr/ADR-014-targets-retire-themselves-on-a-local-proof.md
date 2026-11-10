@@ -2,6 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-14
+**Updated**: 2026-11-10. Published Ruflo/CLI 3.75.0 supplies native replacements
+for #4886, #4887, #4888 and #4892. Exact-source predicates recognize the native
+schemas and atomic writer without rewriting them. Executable boundary tests
+cover BMP/astral text, optional and reserved IDs, unchanged tier forwarding,
+short writes, zero progress and failure cleanup. Delegated validator preflight
+still rejects unknown dependencies. Compatibility remains for older copies;
+this qualification is not a fleet-upgrade or cached-client activation receipt.
+
 **Updated**: 2026-11-03. The current native Ruflo core manifest has nine handlers; retirement verifies their required event/command structure and retains strict seven-handler recognition for the historical broken manifest. Detached native telemetry is observed within a bounded proof window. Codex registry discovery retains its deadline and JSON validation with a 16 MiB output bound; the current valid registry exceeds the former 4 MiB bound. These are verification repairs, not changes to native hooks or terminal retirement state. Ruflo 3.71 source compatibility does not overcome its reproduced concurrent-store ownership failure (#4654); activation remains held.
 
 Historical 30 October qualification: Ruflo 3.65.0 passes the existing 5,000-receipt native policy proof and retains the previously qualified runtime and engine bytes unchanged. The fresh 122-reference review found 98 closed issues, 23 open issues and one merged pull request; issue closure never removes residual protections. OPDA's valid legacy segmented history required a separate explicit conversion despite source compatibility. Source retirement does not migrate data or prove a live session healthy.

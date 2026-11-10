@@ -15,6 +15,37 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+## Upgrade qualification: 10 November 2026
+
+The public npm registry reports **3.75.0** for both `ruflo` and
+`@claude-flow/cli`. Fleet rollout is **in progress**, not complete. The initial
+registered-path inventory found 3.71.4, 3.74.1 and 3.75.0 copies, including an HZ
+3.75.0 wrapper resolving a 3.71.4 CLI. Version labels alone are insufficient:
+each physical owner needs dependency, patch-composition and live-client checks.
+Frozen experimental copies must retain their original bytes and custody.
+
+The issue inventory fetched 324 distinct referenced or authored issues/PRs across
+six repositories, including 269 authored entries, without retrieval errors.
+This is inventory coverage, not a claim that all reported defects remain valid
+or that all closed issues are fixed in the installed packages.
+
+| Target | Published 3.75.0 qualification |
+|---|---|
+| `ruflo-aidefence-schema` | Native schema and UTF-16 boundary behavior pass; leave the qualified native source unchanged. |
+| `ruflo-hook-id-schema` | Native required/optional ID schemas agree with validation, including empty optional agent and reserved names; leave native source unchanged. |
+| `ruflo-tier-value-schema` | Native nonempty/10,000-unit contract passes; exact value, temporal and supersedes forwarding remain native. |
+| `ruflo-atomic-write` | Native write-all loop passes short-write, no-progress, partial ENOSPC, sync and rename failure tests; leave it unchanged. |
+| `ruflo-learning-persistence` | Native flush support is present, but remaining caller failure propagation still requires qualification; do not retire the whole target. |
+| Remaining targets and clients | Review and activation pending; the initial status checks report unsatisfied source claims. |
+
+The four qualified targets retain compatibility patches for older source and
+refuse unrecognized changes. Their behavioral tests pass against extracted
+published code; delegated validator preflight also passes against the actual
+3.75.0 dependency tree. This does not establish fleet activation or recovery of
+historical writes. The focused test command still reports seven pre-existing
+Markdown findings in private evidence files. Release-specific installation and
+test counts below are historical receipts, not current fleet health claims.
+
 `brain-forge-jsonl` corrects the installed guard's JSONL reader
 ([Brain #528](https://github.com/stuinfla/ruvnet-brain/issues/528)). Unicode line
 separators inside JSON strings remain content; LF delimits records. Malformed
@@ -37,7 +68,7 @@ objects and malformed JSON-like payloads are not printed as diagnostics. This
 changes neither caller arguments nor authorization and never retries a rejected call.
 The owner patch also recognizes the native 3.74 store anchor and preserves its
 validated metadata in both canonical and ordinary results.
-Release **4.46.181** is installed in both Mac prefixes and HZ: all 365 packaged
+At release **4.46.181**, installation in both Mac prefixes and HZ verified all 365 packaged
 files per prefix and 54 Mac / 72 HZ owner source surfaces are verified. Fresh
 native clients on both hosts preserve the validation diagnostic; HZ's corrected
 read matches the complete original value. Existing cached clients and historical
@@ -2011,7 +2042,7 @@ Retirement requires a qualified native schema that accurately advertises the
 same bound. Existing clients must refresh their tool registrations to see it;
 installation alone is not proof that a cached client exposes the new metadata.
 
-Release 4.46.178 is installed in six laptop and eight HZ copies. Fresh native
+Release 4.46.178 was installed in six laptop and eight HZ copies. Fresh native
 MCP `tools/list` checks on both hosts expose the bound, and the owned check clients
 exited. Cached client refresh and unrelated owner activation are not claimed.
 All 143 code suites passed; the full command still reports seven existing
@@ -2834,6 +2865,8 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 | **`ruflo-aidefence-config`** | Passes validated server-level pack selection to native AIDefence in all three loading paths. Omitted configuration preserves defaults; invalid values refuse. Built-in detection and PII remain. | [#4785](https://github.com/ruvnet/ruflo/issues/4785) |
 | **`ruflo-aidefence-schema`** | Advertises the native scan limit of 10,000 UTF-16 code units while retaining the exact validator, detector and original input. | [#4886](https://github.com/ruvnet/ruflo/issues/4886) |
 | **`ruflo-tier-value-schema`** | Advertises the native hierarchical-store nonempty/10,000 UTF-16-unit value contract and corrects the misleading empty-value message; preserves storage and supersedes behavior. | [#4892](https://github.com/ruvnet/ruflo/issues/4892) |
+| **`ruflo-hook-id-schema`** | Advertises native task/agent/parent identifier constraints on older source; accepts the behaviorally qualified 3.75.0 native schemas unchanged. | [#4887](https://github.com/ruvnet/ruflo/issues/4887) |
+| **`ruflo-atomic-write`** | Drains short writes before publication on older source; accepts the qualified 3.75.0 native loop unchanged, preserving failure cleanup and sibling safety guards. | [#4888](https://github.com/ruvnet/ruflo/issues/4888) |
 | **`ruflo-worktree-memory`** | Prepares external memory-package bindings through the native resolver before invoking the unchanged signed AutoMemory helper. Exact generated hook forms migrate during native init upgrade; custom commands remain intact. `ruflo hooks auto-memory-hook --action prepare --scope project` prepares and verifies without importing memory, so managed launchers can require success before starting an author. User helpers remain pinned to HOME and data roots remain separate. Retire on proven equivalent native startup, migration and failure behavior. | [#4851](https://github.com/ruvnet/ruflo/issues/4851) |
 | **`ruflo-tier-consolidation`** | Withdrawn: restores native explicit unsupported consolidation instead of supplying a custom tier-copy algorithm. Exact reversal composes with native context restoration and preserves every historical record. | [#2977](https://github.com/ruvnet/ruflo/issues/2977) |
 | **`ruflo-policy-serialization`** | Serializes one complete verified policy state and reuses that immutable representation for authentication and atomic writes, with an independent small projection. Preserves full ledger validation, receipts, authorization, locking and HMAC. It reduces duplicate work, not the ledger's cumulative growth. | [#3164 · open](https://github.com/ruvnet/ruflo/issues/3164) |

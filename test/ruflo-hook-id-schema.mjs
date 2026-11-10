@@ -12,6 +12,12 @@ const patch = await import('../lib/ruflo-hook-id-schema/patcher.mjs');
 const compose = await import('../lib/plugin-compose.mjs');
 const fixture = name => fs.readFileSync(new URL(`./fixtures/hook-id-schema/${name}`, import.meta.url), 'utf8');
 const source = fixture('post-task-native.js'), core = fixture('validator-core.js'), shim = fixture('validator-shim.js');
+const published = fixture('native-3.75.0.js');
+assert(patch.nativeSatisfied(published));
+assert.equal(patch.patchSource(published).next, published);
+assert.equal(patch.reverse(published), published);
+assert(!patch.nativeSatisfied(published.replace('maxLength: 128', 'maxLength: 256')));
+assert(!patch.nativeSatisfied(published.replace("validateIdentifier(agent, 'agent')", 'changed(agent)')));
 const result = patch.patchSource(source);
 assert.deepEqual(result.missing, []);
 assert(patch.isPatched(result.next));
@@ -33,9 +39,9 @@ const load = text => new Function('validateIdentifier', 'feedbackPatternsSchema'
   text.slice(0, text.indexOf('        const depthRaw = params.depth;')).replace('export const', 'const')
   + "        return { reachedEffects: true };\n    },\n};\nreturn hooksPostTask;")(
     validateIdentifier, {}, () => []);
-const old = load(source), updated = load(result.next);
+const old = load(source), updated = load(result.next), upstream = load(published);
 const permits = (schema, value) => typeof value === schema.type
-  && [...value].length >= schema.minLength && [...value].length <= schema.maxLength
+  && [...value].length >= (schema.minLength ?? 0) && [...value].length <= schema.maxLength
   && (schema.anyOf ? value === '' || new RegExp(schema.anyOf[1].pattern).test(value)
     : new RegExp(schema.pattern).test(value)) && !schema.not.enum.includes(value);
 assert.deepEqual(updated.inputSchema.required, ['taskId']);
@@ -46,12 +52,16 @@ for (const field of ['taskId', 'agent', 'parentAgentId']) {
     '\n', '\r\n', 'a\n', 'a'.repeat(128) + '\n', 'a b', 'a;b', 'é', '😀', 'a\\b']) {
     const args = { taskId: 'task-1', [field]: value };
     const before = await old.handler(args), after = await updated.handler(args);
+    assert.deepEqual(await upstream.handler(args), before);
+    assert.equal(permits(upstream.inputSchema.properties[field], value), after.reachedEffects === true);
     assert.deepEqual(after, before, 'native rejection/effects boundary unchanged');
     assert.equal(permits(updated.inputSchema.properties[field], value), after.reachedEffects === true,
       `${field}: ${JSON.stringify(value)}`);
   }
 }
 assert((await updated.handler({ taskId: 'task-1' })).reachedEffects, 'optional IDs remain optional');
+assert((await upstream.handler({ taskId: 'task-1' })).reachedEffects);
+assert(!(await upstream.handler({})).reachedEffects);
 assert(!(await updated.handler({})).reachedEffects, 'required task ID still refuses before effects');
 try {
   const file = path.join(process.env.RUFLO_GLOBAL_ROOT, '@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js');
