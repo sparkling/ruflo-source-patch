@@ -26,7 +26,7 @@ export async function restoreNativePolicy({ project, destination, oldCliRoot, ne
     throw Error('Native full-history audit and pruning owner required');
   const old = await import(pathToFileURL(modulePath(oldCliRoot)));
   const next = await import(pathToFileURL(modulePath(newCliRoot)));
-  const security = await import(pathToFileURL(createRequire(modulePath(newCliRoot)).resolve('@claude-flow/security')));
+  const security = await import(pathToFileURL(createRequire(modulePath(newCliRoot)).resolve('@claude-flow/security/policy/index')));
   const { policyTrustRoot } = await import(pathToFileURL(path.join(oldCliRoot, 'dist/src/services/policy-ledger-anchor.js')));
   const receipt = { schema: 'ruflo-native-policy-restoration/v1', project, oldCliRoot, newCliRoot,
     status: 'preparing', at: new Date().toISOString(), qualification: 'No policy decisions, signatures, receipts or trust anchors are reset. Legacy owner expands verified history under its native writer lock.' };
