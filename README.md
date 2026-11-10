@@ -52,7 +52,8 @@ No further blanket rollback follows from issue closure or repeated caller errors
 | `ruflo-memory-entries-only` | The old adapter stays withdrawn. Retain failed-retrieval propagation on Brain's selected CLI, including 3.75 namespace scope validation and response metadata; successful absence remains distinct from backend failure. |
 | Full Ruflo source composition | All 105 claim checks pass; 70 physical files compose with zero errors or incomplete claims, and a second application changes no bytes. |
 | Private native runtime | Mac and HZ SQLite/RuVector/RVF bindings load; native MCP store, exact readback and fresh-process readback pass in disposable stores. These are qualification results, not production activation. |
-| Live clients | Rollout pending. Native identity passed for all 10 Mac and 16 of 17 HZ configured owners; one HZ Product owner refuses with `receipt-chain-mismatch`. The separate original ENOSPC owner retains unknown pending learning. |
+| Installed rollout | Source-patch 4.46.188 is verified in two Mac prefixes and HZ: 373 exact packaged files per prefix, immutable stable copies without drift. The independent Mac mise Node 24.22.0 prefix now runs Ruflo/CLI 3.75.0 with 69 cleanly composed files and native dependency checks. |
+| Live clients | A fresh MCP process from that upgraded Mac prefix passes native store/readback and a second-process readback. Shared owners are not upgraded: identity passed for all 10 Mac and 16 of 17 HZ configured owners, but loaded services lack pending-learning proof; HZ Product also has a distinct `receipt-chain-mismatch` owner. |
 
 Qualified native behavior retains compatibility patches for older source and
 refuses unrecognized changes. Native root detection chooses the nearest durable
@@ -89,6 +90,20 @@ The explicit legacy-policy conversion helper now imports the native policy subpa
 as Ruflo itself does. Mac and HZ synthetic 5,000-receipt checks pass full-history
 verification, append/prune and missing-history rejection. This is a local helper
 correction and a qualification result, not a production policy conversion.
+
+The Mac mise upgrade includes the nested Zod 4.6.7 dependency and verifies the
+security public import. The generic private tree has 70 composed files; that
+installed prefix has 69 because the separate MetaHarness host file is absent.
+Brain-selected retrieval compatibility is qualified separately on both hosts,
+including exact sibling composition. Four focused retrieval suites pass after
+the 150-suite full run. The registered suite set is now 151.
+
+Remaining rollout work is explicit: global package owners with cached modules,
+other active prefixes and project-owned/frozen copies require their own custody
+and activation checks. The original HZ ENOSPC process remains alive; neither its
+native stats nor the nine available Mac owner stats expose a durable flush receipt.
+No shared owner was stopped, no policy history was reset, and no historical write
+is claimed recovered. The fleet upgrade is not complete.
 
 `brain-forge-jsonl` corrects the installed guard's JSONL reader
 ([Brain #528](https://github.com/stuinfla/ruvnet-brain/issues/528)). Unicode line
