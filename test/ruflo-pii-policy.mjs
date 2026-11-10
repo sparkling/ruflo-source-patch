@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { NATIVE, INTELLIGENCE } from '../lib/ruflo-pii-policy/native.mjs';
 import { historicalPatchSource as patchSource, reverse, historicalIsPatched as isPatched, RETIRED, patchSource as withdraw, isPatched as isWithdrawn } from '../lib/ruflo-pii-policy/patcher.mjs';
@@ -38,6 +39,49 @@ const block = new Function(js + ';return blocksGuidance;')();
 assert.equal(block({ status: 'pii' }), false); assert.equal(block({ status: 'pii', secret: true }), true); assert.equal(block({ status: 'unsafe' }), true);
 assert.equal(block(null), false); assert.equal(block({ status: 'unavailable' }), false, 'existing error semantics unchanged');
 assert(patchSource(guidance + '\n' + guidance).missing.length);
+// Exact upstream bytes at 4184c5cc24f27d5831f871e6d7160e2a9322cbbb;
+// no downstream guard rewrite.
+const modern = ['federation-0.4.0.ts', 'intelligence-0.5.0.ts', 'console-native-options.ts']
+  .map(name => readFileSync(new URL('./fixtures/pii-policy/' + name, import.meta.url), 'utf8'));
+for (const source of modern) {
+  assert(isWithdrawn(source), 'recognize reviewed native PII option source');
+  assert.deepEqual(withdraw(source), { next: source, applied: [], missing: [] });
+  assert.equal(reverse(source), source);
+  assert(!isPatched(source), 'native option is not ownership of the withdrawn bypass');
+  for (const foreign of [source + '// unknown change\n', source.replace('piiGuard', 'piiBypass')]) {
+    assert(!isWithdrawn(foreign), 'unknown source still requires review');
+    assert(withdraw(foreign).missing.length);
+    assert.equal(withdraw(foreign).next, foreign);
+  }
+}
+for (const [index, source] of modern.slice(0, 2).entries()) {
+  const native = guard(source), tool = index ? 'hooks_transfer' : 'x_federation_publish';
+  const input = { content: index ? 'research@example.org' : '123-45-6789' };
+  assert(native(tool, input, { piiGuard: true, confirmReset: true }));
+  assert.equal(native(tool, input, { piiGuard: false, confirmReset: true }), undefined);
+  assert.match(native(tool, { content: 'fixture-secret' }, { piiGuard: false }), /secret/);
+  if (index) assert.match(native('hooks_intelligence_reset', {}, { piiGuard: false, confirmReset: true }), /Ask the user/);
+}
+const consoleJs = stripTypeScriptTypes(modern[2].replace(/^import .*\n/gm, ''))
+  .replaceAll('export ', '');
+const consoleNative = new Function('plain', 'chunksOf', 'ARGV_TEXT_MAX', 'LONG_TEXT_MAX',
+  'CLI_PREFIXES', 'GOALS_PLUGIN', 'mcpReader', 'jsonAfter', 'hasSecret', consoleJs +
+  '\nreturn { screenText, blocksGuidance, blocksCreate };')(
+  text => text, text => [text], 10000, 100000, { ruflo: ['ruflo'] }, 'ruflo-goals',
+  () => stdout => [stdout], JSON.parse, text => text === 'fixture-secret');
+const screen = async (piiGuard, text, safe = 'SAFE', pii = true) => consoleNative.screenText(
+  { options: { piiGuard, cli: 'ruflo' } }, { run: async argv => ({ stdout:
+    argv.includes('aidefence_is_safe') ? safe : JSON.stringify({ hasPII: pii }), stderr: '' }) }, text);
+assert.equal((await screen(true, 'research@example.org')).status, 'pii');
+const informational = await screen(false, 'research@example.org');
+assert.equal(informational.status, 'safe'); assert.match(informational.detail, /personal data detected/);
+assert.equal(consoleNative.blocksGuidance(informational), false);
+for (const [text, safe, expected] of [['fixture-secret', 'SAFE', 'secret'], ['injection', 'UNSAFE', 'unsafe']]) {
+  const result = await screen(false, text, safe); assert.equal(result.status, expected);
+  assert(consoleNative.blocksGuidance(result));
+}
+assert.equal((await screen(false, 'text', 'unreadable')).status, 'unavailable');
+assert.equal((await screen(false, 'fixture-secret', 'unreadable')).status, 'secret');
 console.log('PASS historical PII transforms reverse exactly; native guards restored; drift refusal retained');
 
 // Public composition lifecycle in a fully isolated account layout.
@@ -78,5 +122,28 @@ try {
   assert.equal(absent.status, 1, absent.stdout + absent.stderr);
   assert.match(absent.stdout, /0\/0 file\(s\) native restoration verified/);
   assert.doesNotMatch(absent.stdout, /run `ruflo-pii-policy install`/);
+  const nativeFiles = modern.map((source, index) => {
+    const plugin = ['ruflo-federation', 'ruflo-intelligence', 'ruflo-console'][index];
+    const nativeRoot = path.join(home, '.codex/plugins/cache/ruflo', plugin, '0.5.0');
+    const nativeFile = path.join(nativeRoot, 'hooks', index === 2 ? 'mission-options.ts' : 'guard.ts');
+    fs.mkdirSync(path.dirname(nativeFile), { recursive: true });
+    fs.mkdirSync(path.join(nativeRoot, '.claude-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(nativeRoot, '.claude-plugin/plugin.json'), JSON.stringify({ name: plugin }));
+    fs.writeFileSync(nativeFile, source);
+    if (index === 2) fs.writeFileSync(path.join(nativeRoot, 'hooks/screen.ts'), 'export const hasSecret = () => true;');
+    return { file: nativeFile, source, ino: fs.statSync(nativeFile).ino };
+  });
+  for (const action of ['install', 'status', 'uninstall']) {
+    const result = spawnSync(process.execPath, [new URL('../bin/cli.mjs', import.meta.url).pathname,
+      'ruflo-pii-policy', action], { cwd: scratch, env, encoding: 'utf8', timeout: 30000 });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    if (action === 'status') assert.match(result.stdout, /3\/3 file\(s\) native restoration verified/);
+    for (const native of nativeFiles) {
+      assert.equal(fs.readFileSync(native.file, 'utf8'), native.source);
+      assert.equal(fs.statSync(native.file).ino, native.ino, 'native file is not rewritten');
+      if (fs.existsSync(native.file + '.rsp-backup')) assert.equal(
+        fs.readFileSync(native.file + '.rsp-backup', 'utf8'), native.source, 'any pristine remains exact native bytes');
+    }
+  }
   console.log('PASS withdrawn target install/status/uninstall restores native and never reapplies PII bypass');
 } finally { fs.rmSync(scratch, { recursive: true, force: true }); }

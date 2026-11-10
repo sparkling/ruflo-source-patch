@@ -65,11 +65,15 @@ Activation checks from the stable hook/monitor copies pass 54/54 on Mac and 72/7
 on HZ. All 151 executable suites pass; the full test command retains seven
 pre-existing Markdown lint findings in private evidence files. Changed docs pass.
 
-The withdrawn PII target still verifies 50/55 because five newer native plugin
-files exceed its older recognizer. Those files exactly match upstream Git blobs
-and contain no detectable withdrawn patch; no source rollback is warranted.
-Actual client PII configuration remains unverified. The fleet check is not
-all-green; the last HZ `all status` check exited zero.
+Source-patch 4.46.190 extends the withdrawn PII target's restoration verifier to
+three exact newer native plugin sources ([#4861](https://github.com/ruvnet/ruflo/issues/4861)).
+The current Mac inventory verifies 53/53 rather than 48/53; five files were
+previously unrecognized. Native `piiGuard` on/off behavior, secret refusal and
+reset confirmation are exercised; unknown source is still refused. Public
+install/status/uninstall preserves native file bytes and inodes. The historical
+PII bypass stays withdrawn, and no runtime configuration is changed. Source
+recognition does not establish any client's effective PII setting or complete
+the remaining owner upgrades.
 
 Qualified native behavior retains compatibility patches for older source and
 refuses unrecognized changes. Native root detection chooses the nearest durable

@@ -2,6 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-10. Release 4.46.190 recognizes three exact upstream
+PII-option sources at Ruflo commit `4184c5cc24f27d5831f871e6d7160e2a9322cbbb`
+(#4861) as native restoration. Whole-file SHA-256 qualification is separate
+from historical patch ownership and inversion. Native PII options, independent
+secret refusal, reset confirmation and Console threat handling are exercised;
+unknown bytes remain refused. Public lifecycle tests preserve native source
+bytes and inodes. No guard rewrite, configuration change or detector change is
+introduced; effective client settings still require separate evidence.
 **Updated**: 2026-11-10. Release 4.46.189 corrects selected-target status proof
 ordering (source-patch #4). Selection limits the report, not the chain used to
 authenticate installed bytes: CLI owners precede every plugin claimant in the
