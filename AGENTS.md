@@ -117,11 +117,26 @@ npx github:sparkling/ruflo-source-patch cleanup . --dry-run   # kill stray daemo
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
-- Shared MCP, memory and hook error handoffs are repair assignments, including
-  incidents whose retry succeeded: analyse, fix, test, deploy, verify live behavior,
-  then notify the sender. A diagnostic report alone does not complete the repair.
-  If the cause belongs elsewhere or deployment is blocked, state the exact evidence
-  and limitation without claiming recovery or restarting the sender's authors.
+- Report every actual MCP, memory and hook error, including recovered incidents,
+  under the owner's reporting rule. Reporting requires triage; it does not assign
+  a shared patch. Classify each report as evidence-only local recovery, suspected
+  shared defect, or established shared defect. Preserve uncertainty and original
+  failures; a successful retry does not prove cause removal.
+- Caller arguments, keys, payload limits, model output/schema errors, project
+  paths, launch context, allowlists, orchestration and application faults remain
+  with the originating agent/root. Correct guard enforcement is not a backend
+  defect. When a repair request belongs locally, give the sender the evidence,
+  responsible owner and concrete safe recovery steps. Evidence-only local reports
+  need no acknowledgment or recurring status relay. Preserve frozen trials and
+  live-call custody; never bypass guards or replay uncertain writes.
+- Shared patches require evidence of a shared implementation or published
+  interface defect. One project can establish that defect; repeated caller
+  mistakes across projects do not. A missing schema constraint or lost diagnostic
+  may justify a narrow shared fix while the caller correction stays local.
+  For established shared defects, fix, test, deploy, verify actual live behavior,
+  then notify the sender subject to explicit communication restrictions. If the
+  cause belongs elsewhere or deployment is blocked, state the exact evidence and
+  limitation without claiming recovery or restarting the sender's authors.
 - For every patch, search existing upstream issues first; update the relevant issue
   or file a new one. Record the reproduction, scope, downstream fix, validation,
   release and retirement condition. Update README in the same verified slice,
