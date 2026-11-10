@@ -53,7 +53,7 @@ No further blanket rollback follows from issue closure or repeated caller errors
 | Full Ruflo source composition | All 105 claim checks pass; 70 physical files compose with zero errors or incomplete claims, and a second application changes no bytes. |
 | Private native runtime | Mac and HZ SQLite/RuVector/RVF bindings load; native MCP store, exact readback and fresh-process readback pass in disposable stores. These are qualification results, not production activation. |
 | Installed rollout | Source-patch 4.46.190 is verified in two Mac prefixes and HZ: 373 exact packaged files per prefix, immutable stable copies without drift. The independent Mac mise Node 24.22.0 prefix now runs Ruflo/CLI 3.75.0 with 69 cleanly composed files and native dependency checks. |
-| Live clients | A fresh MCP process from that upgraded Mac prefix passes native store/readback and a second-process readback. Shared owners are not upgraded: identity passed for all 10 Mac and 16 of 17 HZ configured owners, but loaded services lack pending-learning proof; HZ Product also has a distinct `receipt-chain-mismatch` owner. |
+| Live clients | A fresh MCP process from that upgraded Mac prefix passes native store/readback and a second-process readback. Shared owners are not upgraded: the initial identity inventory passed for all 10 Mac and 16 of 17 HZ owners; the remaining HZ Product policy owner now passes after the history-preserving conversion below. Loaded services still lack pending-learning proof. |
 
 The Mac status verifier's single-target ordering bug is corrected in source-patch
 4.46.189 ([#4](https://github.com/sparkling/ruflo-source-patch/issues/4)). Selected
@@ -112,8 +112,22 @@ substitute its older `zod/v4` export for the declared security version floor.
 
 The explicit legacy-policy conversion helper now imports the native policy subpath,
 as Ruflo itself does. Mac and HZ synthetic 5,000-receipt checks pass full-history
-verification, append/prune and missing-history rejection. This is a local helper
-correction and a qualification result, not a production policy conversion.
+verification, append/prune and missing-history rejection. A further isolated check
+qualifies native migration from a verified primary anchor when secondary anchors
+have not yet been recorded.
+
+HZ `project-13`, rooted at `/home/claude/src/hm/semantic-product-mock`, had the older
+`segmented-v1` archive format, which the newer runtime could not interpret. The
+existing restoration helper verified all archive MACs and the full original chain,
+backed up policy and trust material under the existing writer lock, and converted
+all **24,731 receipts** without changing their expanded history hash. Native
+secondary-anchor recording followed its existing verified-primary migration path;
+no explicit anchor reset or receipt re-signing was used. The same live PID **2015026**
+then passed MCP identity, policy status and diagnostic-session release. Full native
+verification accepted **24,734 receipts**, including those three real calls, after
+native pruning. No owner restart or failed-operation replay was needed. This clears
+that policy-format blocker, not the separate `/data/source/semantic-product-mock`
+ENOSPC owner or its unverified pending learning.
 
 The Mac mise upgrade includes the nested Zod 4.6.7 dependency and verifies the
 security public import. The generic private tree has 70 composed files; that
