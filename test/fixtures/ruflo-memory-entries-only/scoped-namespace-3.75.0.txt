@@ -1,0 +1,37 @@
+export const MEMORY_SCOPES = ['project', 'local', 'user'];
+export const SCOPED_NAMESPACE_PREFIX = 'agent-memory';
+/** The character class @claude-flow/memory's resolveAgentMemoryDir keeps. */
+const SCOPE_AGENT_ID_RE = /^[a-zA-Z0-9_-]+$/;
+/**
+ * Resolve the namespace a memory operation actually reads or writes.
+ * `scope`/`agentId` absent → `namespace` unchanged. Otherwise both are
+ * validated and the result is the prefixed form, itself run through the
+ * namespace validator so the stored namespace stays exportable and purgeable.
+ */
+export function resolveScopedNamespace(opts) {
+    const { scope, agentId, namespace } = opts;
+    const scopeGiven = scope !== undefined && scope !== null && scope !== '';
+    const agentGiven = agentId !== undefined && agentId !== null && agentId !== '';
+    if (!scopeGiven) {
+        if (agentGiven)
+            return { ok: false, error: 'agentId requires scope (project, local or user)' };
+        return { ok: true, namespace };
+    }
+    if (typeof scope !== 'string' || !MEMORY_SCOPES.includes(scope)) {
+        return { ok: false, error: `scope must be one of: ${MEMORY_SCOPES.join(', ')}` };
+    }
+    if (!agentGiven)
+        return { ok: false, error: 'scope requires agentId (the agent whose memory partition to use)' };
+    const vAgent = validateIdentifier(agentId, 'agentId');
+    if (!vAgent.valid)
+        return { ok: false, error: vAgent.error ?? 'agentId is invalid' };
+    if (!SCOPE_AGENT_ID_RE.test(agentId)) {
+        return { ok: false, error: 'agentId may contain only letters, digits, _ and - (the agent-memory directory name rule)' };
+    }
+    const effective = `${SCOPED_NAMESPACE_PREFIX}:${scope}:${agentId}:${namespace}`;
+    const vNs = validateIdentifier(effective, 'namespace');
+    if (!vNs.valid) {
+        return { ok: false, error: `${vNs.error} (scoped namespace "${effective}" includes the ${effective.length - namespace.length}-character scope prefix)` };
+    }
+    return { ok: true, namespace: effective, scope: scope, agentId: agentId };
+}

@@ -1,0 +1,61 @@
+        handler: async (input, context) => {
+            const missingKey = missingRequiredString(input, 'key', 'memory_retrieve');
+            if (missingKey) {
+                return { key: input.key, namespace: input.namespace, value: null, found: false, ...missingKey };
+            }
+            const dbPath = resolveDbPathOption(input.dbPath, context);
+            if (!dbPath)
+                await ensureInitialized();
+            const { getEntry } = await getMemoryFunctions();
+            const key = input.key;
+            // #1227: a scoped read only ever sees its own scope's namespace.
+            const scoped = resolveScopedNamespace({ scope: input.scope, agentId: input.agentId, namespace: input.namespace || 'default' });
+            if (!scoped.ok) {
+                return { key, namespace: input.namespace, value: null, found: false, error: scoped.error };
+            }
+            const namespace = scoped.namespace;
+            const scopeInfo = scoped.scope ? { scope: scoped.scope, agentId: scoped.agentId } : {};
+            validateMemoryInput(key, undefined, undefined, namespace);
+            try {
+                const result = await getEntry({ key, namespace, dbPath });
+                if (result.found && result.entry) {
+                    // Try to parse JSON value
+                    let value = result.entry.content;
+                    try {
+                        value = JSON.parse(result.entry.content);
+                    }
+                    catch {
+                        // Keep as string
+                    }
+                    return {
+                        key,
+                        namespace,
+                        ...scopeInfo,
+                        value,
+                        tags: result.entry.tags,
+                        storedAt: result.entry.createdAt,
+                        updatedAt: result.entry.updatedAt,
+                        accessCount: result.entry.accessCount,
+                        hasEmbedding: result.entry.hasEmbedding,
+                        found: true,
+                        backend: await describeBackend(),
+                    };
+                }
+                return {
+                    key,
+                    namespace,
+                    ...scopeInfo,
+                    value: null,
+                    found: false,
+                };
+            }
+            catch (error) {
+                return {
+                    key,
+                    namespace,
+                    value: null,
+                    found: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                };
+            }
+        },
