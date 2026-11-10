@@ -110,6 +110,7 @@ import { brainWrapperOwnershipCommand } from '../lib/brain-wrapper-ownership/com
 import { brainCodexInputCommand } from '../lib/brain-codex-input/commands.mjs';
 import { brainHostRecoveryCommand } from '../lib/brain-host-recovery/commands.mjs';
 import { brainContinuitySummaryCommand } from '../lib/brain-continuity-summary/commands.mjs';
+import { brainForgeJsonlCommand } from '../lib/brain-forge-jsonl/commands.mjs';
 import { brainOutboxStreamingCommand } from '../lib/brain-outbox-streaming/commands.mjs';
 import { hookFailureLogCommand, finishHookFailureLogCommand } from '../lib/hook-failure-log/commands.mjs';
 
@@ -207,6 +208,7 @@ const PLUGIN_PATCH_TARGETS = {
   'brain-wrapper-ownership': brainWrapperOwnershipCommand,
   'brain-codex-input': brainCodexInputCommand,
   'brain-continuity-summary': brainContinuitySummaryCommand,
+  'brain-forge-jsonl': brainForgeJsonlCommand,
   'brain-outbox-streaming': brainOutboxStreamingCommand,
   'brain-managed-cli-capture': brainManagedCliCaptureCommand,
   'brain-managed-cli-generation': brainManagedCliGenerationCommand,
@@ -318,6 +320,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('brain-codex-input')}preserve split Codex hook input without duplicate chunks (#525)
   ${pad('brain-host-recovery')}prove fresh host readiness without rewriting failed update history (#391)
   ${pad('brain-continuity-summary')}bound optional observations and conflict metadata without dropping memory (#389)
+  ${pad('brain-forge-jsonl')}preserve JSONL Unicode string content in the installed guard (#528)
   ${pad('brain-outbox-streaming')}read complete journals incrementally beyond the whole-string limit (#387)
   ${pad('brain-scratch-preservation')}preserve nonempty scratch stores in every cleanup path (#335)
   ${pad('brain-managed-cli-capture')}include native actions before progression no-op comparison (#382)

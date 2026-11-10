@@ -2,6 +2,13 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-10. Release 4.46.187 adds the owner-authorized
+`brain-forge-jsonl` correction for Brain #528. Exact installed guard bytes compose
+through the existing pristine/restore engine; LF streaming preserves Unicode
+string content and all native validation. Only the installed guard is discovered,
+never staged or preserved update trees. Unknown source fails closed. Corpus,
+signatures, manifests and update selection remain native. A downloaded candidate
+has its own guard, so this repair alone cannot prove native update recovery.
 **Updated**: 2026-11-09. Release 4.46.186 preserves grounding discovery when
 the exact bounded-input contribution (Brain #526) shares the native guard with
 the per-file projection target (#373). Qualification reverses that sibling in

@@ -83,6 +83,7 @@ npx github:sparkling/ruflo-source-patch brain-user-learning-root install # retir
 npx github:sparkling/ruflo-source-patch brain-progression-suspension install # operator-authorized automatic progression suspension; records/search/grounding/updater retained (#390)
 npx github:sparkling/ruflo-source-patch brain-continuity-summary install # bounded optional observations/conflicts; exact goal/action and complete canonical memory (#389)
 npx github:sparkling/ruflo-source-patch brain-outbox-streaming install # incremental full-journal and final-record reads beyond Node's string limit (#387)
+npx github:sparkling/ruflo-source-patch brain-forge-jsonl install # LF-delimited installed guard reader; preserve validation and corpus bytes (#528)
 npx github:sparkling/ruflo-source-patch brain-managed-cli-generation install # native active-generation CLI dispatch; fresh successful help after promotion (#384)
 npx github:sparkling/ruflo-source-patch brain-progression-collision install # preserve conflicting frozen captures under verified immutable identities (#383)
 npx github:sparkling/ruflo-source-patch brain-router-imports install # reuse existing native Console helpers omitted from flat router tools (#341)

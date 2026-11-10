@@ -15,6 +15,21 @@ Use `all status` and `monitor check` for installed source state; verify live MCP
 the owning host's hook trust separately after activation. A version bump or successful
 installation alone does not prove a native replacement or a healthy running session.
 
+`brain-forge-jsonl` corrects the installed guard's JSONL reader
+([Brain #528](https://github.com/stuinfla/ruvnet-brain/issues/528)). Unicode line
+separators inside JSON strings remain content; LF delimits records. Malformed
+JSON, empty text, parity, truncation and live-query checks remain enforced, and
+stream/callback errors propagate. Exact reviewed source is required, with pristine
+restoration and monitor reapplication. Retire only after an upstream guard passes
+the same behavioral tests. This target edits only the installed `kb/forge-guard.mjs`;
+it does not touch corpus files, signed manifests, candidate generations or update
+selection. A downloaded candidate carries its own guard, so installed parser
+recovery is not proof that the next native update can succeed. Native integrity
+checks may report the executable's deliberate local divergence; their manifests
+are never rewritten to conceal it. Release 4.46.187 supplies this target;
+`brain-forge-jsonl status` reports installed source activation separately from
+full native update recovery, which is not established.
+
 `ruflo-memory-owner` preserves bounded native plain-text validation failures
 instead of masking them as missing diagnostics ([source-patch #10](https://github.com/sparkling/ruflo-source-patch/issues/10)).
 Errors remain refusals; structured failures retain their existing behavior. Unknown
@@ -2945,6 +2960,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-transition-validation`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reuses one verified native restore within a normalized transition. The public builder still restores independently; complete history, ancestry and persistence validation are retained. | [#385 · closed](https://github.com/stuinfla/ruvnet-brain/issues/385) |
 | **`brain-managed-cli-diagnostics`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Keeps terminal errors/signals beside nonempty command output and in redacted native observations, instead of masking a timeout or exit failure with stdout. | [#386 · closed](https://github.com/stuinfla/ruvnet-brain/issues/386) |
 | **`brain-user-learning-root`** | Retires on Brain 4.7.21 after exact native ownership and inert capture/readback behaviour passes parent-Git, consent, missing-path, directory, symlink and hardlink cases. Restores only owned legacy bytes; never initializes, redirects, merges or replays memory. | [#377 · closed](https://github.com/stuinfla/ruvnet-brain/issues/377) |
+| **`brain-forge-jsonl`** | Corrects the installed JSONL guard reader; preserves Unicode string content, validation, pristine restoration and corpus bytes. Candidate update guards remain upstream-owned. | [#528](https://github.com/stuinfla/ruvnet-brain/issues/528) |
 | **`brain-outbox-streaming`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reads the complete append-only journal incrementally beyond Node's whole-string limit, preserving record order, conflict evidence and native final-tail semantics. This alone does not bound all historical object memory or restore work. | [#387 · closed](https://github.com/stuinfla/ruvnet-brain/issues/387) |
 | **`brain-continuity-summary`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Bounds optional displayed observations and repeated conflict summaries with omission/digest evidence. Exact goals/actions and canonical snapshots remain intact; mandatory oversized state still fails honestly. | [#389 · closed](https://github.com/stuinfla/ruvnet-brain/issues/389) |
 | **`brain-progression-suspension`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390 · closed](https://github.com/stuinfla/ruvnet-brain/issues/390) |
