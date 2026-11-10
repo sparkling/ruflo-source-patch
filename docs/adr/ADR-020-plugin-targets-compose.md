@@ -2,6 +2,14 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-10. Release 4.46.189 corrects selected-target status proof
+ordering (source-patch #4). Selection limits the report, not the chain used to
+authenticate installed bytes: CLI owners precede every plugin claimant in the
+writer's canonical order. The regression reproduces a later owner's false drift,
+checks both selected targets against the combined report, preserves live/pristine
+bytes and still rejects marker-preserving foreign edits. No installed vendor
+source, native owner lifecycle or provenance requirement changes. This correction
+belongs to source-patch itself; it is not a new upstream Ruflo patch.
 **Updated**: 2026-11-10. Release 4.46.187 adds the owner-authorized
 `brain-forge-jsonl` correction for Brain #528. Exact installed guard bytes compose
 through the existing pristine/restore engine; LF streaming preserves Unicode

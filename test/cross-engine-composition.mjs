@@ -46,6 +46,44 @@ function reset(source = legacy) {
   state.writeState({ patchTargets: [], pluginTargets: [] });
 }
 try {
+  // A status query for a later claimant must prove the same ordered chain as
+  // installation, including earlier siblings omitted from the selected report.
+  const earlier = (await import('../lib/ruflo-memory-entries-only/patcher.mjs')).descriptor;
+  const later = (await import('../lib/ruflo-memory-owner/patcher.mjs')).descriptor;
+  const savedDescriptors = [earlier, later].map(d => ({ ...d }));
+  const orderedFile = path.join(sandbox, 'ordered-status.js');
+  const pristine = 'vendor\n', installed = 'vendor /* earlier */ /* later */\n';
+  write(orderedFile, installed); write(backup(orderedFile), pristine);
+  state.writeState({ patchTargets: [], pluginTargets: [] });
+  try {
+    for (const [index, d] of [earlier, later].entries()) {
+      Object.assign(d, {
+        discover: () => [orderedFile], transactionOwner: true,
+        hasPatch: source => source.includes(`/* ${index ? 'later' : 'earlier'} */`),
+        isPatched: source => source.includes(`/* ${index ? 'later' : 'earlier'} */`),
+        patchSource: source => ({ next: source.replace(index ? '/* earlier */\n' : 'vendor\n',
+          index ? '/* earlier */ /* later */\n' : 'vendor /* earlier */\n'), applied: [], missing: [] }),
+        historicalPatchSource: undefined, recover: undefined, applicability: undefined,
+      });
+    }
+    const names = [earlier.name, later.name];
+    const full = compose.statusComposed(names);
+    assert.equal(full[later.name].patched, 1);
+    for (const name of names) assert.deepEqual(compose.statusComposed([name])[name], full[name],
+      'single-target status preserves canonical sibling ordering');
+    assert.equal(fs.readFileSync(orderedFile, 'utf8'), installed);
+    assert.equal(fs.readFileSync(backup(orderedFile), 'utf8'), pristine);
+    write(orderedFile, installed + '// foreign edit\n');
+    assert.equal(compose.statusComposed([later.name])[later.name].patched, 0,
+      'marker-preserving foreign edits still fail exact provenance');
+    assert.equal(fs.readFileSync(orderedFile, 'utf8'), installed + '// foreign edit\n');
+    assert.equal(fs.readFileSync(backup(orderedFile), 'utf8'), pristine);
+  } finally {
+    [earlier, later].forEach((d, index) => {
+      for (const key of Object.keys(d)) delete d[key];
+      Object.assign(d, savedDescriptors[index]);
+    });
+  }
   for (const mode of ['cli-only', 'shared']) for (const kind of ['missing', 'ambiguous']) {
     const broken = kind === 'missing' ? legacy.replace(entry.edits[0].find, '// native anchor moved')
       : legacy + '\n' + entry.edits[0].find;
