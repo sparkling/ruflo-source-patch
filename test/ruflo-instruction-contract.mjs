@@ -321,6 +321,26 @@ check(`RIC10c the exact current platform patch also rebuilds a poisoned pristine
     && fs.readFileSync(platformFile, 'utf8') === currentPlatformPatch
     && fs.readFileSync(`${platformFile}.rsp-backup`, 'utf8') === vendorBytes.get(platformFile));
 
+// Published 3.75 adds a dual-host public API with an identical return anchor.
+const nativeGenerator = fs.readFileSync(new URL('./fixtures/ruflo-instruction-contract/native-3.75.0/claudemd-generator.js', import.meta.url), 'utf8');
+const nativeShared = fs.readFileSync(new URL('./fixtures/ruflo-instruction-contract/native-3.75.0/shared-instructions.js', import.meta.url), 'utf8');
+const nativeResult = patcher.patchSource(nativeGenerator);
+check('RIC native dual return is scoped', nativeResult.missing.length === 0);
+check('RIC native dual exact reversal', patcher.reverseSource(nativeResult.next) === nativeGenerator);
+check('RIC native dual idempotent', patcher.patchSource(nativeResult.next).next === nativeResult.next);
+check('RIC missing dual enforcement is unhealthy', !patcher.isPatched(nativeResult.next.replace(".replace(rspCommonPolicy + '\\n\\n', '')", '')));
+check('RIC ambiguous public generator refused', patcher.patchSource(nativeGenerator + nativeGenerator).missing.length > 0);
+fs.writeFileSync(path.join(path.dirname(claudeFile), 'shared-instructions.js'), nativeShared);
+const nativeGeneratorFile = path.join(path.dirname(claudeFile), 'native-generator.js');
+fs.writeFileSync(nativeGeneratorFile, nativeResult.next);
+const nativeApi = await import(pathToFileURL(nativeGeneratorFile));
+for (const {name} of nativeApi.CLAUDE_MD_TEMPLATES) {
+  const normal = nativeApi.generateClaudeMd({runtime:{}}, name);
+  const dual = nativeApi.generateDualClaudeMd({runtime:{}}, name);
+  check('RIC native normal ' + name, normal.includes('## Ruflo Interface Contract'));
+  check('RIC native dual imports shared authority once ' + name, dual.includes('@AGENTS.md') && !dual.includes('## Ruflo Interface Contract'));
+  check('RIC native dual keeps Claude-only attribution ' + name, dual.includes('## Claude Code Rules') && dual.includes('Co-Authored-By'));
+}
 const claudeApi = await import(`${pathToFileURL(claudeFile).href}?patched`);
 for (const template of Object.keys(claudeBodies)) {
   const output = claudeApi.generateClaudeMd({}, template);

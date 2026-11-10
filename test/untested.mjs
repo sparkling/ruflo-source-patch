@@ -16,8 +16,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync, execFileSync, spawn } from 'node:child_process';
-import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+import { REPO, findVendorRoot, pristineBytes, stageNativeRootDependencies } from './fixtures.mjs';
 
+import { DAEMON_AUTOSTART_REL, legacyDaemonBytes } from './daemon-fixtures.mjs';
+import * as patchLibrary from '../lib/cwd/patch-library.mjs';
+import { nativeInitSatisfied } from '../lib/cwd/native-init-contract.mjs';
 const SB = process.argv[2];
 const HOME = path.join(SB, 'home');
 const STATE = path.join(HOME, '.ruflo-source-patch');
@@ -39,8 +42,9 @@ function freshSandbox() {
   fs.writeFileSync(path.join(HOME, '.claude', 'settings.json'), '{}');
   for (const rel of FILES) {
     fs.mkdirSync(path.dirname(vendor(rel)), { recursive: true });
-    fs.writeFileSync(vendor(rel), pristineBytes(path.join(REAL, rel)));
+    fs.writeFileSync(vendor(rel), legacyDaemonBytes(rel, pristineBytes(path.join(REAL, rel)), patchLibrary));
   }
+  stageNativeRootDependencies(REAL, path.join(nm, '@claude-flow/cli'));
 }
 
 const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx'),
@@ -73,11 +77,11 @@ const runHook = () => spawnSync(process.execPath, [hookScript], { cwd: SB, env, 
 
 // SS1 — an unpatched vendor copy appears (npx fetched a new version mid-session). The hook must
 // re-apply to it. This is the whole reason the hook exists.
-fs.writeFileSync(vendor(FILES[1]), pristineBytes(path.join(REAL, FILES[1])));   // clobber, as npx does
-if (isPatched(FILES[1])) fail('SS1 fixture: the file is still patched — the test would be vacuous');
+fs.writeFileSync(vendor(DAEMON_AUTOSTART_REL), legacyDaemonBytes(DAEMON_AUTOSTART_REL, pristineBytes(path.join(REAL, DAEMON_AUTOSTART_REL)), patchLibrary));   // clobber, as npx does
+if (isPatched(DAEMON_AUTOSTART_REL)) fail('SS1 fixture: the file is still patched — the test would be vacuous');
 
 const h1 = runHook();
-if (!isPatched(FILES[1])) fail(`SS1 the SessionStart hook did NOT re-apply the patch — every patch dies on the next npx refetch:\n${out(h1)}`);
+if (!isPatched(DAEMON_AUTOSTART_REL)) fail(`SS1 the SessionStart hook did NOT re-apply the patch — every patch dies on the next npx refetch:\n${out(h1)}`);
 
 // SS2 — it is SILENT when there is nothing to say. A hook that chatters on every session start is a
 // hook people disable.
@@ -87,7 +91,7 @@ if (out(h2).trim()) fail(`SS2 the hook spoke when everything was already healthy
 // SS3 — and it SPEAKS when a patch has stopped applying. Upstream rewrites the file, our anchors no
 // longer match, and the patch is now doing nothing — while `status` still calls the target installed.
 // Silence here is the failure the whole package exists to prevent.
-fs.writeFileSync(vendor(FILES[1]), 'export function somethingElseEntirely() {}\n');
+fs.writeFileSync(vendor(DAEMON_AUTOSTART_REL), 'export function somethingElseEntirely() {}\n');
 const h3 = runHook();
 if (!out(h3).trim()) fail('SS3 a broken anchor left the SessionStart hook SILENT — nobody would ever be told');
 
@@ -620,6 +624,11 @@ async function initCodexAction(ctx) {
   const initCommandPristine = pristineBytes(path.join(distSrc, 'commands', 'init.js'), 'init').toString('utf8');
   fs.writeFileSync(gen, genPristine);
   fs.writeFileSync(exe, exePristine);
+  if (exePristine.includes('detectRufloPlugins')) for (const rel of ['init/plugin-dedup.js','init/types.js','mods/plugin-resolve.js']) {
+    const dest = path.join(fakeSrc,rel);
+    fs.mkdirSync(path.dirname(dest),{recursive:true});
+    fs.writeFileSync(dest,pristineBytes(path.join(distSrc,rel)));
+  }
   fs.writeFileSync(initCommand, initCommandPristine);
   fs.mkdirSync(path.dirname(nestedGlobalCommand), { recursive: true });
   fs.writeFileSync(path.join(nestedGlobalRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0' }));
@@ -630,12 +639,28 @@ async function initCodexAction(ctx) {
   fs.mkdirSync(path.dirname(preSkillsCommand), { recursive: true });
   fs.writeFileSync(path.join(preSkillsRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0-pre-skills' }));
   fs.writeFileSync(preSkillsCommand, preSkillsPristine);
+  // Keep the older unconditional compatibility path exercised separately.
+  const legacyGen = path.join(legacyRoot,'dist/src/init/mcp-generator.js');
+  const legacyExe = path.join(legacyRoot,'dist/src/init/executor.js');
+  const legacyExePristine = 'export async function executeInit(options) {\n'
+    + patchLibrary.ENTRIES.find(entry => entry.id === 'init/no-bundle').edits.map(edit => edit.find + '\n        }').join('\n') + '\n}\n';
+  fs.mkdirSync(path.dirname(legacyGen),{recursive:true});
+  fs.writeFileSync(legacyGen,genPristine); fs.writeFileSync(legacyExe,legacyExePristine);
   const r = cli(['init', 'install']);
   if (r.status !== 0) fail(`II1 init install failed:\n${out(r)}`);
   const g = fs.readFileSync(gen, 'utf8'), e = fs.readFileSync(exe, 'utf8'), c = fs.readFileSync(initCommand, 'utf8');
-  if (!/if \(false && config\.claudeFlow\)/.test(g)) fail('II1 init did not disable the standalone claude-flow .mcp.json emission');
-  for (const c of ['skills', 'commands', 'agents']) {
-    if (!new RegExp(`if \\(false && options\\.components\\.${c}\\)`).test(e)) fail(`II1 init did not disable the ${c} bundle gate`);
+  const nativeDedup = exePristine.includes('detectRufloPlugins');
+  if (nativeDedup) {
+    if (g !== genPristine || e !== exePristine || !nativeInitSatisfied(e,exe)) fail('II1 native plugin-aware init did not remain byte-identical and qualified');
+  } else {
+    if (!/if \(false && config\.claudeFlow\)/.test(g)) fail('II1 init did not disable the standalone claude-flow .mcp.json emission');
+    for (const component of ['skills','commands','agents']) {
+      if (!e.includes('if (false && options.components.' + component + ')')) fail('II1 legacy bundle gate not suppressed: ' + component);
+    }
+  }
+  if (!fs.readFileSync(legacyGen,'utf8').includes('if (false && config.claudeFlow)')) fail('II1 explicit legacy MCP gate not suppressed');
+  for (const component of ['skills','commands','agents']) {
+    if (!fs.readFileSync(legacyExe,'utf8').includes('if (false && options.components.' + component + ')')) fail('II1 explicit legacy bundle gate not suppressed: ' + component);
   }
   if (/if \(false && options\.components\.helpers\)/.test(e)) fail('II1 init disabled HELPERS — those are kept, no plugin replaces them');
   const vendorUsedExternalSkills = initCommandPristine.includes(legacySkillsAnchor);
@@ -669,6 +694,7 @@ async function initCodexAction(ctx) {
   if (uninstall.status !== 0) fail(`II4 init uninstall failed:\n${out(uninstall)}`);
   if (fs.readFileSync(gen, 'utf8') !== genPristine) fail('II4 init uninstall did not restore mcp-generator.js byte-for-byte');
   if (fs.readFileSync(exe, 'utf8') !== exePristine) fail('II4 init uninstall did not restore executor.js byte-for-byte');
+  if (fs.readFileSync(legacyGen,'utf8') !== genPristine || fs.readFileSync(legacyExe,'utf8') !== legacyExePristine) fail('II4 explicit legacy init did not restore exactly');
   if (fs.readFileSync(initCommand, 'utf8') !== initCommandPristine) fail('II4 init uninstall did not restore commands/init.js byte-for-byte');
   if (fs.readFileSync(nestedGlobalCommand, 'utf8') !== initCommandPristine) {
     fail('II4 init uninstall did not restore the nested global ruflo CLI byte-for-byte');

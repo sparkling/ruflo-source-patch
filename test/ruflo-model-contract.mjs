@@ -184,4 +184,20 @@ fs.writeFileSync(hooksFile, unrelatedClaims);
 check('RMC12 unrelated allocation fields cannot satisfy the hooks_model-route retirement proof',
   supersede.rufloModelContractSupersession.check().state !== 'superseded');
 
+const nativeConstants = fs.readFileSync(new URL('./fixtures/ruflo-model-contract/native-model-3.75.0.mjs', import.meta.url), 'utf8');
+const nativeSchema = fs.readFileSync(new URL('./fixtures/ruflo-model-contract/native-model-schema-3.75.0.txt', import.meta.url), 'utf8').trimEnd();
+const native375 = nativeConstants + AGENT_VENDOR.replace(patcher.AGENT_MODEL_ANCHOR, nativeSchema);
+check('RMC13 published constant-backed native model schema accepted unchanged', patcher.nativeAgentContract(native375)
+  && patcher.patchSource(native375).next === native375 && patcher.patchSource(native375).missing.length === 0);
+for (const [from,to] of [['MODEL_ID_MAX_LENGTH = 256','MODEL_ID_MAX_LENGTH = 25'],
+  ["MODEL_ID_PATTERN = '^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$'", "MODEL_ID_PATTERN = '.*'"],
+  ['config.model = input.model','config.model = "sonnet"']]) {
+  check('RMC14 native contract regression rejected ' + from, !patcher.nativeAgentContract(native375.replace(from,to)));
+}
+const modelValidation = await import(new URL('./fixtures/ruflo-model-contract/native-model-3.75.0.mjs', import.meta.url));
+for (const id of ['gpt-6-astra','claude-fable-5','openai/gpt-6:high','a'.repeat(256),'sonnet'])
+  check('RMC15 native allowed ID ' + id.slice(0,30), modelValidation.modelIdError(id) === null);
+for (const id of ['', '-flag', 'has space', 'x;echo', 'a'.repeat(257), null])
+  check('RMC16 native invalid ID refused', typeof modelValidation.modelIdError(id) === 'string');
+
 process.exit(fail);

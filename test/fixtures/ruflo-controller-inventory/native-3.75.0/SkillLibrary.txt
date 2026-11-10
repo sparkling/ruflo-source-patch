@@ -1,0 +1,45 @@
+    assertSqlAddressable(op) {
+        if (this.graphBackend && 'storeSkill' in this.graphBackend) {
+            throw new CrudValidationError(`${op} addresses skills by SQL id and is not available with a graph adapter`, 'id');
+        }
+    }
+    skillRow(row) {
+        return {
+            id: row.id,
+            name: row.name,
+            description: row.description ?? undefined,
+            signature: safeJsonParse(row.signature, undefined),
+            code: row.code ?? undefined,
+            successRate: row.success_rate,
+            uses: row.uses,
+            avgReward: row.avg_reward,
+            avgLatencyMs: row.avg_latency_ms,
+            createdFromEpisode: row.created_from_episode ?? undefined,
+            metadata: safeJsonParse(row.metadata, undefined),
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
+    }
+    /** Fetch one skill by id; null when it does not exist. */
+    getSkill(skillId) {
+        this.assertSqlAddressable('getSkill');
+        const id = toRecordId(skillId, 'skillId');
+        const row = this.db.prepare('SELECT * FROM skills WHERE id = ?').get(id);
+        return row ? this.skillRow(row) : null;
+    }
+    /** Page through skills, newest first. `total` counts every skill. */
+    listSkills(options = {}) {
+        this.assertSqlAddressable('listSkills');
+        const { limit, offset } = toPage(options.limit, options.offset);
+        const min = options.minSuccessRate;
+        if (min !== undefined && (typeof min !== 'number' || !Number.isFinite(min))) {
+            throw new CrudValidationError('minSuccessRate must be a finite number', 'minSuccessRate');
+        }
+        const where = min !== undefined ? 'WHERE success_rate >= ?' : '';
+        const params = min !== undefined ? [min] : [];
+        const total = this.db.prepare(`SELECT COUNT(*) AS c FROM skills ${where}`).get(...params)?.c ?? 0;
+        const rows = this.db
+            .prepare(`SELECT * FROM skills ${where} ORDER BY id DESC LIMIT ? OFFSET ?`)
+            .all(...params, limit, offset);
+        return { items: rows.map(r => this.skillRow(r)), total, limit, offset };
+    }

@@ -1,0 +1,7 @@
+                model: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: MODEL_ID_MAX_LENGTH,
+                    pattern: MODEL_ID_PATTERN,
+                    description: 'Model alias or exact model id. Aliases: haiku=fast/cheap, sonnet=balanced, opus=current Opus 4.8, opus-4.7=prior Opus pin, inherit=the default model. Any other value is passed through unchanged as an exact model id (e.g. claude-opus-5-5, gpt-6-astra, openrouter/anthropic/claude-sonnet-5.5) and reported back as modelId. Letters, digits and . _ : / @ + - only, starting with a letter or digit.'
+                },

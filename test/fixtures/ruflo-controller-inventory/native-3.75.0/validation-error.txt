@@ -1,0 +1,16 @@
+export class ValidationError extends Error {
+    code;
+    field;
+    constructor(message, code = 'VALIDATION_ERROR', field) {
+        super(message);
+        this.name = 'ValidationError';
+        this.code = code;
+        this.field = field;
+    }
+    /**
+     * Get safe error message (doesn't leak sensitive info)
+     */
+    getSafeMessage() {
+        return `Invalid input: ${this.field || 'unknown field'}`;
+    }
+}

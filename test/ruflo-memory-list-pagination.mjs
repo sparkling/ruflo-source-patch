@@ -41,7 +41,7 @@ assert(nativeMemoryBridgeSatisfied(patched[0]), 'pagination preserves native pat
 for (const [index, file] of files.entries()) {
   const source = sources[index];
   const core = composeCliContribution(source, ENTRIES.filter(entry => ['cwd', 'memory'].includes(entry.target)
-    && entry.suffix.slice(-2).join('/') === 'memory/' + file));
+    && entry.suffix.slice(-2).join('/') === 'memory/' + file), {file:path.join(directory,file)});
   assert.deepEqual(core.missing, []);
   const previous = descriptor.historicalPatchSource(core.next).next;
   assert(isKnownComposition(core.next, previous, [descriptor]), 'released native pagination remains exactly recognized');

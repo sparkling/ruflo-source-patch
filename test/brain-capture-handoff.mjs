@@ -12,6 +12,8 @@ const receipts = path.join(root, 'turn-capture/receipts.jsonl');
 const worker = path.join(root, 'worker.mjs');
 const failures = [], children = [];
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Eight fixture processes share CPU with the full suite; production budgets are unchanged.
+const fixtureDeadlineMs = 10_000;
 const rows = () => fs.existsSync(receipts) ? fs.readFileSync(receipts, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse) : [];
 const shared = `const RUFLO_ENV={};const flagValue=(args,flag)=>args[args.indexOf(flag)+1];
 const digest=x=>crypto.createHash('sha256').update(x).digest('hex');const redactText=x=>x;
@@ -39,7 +41,7 @@ const launch = (key, event = 'SessionEnd') => {
   const step = { kind: 'store', started: path.join(root, key + '.started'), args: ['memory', 'store', '--key', key,
     '--path', path.join(root, 'inert.db'), '--value', 'PRIVATE_TURN_BODY_NOT_IN_ARGV'] };
   const result = context.launchFreshTurn([step], { receipts, brainHome: root, projectDir: root, event,
-    env: process.env, deadlineMs: Date.now() + 3000 });
+    env: process.env, deadlineMs: Date.now() + fixtureDeadlineMs });
   children.push(result.pid); return result;
 };
 try {
@@ -77,7 +79,7 @@ try {
     assert(!text.includes('PRIVATE_TURN') && !text.includes('inert.db'));
     assert(Buffer.byteLength(text) < 4096);
   }
-  for (let i = 0; i < 160 && rows().filter(x => x.verified).length < 8; i++) await pause(25);
+  for (let i = 0; i < fixtureDeadlineMs / 25 && rows().filter(x => x.verified).length < 8; i++) await pause(25);
   assert.equal(rows().filter(x => x.verified).length, 8);
   assert.equal(rows().filter(x => x.verified && x.event === 'PreCompact').length, 1);
   let running = 0, peak = 0;

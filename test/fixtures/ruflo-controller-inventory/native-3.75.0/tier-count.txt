@@ -1,0 +1,11 @@
+    countPersisted() {
+        if (!this.db)
+            return null;
+        try {
+            const row = this.db.prepare('SELECT COUNT(*) AS n FROM tiered_memory').get();
+            return Number(row?.n ?? 0);
+        }
+        catch {
+            return null;
+        }
+    }

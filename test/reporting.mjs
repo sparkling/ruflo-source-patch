@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+import { REPO, findVendorRoot, pristineBytes, stageNativeRootDependencies } from './fixtures.mjs';
 import { verifyInterfaceFixMode } from '../lib/supersede.mjs';
 import { legacyDaemonBytes, DAEMON_AUTOSTART_REL } from './daemon-fixtures.mjs';
 import * as patchLibrary from '../lib/cwd/patch-library.mjs';
@@ -53,6 +53,7 @@ function freshSandbox() {
     fs.mkdirSync(path.dirname(vendor(rel)), { recursive: true });
     fs.writeFileSync(vendor(rel), pristineBytes(path.join(REAL, rel)));
   }
+  stageNativeRootDependencies(REAL, path.join(nm, '@claude-flow/cli'));
 }
 
 const env = { ...process.env, RUFLO_SOURCE_PATCH_HOME: HOME, RUFLO_NPX_ROOT: path.join(SB, 'npx'),
@@ -197,9 +198,9 @@ cli(['cwd', 'uninstall']);
 // Make the write fail. writeIfChanged() writes a temp file into the target's DIRECTORY and
 // renames, so a read-only directory is what produces the EACCES.
 //
-// Lock the memory-initializer directory: cwd/memory-root still writes this file.
-// The daemon-autostart route is native now, so locking its directory proves no write failure.
-const lockedDir = path.dirname(vendor('@claude-flow/cli/dist/src/memory/memory-initializer.js'));
+// Lock the session snapshot directory: this cwd patch still writes hooks-tools.
+// Native root consumers contribute no writes and cannot reproduce EACCES.
+const lockedDir = path.dirname(vendor('@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js'));
 fs.chmodSync(lockedDir, 0o555);
 let r;
 try {
@@ -788,8 +789,9 @@ cli(['cwd', 'install']);
 
 // UPSTREAM SHIPS A NEW BUILD: the file is replaced with something that still carries our anchors (so the
 // patch re-applies) but is otherwise different. This is a re-baseline, not a break.
-const rbFile = vendor(FILES[1]);
-const rbPristine = pristineBytes(path.join(REAL, FILES[1])).toString('utf8');
+const rbRel = '@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js';
+const rbFile = vendor(rbRel);
+const rbPristine = pristineBytes(path.join(REAL, rbRel)).toString('utf8');
 fs.writeFileSync(rbFile, `// upstream v9: a new header they added\n${rbPristine}`);
 
 spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
@@ -823,7 +825,7 @@ if (!/uninstall/.test(rbSaid)) fail('RB4 the guidance never says how to back the
 freshSandbox();
 cli(['cwd', 'install']);
 cli(['cwd', 'uninstall']);
-const lockedDir2 = path.dirname(vendor('@claude-flow/cli/dist/src/memory/memory-initializer.js'));
+const lockedDir2 = path.dirname(vendor('@claude-flow/cli/dist/src/mcp-tools/hooks-tools.js'));
 fs.chmodSync(lockedDir2, 0o555);
 try {
   spawnSync(process.execPath, [path.join(REPO, 'lib', 'cwd', 'monitor-run.mjs')], { env, encoding: 'utf8' });
@@ -863,7 +865,7 @@ console.log('✔ notifier (a problem found by the monitor is announced on the ne
 // unpatched — real cwd drift, wearing the label of a moved anchor. `optional: true` fixes it: the
 // present dir patches, the absent one is a no-op, and (require-any) a file anchoring NEITHER still
 // screams. These tests are the mutation guard: revert the filter or entryApplied fix and OA1/OA2 go red.
-const NEURAL = '@claude-flow/cli/dist/src/commands/neural.js';
+const NEURAL = '@claude-flow/cli/dist/src/commands/agent.js';
 const CF = "process.cwd(), '.claude-flow'";
 const SW = "process.cwd(), '.swarm'";
 const CF_DONE = "__rufloResolveRoot(process.cwd()), '.claude-flow'";
@@ -884,7 +886,7 @@ fs.writeFileSync(vendor(NEURAL), without(neuralPristine, SW));
 const oa1 = cli(['cwd', 'install']);
 const oa1file = fs.readFileSync(vendor(NEURAL), 'utf8');
 if (!oa1file.includes(CF_DONE)) fail(`OA1 the PRESENT .claude-flow anchor was left unpatched when .swarm was absent:\n${out(oa1)}`);
-if (/skip:anchor-not-found .*commands-neural/.test(out(oa1))) fail(`OA1 an absent OPTIONAL sibling was reported as a moved anchor:\n${out(oa1)}`);
+if (/skip:anchor-not-found .*commands-agent/.test(out(oa1))) fail(`OA1 an absent OPTIONAL sibling was reported as a moved anchor:\n${out(oa1)}`);
 if (cli(['monitor', 'check']).status !== 0) fail(`OA1 monitor check reports drift though the entry is fully applied for this build:\n${out(cli(['monitor', 'check']))}`);
 
 // OA2 — the mirror: `.claude-flow` absent, `.swarm` present.
@@ -892,26 +894,20 @@ freshSandbox();
 fs.writeFileSync(vendor(NEURAL), without(neuralPristine, CF));
 const oa2 = cli(['cwd', 'install']);
 if (!fs.readFileSync(vendor(NEURAL), 'utf8').includes(SW_DONE)) fail(`OA2 the PRESENT .swarm anchor was left unpatched when .claude-flow was absent:\n${out(oa2)}`);
-if (/skip:anchor-not-found .*commands-neural/.test(out(oa2))) fail(`OA2 an absent OPTIONAL sibling was reported as a moved anchor:\n${out(oa2)}`);
+if (/skip:anchor-not-found .*commands-agent/.test(out(oa2))) fail(`OA2 an absent OPTIONAL sibling was reported as a moved anchor:\n${out(oa2)}`);
 if (cli(['monitor', 'check']).status !== 0) fail('OA2 monitor check reports drift though the entry is fully applied for this build');
 
 // OA3 — NEVER HIDE DRIFT. A paired file that anchors NEITHER dir is not a benign no-op: the file we
 // patch BECAUSE it writes state no longer does. It must be loud (skip:anchor-not-found), reach the
 // notifier, fail the gate, and leave the file pristine — the exact opposite of OA1/OA2.
 freshSandbox();
-const neuralWithoutAnyOwnedState = without(without(neuralPristine, CF), SW)
-  .replace(
-    "        const outDir = path.resolve(process.cwd(), (ctx.flags['out-dir'] ?? ctx.flags.outDir) || '.claude-flow/neural/weft-export');",
-    '        const outDir = ELSEWHERE();',
-  )
-  .split("ctx.flags.sft || path.resolve(process.cwd(), '.claude-flow/neural/weft-export/sft.jsonl')").join('ctx.flags.sft || ELSEWHERE()')
-  .split("ctx.flags.dpo || path.resolve(process.cwd(), '.claude-flow/neural/weft-export/dpo.jsonl')").join('ctx.flags.dpo || ELSEWHERE()');
+const neuralWithoutAnyOwnedState = without(without(neuralPristine, CF), SW);
 fs.writeFileSync(vendor(NEURAL), neuralWithoutAnyOwnedState);
 const oa3 = cli(['cwd', 'install']);
-if (!/skip:anchor-not-found .*commands-neural/.test(out(oa3))) fail(`OA3 a file anchoring NEITHER state dir was NOT reported — optional went too far:\n${out(oa3)}`);
+if (!/skip:anchor-not-found .*commands-agent/.test(out(oa3))) fail(`OA3 a file anchoring NEITHER state dir was NOT reported — optional went too far:\n${out(oa3)}`);
 if (fs.readFileSync(vendor(NEURAL), 'utf8').includes('__rufloResolveRoot')) fail('OA3 a skipped entry still wrote patched bytes');
 if (cli(['monitor', 'check']).status === 0) fail('OA3 monitor check passed a file that anchors none of its state dirs');
-if (!isProblem(`skip:anchor-not-found state/commands-neural (${vendor(NEURAL)}) — no state-dir anchor present`)) {
+if (!isProblem(`skip:anchor-not-found state/commands-agent (${vendor(NEURAL)}) — no state-dir anchor present`)) {
   fail('OA3 the require-any skip does not match the shared problem predicate — the notifier will never announce it');
 }
 
@@ -924,12 +920,14 @@ console.log('✔ optional anchors (OA1 present .claude-flow patches when .swarm 
 // warning; the right one is scopedAliasPaths(), which reaches the alias dir so it is actually patched,
 // AFTER which identifying it by package.json `name` (not the dir string) stops the now-false warning.
 freshSandbox();
+const aliasMemory = pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/memory/memory-initializer.js')).toString()
+  .replace('_memoryRootCache = resolveMemoryRoot(getProjectRoot());', '_memoryRootCache = resolveMemoryRoot(process.cwd());');
 const aliasRoot = path.join(nm, '@claude-flow', '.cli-TESTHASH01');
 fs.mkdirSync(path.join(aliasRoot, 'dist', 'src', 'memory'), { recursive: true });
 fs.mkdirSync(path.join(aliasRoot, 'dist', 'src', 'commands'), { recursive: true });
 fs.writeFileSync(path.join(aliasRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '9.9.9' }));
 fs.writeFileSync(path.join(aliasRoot, 'dist', 'src', 'memory', 'memory-initializer.js'),
-  pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/memory/memory-initializer.js')));
+  aliasMemory);
 fs.writeFileSync(path.join(aliasRoot, 'dist', 'src', 'commands', 'daemon.js'), 'export function daemon() {}\n');
 // a STRANGER wearing the same `.cli-` prefix but a foreign package name — must NOT be patched, and
 // must STILL be flagged uncovered (proves disambiguation is by name, and the detector still bites).
@@ -938,7 +936,7 @@ fs.mkdirSync(path.join(evilRoot, 'dist', 'src', 'memory'), { recursive: true });
 fs.mkdirSync(path.join(evilRoot, 'dist', 'src', 'commands'), { recursive: true });
 fs.writeFileSync(path.join(evilRoot, 'package.json'), JSON.stringify({ name: '@stranger/cli', version: '6.6.6' }));
 fs.writeFileSync(path.join(evilRoot, 'dist', 'src', 'memory', 'memory-initializer.js'),
-  pristineBytes(path.join(REAL, '@claude-flow/cli/dist/src/memory/memory-initializer.js')));
+  aliasMemory);
 fs.writeFileSync(path.join(evilRoot, 'dist', 'src', 'commands', 'daemon.js'), 'export function daemon() {}\n');
 
 cli(['cwd', 'install']);

@@ -10,6 +10,17 @@ short writes, zero progress and failure cleanup. Delegated validator preflight
 still rejects unknown dependencies. Compatibility remains for older copies;
 this qualification is not a fleet-upgrade or cached-client activation receipt.
 
+The same qualification covers the five native root consumers, plugin-aware init,
+model-ID constants and the complete six-tool native controller inventory. Inventory
+proof includes its imported validators, JSON decoders, pagination and tier
+statistics dependencies; unknown dependency bytes prevent retirement. Current
+native root/init files remain untouched on uninstall even when an older unknown
+backup remains beside them. The backup is preserved for inspection, never restored
+over a qualified native replacement. Owned patch compositions still reverse normally.
+Residual host, instruction, search-yield and persistence acknowledgment patches
+remain independently qualified; native replacement of one boundary does not retire
+another boundary's protection.
+
 **Updated**: 2026-11-03. The current native Ruflo core manifest has nine handlers; retirement verifies their required event/command structure and retains strict seven-handler recognition for the historical broken manifest. Detached native telemetry is observed within a bounded proof window. Codex registry discovery retains its deadline and JSON validation with a 16 MiB output bound; the current valid registry exceeds the former 4 MiB bound. These are verification repairs, not changes to native hooks or terminal retirement state. Ruflo 3.71 source compatibility does not overcome its reproduced concurrent-store ownership failure (#4654); activation remains held.
 
 Historical 30 October qualification: Ruflo 3.65.0 passes the existing 5,000-receipt native policy proof and retains the previously qualified runtime and engine bytes unchanged. The fresh 122-reference review found 98 closed issues, 23 open issues and one merged pull request; issue closure never removes residual protections. OPDA's valid legacy segmented history required a separate explicit conversion despite source compatibility. Source retirement does not migrate data or prove a live session healthy.

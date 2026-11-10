@@ -7,7 +7,8 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { catalog, fakeHost, versions } from './plugin-hosts-fixture.mjs';
 
 const SB = path.resolve(process.argv[2]);
-const MODERN = process.argv[3] === 'modern';
+const NATIVE_HOST = process.argv[3] === 'native-host';
+const MODERN = NATIVE_HOST || process.argv[3] === 'modern';
 const REPO = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const HOME = path.join(SB, 'home');
 const NPX = path.join(SB, 'npx');
@@ -130,6 +131,10 @@ export const pluginsCommand = {
     vendor = "import { pathsCommand } from './plugins-paths.js';\nconst verifyCommand = { name: 'verify' };\n" + vendor
       .replace('rateCommand],', 'rateCommand, verifyCommand, pathsCommand],');
     write(path.join(path.dirname(PLUGINS), 'plugins-paths.js'), "export const pathsCommand = { name: 'paths' };\n");
+  }
+  if (NATIVE_HOST) {
+    vendor = "import { hostCommand } from './plugins-host.js';\n" + vendor.replace('pathsCommand],', 'pathsCommand, hostCommand],');
+    write(path.join(path.dirname(PLUGINS), 'plugins-host.js'), "export const hostCommand = { name: 'host' };\n");
   }
   write(PLUGINS, vendor);
   write(path.join(path.dirname(path.dirname(path.dirname(path.dirname(PLUGINS)))),
@@ -257,15 +262,19 @@ Object.assign(process.env, env);
 const module = await import(`${pathToFileURL(PLUGINS).href}?patched=${Date.now()}`);
 const command = (name) => module.pluginsCommand.subcommands.find((item) => item.name === name);
 const expectedCommands = ['list', 'search', 'install', 'uninstall', 'upgrade', 'toggle', 'info', 'create', 'rate',
-  ...(MODERN ? ['verify', 'paths'] : []), 'host-install', 'host-uninstall', 'host-sync', 'host-refresh', 'host-update'];
+  ...(MODERN ? ['verify', 'paths'] : []), ...(NATIVE_HOST ? ['host'] : []), 'host-install', 'host-uninstall', 'host-sync', 'host-refresh', 'host-update'];
 check('PH4 every native and injected command is registered exactly once, in order',
   JSON.stringify(module.pluginsCommand.subcommands.map(item => item.name)) === JSON.stringify(expectedCommands));
 const directHostPath = process.env.PATH;
-process.env.PATH = ['/usr/bin', '/bin']
-  .filter((entry, index, rows) => entry && rows.indexOf(entry) === index)
-  .join(path.delimiter);
-const userBinUpdate = await command('host-update').action({ flags: { format: 'json' } });
-process.env.PATH = directHostPath;
+// A system PATH can contain a real Codex binary on Linux. Expose only Node:
+// Claude/Codex must resolve through the isolated user's .local/bin fixtures.
+const narrowPath = path.join(SB, 'node-only-bin');
+fs.mkdirSync(narrowPath, { recursive: true });
+fs.symlinkSync(process.execPath, path.join(narrowPath, 'node'));
+process.env.PATH = narrowPath;
+let userBinUpdate;
+try { userBinUpdate = await command('host-update').action({ flags: { format: 'json' } }); }
+finally { process.env.PATH = directHostPath; }
 check('PH4a host CLIs resolve from the user install root when noninteractive PATH omits it',
   userBinUpdate.success,
   JSON.stringify(userBinUpdate.data));

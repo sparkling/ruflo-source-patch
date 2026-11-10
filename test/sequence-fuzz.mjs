@@ -13,9 +13,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
+import { nativeRootSatisfied } from '../lib/cwd/native-root-contract.mjs';
 import { nativeVectorStorageSatisfied, nativeVectorCoreSatisfied } from '../lib/cwd/native-vector-storage.mjs';
 
-import { REPO, findVendorRoot, findVendorFile, pristineBytes } from './fixtures.mjs';
+import { REPO, findVendorRoot, findVendorFile, pristineBytes, stageNativeRootDependencies } from './fixtures.mjs';
 import { legacyDaemonBytes } from './daemon-fixtures.mjs';
 
 const SB = process.argv[2];
@@ -45,6 +46,7 @@ function freshSandbox() {
     // baseline — which is what the old `backup ?? file` fallback did, silently.
     fs.writeFileSync(dest, legacyDaemonBytes(rel, pristineBytes(findVendorFile(REAL, rel)), lib));
   }
+  stageNativeRootDependencies(REAL, path.join(SB, 'npx', 'h', 'node_modules', '@claude-flow/cli'));
 }
 const filePath = (rel) => path.join(SB, 'npx', 'h', 'node_modules', rel);
 const PRISTINE = {};
@@ -93,6 +95,12 @@ const OWNER = { 'cwd/daemon-autostart': 'cwd', 'cwd/memory-root': 'cwd', 'cwd/cl
   'daemon/command-root': 'daemon', 'memory/wal-sidecar-refusal': 'memory', 'memory/write-lock': 'memory',
   'state/autopilot': 'cwd' };
 
+function nativeSatisfied(id, source, file) {
+  return id === 'cwd/agentdb-ruvector-storage' && nativeVectorStorageSatisfied(source)
+    || id === 'cwd/agentdb-vector-storage-path' && nativeVectorCoreSatisfied(source)
+    || nativeRootSatisfied(source, file, id === 'cwd/memory-root' ? 'cwd/memory-root-delegate' : id);
+}
+
 // `expected` is derived from the COMMANDS WE TYPED, never from state.json.
 //
 // This was the suite's deepest flaw and it survived 480 steps a run: `should` came from
@@ -127,8 +135,7 @@ function check(step, seq, expected) {
   for (const [id, { rel, needle }] of Object.entries(ENTRY_PROBE)) {
     const src = fs.readFileSync(filePath(rel), 'utf8');
     const applied = src.includes(needle);
-    const native = id === 'cwd/agentdb-ruvector-storage' && nativeVectorStorageSatisfied(src)
-      || id === 'cwd/agentdb-vector-storage-path' && nativeVectorCoreSatisfied(src);
+    const native = nativeSatisfied(id, src, filePath(rel));
     const should = expected.has(OWNER[id]) && !native;
     if (applied !== should) errs.push(`I1 ${id}: applied=${applied} but the commands asked for ${OWNER[id]}=${should}`);
   }
@@ -163,8 +170,7 @@ function check(step, seq, expected) {
   // I5 — monitor check exit code matches reality
   const drift = Object.entries(ENTRY_PROBE).some(([id, { rel, needle }]) =>
     expected.has(OWNER[id]) && !fs.readFileSync(filePath(rel), 'utf8').includes(needle)
-    && !(id === 'cwd/agentdb-ruvector-storage' && nativeVectorStorageSatisfied(fs.readFileSync(filePath(rel), 'utf8')))
-    && !(id === 'cwd/agentdb-vector-storage-path' && nativeVectorCoreSatisfied(fs.readFileSync(filePath(rel), 'utf8'))));
+    && !nativeSatisfied(id, fs.readFileSync(filePath(rel), 'utf8'), filePath(rel)));
   const monitored = cli(['monitor', 'check']), rc = monitored.status;
   if ((rc === 1) !== drift) errs.push(`I5 monitor check exit=${rc} but drift=${drift}\n${monitored.stdout || ''}${monitored.stderr || ''}`);
 

@@ -1,0 +1,22 @@
+    listPatterns(options = {}) {
+        const { limit, offset } = toPage(options.limit, options.offset);
+        const where = options.taskType !== undefined ? 'WHERE task_type = ?' : '';
+        const params = options.taskType !== undefined ? [String(options.taskType)] : [];
+        const total = this.db.prepare(`SELECT COUNT(*) AS c FROM reasoning_patterns ${where}`).get(...params)?.c ?? 0;
+        const rows = this.db
+            .prepare(`SELECT id, ts, task_type, approach, success_rate, uses, avg_reward, tags, metadata
+         FROM reasoning_patterns ${where} ORDER BY id DESC LIMIT ? OFFSET ?`)
+            .all(...params, limit, offset);
+        const items = rows.map((row) => ({
+            id: row.id,
+            taskType: row.task_type,
+            approach: row.approach,
+            successRate: row.success_rate,
+            uses: row.uses,
+            avgReward: row.avg_reward,
+            tags: safeJsonParse(row.tags, []),
+            metadata: safeJsonParse(row.metadata, {}),
+            createdAt: row.ts,
+        }));
+        return { items, total, limit, offset };
+    }

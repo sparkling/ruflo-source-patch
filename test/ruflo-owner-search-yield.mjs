@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { unifiedSearchYield, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
+import { unifiedSearchYield, unifiedConcurrentSearchYield, unifiedSearchScheduling, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
 
 // Exact native 3.71.4 handler, evaluated only with inert storage functions. Never
 // import an installed memory/learning module: CWD/HOME do not isolate its stores.
@@ -35,7 +35,7 @@ async function exercise(text, input, options = {}) {
       ] };
     },
   };
-  const context = vm.createContext({ Promise, Set, Date: { now: () => 1234 }, setImmediate, setTimeout,
+  const context = vm.createContext({ Promise, Set, Array, performance: { now: () => 100 }, Date: { now: () => 1234 }, setImmediate, setTimeout,
     process: { env: options.env ?? {} }, ensureInitialized: async () => {},
     getMemoryFunctions: async () => memory, validateMemoryInput: () => {},
     validateIdentifier: value => ({ valid: value !== 'invalid', error: 'invalid namespace' }),
@@ -81,3 +81,21 @@ for (const [args, options] of [
   assert.equal(b.listed, a.listed);
 }
 console.log('PASS owner search fairness: native 79-namespace starvation reproduced; I/O served between unchanged sequential searches');
+
+const concurrent = fs.readFileSync(new URL('./fixtures/ruflo-memory-owner/unified-search-3.75.0.js', import.meta.url), 'utf8');
+assert.equal(unifiedSearchScheduling(concurrent), unifiedConcurrentSearchYield);
+const concurrentFixed = concurrent.replace(...unifiedConcurrentSearchYield).replace(...unifiedNamespaceProjection);
+assert.equal(concurrentFixed.replace(unifiedConcurrentSearchYield[1], unifiedConcurrentSearchYield[0])
+  .replace(unifiedNamespaceProjection[1], unifiedNamespaceProjection[0]), concurrent);
+const concurrentBefore = await exercise(concurrent, input), concurrentAfter = await exercise(concurrentFixed, input);
+assert.equal(concurrentBefore.servedAfter, 79, 'native four-worker microtask fan-out still starves owner I/O');
+assert(concurrentAfter.servedAfter < 79, 'owner I/O runs before all four-worker searches finish');
+assert.equal(concurrentBefore.peak, 4, 'native concurrency bound reproduced');
+assert(concurrentAfter.peak <= 4, 'native concurrency limit retained');
+assert.deepEqual(concurrentAfter.calls, concurrentBefore.calls);
+assert.deepEqual(concurrentAfter.result, concurrentBefore.result);
+for (const args of [{ query: 'q', namespaces: ['default', 'throws', 'auto-memory'], limit: 20 },
+  { query: 'q', namespace: 'invalid' }, { query: '' }]) {
+  assert.deepEqual((await exercise(concurrentFixed, args)).result, (await exercise(concurrent, args)).result);
+}
+console.log('PASS native 3.75 four-worker fairness: reproduced starvation, preserved ordered outcomes and partial-failure reporting');

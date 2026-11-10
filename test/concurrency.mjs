@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
-import { REPO, findVendorRoot, pristineBytes } from './fixtures.mjs';
+import { REPO, findVendorRoot, pristineBytes, stageNativeRootDependencies } from './fixtures.mjs';
 import { DAEMON_AUTOSTART_REL, legacyDaemonBytes } from './daemon-fixtures.mjs';
 import { HEADER_ANCHOR } from '../lib/ruflo-sqlite-owner/header.mjs';
 const SB = process.argv[2];
@@ -48,6 +48,7 @@ function freshSandbox() {
     fs.mkdirSync(path.dirname(vendor(rel)), { recursive: true });
     fs.writeFileSync(vendor(rel), PRISTINE.get(rel));
   }
+  stageNativeRootDependencies(REAL, path.join(nm, '@claude-flow/cli'));
 }
 
 const env = {
@@ -82,8 +83,16 @@ function installedSnapshot(label) {
     const file = vendor(rel);
     const backup = `${file}.rsp-backup`;
     if (!fs.existsSync(file)) fail(`CC3 ${label}: patched file disappeared: ${rel}`);
-    if (!fs.existsSync(backup)) fail(`CC3 ${label}: pristine backup is missing: ${rel}`);
     const fileBytes = fs.readFileSync(file);
+    if (!fs.existsSync(backup)) {
+      const source = fileBytes.toString();
+      const claims = lib.ENTRIES.filter(e => TARGETS.includes(e.target) && e.suffix.join('/') === rel
+        && (!e.appliesWhen || source.includes(e.appliesWhen)) && (!e.excludesWhen || !source.includes(e.excludesWhen)));
+      if (!fileBytes.equals(PRISTINE.get(rel)) || !claims.length
+        || !claims.every(e => e.nativeSatisfied?.(source,file) === true)) fail(`CC3 ${label}: unproved missing backup: ${rel}`);
+      snapshot.set(rel,{fileBytes,backupBytes:null});
+      continue;
+    }
     const backupBytes = fs.readFileSync(backup);
     if (fileBytes.length === 0) fail(`CC3 ${label}: concurrent apply truncated ${rel}`);
     if (backupBytes.length === 0) fail(`CC3 ${label}: pristine backup is empty: ${rel}`);
@@ -278,7 +287,8 @@ for (let i = 0; i < RUNS; i++) {
     if (!actual.fileBytes.equals(expected.fileBytes)) {
       fail(`CC3 run ${i + 1}: patched vendor bytes differ from the sequential oracle: ${rel}`);
     }
-    if (!actual.backupBytes.equals(expected.backupBytes)) {
+    if (actual.backupBytes === null ? expected.backupBytes !== null
+      : expected.backupBytes === null || !actual.backupBytes.equals(expected.backupBytes)) {
       fail(`CC3 run ${i + 1}: backup bytes differ from the sequential oracle: ${rel}`);
     }
   }

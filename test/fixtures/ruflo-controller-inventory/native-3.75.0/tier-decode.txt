@@ -1,0 +1,16 @@
+function rowToEntry(row) {
+    const entry = {
+        id: row.id,
+        key: row.key,
+        value: row.value,
+        tier: row.tier,
+        ts: Number(row.ts),
+    };
+    if (row.valid_from)
+        entry.validFrom = row.valid_from;
+    if (row.valid_until)
+        entry.validUntil = row.valid_until;
+    if (row.superseded_by)
+        entry.supersededBy = row.superseded_by;
+    return entry;
+}

@@ -1,0 +1,13 @@
+export function isTemporallyValid(entry, nowMs = Date.now()) {
+    if (entry.validFrom) {
+        const from = Date.parse(entry.validFrom);
+        if (!Number.isNaN(from) && from > nowMs)
+            return false; // not yet valid
+    }
+    if (entry.validUntil) {
+        const until = Date.parse(entry.validUntil);
+        if (!Number.isNaN(until) && until <= nowMs)
+            return false; // expired/superseded
+    }
+    return true;
+}

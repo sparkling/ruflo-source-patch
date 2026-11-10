@@ -167,3 +167,14 @@ export function pristineBytes(file, kind = 'marker') {
   }
   return buf;
 }
+
+/** Copy the actual native root dependencies into a reduced CLI fixture. */
+export function stageNativeRootDependencies(vendorRoot, cliRoot) {
+  for (const rel of ['services/project-root.js', 'memory/memory-root.js']) {
+    const source = path.join(vendorRoot, '@claude-flow/cli/dist/src', rel);
+    if (!fs.existsSync(source)) continue; // Older vendor releases have no delegation.
+    const destination = path.join(cliRoot, 'dist/src', rel);
+    fs.mkdirSync(path.dirname(destination), {recursive:true});
+    fs.writeFileSync(destination, pristineBytes(source));
+  }
+}

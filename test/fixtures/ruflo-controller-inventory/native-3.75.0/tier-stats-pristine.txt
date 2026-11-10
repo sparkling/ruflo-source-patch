@@ -1,0 +1,8 @@
+    getTierStats() {
+        const stats = {};
+        for (const [name, map] of Object.entries(this.tiers)) {
+            stats[name] = map.size;
+        }
+        stats.superseded = this.archived.length;
+        return stats;
+    }

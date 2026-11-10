@@ -87,6 +87,7 @@ function harness(initializer, bridgeText, { fail = null, raw = false } = {}) {
     operationContext: { getStore: () => ({ active: true }) }, getRegistry,
     getDb: registry => ({ db: new Driver(registry.dbPath), agentdb: {} }),
     isValidProvenanceType: () => true, generateId: () => 'entry-' + ++nextId,
+    embeddingModelLabel: () => 'fixture', // Native 3.75 label helper; no model discovery or download.
     guardValidate: async () => ({ allowed: true }), embedForBridge: async () => ({ vector: [0.25, 0.75], model: 'fixture' }),
     bridgeFailureReasons: new Map(), canonicalDbPath: value => value ?? A,
     entryCacheKey: slot, cacheInvalidate: async () => {}, logAttestation: async () => {},

@@ -72,6 +72,8 @@ export async function shutdownBridge() { globalThis.bridgeClosed = true; }
   const deep = path.join(project, 'src/deep/nested');
   fs.mkdirSync(path.join(project, '.git'), { recursive: true });
   fs.mkdirSync(deep, { recursive: true });
+  // Native 3.75 roots initialized Ruflo projects, not an unmarked git directory.
+  write(path.join(project, '.claude-flow/config.json'), '{}');
   const projectReal = fs.realpathSync(project);
   const startedAt = new Date(Date.now() - 120_000).toISOString();
   const completedAt = new Date(Date.now() - 60_000).toISOString();
@@ -164,15 +166,17 @@ const pluginEntries = ENTRIES.filter(entry => entry.id.startsWith('plugin-hosts/
 const composed = composeCliContribution(pluginSource, pluginEntries);
 assert.deepEqual(composed.missing, []);
 assert.equal(composed.applied.length, 1, 'both plugin variants applied');
-assert.ok(composed.next.includes('rateCommand, verifyCommand, pathsCommand, __rspHostInstallCommand,'));
-const driftedCommands = pluginSource.replace('rateCommand, verifyCommand, pathsCommand],', 'rateCommand, pathsCommand],');
+const nativeHost = pluginSource.includes("import { hostCommand } from './plugins-host.js';");
+const nativeCommands = 'rateCommand, verifyCommand, pathsCommand' + (nativeHost ? ', hostCommand' : '');
+assert.ok(composed.next.includes(nativeCommands + ', __rspHostInstallCommand,'));
+const driftedCommands = pluginSource.replace(nativeCommands + '],', nativeCommands.replace('verifyCommand, ', '') + '],');
 assert.notEqual(driftedCommands, pluginSource, 'modern plugin mutation changed nothing');
 const refused = composeCliContribution(driftedCommands, pluginEntries);
 assert.equal(refused.missing.length, 1, 'modern native command drift was silently accepted');
 assert.equal(refused.applied.length, 0);
 
 // Reuse the complete host-operation suite for the modern native command list.
-const plugins = spawnSync(process.execPath, [path.join(REPO, 'test/plugin-hosts.mjs'), path.join(SB, 'plugins'), 'modern'],
+const plugins = spawnSync(process.execPath, [path.join(REPO, 'test/plugin-hosts.mjs'), path.join(SB, 'plugins'), nativeHost ? 'native-host' : 'modern'],
   { env, encoding: 'utf8', timeout: 60_000 });
 assert.equal(plugins.status, 0, out(plugins));
 console.log(out(plugins).trim());

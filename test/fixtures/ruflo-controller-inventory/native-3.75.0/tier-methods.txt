@@ -1,0 +1,15 @@
+    listEntries(options) {
+        return listPersistedEntries(this.requireDb('listEntries'), options, INVENTORY_DEPS);
+    }
+    /**
+     * Exact read of one persisted entry by stable id, with its status. Null when
+     * missing, or when inactive and `includeInactive` is not set (#4712).
+     */
+    getEntry(id, options) {
+        return getPersistedEntry(this.requireDb('getEntry'), id, options, INVENTORY_DEPS);
+    }
+    requireDb(operation) {
+        if (!this.db)
+            throw new TieredMemoryUnsupportedError(operation);
+        return this.db;
+    }
