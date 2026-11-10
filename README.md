@@ -30,6 +30,12 @@ control issues. Current catalog labels were reconciled with upstream state; date
 historical reports remain historical. This is inventory coverage, not a claim
 that every defect remains valid or every closed issue is fixed in installed bytes.
 
+The target review separates qualified native replacements from retained residual
+patches and independently owned plugin packages. Four targets remain restoration-only:
+`brain-learning-native-owner`, `brain-recall-runtime`, `ruflo-pii-policy` and
+`ruflo-tier-consolidation`. Their withdrawn behavior must not be reintroduced.
+No further blanket rollback follows from issue closure or repeated caller errors.
+
 | Target | Published 3.75.0 qualification |
 |---|---|
 | `ruflo-aidefence-schema` | Native schema and UTF-16 boundary behavior pass; leave the qualified native source unchanged. |
@@ -43,6 +49,7 @@ that every defect remains valid or every closed issue is fixed in installed byte
 | `cwd` / `init` | Five published root consumers and plugin-aware initialization pass executable retirement proofs. Native nearest-project and plugin-detection semantics are preserved. |
 | `ruflo-model-contract` | Native exact-ID schema constants pass; the separate caller-owned routing clarification remains. |
 | `plugin-hosts` / instructions / owner search | Retain the residual patches while preserving native `hostCommand`, dual-file instruction ownership and four-worker search ordering. |
+| `ruflo-memory-entries-only` | The old adapter stays withdrawn. Retain failed-retrieval propagation on Brain's selected CLI, including 3.75 namespace scope validation and response metadata; successful absence remains distinct from backend failure. |
 | Full Ruflo source composition | All 105 claim checks pass; 70 physical files compose with zero errors or incomplete claims, and a second application changes no bytes. |
 | Private native runtime | Mac and HZ SQLite/RuVector/RVF bindings load; native MCP store, exact readback and fresh-process readback pass in disposable stores. These are qualification results, not production activation. |
 | Live clients | Rollout pending. Native identity passed for all 10 Mac and 16 of 17 HZ configured owners; one HZ Product owner refuses with `receipt-chain-mismatch`. The separate original ENOSPC owner retains unknown pending learning. |
@@ -67,6 +74,21 @@ decoders and tier statistics methods. Unknown dependencies fail qualification.
 The existing HZ owners remain running: neither a fresh successful read nor package
 installation can reconcile another process's unknown pending learning. No owner
 restart, uncertain write replay or policy-history reset is part of qualification.
+
+The published 3.75.0 bundle also omits the security package's declared Zod 4
+dependency: its public import resolves CLI's Zod 3 and throws `z.config is not a
+function` ([#4940](https://github.com/ruvnet/ruflo/issues/4940)). Private qualification
+provisions exact native `zod@4.6.7` inside that security package through npm, without
+changing its original source or manifest, and passes the public import plus eleven
+native validation cases. A source-patch status check cannot establish this dependency
+repair. Each upgraded physical package needs the same dependency check; a reinstall
+can remove the additional package. Do not replace CLI's separate Zod 3 dependency or
+substitute its older `zod/v4` export for the declared security version floor.
+
+The explicit legacy-policy conversion helper now imports the native policy subpath,
+as Ruflo itself does. Mac and HZ synthetic 5,000-receipt checks pass full-history
+verification, append/prune and missing-history rejection. This is a local helper
+correction and a qualification result, not a production policy conversion.
 
 `brain-forge-jsonl` corrects the installed guard's JSONL reader
 ([Brain #528](https://github.com/stuinfla/ruvnet-brain/issues/528)). Unicode line
