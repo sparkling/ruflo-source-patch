@@ -28,6 +28,13 @@ PID 2958656 was preserved and still predates the patched files: its loaded-modul
 protection remains unverified until controlled reconnection. Discovering a package
 does not update modules already loaded by an MCP process.
 
+**Outstanding native AutoMemory boundary:** published CLI 3.75.3 still exits 0
+when import/sync cannot resolve the required memory package. The isolated exact-source
+reproduction is tracked in [#4963](https://github.com/ruvnet/ruflo/issues/4963), a residual
+of closed #4685. A newly signed native helper/generator release is pending; no live
+signed helper was modified and no project memory operation was replayed. Current
+maintenance coverage is Mac and HZ; the five former GCP hosts are retired.
+
 **Catalog review history:** the [target tables](#targets) cover all registered patch
 targets, including the recent memory, managed-CLI, progression and hook-diagnostic repairs.
 Their presence in the catalog does not mean they are active in every installed copy.
