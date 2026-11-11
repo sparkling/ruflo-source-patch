@@ -18,9 +18,15 @@ copies and nested CLI dependencies without walking unrelated packages. The selec
 composition across 65 staged files. Focused inventory, stale-writer and SQLite-owner
 tests pass. The full suite's session fixture needed the native dispatch-queue import;
 its focused rerun passes. No executable test failure remains; the test command still
-reports seven existing private Markdown findings. Installed composition and
-controlled live activation remain pending;
-discovering a package does not update modules already loaded by an MCP process.
+reports seven existing private Markdown findings. The immutable release is installed
+in both Mac prefixes and HZ, with all 373 packaged files verified per installation.
+HZ repaired 46 previously uncovered files; both host monitor checks pass. A fresh
+MCP from the corrected HZ package exposes 423 tools and passes native store/exact
+readback plus a second-process readback in a disposable store; both test processes
+closed. The verified Builder pane received the scoped handback. Existing MCP
+PID 2958656 was preserved and still predates the patched files: its loaded-module
+protection remains unverified until controlled reconnection. Discovering a package
+does not update modules already loaded by an MCP process.
 
 **Catalog review history:** the [target tables](#targets) cover all registered patch
 targets, including the recent memory, managed-CLI, progression and hook-diagnostic repairs.
