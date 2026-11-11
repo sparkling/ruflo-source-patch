@@ -8,7 +8,7 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
-**Pending package-inventory correction ([#11](https://github.com/sparkling/ruflo-source-patch/issues/11)):**
+**4.46.191 package-inventory correction ([#11](https://github.com/sparkling/ruflo-source-patch/issues/11)):**
 the common inventory now includes nested `ruflo/node_modules` dependencies in npx
 caches as well as global installations. A live HZ Builder wrapper selected an
 unpatched nested CLI 3.75.3 beside a patched, hoisted 3.71.4 copy; the previous
@@ -16,8 +16,10 @@ installed status audit missed that nested copy. Regression coverage verifies bot
 copies and nested CLI dependencies without walking unrelated packages. The selected
 3.75.3 CLI and its HZ memory dependencies pass 100 source checks and idempotent
 composition across 65 staged files. Focused inventory, stale-writer and SQLite-owner
-tests pass; the test command still reports seven existing private Markdown findings.
-Release, installed composition and controlled live activation remain pending;
+tests pass. The full suite's session fixture needed the native dispatch-queue import;
+its focused rerun passes. No executable test failure remains; the test command still
+reports seven existing private Markdown findings. Installed composition and
+controlled live activation remain pending;
 discovering a package does not update modules already loaded by an MCP process.
 
 **Catalog review history:** the [target tables](#targets) cover all registered patch
