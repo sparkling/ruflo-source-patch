@@ -28,12 +28,21 @@ PID 2958656 was preserved and still predates the patched files: its loaded-modul
 protection remains unverified until controlled reconnection. Discovering a package
 does not update modules already loaded by an MCP process.
 
-**Outstanding native AutoMemory boundary:** published CLI 3.75.3 still exits 0
+**Outstanding native AutoMemory boundary:** published CLI 3.76.0, rechecked on
+12 November 2026, still exits 0
 when import/sync cannot resolve the required memory package. The isolated exact-source
 reproduction is tracked in [#4963](https://github.com/ruvnet/ruflo/issues/4963), a residual
 of closed #4685. A newly signed native helper/generator release is pending; no live
 signed helper was modified and no project memory operation was replayed. Current
 maintenance coverage is Mac and HZ; the five former GCP hosts are retired.
+
+**Policy anchor scaling remains unresolved:** pristine CLI 3.76.0 retains the
+same anchor parser/writer bytes as 3.72.2. Isolated native assessment and append
+still scale with the complete history; appending to 100,000 synthetic anchors
+validates 100,001 entries and preserves exact output. Track this residual in
+[#4883](https://github.com/ruvnet/ruflo/issues/4883), separately from the closed
+receipt-retention issue #3164. Existing byte-authenticated downstream reuse
+remains a mitigation, not bounded-cost history or proof of recall-timeout recovery.
 
 **Catalog review history:** the [target tables](#targets) cover all registered patch
 targets, including the recent memory, managed-CLI, progression and hook-diagnostic repairs.
