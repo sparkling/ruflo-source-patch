@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
+import { createOwnerInventoryContract } from '../lib/ruflo-memory-owner/inventory-contract.mjs';
 import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
 import { patchSource as patchHttp, reverse as reverseHttp, descriptor as httpDescriptor } from '../lib/ruflo-http-sessions/patcher.mjs';
 import { proveSessionRecovery } from './ruflo-owner-session-recovery.mjs';
@@ -95,7 +96,7 @@ async callTool(r){state.calls.push(r);if(state.mode==='received')return state.re
 async notification(r){state.calls.push(r);}async close(){state.closed=(state.closed||0)+1;}}
 `);
   const factory=path.join(scratch,'factory.mjs'),sdkUrl=JSON.stringify(pathToFileURL(sdk).href);
-  fs.writeFileSync(factory,createOwnerPolicyProtocol.toString()+'\n'+createMemoryOwnerClient.toString().replace("'@modelcontextprotocol/sdk/client/index.js'",sdkUrl).replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'",sdkUrl)+'\nexport {createMemoryOwnerClient};');
+  fs.writeFileSync(factory,createOwnerInventoryContract.toString() + '\n' + createOwnerPolicyProtocol.toString()+'\n'+createMemoryOwnerClient.toString().replace("'@modelcontextprotocol/sdk/client/index.js'",sdkUrl).replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'",sdkUrl)+'\nexport {createMemoryOwnerClient};');
   const create=(await import(pathToFileURL(factory))).createMemoryOwnerClient;
   const state=(await import(pathToFileURL(sdk))).state;
   const failed=await create(moduleUrl);await assert.rejects(failed.call('memory_store'),/list failed/);
@@ -268,7 +269,7 @@ async notification(r){state.calls.push(r);}async close(){state.closed=(state.clo
     }
     assert.deepEqual(calls,{fixture_read:1,fixture_write:1});
     const nativeFactory=path.join(scratch,'native-factory.mjs');
-    fs.writeFileSync(nativeFactory,createOwnerPolicyProtocol.toString()+'\n'+createMemoryOwnerClient.toString()
+    fs.writeFileSync(nativeFactory,createOwnerInventoryContract.toString() + '\n' + createOwnerPolicyProtocol.toString()+'\n'+createMemoryOwnerClient.toString()
       .replace("'@modelcontextprotocol/sdk/client/index.js'",JSON.stringify(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')).href))
       .replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'",JSON.stringify(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')).href))+'\nexport {createMemoryOwnerClient};');
     const configuration=JSON.parse(fs.readFileSync(config));configuration.owners.one.url=endpoint;fs.writeFileSync(config,JSON.stringify(configuration),{mode:0o600});

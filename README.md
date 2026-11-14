@@ -8,6 +8,30 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+**4.46.192 routed inventory contract ([#12](https://github.com/sparkling/ruflo-source-patch/issues/12)):**
+`ruflo-memory-owner` now advertises the authenticated executing owner's hierarchical
+list/get metadata through both native stdio entrypoints. Previously a newer client
+advertised `status=active`/cursor pagination while an older owner executed
+`state=all`/offset pagination: an explicit status failed validation and omission
+silently selected all history. Discovery now preserves the owner's exact descriptions,
+schemas, defaults and pagination; it neither translates filters nor changes storage.
+Missing owner methods are omitted. An owner authority or contract change after
+discovery refuses dispatch until a fresh client discovers the current contract.
+Native authorization and session retirement remain intact.
+
+Both version directions, exact restoration, ambiguous-anchor refusal and discovery
+connection retirement pass regression tests. A staged HZ 3.77.1 client against the
+unchanged 3.71.4 Builder owner advertised `state` and returned 11 active rows with
+zero inactive rows; an all-history read returned 24 rows, including 13 inactive.
+These counts describe live reads, not a frozen snapshot. Installed activation is
+pending the release checks; existing clients retain their loaded code until refreshed.
+The focused owner suites pass. The full run retains two failures reproduced on the
+unchanged release (`memory-auxiliary-path` and `cwd-session-current`) and seven
+existing private Markdown lint findings; this change does not claim to repair them.
+Retire this correction when native routed discovery and dispatch agree on the
+authenticated executing owner's contract. Upstream inventory implementation
+[#4712](https://github.com/ruvnet/ruflo/issues/4712) remains unchanged.
+
 **4.46.191 package-inventory correction ([#11](https://github.com/sparkling/ruflo-source-patch/issues/11)):**
 the common inventory now includes nested `ruflo/node_modules` dependencies in npx
 caches as well as global installations. A live HZ Builder wrapper selected an

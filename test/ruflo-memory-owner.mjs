@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import './ruflo-policy-diagnostics.mjs';
 import './ruflo-owner-schema.mjs';
+import './ruflo-owner-inventory-contract.mjs';
 import './ruflo-owner-search-yield.mjs';
 import './ruflo-owner-search-scoring.mjs';
 import fs from 'node:fs';
@@ -11,6 +12,7 @@ import { nativePolicyRuntimeSatisfied } from '../lib/policy-native-proof.mjs';
 import { composeSource } from '../lib/plugin-compose.mjs';
 import { canonicalEdits } from '../lib/ruflo-memory-owner/canonical.mjs';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
+import { createOwnerInventoryContract } from '../lib/ruflo-memory-owner/inventory-contract.mjs';
 import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
 import { ENTRIES, composeCliContribution, entryApplied } from '../lib/cwd/patch-library.mjs';
 import { patchSource, reverse, isPatched } from '../lib/ruflo-memory-owner/patcher.mjs';
@@ -196,7 +198,7 @@ export class Client {
 }`);
   const sdkUrl = pathToFileURL(sdkFile).href;
   const factoryFile = path.join(temporary, 'factory.mjs');
-  fs.writeFileSync(factoryFile, createOwnerPolicyProtocol.toString() + '\nexport ' + createMemoryOwnerClient.toString()
+  fs.writeFileSync(factoryFile, createOwnerInventoryContract.toString() + '\n' + createOwnerPolicyProtocol.toString() + '\nexport ' + createMemoryOwnerClient.toString()
     .replace("'@modelcontextprotocol/sdk/client/index.js'", JSON.stringify(sdkUrl))
     .replace("'@modelcontextprotocol/sdk/client/streamableHttp.js'", JSON.stringify(sdkUrl)));
   const { createMemoryOwnerClient: isolatedFactory } = await import(pathToFileURL(factoryFile));

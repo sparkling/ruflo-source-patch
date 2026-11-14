@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { createMemoryOwnerClient } from '../lib/ruflo-memory-owner/runtime.mjs';
+import { createOwnerInventoryContract } from '../lib/ruflo-memory-owner/inventory-contract.mjs';
 import { createOwnerPolicyProtocol } from '../lib/ruflo-memory-owner/policy.mjs';
 import { patchSource } from '../lib/ruflo-memory-owner/patcher.mjs';
 const nativeRoot = process.env.RSP_OWNER_NATIVE_ROOT;
@@ -42,7 +43,7 @@ try {
   fs.writeFileSync(path.join(pkg, 'mcp-server.js'), "export const resolveMcpHttpAuthToken=()=> 'disposable';");
   const queueAnchor='batch.requests.push({ request, resolve, reject, route, queuedAt });';
   assert.equal(createMemoryOwnerClient.toString().split(queueAnchor).length,2);
-  fs.writeFileSync(path.join(pkg, 'factory.mjs'), 'export const queueProbe={entered:null};\n' + createOwnerPolicyProtocol.toString() + '\n'
+  fs.writeFileSync(path.join(pkg, 'factory.mjs'), 'export const queueProbe={entered:null};\n' + createOwnerInventoryContract.toString() + '\n' + createOwnerPolicyProtocol.toString() + '\n'
     + createMemoryOwnerClient.toString().replace(queueAnchor,queueAnchor+'\n      queueProbe.entered?.(request);')
     + '\nexport { createMemoryOwnerClient, createOwnerPolicyProtocol };');
   const factory = await import(pathToFileURL(path.join(pkg, 'factory.mjs')));

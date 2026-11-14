@@ -2,7 +2,8 @@
 
 **Status**: Accepted; HZ access, declared private holdings and native inventories implemented; remaining capability limits explicit
 **Date**: 2026-11-04
-**Updated**: 2026-11-05. Owner retires combined-search compatibility: 22 native, document and artefact methods replace the former 24-tool interface.
+**Updated**: 2026-11-14. Routed hierarchical discovery uses the executing owner's contract (source-patch #12); storage and native inventory semantics remain unchanged.
+On 2026-11-05 the owner retired combined-search compatibility: 22 native, document and artefact methods replace the former 24-tool interface.
 Owner confirmed Hetzner as the authority for all five
 research projects and requested a complete coverage plan plus removal of
 overbroad content filters. Shared content admission and the document/native-inventory expansion are
