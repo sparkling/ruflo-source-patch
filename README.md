@@ -23,8 +23,13 @@ Both version directions, exact restoration, ambiguous-anchor refusal and discove
 connection retirement pass regression tests. A staged HZ 3.77.1 client against the
 unchanged 3.71.4 Builder owner advertised `state` and returned 11 active rows with
 zero inactive rows; an all-history read returned 24 rows, including 13 inactive.
-These counts describe live reads, not a frozen snapshot. Installed activation is
-pending the release checks; existing clients retain their loaded code until refreshed.
+These counts describe live reads, not a frozen snapshot. Release 4.46.192 is installed
+in both Mac prefixes and HZ, with all 375 packaged files verified per installation.
+Exact source checks pass for 60 Mac and 90 HZ files; both monitors report no drift.
+Fresh installed Mac and HZ MCP clients pass owner-schema discovery and active/all
+reads. Builder's owner PID and start time are unchanged. The originating root received
+the repair handback; existing clients retain their loaded code and cached schemas
+until a controlled client refresh, so their individual recovery is not yet claimed.
 The focused owner suites pass. The full run retains two failures reproduced on the
 unchanged release (`memory-auxiliary-path` and `cwd-session-current`) and seven
 existing private Markdown lint findings; this change does not claim to repair them.
