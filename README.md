@@ -127,6 +127,17 @@ validates 100,001 entries and preserves exact output. Track this residual in
 receipt-retention issue #3164. Existing byte-authenticated downstream reuse
 remains a mitigation, not bounded-cost history or proof of recall-timeout recovery.
 
+**15 November capture recurrence:** a retained HZ trace shows preliminary read,
+store and confirmation-read timeouts occupying one observation slot for 14.299 s,
+followed by successful slot release. Later native exact reads prove that the full
+expected observation already exists, with timestamps predating this failure.
+The installed reader now returns those exact bytes and exits in 828 ms; a separate
+direct MCP read takes 333 ms, including about 328 ms before authorization and
+1.1 ms in the memory handler. These current measurements do not reproduce or
+explain the historical stalls. [Brain #521](https://github.com/stuinfla/ruvnet-brain/issues/521)
+remains open; the source received the bounded reconciliation. No write replay,
+owner restart, timeout change or capture-recovery claim accompanies this check.
+
 **Catalog review history:** the [target tables](#targets) cover all registered patch
 targets, including the recent memory, managed-CLI, progression and hook-diagnostic repairs.
 Their presence in the catalog does not mean they are active in every installed copy.
