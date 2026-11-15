@@ -2623,6 +2623,14 @@ Focused Mac/Linux and affected composition regressions pass. The full run retain
 two existing fixture failures (`ruflo-tier-consolidation`, `cwd-session-current`);
 Mac's unrelated AIDefence configuration drift remains outside this repair.
 
+**15 November recheck:** all six installed wrapper copies on each host pass source
+and retained-owner checks. Isolated execution of the actual installed reader preserves
+split input, split UTF-8 and complete JSON with an open pipe on Mac and HZ; reversing
+the repair reproduces 12,012 bytes becoming 24,024 invalid bytes. The focused regression
+passes. The [upstream repair handback](https://github.com/stuinfla/ruvnet-brain/issues/525#issuecomment-6892804387)
+records this evidence. These checks execute no live hook chain or application write;
+the earlier live grounding proof remains separately dated above.
+
 `brain-wrapper-ownership` accepts reviewed Brain 4.7.6 native ownership without
 modification. For older installers, it repairs rejection of their own older Codex bridge. It accepts only exact SHA-256 hashes independently verified
 against published v4.5.16 and v4.5.17/v4.6.0/v4.6.1/v4.6.2 wrapper bytes. The existing
