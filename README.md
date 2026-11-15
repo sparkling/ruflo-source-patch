@@ -87,8 +87,20 @@ Mac memory services use the separate `.npm-global` installation and were not
 restarted. That installation, HZ and signed project helpers still require separate
 upgrade and activation evidence; fleet completion is not claimed.
 
-**Policy anchor scaling remains unresolved:** pristine CLI 3.76.0 retains the
-same anchor parser/writer bytes as 3.72.2. Isolated native assessment and append
+**15 November HZ qualification:** isolated Linux x64 CLI 3.77.1 passes all
+106 patch claims across 71 files, with zero missing anchors or composition errors
+and an unchanged second application. All 15 native dependency checks pass on
+Node 24.22.0. The staged MCP exposes 423 tools and passes native write/exact
+readback plus a second-process readback in a disposable store; both processes
+exit. A fresh client against the unchanged Builder owner advertises `state` and
+returns 11 active entries with zero inactive entries. Existing owners retain
+their original PIDs and start times. This qualifies the candidate; the live HZ
+global installation remains 3.71.4 pending learning-custody reconciliation and
+controlled owner/client activation. No live package or managed store was replaced.
+
+**Policy anchor scaling remains unresolved:** pristine CLI 3.77.1 retains the
+exact anchor parser/writer bytes inspected in 3.76.0 (and previously 3.72.2).
+The retained 3.76.0 isolated native assessment and append checks
 still scale with the complete history; appending to 100,000 synthetic anchors
 validates 100,001 entries and preserves exact output. Track this residual in
 [#4883](https://github.com/ruvnet/ruflo/issues/4883), separately from the closed
