@@ -97,6 +97,13 @@ returns 11 active entries with zero inactive entries. Existing owners retain
 their original PIDs and start times. This qualifies the candidate; the live HZ
 global installation remains 3.71.4 pending learning-custody reconciliation and
 controlled owner/client activation. No live package or managed store was replaced.
+The disposable SQLite backup rehearsal also passes: the native backup service
+returns `native-online-backup`, and a fresh native MCP reader retrieves the exact
+original key/value and entry ID from that snapshot, then exits. The CLI rehearsal's
+test-project daemon was stopped through its native command. This verifies SQLite
+snapshot access, not RVF coverage or preservation of the original owner's RAM.
+A fresh same-owner status read still lacks a complete learning export or persistence
+receipt; the historical ENOSPC disposition remains unresolved.
 
 **Policy anchor scaling remains unresolved:** pristine CLI 3.77.1 retains the
 exact anchor parser/writer bytes inspected in 3.76.0 (and previously 3.72.2).
