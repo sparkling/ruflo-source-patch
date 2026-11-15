@@ -105,6 +105,19 @@ snapshot access, not RVF coverage or preservation of the original owner's RAM.
 A fresh same-owner status read still lacks a complete learning export or persistence
 receipt; the historical ENOSPC disposition remains unresolved.
 
+**Native AgentDB selector correction verified:** the published 3.10.1 selector
+resolved in both 3.77.1 qualification installations passes five fresh-process cases
+on Mac arm64 and HZ Linux x64, using Node 24.22.0. Actual native loading succeeds;
+injected ABI and transitive-dependency failures preserve the exact error and emit
+a fallback warning. An absent optional package and explicitly requested WASM
+selection remain distinguishable. None of the non-native cases emits the old
+green success message. The [runtime update to #3175](https://github.com/ruvnet/ruflo/issues/3175#issuecomment-6892747160)
+records these results for [AgentDB PR #58](https://github.com/ruvnet/agentdb/pull/58).
+No downstream selector patch is needed for these qualified bytes. The separate
+core initialization catch and broader managed-store policy remain outside this
+proof. No persistent database was opened by these probes; a real Node-major cache
+transition, doctor behavior and already-running owner activation remain unverified.
+
 **Policy anchor scaling remains unresolved:** pristine CLI 3.77.1 retains the
 exact anchor parser/writer bytes inspected in 3.76.0 (and previously 3.72.2).
 The retained 3.76.0 isolated native assessment and append checks
