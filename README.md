@@ -74,6 +74,19 @@ activation. No live signed helper was modified and no project memory operation
 was replayed. Current maintenance coverage is Mac and HZ; the five former GCP
 hosts are retired.
 
+**15 November Mac mise activation:** `ruflo` and `@claude-flow/cli` are now
+3.77.1 in the Node 24.22.0 mise prefix. Qualification covered 106 patch claims
+across 71 staged files; all 70 applicable installed files exactly match the
+qualified composition and repeated application changes nothing. All 15 native
+dependency checks pass. The installed MCP exposes 400 tools and passes a native
+write, exact readback and a second-process readback in a disposable store; both
+processes exit. A fresh client also discovers the unchanged canonical owner's
+inventory schema and reads active/all pages correctly. The Mac monitor reports
+no drift. No live Ruflo client used this prefix at replacement; the ten canonical
+Mac memory services use the separate `.npm-global` installation and were not
+restarted. That installation, HZ and signed project helpers still require separate
+upgrade and activation evidence; fleet completion is not claimed.
+
 **Policy anchor scaling remains unresolved:** pristine CLI 3.76.0 retains the
 same anchor parser/writer bytes as 3.72.2. Isolated native assessment and append
 still scale with the complete history; appending to 100,000 synthetic anchors
