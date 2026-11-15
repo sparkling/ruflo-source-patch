@@ -38,6 +38,8 @@ if (pristine.includes("from './realpath-containment.js'"))
   dependencies.push('mcp-tools/realpath-containment.js');
 if (pristine.includes("from '../services/dispatch-queue.js'"))
   dependencies.push('services/dispatch-queue.js');
+if (pristine.includes("from '../ruvector/centroid-router.js'"))
+  dependencies.push('ruvector/centroid-router.js');
 // Ruflo 3.66 extracts lesson projection into a required static dependency. Keep
 // the native module intact so a missing fixture import cannot masquerade as an
 // optional ingestion failure (ingestVerifiedQuietly would otherwise return null).

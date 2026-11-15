@@ -81,13 +81,14 @@ function harness(initializer, bridgeText, { fail = null, raw = false } = {}) {
   }
   const getRegistry = async dbPath => {
     events.push(['registry', dbPath ?? A]);
-    return { dbPath: dbPath ?? A, get: () => null };
+    return { dbPath: dbPath ?? A, get: () => null, getAgentDB: () => ({ embedder: null }) };
   };
   const nativeBridgeDeps = {
     operationContext: { getStore: () => ({ active: true }) }, getRegistry,
     getDb: registry => ({ db: new Driver(registry.dbPath), agentdb: {} }),
     isValidProvenanceType: () => true, generateId: () => 'entry-' + ++nextId,
     embeddingModelLabel: () => 'fixture', // Native 3.75 label helper; no model discovery or download.
+    embedderModelLabel: () => 'fixture', // Native auxiliary label helper; same disposable embedder.
     guardValidate: async () => ({ allowed: true }), embedForBridge: async () => ({ vector: [0.25, 0.75], model: 'fixture' }),
     bridgeFailureReasons: new Map(), canonicalDbPath: value => value ?? A,
     entryCacheKey: slot, cacheInvalidate: async () => {}, logAttestation: async () => {},

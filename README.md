@@ -30,9 +30,12 @@ Fresh installed Mac and HZ MCP clients pass owner-schema discovery and active/al
 reads. Builder's owner PID and start time are unchanged. The originating root received
 the repair handback; existing clients retain their loaded code and cached schemas
 until a controlled client refresh, so their individual recovery is not yet claimed.
-The focused owner suites pass. The full run retains two failures reproduced on the
-unchanged release (`memory-auxiliary-path` and `cwd-session-current`) and seven
-existing private Markdown lint findings; this change does not claim to repair them.
+The focused owner suites pass. The release test run retained two fixture failures
+and seven existing private Markdown lint findings. The 15 November fixture correction
+supplies the native embedding-label dependency and centroid-router module without
+changing runtime code or weakening assertions. Both affected suites now pass,
+including wrong-store reproduction, corrected A/B isolation, native session behavior
+and failure injection.
 Retire this correction when native routed discovery and dispatch agree on the
 authenticated executing owner's contract. Upstream inventory implementation
 [#4712](https://github.com/ruvnet/ruflo/issues/4712) remains unchanged.
@@ -225,6 +228,16 @@ checks may report the executable's deliberate local divergence; their manifests
 are never rewritten to conceal it. Release 4.46.187 supplies this target;
 `brain-forge-jsonl status` reports installed source activation separately from
 full native update recovery, which is not established.
+
+Read-only native rollback inspection on 15 November identifies the immediate
+refresh blocker on both hosts: two measured installer-preserved copies exceed the
+one-copy retention budget (about 3.3 GB retained per host). The native footprint
+proof identifies one unique `SOURCE.json` in each copy, plus one HZ `update.log`.
+The supported archive operation can preserve these files before releasing redundant
+copies; it has not been run for this occurrence. This is a retention guard, not
+evidence that the parser correction failed. Clearing it would still require a
+subsequent native lifecycle refresh to prove recovery; candidate-guard qualification
+remains separate.
 
 `ruflo-memory-owner` preserves bounded native plain-text validation failures
 instead of masking them as missing diagnostics ([source-patch #10](https://github.com/sparkling/ruflo-source-patch/issues/10)).
