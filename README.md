@@ -36,6 +36,9 @@ supplies the native embedding-label dependency and centroid-router module withou
 changing runtime code or weakening assertions. Both affected suites now pass,
 including wrong-store reproduction, corrected A/B isolation, native session behavior
 and failure injection.
+The full 15 November rerun passes all 152 executable suites. `npm test` still exits
+nonzero on the same seven private historical Markdown findings; no executable test
+failure remains in that run.
 Retire this correction when native routed discovery and dispatch agree on the
 authenticated executing owner's contract. Upstream inventory implementation
 [#4712](https://github.com/ruvnet/ruflo/issues/4712) remains unchanged.
