@@ -48,21 +48,29 @@ to closed; that metadata alone does not retire a patch.
 
 Withdrawn custom learning-owner, recall-runtime, PII-policy and tier-consolidation
 implementations remain withdrawn. No caller-validation incident was promoted into
-a new shared patch during this audit. Both full runs, before and after the
-preflight correction, pass all 152 executable suites; `npm test` exits nonzero on
+a new shared patch during this audit. Full runs before and after the generation
+corrections pass all 152 executable suites; `npm test` exits nonzero on
 eight findings in preserved private
 historical Markdown reports, including one added since the 15 November run.
 
-**4.46.193 fresh-generation preflight correction
+**4.46.194 generation composition correction
 ([#13](https://github.com/sparkling/ruflo-source-patch/issues/13)):** the audit
 found that `brain-hook-timeouts` rejected a fresh Codex manifest before the
 preceding `brain-capture-budget` transform could run. Brain 4.7.30's pristine
 Codex manifest is byte-identical to pristine 4.7.28; this was a downstream ordering
 defect. Preflight now validates the existing prerequisite in memory before the
-timeout transform. Actual composition, all-file protection, exact restoration,
+timeout transform. Release 4.46.193 fixed that preflight but deployment exposed
+a retained-generation case after native promotion: the timeout profile replaces
+the capture-budget marker, so capture discovery lost the older bundle. Release
+4.46.194 also reuses timeout-bundle discovery to retain its Codex prerequisite,
+including when ownership remains in another bundle member. Unowned old generations
+remain excluded; no generation is selected or promoted by the patcher.
+Actual composition, all-file protection, exact restoration,
 unknown-anchor refusal and the native SessionEnd cap remain unchanged. Regression
 coverage checks pristine, capture-only and fully composed manifests without
 preflight writes, plus malformed launchers/budgets, missing files and symlinks.
+A separate generation fixture reproduces the discovery failure, then proves
+complete application, idempotence and unchanged native active-generation metadata.
 The underlying temporary timeout mitigation remains subject to its existing
 latency and original-deadline retirement conditions; this fix proves no latency
 improvement. Installed composition and monitor checks are the separate activation

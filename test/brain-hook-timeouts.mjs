@@ -3,6 +3,9 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { VENDOR_SPECS } from '../lib/brain-managed-memory-boundary/transforms.mjs';
 import { patchSource, reverseSource, isPatched, historicalPatchSource, preflight } from '../lib/brain-hook-timeouts/patcher.mjs';
 import { patchSource as captureBudget, isPatched as captureBudgetApplied } from '../lib/brain-capture-budget/patcher.mjs';
 const cmd=(id,ms=9000)=>`node -e "spawn({env:process.env,timeout:Number(process.argv[1])})" ${ms} ${id}`;
@@ -10,6 +13,7 @@ const row=(command,timeout=10)=>[{hooks:[{type:'command',command,timeout}]}];
 const nativeBudget=fs.readFileSync(new URL('./fixtures/brain-session-start-budget-4.7.28.mjs',import.meta.url),'utf8');
 const budgetPatch=patchSource(nativeBudget);assert.deepEqual(budgetPatch.missing,[]);
 assert.equal(reverseSource(budgetPatch.next),nativeBudget);
+const manifests={};
 for(const codex of [true,false]) {
   const command=(id,ms)=>codex?cmd(id,ms):`node "\${CLAUDE_PLUGIN_ROOT}/scripts/hook-shim.mjs" ${id} || true`;
   let source=JSON.stringify({description:'Native fixture',hooks:{
@@ -19,6 +23,7 @@ for(const codex of [true,false]) {
     PreToolUse:row(command('decision-gate write'),5),PostToolUse:row(command('session-snapshot PostToolUse')),
   }},null,2)+'\n';
   const pristine=source;
+  manifests[codex?'codex-hooks.json':'hooks.json']=pristine;
   if(codex)source=captureBudget(source).next;
   const result=patchSource(source);assert.deepEqual(result.missing,[]);
   if(codex) {
@@ -100,4 +105,36 @@ for(const source of [
 ]) {const r=patchSource(source);assert.deepEqual(r.missing,[]);assert.equal(reverseSource(r.next),source);assert(isPatched(r.next));}
 assert(patchSource('export const DEFAULT_DEADLINE_MS = 1901;').missing.length);
 assert(patchSource('export const STAGE_BUDGETS_MS = {\n  restore: 3501,\n};').missing.length);
+// Retained bundle ownership must carry its composition prerequisite across native promotion.
+const home=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'brain-timeout-generations-')));
+try {
+  const brain=path.join(home,'brain');
+  const write=(file,bytes)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,bytes);};
+  for(const version of ['4.7.27','4.7.28','4.7.30']) {
+    const root=path.join(brain,'versions',version);
+    for(const relative of [...VENDOR_SPECS.map(s=>s.relative),'scripts/hook-input.mjs'])write(path.join(root,relative),'// native fixture\n');
+    write(path.join(root,'.claude-plugin/plugin.json'),JSON.stringify({name:'ruvnet-brain',version}));
+    for(const [name,bytes] of Object.entries(manifests))write(path.join(root,'hooks',name),bytes);
+    const recall='export const DEFAULT_DEADLINE_MS = 1900;\nconst budget = Math.min(requested, 1900) : DEFAULT_DEADLINE_MS;';
+    write(path.join(root,'scripts/agentdb-recall.mjs'),version==='4.7.28'?patchSource(recall).next:recall);
+    write(path.join(root,'scripts/session-snapshot-hook.mjs'),'export const CAPTURE_BUDGET_MS = 8_000;');
+    write(path.join(root,'scripts/session-start-budget.mjs'),nativeBudget);
+  }
+  const active=JSON.stringify({version:'4.7.30',codeRoot:'versions/4.7.30'});
+  write(path.join(brain,'active.json'),active);
+  const capture=fileURLToPath(new URL('../lib/brain-capture-budget/patcher.mjs',import.meta.url));
+  const compose=fileURLToPath(new URL('../lib/plugin-compose.mjs',import.meta.url));
+  const code=`import assert from 'node:assert/strict';import fs from 'node:fs';
+    import {discover} from ${JSON.stringify(capture)};import {applyComposed} from ${JSON.stringify(compose)};
+    const files=discover();assert(files.some(f=>f.includes('/4.7.28/')));assert(!files.some(f=>f.includes('/4.7.27/')));
+    const targets=['brain-capture-budget','brain-hook-timeouts'];
+    const first=applyComposed(targets,{cliTargets:[]});assert.equal(first.errors,0,JSON.stringify(first));assert.equal(first.incomplete,0,JSON.stringify(first));
+    const second=applyComposed(targets,{cliTargets:[]});assert.equal(second.patched,0,JSON.stringify(second));assert.equal(second.incomplete,0,JSON.stringify(second));
+    assert.equal(fs.readFileSync(${JSON.stringify(path.join(brain,'active.json'))},'utf8'),${JSON.stringify(active)});`;
+  const result=spawnSync(process.execPath,['--input-type=module','-e',code],{encoding:'utf8',env:{...process.env,
+    RUFLO_SOURCE_PATCH_HOME:home,RSP_RUVNET_BRAIN_HOME:brain,RSP_CODEX_HOME:path.join(home,'codex'),
+    RSP_RUVNET_BRAIN_MARKETPLACE:path.join(home,'empty-marketplace'),RSP_RUVNET_BRAIN_RUNTIME:path.join(home,'empty-runtime'),
+    RUFLO_GLOBAL_ROOT:path.join(home,'empty-global'),RUFLO_NPX_ROOT:path.join(home,'empty-npx')}});
+  assert.equal(result.status,0,result.stderr);
+} finally {fs.rmSync(home,{recursive:true,force:true});}
 console.log('temporary hook timeouts: scoped, bounded, reversible; restore10000/host16000/Codex15500; SessionEnd and other hooks unchanged');
