@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
-import { patchSource, reverseSource, isPatched, historicalPatchSource } from '../lib/brain-hook-timeouts/patcher.mjs';
+import os from 'node:os';
+import { patchSource, reverseSource, isPatched, historicalPatchSource, preflight } from '../lib/brain-hook-timeouts/patcher.mjs';
 import { patchSource as captureBudget, isPatched as captureBudgetApplied } from '../lib/brain-capture-budget/patcher.mjs';
 const cmd=(id,ms=9000)=>`node -e "spawn({env:process.env,timeout:Number(process.argv[1])})" ${ms} ${id}`;
 const row=(command,timeout=10)=>[{hooks:[{type:'command',command,timeout}]}];
@@ -17,8 +18,37 @@ for(const codex of [true,false]) {
     PreCompact:row(command('session-snapshot PreCompact')),SessionEnd:row(command('session-snapshot SessionEnd',2500),codex?3:10),
     PreToolUse:row(command('decision-gate write'),5),PostToolUse:row(command('session-snapshot PostToolUse')),
   }},null,2)+'\n';
+  const pristine=source;
   if(codex)source=captureBudget(source).next;
   const result=patchSource(source);assert.deepEqual(result.missing,[]);
+  if(codex) {
+    const directory=fs.mkdtempSync(path.join(os.tmpdir(),'brain-timeout-preflight-'));
+    const file=path.join(directory,'hooks','codex-hooks.json');
+    fs.mkdirSync(path.dirname(file));
+    try {
+      assert(patchSource(pristine).missing.length,'actual timeout transform still requires capture composition');
+      for(const bytes of [pristine,source,result.next]) {
+        fs.writeFileSync(file,bytes);
+        assert.deepEqual(preflight([file]),{ok:true,errors:[]});
+        assert.equal(fs.readFileSync(file,'utf8'),bytes,'preflight never writes');
+      }
+      for(const mutate of [
+        d=>{d.hooks.Stop[0].hooks[0].timeout=11;},
+        d=>{d.hooks.PreCompact[0].hooks[0].command=cmd('session-snapshot PreCompact',9001);},
+        d=>{d.hooks.Stop[0].hooks[0].command=d.hooks.Stop[0].hooks[0].command.replace('env:process.env,','env:{},');},
+        d=>{delete d.hooks.PreCompact;},
+      ]) {
+        const malformed=JSON.parse(pristine);mutate(malformed);
+        fs.writeFileSync(file,JSON.stringify(malformed));
+        assert.equal(preflight([file]).ok,false);
+      }
+      fs.unlinkSync(file);
+      assert.equal(preflight([file]).ok,false,'missing member refuses');
+      const target=path.join(directory,'original.json');fs.writeFileSync(target,pristine);
+      fs.symlinkSync(target,file);
+      assert.equal(preflight([file]).ok,false,'symlink refuses');
+    } finally {fs.rmSync(directory,{recursive:true,force:true});}
+  }
   assert.equal(reverseSource(result.next),source);assert(isPatched(result.next));
   assert.equal(patchSource(result.next).next,result.next);
   const before=JSON.parse(source),after=JSON.parse(result.next);

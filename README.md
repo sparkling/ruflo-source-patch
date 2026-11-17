@@ -8,6 +8,66 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+**17 November 2026 upgrade and patch audit:** public npm still serves Ruflo and
+`@claude-flow/cli` **3.77.1**. All discovered operational Mac and HZ installations
+now have that version, including global/mise prefixes, project-local copies and
+active npx package locations. All ten Mac and seventeen HZ canonical memory
+services were restarted and passed exact owner-identity checks. The Product
+restart had explicit owner acceptance of possible unsaved learning from its
+historical disk-full failure; that historical write is not claimed recovered.
+
+Fresh qualification passes 106 patch claims across 71 staged files on both
+platforms. Every newly replaced installation passes exact, idempotent patch
+composition and all 15 native dependency checks. Fresh MCP processes pass native
+store, exact readback and a second-process readback in disposable stores, then
+exit. The current Mac global security import resolves its packaged Zod dependency
+and passes eleven native validation cases without manual dependency provisioning.
+
+Activation limits remain explicit: existing stdio clients can retain older loaded
+modules until their owning host safely reconnects them. AI-BA's HZ launcher now
+selects the verified global installation instead of its frozen migration baseline;
+existing author processes were preserved. The frozen baseline, an older noncanonical
+Fabric checkout and a hidden npm replacement directory still contain 3.71.4 and
+were not rewritten or deleted. Project dependency pins and locks now select
+3.77.1; pre-existing project
+changes remain with their integration owners. The local AI-BA dependency commit
+is not claimed integrated into its independently advanced HZ main branch.
+
+The audit checked 465 linked/authored issues and PRs across 13 repositories:
+376 closed, 89 open, zero fetch errors. Four source-patch issues (#4 through #7) changed
+to closed; that metadata alone does not retire a patch.
+
+| Evidence | Current disposition |
+|---|---|
+| [Ruflo #4940](https://github.com/ruvnet/ruflo/issues/4940) | Already closed; fresh Mac installed security import and validation pass. |
+| [Ruflo #4963](https://github.com/ruvnet/ruflo/issues/4963) | Already closed; native missing-package failure behavior qualified. Signed AutoMemory helper activation remains separate. |
+| [Ruflo #3175](https://github.com/ruvnet/ruflo/issues/3175) | Original selector diagnostic qualified; complete Node-version transition and policy scope still prevent broad closure. |
+| [Ruflo #4883](https://github.com/ruvnet/ruflo/issues/4883) | Retain: published 3.77.1 still has the qualified full-history scaling limitation. |
+| [Brain #528](https://github.com/stuinfla/ruvnet-brain/issues/528) | Retain: a new 16 November upstream recurrence is reported; no native refresh recovery proved. |
+| [Brain #525](https://github.com/stuinfla/ruvnet-brain/issues/525) | Retain: downstream repair verified; upstream equivalence and remaining platform/admission proofs outstanding. |
+
+Withdrawn custom learning-owner, recall-runtime, PII-policy and tier-consolidation
+implementations remain withdrawn. No caller-validation incident was promoted into
+a new shared patch during this audit. Both full runs, before and after the
+preflight correction, pass all 152 executable suites; `npm test` exits nonzero on
+eight findings in preserved private
+historical Markdown reports, including one added since the 15 November run.
+
+**4.46.193 fresh-generation preflight correction
+([#13](https://github.com/sparkling/ruflo-source-patch/issues/13)):** the audit
+found that `brain-hook-timeouts` rejected a fresh Codex manifest before the
+preceding `brain-capture-budget` transform could run. Brain 4.7.30's pristine
+Codex manifest is byte-identical to pristine 4.7.28; this was a downstream ordering
+defect. Preflight now validates the existing prerequisite in memory before the
+timeout transform. Actual composition, all-file protection, exact restoration,
+unknown-anchor refusal and the native SessionEnd cap remain unchanged. Regression
+coverage checks pristine, capture-only and fully composed manifests without
+preflight writes, plus malformed launchers/budgets, missing files and symlinks.
+The underlying temporary timeout mitigation remains subject to its existing
+latency and original-deadline retirement conditions; this fix proves no latency
+improvement. Installed composition and monitor checks are the separate activation
+boundary; source regression success alone does not establish deployment.
+
 **4.46.192 routed inventory contract ([#12](https://github.com/sparkling/ruflo-source-patch/issues/12)):**
 `ruflo-memory-owner` now advertises the authenticated executing owner's hierarchical
 list/get metadata through both native stdio entrypoints. Previously a newer client
