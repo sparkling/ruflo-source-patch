@@ -23,10 +23,19 @@ store, exact readback and a second-process readback in disposable stores, then
 exit. The current Mac global security import resolves its packaged Zod dependency
 and passes eleven native validation cases without manual dependency provisioning.
 
-Activation limits remain explicit: existing stdio clients can retain older loaded
-modules until their owning host safely reconnects them. AI-BA's HZ launcher now
-selects the verified global installation instead of its frozen migration baseline;
-existing author processes were preserved. The frozen baseline, an older noncanonical
+**Live Codex activation, 17 November:** native MCP reload and refreshed rollout
+markers bring all 35 loaded Codex sessions (five Mac, thirty HZ) to connected
+Ruflo **3.77.1**, verified through each session's existing connection. No agent
+messages or model prompts were sent. The older HZ Product session also required
+removing a stale explicit database pin to match its already configured canonical
+project owner; native owner identity then passed. No database or alias was changed.
+
+Activation limits remain explicit: four retained standalone Claude processes on
+HZ (one named BA reviewer and three background spares) still have pre-upgrade
+Ruflo clients. The Codex reload cannot refresh those transports; their owning
+Claude hosts must safely reconnect them. They were not killed or replayed.
+AI-BA's HZ launcher now selects the verified global installation instead of its
+frozen migration baseline. The frozen baseline, an older noncanonical
 Fabric checkout and a hidden npm replacement directory still contain 3.71.4 and
 were not rewritten or deleted. Project dependency pins and locks now select
 3.77.1; pre-existing project
@@ -81,8 +90,8 @@ both Mac prefixes and HZ. All 375 packaged files match per installation, and bot
 stable runtime copies match the release. The final retained-generation repair
 changed one manifest on each host with zero incomplete files or errors; both
 monitors now report no drift. This verifies patch deployment and desired installed
-composition, not recovery of historical learning writes, KB refresh freshness or
-reconnection of already-running author clients.
+composition, not recovery of historical learning writes or KB refresh freshness.
+Live client activation and its remaining Claude limitation are reported above.
 
 **4.46.192 routed inventory contract ([#12](https://github.com/sparkling/ruflo-source-patch/issues/12)):**
 `ruflo-memory-owner` now advertises the authenticated executing owner's hierarchical
