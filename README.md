@@ -76,6 +76,14 @@ latency and original-deadline retirement conditions; this fix proves no latency
 improvement. Installed composition and monitor checks are the separate activation
 boundary; source regression success alone does not establish deployment.
 
+**17 November activation verified:** immutable tag `v4.46.194` is installed in
+both Mac prefixes and HZ. All 375 packaged files match per installation, and both
+stable runtime copies match the release. The final retained-generation repair
+changed one manifest on each host with zero incomplete files or errors; both
+monitors now report no drift. This verifies patch deployment and desired installed
+composition, not recovery of historical learning writes, KB refresh freshness or
+reconnection of already-running author clients.
+
 **4.46.192 routed inventory contract ([#12](https://github.com/sparkling/ruflo-source-patch/issues/12)):**
 `ruflo-memory-owner` now advertises the authenticated executing owner's hierarchical
 list/get metadata through both native stdio entrypoints. Previously a newer client
