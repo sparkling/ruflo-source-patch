@@ -13,7 +13,10 @@ from the HZ memory-owner registry and retained the legacy segmented policy forma
 Its configured native owner now preserves both canonical store paths. The existing
 conversion helper verified all **91,954 policy receipts** and preserved the expanded
 history hash, signatures and trust; no policy reset or historical capture replay
-was used. Session/client verification is recorded separately from installation.
+was used. The existing Codex session passed native search, statistics and exact
+value readback. A fresh checkpoint was stored, read back and restored; the final
+installed-hook restore completed in **1,312 ms**. This does not recover or replay
+historical failed captures. The native owner reports **87,633 active entries**.
 
 Release **4.46.196** extends [Brain #522](https://github.com/stuinfla/ruvnet-brain/issues/522)
 so promptly failed lists no longer appear as restore timeouts. It also authenticates
@@ -22,10 +25,16 @@ partial contributions still refuse installation. Focused tests pass;
 the full run retains three unrelated code failures reproduced on unchanged `main`
 (`untested`, `cwd-current`, `cwd-session-current`) and eight Markdown findings in
 untracked private evidence. The changed README and ADR pass their lint checks.
+The diagnostic composition is verified on all **12 Mac / 10 HZ** discovered
+core/hook files. Executable tests against the installed Brain 5.0.0 code pass on
+both hosts. The broader installer still reports unrelated newer-npx owner/policy
+anchor gaps and Brain 5.0.0 recall-owner-reuse preflight gaps; this is not a claim
+that every shared patch is healthy.
 
 Current npm serves Ruflo/CLI **3.80.7**. Staging qualification found five incompatible
 claims: two init surfaces, policy serialization, policy ledger and memory-owner
-routing. Live packages remain on qualified **3.77.1**; this audit does not claim
+routing. Semantic-control's canonical package and connected client remain on
+qualified **3.77.1**; this audit does not claim
 latest-version activation. The shared Brain runtime remains **5.0.0**, selected by
 its native lifecycle; no manual Brain upgrade or corpus cleanup was performed.
 
@@ -3376,7 +3385,7 @@ installed disposition; those historical version numbers are not a fresh fleet au
 | **`brain-progression-suspension`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** Reversible, operator-authorized containment of automatic full-snapshot capture, replay and restore. Retains existing memory/pending work, keeps native updates and ordinary memory available, and reports continuity unavailable without fabricating receipts. | [#390 · closed](https://github.com/stuinfla/ruvnet-brain/issues/390) |
 | **`brain-wrapper-ownership`** | Accepts behaviorally proven native prior-generation ownership without edits; older installers retain exact published historical-wrapper compatibility and ownership guards. No manual wrapper replacement or generation promotion. | [#420 · closed](https://github.com/stuinfla/ruvnet-brain/issues/420) |
 | **`brain-host-recovery`** | **Retired on native behavior proof; older compatibility only.** Native path-specific boot recovery, complete helper dependencies and causal refresh attribution supersede the local repair. Existing sessions are not claimed refreshed. | [#391 · closed](https://github.com/stuinfla/ruvnet-brain/issues/391) |
-| **`brain-restore-diagnostics`** | Preserve native restored/partial context in quiet SessionStart output and keep the failure explanation with its header. List failures retain safe terminal-failure, unavailable, cancelled and timed-out categories; timeout wording requires an observed deadline. All failed checkpoint lists still mean unknown continuity. The private logger retains bounded timing and cause metadata, never memory values or raw exception text. Deadlines, owner guards and updater remain unchanged. This is a reporting repair, not a memory-binding or latency fix. The November 25 extension passes focused regression tests; live activation is pending. | [#522 · open](https://github.com/stuinfla/ruvnet-brain/issues/522) |
+| **`brain-restore-diagnostics`** | Preserve native restored/partial context in quiet SessionStart output and keep the failure explanation with its header. List failures retain safe terminal-failure, unavailable, cancelled and timed-out categories; timeout wording requires an observed deadline. All failed checkpoint lists still mean unknown continuity. The private logger retains bounded timing and cause metadata, never memory values or raw exception text. Deadlines, owner guards and updater remain unchanged. This is a reporting repair, not a memory-binding or latency fix. Release 4.46.196 is active on both hosts: all 12 Mac / 10 HZ discovered core/hook files pass exact composition, and installed-code failure-category tests pass. Separate shared preflight gaps remain disclosed above. | [#522 · open](https://github.com/stuinfla/ruvnet-brain/issues/522) |
 | **`flywheel-daily`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired.** Upstream's atomic per-project/local-day claim passes repeat/day/project/enabled/eight-way-concurrency probes | [stuinfla/ruvnet-brain#53 · closed](https://github.com/stuinfla/ruvnet-brain/issues/53) |
 | **`codex-hooks`** | **Retired.** Brain 4.0.2 replaced the legacy bridge with a native six-event lifecycle. Brain 4.3.10 subsequently withdrew automatic host hooks and ships an explicit schema-valid empty Codex registry. The target accepts either proven native state and never recreates hooks Brain deliberately removed; `/hooks` trust remains user-owned | [stuinfla/ruvnet-brain#52 · closed](https://github.com/stuinfla/ruvnet-brain/issues/52) |
 | **`brain-codex-skills`** | **Native replacement proved in the 2026-10-10 audit; retained only for older copies.** **Retired on executable proof in Brain 4.0.12.** The active immutable plugin payload contains the skill, manifest, curated notes, and `scripts/whats-new.mjs`; the installed executable returns its exact version and fails nonzero when the notes are removed. The retirement restores only locally owned legacy bytes and preserves the native workflow | [stuinfla/ruvnet-brain#76 · closed](https://github.com/stuinfla/ruvnet-brain/issues/76) · [PR #110](https://github.com/stuinfla/ruvnet-brain/pull/110) |
