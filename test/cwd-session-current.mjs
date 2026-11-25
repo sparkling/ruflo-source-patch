@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { REPO, findVendorRootWith, pristineBytes } from './fixtures.mjs';
+import { REPO, findVendorRootWith, pristineBytes, stageNativeRootDependencies } from './fixtures.mjs';
 import { ENTRIES, composeCliContribution } from '../lib/cwd/patch-library.mjs';
 
 const SB = path.resolve(process.argv[2]);
@@ -40,6 +40,8 @@ if (pristine.includes("from '../services/dispatch-queue.js'"))
   dependencies.push('services/dispatch-queue.js');
 if (pristine.includes("from '../ruvector/centroid-router.js'"))
   dependencies.push('ruvector/centroid-router.js');
+if (pristine.includes("from '../init/settings-risk-scanner.js'"))
+  dependencies.push('init/settings-risk-scanner.js');
 // Ruflo 3.66 extracts lesson projection into a required static dependency. Keep
 // the native module intact so a missing fixture import cannot masquerade as an
 // optional ingestion failure (ingestVerifiedQuietly would otherwise return null).
@@ -54,6 +56,7 @@ for (const modern of [true, false]) {
   write(path.join(CLI, 'package.json'), '{"name":"@claude-flow/cli","type":"module"}');
   for (const rel of dependencies) write(path.join(CLI, 'dist/src', rel),
     pristineBytes(path.join(SOURCE, '@claude-flow/cli/dist/src', rel)));
+  stageNativeRootDependencies(SOURCE, CLI);
   const core = path.join(NM, '@claude-flow/cli-core');
   write(path.join(core, 'package.json'), pristineBytes(path.join(SOURCE, '@claude-flow/cli-core/package.json')));
   for (const name of ['types', 'validate-input']) write(path.join(core, 'dist/src/mcp-tools', `${name}.js`),

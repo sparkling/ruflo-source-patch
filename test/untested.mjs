@@ -629,6 +629,7 @@ async function initCodexAction(ctx) {
     fs.mkdirSync(path.dirname(dest),{recursive:true});
     fs.writeFileSync(dest,pristineBytes(path.join(distSrc,rel)));
   }
+  if (exePristine.includes("from './pinning.js'")) fs.writeFileSync(path.join(fakeInit,'pinning.js'),pristineBytes(path.join(initSrc,'pinning.js')));
   fs.writeFileSync(initCommand, initCommandPristine);
   fs.mkdirSync(path.dirname(nestedGlobalCommand), { recursive: true });
   fs.writeFileSync(path.join(nestedGlobalRoot, 'package.json'), JSON.stringify({ name: '@claude-flow/cli', version: '0.0.0' }));
@@ -642,10 +643,13 @@ async function initCodexAction(ctx) {
   // Keep the older unconditional compatibility path exercised separately.
   const legacyGen = path.join(legacyRoot,'dist/src/init/mcp-generator.js');
   const legacyExe = path.join(legacyRoot,'dist/src/init/executor.js');
+  const legacyGenPristine = 'export function generateMCPConfig(config) {\n    const mcpServers = {};\n'
+    + patchLibrary.ENTRIES.find(entry => entry.id === 'init/no-standalone-mcp').edits[0].find
+    + '\n        });\n    }\n    return { mcpServers };\n}\n';
   const legacyExePristine = 'export async function executeInit(options) {\n'
     + patchLibrary.ENTRIES.find(entry => entry.id === 'init/no-bundle').edits.map(edit => edit.find + '\n        }').join('\n') + '\n}\n';
   fs.mkdirSync(path.dirname(legacyGen),{recursive:true});
-  fs.writeFileSync(legacyGen,genPristine); fs.writeFileSync(legacyExe,legacyExePristine);
+  fs.writeFileSync(legacyGen,legacyGenPristine); fs.writeFileSync(legacyExe,legacyExePristine);
   const r = cli(['init', 'install']);
   if (r.status !== 0) fail(`II1 init install failed:\n${out(r)}`);
   const g = fs.readFileSync(gen, 'utf8'), e = fs.readFileSync(exe, 'utf8'), c = fs.readFileSync(initCommand, 'utf8');
@@ -694,7 +698,7 @@ async function initCodexAction(ctx) {
   if (uninstall.status !== 0) fail(`II4 init uninstall failed:\n${out(uninstall)}`);
   if (fs.readFileSync(gen, 'utf8') !== genPristine) fail('II4 init uninstall did not restore mcp-generator.js byte-for-byte');
   if (fs.readFileSync(exe, 'utf8') !== exePristine) fail('II4 init uninstall did not restore executor.js byte-for-byte');
-  if (fs.readFileSync(legacyGen,'utf8') !== genPristine || fs.readFileSync(legacyExe,'utf8') !== legacyExePristine) fail('II4 explicit legacy init did not restore exactly');
+  if (fs.readFileSync(legacyGen,'utf8') !== legacyGenPristine || fs.readFileSync(legacyExe,'utf8') !== legacyExePristine) fail('II4 explicit legacy init did not restore exactly');
   if (fs.readFileSync(initCommand, 'utf8') !== initCommandPristine) fail('II4 init uninstall did not restore commands/init.js byte-for-byte');
   if (fs.readFileSync(nestedGlobalCommand, 'utf8') !== initCommandPristine) {
     fail('II4 init uninstall did not restore the nested global ruflo CLI byte-for-byte');

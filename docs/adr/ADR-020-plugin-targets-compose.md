@@ -2,6 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-25. Release 4.46.197 qualifies Ruflo 3.80.7's native
+init pinning and atomic policy-lock publication without replacing their behavior.
+Owner namespace projection preserves native read-only discovery. Brain 5.0.0's
+LF-only reader retains its parser while receiving the existing search and EOF
+drain correction. Exact anchors, executable native proofs, reversal, unknown-byte
+refusal and separate installed/client activation remain required.
 **Updated**: 2026-11-25. Brain #522 retains safe list-failure categories through
 SessionStart restoration. Terminal CLI failures, native unavailability and
 cancellation no longer become timeout messages. Timeout wording requires an

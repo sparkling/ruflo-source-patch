@@ -28,6 +28,7 @@ for (const pkg of ['cli', 'cli-core']) write(path.join(nm, '@claude-flow', pkg, 
 const helper = copy('@claude-flow/cli/dist/src/services/project-root.js');
 const memoryRoot = copy('@claude-flow/cli/dist/src/memory/memory-root.js');
 const initPaths = {executor:'init/executor.js', mcp:'init/mcp-generator.js', types:'init/types.js', dedup:'init/plugin-dedup.js', registry:'mods/plugin-resolve.js'};
+if (fs.existsSync(path.join(vendor, '@claude-flow/cli/dist/src/init/pinning.js'))) initPaths.pinning = 'init/pinning.js';
 const initFiles = Object.fromEntries(Object.entries(initPaths).map(([k, rel]) => [k, copy('@claude-flow/cli/dist/src/' + rel)]));
 const sources = Object.fromEntries(Object.entries(initFiles).map(([k, f]) => [k, fs.readFileSync(f, 'utf8')]));
 const snapshot = new Map([...rows.map(r => [r.file, r.source]), ...Object.entries(initFiles).map(([k, f]) => [f,sources[k]])]);
@@ -55,7 +56,7 @@ try {
   assert.equal(proveNativeInit(sources), 12);
   for (const key of ['executor','mcp']) assert.equal(nativeInitSatisfied(sources[key],initFiles[key]),true);
   assert.equal(nativeInitSatisfied(sources.executor.replace("from './mcp-generator.js'","from './unqualified.js'"),initFiles.executor),false,'import routing drift');
-  for (const key of ['dedup','registry','types','mcp']) {
+  for (const key of ['dedup','registry','types','mcp', ...(sources.pinning ? ['pinning'] : [])]) {
     write(initFiles[key], sources[key] + '\n// unknown dependency');
     assert.equal(nativeInitSatisfied(sources.executor,initFiles.executor), false, 'init dependency: ' + key);
     assert.equal(nativeOnlyPreflight(initFiles.executor,[ENTRIES.find(e => e.id === 'init/no-bundle')]).ok,false);
@@ -100,7 +101,9 @@ try {
   const ownedUninstall = apply([]);
   assert.equal(ownedUninstall.errors,0,JSON.stringify(ownedUninstall));
   assert.equal(fs.readFileSync(initFiles.mcp,'utf8'),sources.mcp);
-  assert.equal(fs.existsSync(initFiles.mcp + '.rsp-backup'),false);
+  assert.equal(fs.existsSync(initFiles.mcp + '.rsp-backup'),!sources.mcp.includes(mcpEntry.edits[0].find),
+    'only an actually owned legacy contribution authorizes uninstalling its backup');
+  fs.rmSync(initFiles.mcp + '.rsp-backup',{force:true});
   // A complete legacy invocation retains the reversible exact compatibility edit.
   write(path.join(nm,'@claude-flow/cli/package.json'),JSON.stringify({name:'@claude-flow/cli',version:'3.71.4',type:'module'}));
   const legacyExecutor = ENTRIES.find(e => e.id === 'init/no-bundle').edits.map(e => e.find).join('\n');

@@ -31,12 +31,29 @@ both hosts. The broader installer still reports unrelated newer-npx owner/policy
 anchor gaps and Brain 5.0.0 recall-owner-reuse preflight gaps; this is not a claim
 that every shared patch is healthy.
 
-Current npm serves Ruflo/CLI **3.80.7**. Staging qualification found five incompatible
-claims: two init surfaces, policy serialization, policy ledger and memory-owner
-routing. Semantic-control's canonical package and connected client remain on
-qualified **3.77.1**; this audit does not claim
-latest-version activation. The shared Brain runtime remains **5.0.0**, selected by
-its native lifecycle; no manual Brain upgrade or corpus cleanup was performed.
+**25 November upgrade qualification, release 4.46.197:** published Ruflo/CLI
+**3.80.7** passes all **106 staged patch claims**. Compatibility now recognizes
+native init version pinning and copied assets, qualifies native atomic policy-lock
+publication with the existing 5,000-receipt preservation proof, and preserves
+native `readOnly:true` during owner namespace discovery. Brain **5.0.0** retains
+its LF-only reader while receiving the existing shared-search and pending-read
+drain correction ([#429](https://github.com/stuinfla/ruvnet-brain/issues/429)).
+Native 5.0 still drops accepted reads at EOF; retirement is not justified.
+All 153 executable regression suites pass. `npm test` still exits nonzero on
+eight existing Markdown findings in untracked private evidence; the changed
+README and ADR pass. Mac staged composition is idempotent; all 15 native dependency checks, an exact
+native memory round trip and second-process readback pass. Installation and live
+client activation remain separate checks and are not yet claimed by this entry.
+
+The contribution audit covers **604 issues and PRs across 41 repositories**:
+118 open, 486 closed, zero unresolved fetch errors. The patch-related subset has
+467 records across 14 repositories. Closed metadata alone does not retire patches.
+Native exact AIDefence known-miss retraction is now verified on 3.77.1 and 3.80.7
+([#4862](https://github.com/ruvnet/ruflo/issues/4862)); no historical entry was
+changed. Brain runtime 5.0.0 is current, but its November 10 corpus and preserved
+copy guard remain separate from runtime compatibility. The owner authorized
+native archive cleanup on both hosts; its result and the subsequent native
+refresh must be verified independently. No manual Brain upgrade is authorized.
 
 **17 November 2026 upgrade and patch audit:** public npm still serves Ruflo and
 `@claude-flow/cli` **3.77.1**. All discovered operational Mac and HZ installations
@@ -2339,10 +2356,15 @@ never as an active policy patch or an instruction to reinstall it. Read-only
 status fails when restoration is unproved, including when no files are discovered.
 A native known-miss wrongly recorded by PII feedback remains evidence of that
 feedback artifact, not proof that a contextually reviewed document is malicious.
-No supported exact retraction was found ([#4862](https://github.com/ruvnet/ruflo/issues/4862));
-no raw registry/store edit, feedback replay or mandatory clean rescan is required
-for the owner's reviewed admission decision. Actual non-PII threats and genuine
-operational errors retain their controls.
+At the original report, no supported exact retraction had been found
+([#4862](https://github.com/ruvnet/ruflo/issues/4862), now closed). The 25 November
+audit verifies native `aidefence_learn` with `retract:true`, the original input and
+the exact `threatType` on both 3.77.1 and 3.80.7. Six isolated cases preserve an
+independent control and prove wrong-type, absent-input and repeated requests are
+no-ops. No historical learning was retracted; its identity and custody still need
+case-specific verification. No raw store edit, feedback replay or mandatory clean
+rescan is required for the owner's reviewed admission decision. Actual non-PII
+threats and genuine operational errors retain their controls.
 
 `ruflo-atomic-write` fixes the native `fs-secure.writeFileAtomic` short-write
 publication gap ([#4888](https://github.com/ruvnet/ruflo/issues/4888)). It reuses
@@ -3349,12 +3371,14 @@ installed disposition; those historical version numbers are not a fresh fleet au
 |--------|---------------|----------|
 | **`ruflo-policy-anchor-copy`** | Reuse fully authenticated history only with a single-use exact-byte digest checked during atomic publication; preserve native fallback and all receipts. | [#3164](https://github.com/ruvnet/ruflo/issues/3164) |
 | **`brain-capture-budget`** | Aligns Stop/PreCompact's native override with their existing launcher budget. Preserves SessionEnd, wrapper ownership and exact readback. | [#513 · open](https://github.com/stuinfla/ruvnet-brain/issues/513) |
+| **`brain-codex-input`** | Preserve the native Codex event envelope and complete input through lifecycle dispatch; installation does not prove every host admission path. | [#525](https://github.com/stuinfla/ruvnet-brain/issues/525) |
 | **`brain-hook-timeouts`** | Operator-requested temporary 10s restore / 20s recall / 30s capture budgets with matching outer limits; preserves native checks and SessionEnd host cap. Remove after latency repair qualifies upstream defaults. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513), [#523](https://github.com/stuinfla/ruvnet-brain/issues/523) |
 | **`brain-capture-diagnostics`** | Keep hashed failure scope through deduplication and detached callers; retain redacted checkpoint stderr and terminal state. Native admission and persistence remain unchanged. | [#518 · open](https://github.com/stuinfla/ruvnet-brain/issues/518) |
 | **`brain-capture-launch`** | Serialize capture metadata across admission, dead-owner reclamation, handoff, pruning and token-matched cleanup. Preserve two native writers and at most eight metadata-only waiters within the original host deadline, truthful overload and exact acknowledgement. No payload queue or replay. | [#519 · open](https://github.com/stuinfla/ruvnet-brain/issues/519) · [#521 · open](https://github.com/stuinfla/ruvnet-brain/issues/521) |
 | **`brain-capture-idempotency`** | Native store/read process reuse, bounded fresh lifecycle handoff and read-only reconciliation through the unchanged complete turn constructor. | [#520](https://github.com/stuinfla/ruvnet-brain/issues/520), [#513](https://github.com/stuinfla/ruvnet-brain/issues/513) |
 | **`brain-turn-status`** | Distinguish live pending capture, unconfirmed ownership and scoped historical warnings using bounded current/rotated receipts. | [#524](https://github.com/stuinfla/ruvnet-brain/issues/524) |
 | **`brain-recall-runtime`** | Adapter withdrawn; restore native recall execution and retain exact historical reversal. | [#514 · closed: downstream-confounded report](https://github.com/stuinfla/ruvnet-brain/issues/514) |
+| **`ruflo-pii-policy`** | Withdrawn policy override; restore exact native behavior and preserve informational PII-only workflow policy. | [#4861](https://github.com/ruvnet/ruflo/issues/4861) |
 | **`brain-recall-owner-reuse`** | Reuse the existing native reader for same-store semantic search; retain curated evidence and confirm child retirement. | [#429](https://github.com/stuinfla/ruvnet-brain/issues/429) |
 | **`ruflo-memory-owner`** | Opt-in downstream owner forwarding, exact path authority, immutable public/CLI results and native daemon client reuse; separate from the completed native daemon-stop fix. | [#4654 · closed: native health and daemon stop](https://github.com/ruvnet/ruflo/issues/4654) |
 | **`ruflo-http-sessions`** | Bind native HTTP requests to their own session and authenticated principal; return session IDs and pre-dispatch expiry responses so clients can reinitialize after replacement. Preserve native completion retirement and legacy SSE binding. | [#3294 · open](https://github.com/ruvnet/ruflo/issues/3294) |

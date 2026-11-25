@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { unifiedSearchYield, unifiedConcurrentSearchYield, unifiedSearchScheduling, unifiedNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
+import { unifiedSearchYield, unifiedConcurrentSearchYield, unifiedSearchScheduling, unifiedNamespaceProjection, unifiedReadOnlyNamespaceProjection } from '../lib/ruflo-memory-owner/patcher.mjs';
 
 // Exact native 3.71.4 handler, evaluated only with inert storage functions. Never
 // import an installed memory/learning module: CWD/HOME do not isolate its stores.
@@ -99,3 +99,16 @@ for (const args of [{ query: 'q', namespaces: ['default', 'throws', 'auto-memory
   assert.deepEqual((await exercise(concurrentFixed, args)).result, (await exercise(concurrent, args)).result);
 }
 console.log('PASS native 3.75 four-worker fairness: reproduced starvation, preserved ordered outcomes and partial-failure reporting');
+
+// Exact 3.80 handler differs only by the native readOnly namespace-list option.
+const readOnly = fs.readFileSync(new URL('./fixtures/ruflo-memory-owner/unified-search-3.80.7.js', import.meta.url), 'utf8');
+assert.equal(readOnly, concurrent.replace('limit: 100000', 'limit: 100000, readOnly: true'));
+const readOnlyFixed = readOnly.replace(...unifiedConcurrentSearchYield).replace(...unifiedReadOnlyNamespaceProjection);
+const readOnlyBefore = await exercise(readOnly, input), readOnlyAfter = await exercise(readOnlyFixed, input);
+assert.deepEqual(readOnlyAfter.result, readOnlyBefore.result);
+assert.deepEqual(readOnlyAfter.calls, readOnlyBefore.calls);
+assert.deepEqual(readOnlyAfter.pages, [{limit:100000,readOnly:true,namespaceOnly:true}], 'native read-only guarantee remains present');
+assert(readOnlyAfter.servedAfter < 79);
+assert.equal(readOnlyFixed.replace(unifiedConcurrentSearchYield[1], unifiedConcurrentSearchYield[0])
+  .replace(unifiedReadOnlyNamespaceProjection[1], unifiedReadOnlyNamespaceProjection[0]), readOnly);
+console.log('PASS native 3.80 namespace discovery: readOnly preserved with namespace-only projection and bounded worker fairness');

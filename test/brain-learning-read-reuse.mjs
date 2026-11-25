@@ -10,7 +10,8 @@ import { composeSource } from '../lib/plugin-compose.mjs';
 import { isKnownComposition } from '../lib/composition-proof.mjs';
 import { descriptor } from '../lib/brain-recall-owner-reuse/patcher.mjs';
 
-const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/brain-recall-native-4.7.28.json', import.meta.url)));
+const modernReader = process.argv.includes('--lf-reader');
+const fixture = JSON.parse(fs.readFileSync(new URL(`./fixtures/brain-recall-native-${modernReader ? '5.0.0' : '4.7.28'}.json`, import.meta.url)));
 const reader = fixture.sources['agentdb-recall-reader.mjs'].source;
 const learning = fs.readFileSync(new URL('./fixtures/brain-user-learning-root/learning-store-native-4.7.21.mjs', import.meta.url), 'utf8');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rsp-learning-read-'));
@@ -27,6 +28,7 @@ try {
   assert(composed.includes('capture-step-timing')); assert(composed.includes('readLearningThroughNativeProcess'));
   const script = path.join(root, 'agentdb-recall-reader.mjs'), module = path.join(root, 'memory.mjs'), log = path.join(root, 'calls.jsonl');
   fs.writeFileSync(script, fixedReader.next);
+  if (modernReader) fs.writeFileSync(path.join(root, 'lf-lines.mjs'), fixture.helpers['lf-lines.mjs'].source);
   fs.writeFileSync(path.join(root, 'ruflo-bin.mjs'), 'export const resolveRuflo=()=>null; export const rufloInvocationOrPlain=()=>{throw Error("Unexpected CLI fallback")};');
   fs.writeFileSync(module, `import fs from 'node:fs';
 export const resolveDbPath=p=>p; export const listEntries=async()=>({success:true,entries:[]});
@@ -68,6 +70,18 @@ export async function getEntry(args){
   const exact = run('ok'); assert.equal(exact.status, 0); assert.equal(exact.stdout, '  exact\nvalue  ');
   assert.equal(cliCalls, 0); assert.deepEqual(JSON.parse(fs.readFileSync(log, 'utf8')), { key, namespace: 'learning-observations', dbPath: db });
   assert.equal(run('large').stdout.length, 45000, 'EOF waits for the complete pipe response to flush');
+  if (modernReader) {
+    assert(fixedReader.next.includes("import { lfLineReader } from './lf-lines.mjs';"));
+    const namespace = 'literal\u2028separator\u2029namespace';
+    const response = spawnSync(process.execPath, [script, '--session', db, pathToFileURL(module).href], {
+      input: JSON.stringify({ id: 8, op: 'get', key, namespace }) + '\r\n', encoding: 'utf8',
+      env: { ...process.env, CASE: 'ok', CALL_LOG: log }, timeout: 1500,
+    });
+    assert.equal(response.status, 0);
+    assert.equal(JSON.parse(response.stdout.trim().split('\n').at(-1)).id, 8);
+    assert.equal(JSON.parse(fs.readFileSync(log, 'utf8').trim().split('\n').at(-1)).namespace, namespace,
+      'published LF parser retains Unicode separators inside one request');
+  }
   for (const mode of ['missing', 'refusal', 'throw', 'shape']) {
     assert.equal(run(mode).status, 1); assert.equal(cliCalls, 0, 'no second native read after dispatch');
   }
@@ -89,3 +103,7 @@ export async function getEntry(args){
   assert(!fs.existsSync(db));
   console.log('Learning read reuse: native EOF defect reproduced; exact delayed/large output, explicit binding, bounded timeout, no replay, unchanged CLI writes and composition PASS');
 } finally { fs.rmSync(root, { recursive: true, force: true }); }
+if (!modernReader) {
+  const result = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--lf-reader'], { stdio: 'inherit' });
+  assert.equal(result.status, 0, 'Brain 5.0 LF-reader assembly');
+}

@@ -8,7 +8,8 @@ import dc from 'node:diagnostics_channel';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/brain-recall-native-4.7.28.json', import.meta.url), 'utf8'));
+const modernReader = process.argv.includes('--lf-reader');
+const fixture = JSON.parse(fs.readFileSync(new URL(`./fixtures/brain-recall-native-${modernReader ? '5.0.0' : '4.7.28'}.json`, import.meta.url), 'utf8'));
 const learningNative = fs.readFileSync(new URL('./fixtures/brain-user-learning-root/learning-store-native-4.7.21.mjs', import.meta.url), 'utf8');
 const nativeSource = file => path.basename(file) === 'learning-store.mjs' ? learningNative : fixture.sources[path.basename(file)].source;
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -33,7 +34,11 @@ for (const [name, entry] of Object.entries(fixture.sources)) {
     assert.equal(patchSource(result.next).next, result.next);
     assert.equal(reverseSource(result.next), source);
     assert(!result.next.includes('RUFLO_BRIDGE_MEMORY_ENTRIES_ONLY'));
-    const spec = SPECS.find(row => row.relative.endsWith('/' + name));
+    const originalSpec = SPECS.find(row => row.relative.endsWith('/' + name));
+    const spec = modernReader && name === 'agentdb-recall-reader.mjs' ? { ...originalSpec,
+      edits: originalSpec.edits.map(([id, from, to]) => [id,
+        from.replace('readline.createInterface({ input: process.stdin })', 'lfLineReader(process.stdin)'),
+        to.replace('readline.createInterface({ input: process.stdin })', 'lfLineReader(process.stdin)')]) } : originalSpec;
     const released = spec.edits.filter(([id]) => !['presence-only-option', 'presence-only-limit', 'turn-presence-only'].includes(id))
       .reduce((text, [, from, to]) => text.replace(from, () => to), source);
     assert.equal(patchSource(released).next, result.next, 'exact4.46.120 composition migrates');
@@ -414,3 +419,4 @@ try {
   fs.rmSync(base, { recursive: true, force: true });
 }
 console.log(`brain-recall-owner-reuse: full native assembly, ${modes.length} lifecycle cases and exact restoration passed`);
+if (!modernReader) execFileSync(process.execPath, [new URL(import.meta.url).pathname, '--lf-reader'], { stdio: 'inherit' });

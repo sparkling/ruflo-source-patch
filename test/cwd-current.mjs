@@ -116,6 +116,8 @@ function reset() {
       fs.writeFileSync(destination, pristineBytes(source));
     }
   }
+  if (read('helpers').includes("from './pinning.js'")) fs.writeFileSync(path.join(CLI,'dist/src/init/pinning.js'),
+    pristineBytes(path.join(SOURCE,'@claude-flow/cli/dist/src/init/pinning.js')));
   for (const rel of Object.values(AGENT_REL)) {
     const destination = path.join(AGENTDB, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
