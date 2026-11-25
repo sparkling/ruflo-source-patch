@@ -18,18 +18,14 @@ value readback. A fresh checkpoint was stored, read back and restored; the final
 installed-hook restore completed in **1,312 ms**. This does not recover or replay
 historical failed captures. The native owner reports **87,633 active entries**.
 
-Release **4.46.196** extends [Brain #522](https://github.com/stuinfla/ruvnet-brain/issues/522)
+Release **4.46.196** extended [Brain #522](https://github.com/stuinfla/ruvnet-brain/issues/522)
 so promptly failed lists no longer appear as restore timeouts. It also authenticates
 the previous observer against its saved pristine before upgrading; modified or
-partial contributions still refuse installation. Focused tests pass;
-the full run retains three unrelated code failures reproduced on unchanged `main`
-(`untested`, `cwd-current`, `cwd-session-current`) and eight Markdown findings in
-untracked private evidence. The changed README and ADR pass their lint checks.
+partial contributions still refuse installation.
 The diagnostic composition is verified on all **12 Mac / 10 HZ** discovered
 core/hook files. Executable tests against the installed Brain 5.0.0 code pass on
-both hosts. The broader installer still reports unrelated newer-npx owner/policy
-anchor gaps and Brain 5.0.0 recall-owner-reuse preflight gaps; this is not a claim
-that every shared patch is healthy.
+both hosts. Release 4.46.197 resolves the newer-package composition and fixture
+failures found during that audit; its final regression results follow.
 
 **25 November upgrade qualification, release 4.46.197:** published Ruflo/CLI
 **3.80.7** passes all **106 staged patch claims**. Compatibility now recognizes
@@ -39,25 +35,84 @@ native `readOnly:true` during owner namespace discovery. Brain **5.0.0** retains
 its LF-only reader while receiving the existing shared-search and pending-read
 drain correction ([#429](https://github.com/stuinfla/ruvnet-brain/issues/429)).
 Native 5.0 still drops accepted reads at EOF; retirement is not justified.
-All 153 executable regression suites pass. `npm test` still exits nonzero on
+All **153 executable regression suites pass**. `npm test` still exits nonzero on
 eight existing Markdown findings in untracked private evidence; the changed
-README and ADR pass. Mac staged composition is idempotent; all 15 native dependency checks, an exact
-native memory round trip and second-process readback pass. Installation and live
-client activation remain separate checks and are not yet claimed by this entry.
+README and ADR pass. Mac and HZ staged compositions are idempotent; all 15 native
+dependency checks, an exact native memory round trip and second-process readback
+pass. Installed composition and live activation are checked separately below.
+
+**Installed and activated, 25 November:** Ruflo/CLI **3.80.7** is installed in
+all **14 operational package roots** across Mac and HZ. All **28 canonical memory
+services** (10 Mac, 18 HZ) have fresh processes, verified owner identities and
+qualified package bindings. All **33 loaded Codex sessions** (7 Mac, 26 HZ)
+report connected Ruflo 3.80.7. Four HZ project configurations retained older
+rollout markers; refreshing their inherited user-level marker activated those
+clients without editing project settings. Semantic-control's original checkpoint
+has identical content before and after its client refresh. The idle Mac Claude
+session also reconnected its named Ruflo server through native `/mcp reconnect`,
+preserving its conversation and process. No broadcast or model prompt was sent.
+
+Source-patch **4.46.197** is installed in three Mac prefixes and HZ: all **375
+packaged files** match the immutable release per installation, and both stable
+runtime copies match all **370 library files**. Both complete status checks and
+patch monitor checks pass with no drift.
+
+Fabric requires an explicit dependency qualification: its generic resolver matrix
+is **13/15**, with two direct SDK lookups outside the actual CLI/memory loading
+path. Installed source proves that path loads AgentDB's own **RVF 0.4.12** and
+native **0.4.7**. That combination passes a disposable vector write/query and
+fresh-process reopen, alongside the ordinary native memory round trip. The
+attempted root SDK 0.2.3 binding failed the reopen comparison and was withdrawn;
+it is not used as a workaround. The optional MetaHarness kernel RVF adapter remains
+unavailable, and unrelated application dependency versions were preserved.
+
+Activation limits: **two retained HZ Claude sessions still hold three older
+Ruflo clients**. Their running launchers expose no supported external MCP reconnect
+control, so authors and uncertain custody were preserved. These clients require
+an owner-controlled continuation boundary; disk installation is not their loaded
+module proof. Frozen migration packages and an unused Fabric pnpm package copy
+were retained. The Mac AI-BA dependency commit remains local because its main
+branch is behind the independently advanced remote; no force push or broad merge
+was attempted. Existing dirty/untracked project dependency files remain with
+their owners, and this source-patch release remains zero-dependency.
 
 The contribution audit covers **604 issues and PRs across 41 repositories**:
-118 open, 486 closed, zero unresolved fetch errors. The patch-related subset has
-467 records across 14 repositories. Closed metadata alone does not retire patches.
+118 open, 486 closed, zero unresolved fetch errors. This includes public records
+authored or commented on by `sparkling` and linked historical records. Current
+bodies/comments were reviewed for 41 selected records, including every current
+open Ruflo/Brain issue in that inventory; other historical records received a
+metadata review. The patch-related subset has 467 records across 14 repositories.
+Closed metadata alone does not retire patches.
 Native exact AIDefence known-miss retraction is now verified on 3.77.1 and 3.80.7
 ([#4862](https://github.com/ruvnet/ruflo/issues/4862)); no historical entry was
-changed. Brain runtime 5.0.0 is current, but its November 10 corpus and preserved
-copy guard remain separate from runtime compatibility. The owner authorized
-native archive cleanup on both hosts; its result and the subsequent native
-refresh must be verified independently. No manual Brain upgrade is authorized.
+changed. [Ruflo #2895](https://github.com/ruvnet/ruflo/issues/2895) remains open:
+seven exact-source cases prove current backup fallbacks fail closed, but successful
+native backup still lacks the original integrity classification before rotation.
+The one open contributed PR, [#3268](https://github.com/ruvnet/ruflo/pull/3268),
+remains a draft with incomplete acceptance work and two failed historical checks.
+Four scoped evidence updates were posted to #4862, #2895, Brain #429 and
+[Brain #536](https://github.com/stuinfla/ruvnet-brain/issues/536); no duplicate issue
+or unsupported closure was made.
 
-**17 November 2026 upgrade and patch audit:** public npm still serves Ruflo and
+**Brain verification, 25 November:** runtime/package **5.0.0** is installed on
+both hosts and source-grounded retrieval succeeds. The authorized native
+`--clean --archive --json` completed on both hosts: four preserved full copies
+were removed only after native archival and independent exact-hash verification.
+Each host now has one KB copy; unique files and lifecycle evidence were retained.
+The original refresh guard obstacle is cleared, but this does not prove recurrence
+prevention or a successful next refresh.
+
+Brain is **not yet fully healthy**. Its search bundle remains 4.7.28, built
+November 10; both doctors still exit 1, and exact host boot convergence is not
+proved. The reported `forge-guard.mjs` archive difference is the verified
+issue-backed downstream parser patch. HZ additionally exceeds its retained-state
+footprint budget. No additional cleanup, manual update, replacement scheduler or
+corpus modification was performed. Freshness awaits Brain's normal native
+lifecycle update; #536 remains open.
+
+**Historical 17 November 2026 upgrade and patch audit:** public npm then served Ruflo and
 `@claude-flow/cli` **3.77.1**. All discovered operational Mac and HZ installations
-now have that version, including global/mise prefixes, project-local copies and
+were upgraded to that version, including global/mise prefixes, project-local copies and
 active npx package locations. All ten Mac and seventeen HZ canonical memory
 services were restarted and passed exact owner-identity checks. The Product
 restart had explicit owner acceptance of possible unsaved learning from its
@@ -77,15 +132,15 @@ messages or model prompts were sent. The older HZ Product session also required
 removing a stale explicit database pin to match its already configured canonical
 project owner; native owner identity then passed. No database or alias was changed.
 
-Activation limits remain explicit: four retained standalone Claude processes on
-HZ (one named BA reviewer and three background spares) still have pre-upgrade
-Ruflo clients. The Codex reload cannot refresh those transports; their owning
-Claude hosts must safely reconnect them. They were not killed or replayed.
+The 17 November activation retained four standalone Claude processes on
+HZ (one named BA reviewer and three background spares) with pre-upgrade
+Ruflo clients. The Codex reload could not refresh those transports; their owning
+Claude hosts needed to reconnect them safely. They were not killed or replayed.
 AI-BA's HZ launcher now selects the verified global installation instead of its
 frozen migration baseline. The frozen baseline, an older noncanonical
 Fabric checkout and a hidden npm replacement directory still contain 3.71.4 and
-were not rewritten or deleted. Project dependency pins and locks now select
-3.77.1; pre-existing project
+were not rewritten or deleted. Project dependency pins and locks selected
+3.77.1 at that time; pre-existing project
 changes remain with their integration owners. The local AI-BA dependency commit
 is not claimed integrated into its independently advanced HZ main branch.
 
@@ -3234,7 +3289,7 @@ above, same actions, and the same fail-closed ownership/pristine discipline.
 
 | Target | What it fixes | Issue |
 |--------|---------------|-------|
-| **`hook-failure-log`** | Attributes installed Node hook failures to their script and process while preserving native output, exceptions and exit behavior. Private receipts exclude stdin/payloads and raw stderr; retention prunes old completed records without deleting live invocation evidence. | [sparkling/ruflo-source-patch #5 · open](https://github.com/sparkling/ruflo-source-patch/issues/5) |
+| **`hook-failure-log`** | Attributes installed Node hook failures to their script and process while preserving native output, exceptions and exit behavior. Private receipts exclude stdin/payloads and raw stderr; retention prunes old completed records without deleting live invocation evidence. | [sparkling/ruflo-source-patch #5 · closed](https://github.com/sparkling/ruflo-source-patch/issues/5) |
 
 Receipts live under `~/.ruflo-source-patch/hook-failures` with private directory/file modes.
 They contain execution metadata, stderr byte counts/digests and known failure classifications,
@@ -3666,8 +3721,8 @@ Actions: `install` · `uninstall` · `status` · `run`
 
 | Target | What it gives you |
 |--------|-------------------|
-| **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634 · closed](https://github.com/ruvnet/ruflo/issues/2634) · [#2635 · closed](https://github.com/ruvnet/ruflo/issues/2635) · [#2636 · closed](https://github.com/ruvnet/ruflo/issues/2636) · [#2637 · closed](https://github.com/ruvnet/ruflo/issues/2637) · [#2638 · open](https://github.com/ruvnet/ruflo/issues/2638)) |
-| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** *Every* `ruflo init` bundles ~196 to 260 `.claude/{skills,commands,agents}` files (default preset, not just `--full`) that ~100% duplicate the installed plugins. Removes the bundle and, event-aware, the genuinely double-firing hooks (`PreToolUse`/`PostToolUse`/`PreCompact`), plus the standalone `.mcp.json` ruflo server the plugin already provides (a second writer on `memory.db`, [#2621 · closed](https://github.com/ruvnet/ruflo/issues/2621)) and, by default, its running process. Keeps `helpers/`, project-only hooks, and non-ruflo servers. ([#2640 · open](https://github.com/ruvnet/ruflo/issues/2640)) |
+| **`dual-codex-claude`** *(alias `dual`)* | **Start or convert** a project so Claude Code and Codex share **one** instruction file. Two scripts: build a fresh dual project, or convert an existing one. ([#2634 · closed](https://github.com/ruvnet/ruflo/issues/2634) · [#2635 · closed](https://github.com/ruvnet/ruflo/issues/2635) · [#2636 · closed](https://github.com/ruvnet/ruflo/issues/2636) · [#2637 · closed](https://github.com/ruvnet/ruflo/issues/2637) · [#2638 · closed](https://github.com/ruvnet/ruflo/issues/2638)) |
+| **`dedupe-bundle`** *(alias `dedupe`)* | **Slim a bloated project.** *Every* `ruflo init` bundles ~196 to 260 `.claude/{skills,commands,agents}` files (default preset, not just `--full`) that ~100% duplicate the installed plugins. Removes the bundle and, event-aware, the genuinely double-firing hooks (`PreToolUse`/`PostToolUse`/`PreCompact`), plus the standalone `.mcp.json` ruflo server the plugin already provides (a second writer on `memory.db`, [#2621 · closed](https://github.com/ruvnet/ruflo/issues/2621)) and, by default, its running process. Keeps `helpers/`, project-only hooks, and non-ruflo servers. ([#2640 · closed](https://github.com/ruvnet/ruflo/issues/2640)) |
 | **`ruflo-codex-hooks`** | **Repair an existing Codex installation created before Ruflo v3.32.24.** Registers the canonical `ruvnet/ruflo` marketplace and `ruflo-core@ruflo` plugin through Codex's public plugin CLI, preserves a disabled plugin and unrelated state, and never edits or re-registers MCP. Current init is handled upstream. ([#2801 · closed](https://github.com/ruvnet/ruflo/issues/2801)) |
 | **`codex-switch`** | **Continue one Codex thread on a different account.** Keeps the resume UUID and all visible conversation/tool history while moving between the ChatGPT subscription (`openai`) and a GitHub Copilot seat behind a local Responses proxy (`copilot`). Removes only provider-private encrypted replay state, at a boundary, against a SHA-256-verified backup; refuses an active session, an unrecognised encrypted location, and an undefined Copilot profile. ([ADR-030](docs/adr/ADR-030-codex-switch-one-resume-id-across-providers.md)) |
 
