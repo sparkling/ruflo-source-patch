@@ -5,8 +5,9 @@ import path from 'node:path';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { patchSource as capturePatch } from '../lib/brain-capture-diagnostics/patcher.mjs';
-import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH, OPERATION_EDITS, PREVIOUS_OPERATION_EDITS, observeRestoreSession } from '../lib/brain-restore-diagnostics/patcher.mjs';
+import { patchSource as capturePatch, descriptor as captureDescriptor } from '../lib/brain-capture-diagnostics/patcher.mjs';
+import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH, OPERATION_EDITS, PREVIOUS_OPERATION_EDITS, observeRestoreSession, descriptor } from '../lib/brain-restore-diagnostics/patcher.mjs';
+import { isKnownComposition } from '../lib/composition-proof.mjs';
 
 const native = fs.readFileSync(new URL('./fixtures/brain-restore-diagnostics/session-start-core.mjs', import.meta.url), 'utf8');
 assert.equal(crypto.createHash('sha256').update(native).digest('hex'), '19e4a847ae12c00359d7bb5fa0da58b624bda039193a8f96e460f37cbae514d1');
@@ -18,6 +19,7 @@ assert.equal(reverse(patched.next), native);
 const previous = PREVIOUS_EDITS.reduce((s, [from, to]) => s.replace(from, () => to), native);
 assert.equal(patchSource(previous).next, patched.next, 'released148 upgrades exactly');
 assert.equal(reverse(previous), native, 'released148 reverses exactly');
+assert(isKnownComposition(native, previous, [descriptor]), 'released core authenticates against its saved pristine');
 const changedPrevious = previous.replace('  const restoreStart = Date.now();', '  const restoreStart = 1;');
 assert(patchSource(changedPrevious).missing.length);
 assert.equal(patchSource(changedPrevious).next, changedPrevious, 'unproved148 stays unchanged');
@@ -79,9 +81,15 @@ assert.equal(reverse(hooksPatched.next), hooks);
 const previousHooks = PREVIOUS_OPERATION_EDITS.reduce((s, [from, to]) => s.replace(from, () => to), hooks);
 assert.equal(patchSource(previousHooks).next, hooksPatched.next, 'released operation observer upgrades exactly');
 assert.equal(reverse(previousHooks), hooks);
+assert(isKnownComposition(hooks, previousHooks, [descriptor]), 'released observer authenticates before upgrade');
+assert(isKnownComposition(hooks, capturePatch(previousHooks).next, [captureDescriptor, descriptor]),
+  'released observer plus sibling authenticates against shared pristine');
+assert(!isKnownComposition(hooks, previousHooks.replace('observed++ >= 32', 'observed++ >= 33'), [descriptor]),
+  'historical proof rejects changed marker-bearing bytes');
 const partialFailures = hooksPatched.next.replace('options.restoreListFailures = new Map();', 'options.restoreListFailures = null;');
 assert(patchSource(partialFailures).missing.length);
 assert.equal(reverse(partialFailures), partialFailures, 'partial category edits are never removed as an older observer');
+assert(!isKnownComposition(hooks, partialFailures, [descriptor]), 'historical proof rejects partial new revision');
 assert.equal(patchSource(patched.next).next, patched.next, 'released150 core remains byte-identical');
 for (const [from] of OPERATION_EDITS) {
   assert(patchSource(hooks.replace(from, from + from)).missing.length);

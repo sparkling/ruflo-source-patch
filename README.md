@@ -15,8 +15,10 @@ conversion helper verified all **91,954 policy receipts** and preserved the expa
 history hash, signatures and trust; no policy reset or historical capture replay
 was used. Session/client verification is recorded separately from installation.
 
-Release **4.46.195** extends [Brain #522](https://github.com/stuinfla/ruvnet-brain/issues/522)
-so promptly failed lists no longer appear as restore timeouts. Focused tests pass;
+Release **4.46.196** extends [Brain #522](https://github.com/stuinfla/ruvnet-brain/issues/522)
+so promptly failed lists no longer appear as restore timeouts. It also authenticates
+the previous observer against its saved pristine before upgrading; modified or
+partial contributions still refuse installation. Focused tests pass;
 the full run retains three unrelated code failures reproduced on unchanged `main`
 (`untested`, `cwd-current`, `cwd-session-current`) and eight Markdown findings in
 untracked private evidence. The changed README and ADR pass their lint checks.
