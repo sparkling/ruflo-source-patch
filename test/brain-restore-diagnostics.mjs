@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { patchSource as capturePatch } from '../lib/brain-capture-diagnostics/patcher.mjs';
-import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH, OPERATION_EDITS, observeRestoreSession } from '../lib/brain-restore-diagnostics/patcher.mjs';
+import { patchSource, isPatched, reverse, EDITS, PREVIOUS_EDITS, LOGGER_PATH, OPERATION_EDITS, PREVIOUS_OPERATION_EDITS, observeRestoreSession } from '../lib/brain-restore-diagnostics/patcher.mjs';
 
 const native = fs.readFileSync(new URL('./fixtures/brain-restore-diagnostics/session-start-core.mjs', import.meta.url), 'utf8');
 assert.equal(crypto.createHash('sha256').update(native).digest('hex'), '19e4a847ae12c00359d7bb5fa0da58b624bda039193a8f96e460f37cbae514d1');
@@ -76,6 +76,12 @@ assert.deepEqual(hooksPatched.missing, []);
 assert(isPatched(hooksPatched.next));
 assert.equal(patchSource(hooksPatched.next).next, hooksPatched.next);
 assert.equal(reverse(hooksPatched.next), hooks);
+const previousHooks = PREVIOUS_OPERATION_EDITS.reduce((s, [from, to]) => s.replace(from, () => to), hooks);
+assert.equal(patchSource(previousHooks).next, hooksPatched.next, 'released operation observer upgrades exactly');
+assert.equal(reverse(previousHooks), hooks);
+const partialFailures = hooksPatched.next.replace('options.restoreListFailures = new Map();', 'options.restoreListFailures = null;');
+assert(patchSource(partialFailures).missing.length);
+assert.equal(reverse(partialFailures), partialFailures, 'partial category edits are never removed as an older observer');
 assert.equal(patchSource(patched.next).next, patched.next, 'released150 core remains byte-identical');
 for (const [from] of OPERATION_EDITS) {
   assert(patchSource(hooks.replace(from, from + from)).missing.length);

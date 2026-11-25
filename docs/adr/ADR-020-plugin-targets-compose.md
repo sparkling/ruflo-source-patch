@@ -2,6 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-25. Brain #522 retains safe list-failure categories through
+SessionStart restoration. Terminal CLI failures, native unavailability and
+cancellation no longer become timeout messages. Timeout wording requires an
+observed deadline; mixed failures remain explicit. Unknown continuity, owner
+guards, selection, exact reads and deadlines are unchanged. Exact prior observer
+upgrades, reversal and partial/foreign-source refusal remain required.
 **Updated**: 2026-11-10. Release 4.46.190 recognizes three exact upstream
 PII-option sources at Ruflo commit `4184c5cc24f27d5831f871e6d7160e2a9322cbbb`
 (#4861) as native restoration. Whole-file SHA-256 qualification is separate
