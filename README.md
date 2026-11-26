@@ -24,10 +24,16 @@ User-level workspace rules cover the laptop source tree and HZ project roots;
 fresh native CLI checks from different projects report all five connected.
 Both hosts run Gemini CLI 0.71.1. Google still rejects its individual Code Assist
 authentication, so Gemini uses the existing approved 9router Neon mapping through
-a private user launcher; shared Google credentials remain unchanged. Native MCP
-discovery connects, but live tool execution exposed a 9router Gemini translation
-defect under repair: declared tools, function results and streamed calls were
-discarded. No end-to-end Gemini tool success is claimed yet.
+a private user launcher; shared Google credentials remain unchanged. A scoped
+9router 0.5.119 repair preserves Gemini tool declarations, paired function calls
+and results, and fragmented streamed arguments. The prior route discarded them.
+Both native Gemini clients now completed exactly five statistics calls under
+default approval, with all ten results initialized against the intended HZ stores.
+The repair changes one compiled route and is tracked in
+[9router issue #5385](https://github.com/decolua/9router/issues/5385#issuecomment-7190978136)
+and [upstream PR #5386](https://github.com/decolua/9router/pull/5386).
+Retire it only after a pristine release passes the typed/streamed tool fixtures
+and both live five-source checks; requalify dormant local candidates before activation.
 
 Antigravity CLI 1.5.18 uses its own native Google account on both hosts. Its five
 registrations live in `~/.gemini/config/mcp_config.json`; explicit server tool
