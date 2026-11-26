@@ -81,6 +81,15 @@ EA 6.2 s, AI Strategy 17.8 s and Product 12.8 s, all within the actual default
 Catalogue links retain their original accessibility qualifications; this check
 did not fetch every media binary. Product still has no bound publication catalogue.
 
+The following code-only release, image `9b40d63ddf09`, corrects the consent page
+to include available artefact catalogue metadata and original URLs in its existing
+read scope. A fresh AI Strategy grant verified that wording and the exact legacy
+date case: corrected metadata retained the original field's hash/length, and all
+226,958 original characters reconstructed with the sealed SHA-256. The temporary
+grant was revoked. This closes
+[Product #1](https://github.com/sparkling/semantic-product/issues/1#issuecomment-7193680580)
+without changing the sealed source or claiming the dated publication is current.
+
 Authentication now consults the existing canonical whitelist and retained revocation
 cutoff for access tokens, refresh grants, browser sessions and authorization codes.
 The cutoff uses original authentication time, so a refreshed token cannot revive
