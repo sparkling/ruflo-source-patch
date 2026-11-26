@@ -103,19 +103,26 @@ The correction and deployment are tracked in
 
 All nine AWS native-memory snapshots now come from 26 November, with source-owned
 native backups and exact readback comparisons. BA, EA and Product document publications
-are also refreshed; Product contains 8,270 originals. This image explicitly retains
-SA's 19 October and AI Strategy's 28 October document publications while their new
-source-owned preparations finish. These publications are dated copies, not live HZ
-mirrors. The fresh SA export is prepared; its final AWS publication and the AI Strategy
-refresh remain pending. Graph binding/hash checks passed, but no nonempty graph traversal
+are also refreshed; Product contains 8,270 originals. The subsequent SA release,
+image `ffa9b49e33e8`, is live with source cut `cb25d543` and 9,510 admitted text
+units. Its fresh authenticated check passed at 13:56 UTC: slowest request 5.523 s,
+complete 113,570-character provenance reconstructed in eight pages, exact original
+hashes, native learning, audience rejection, refresh and revocation all passed.
+The other four source publications and all nine native snapshots are byte-identical;
+their earlier live checks retain their original image identity. All five passed
+ARM64 qualification on this exact SA image. The aggregate receipt SHA-256 is
+`350155d3a353309d324ac9bc3b80de45c495d6801973a6ac840406bc3e49029f`.
+AI Strategy's 28 October document publication remains explicitly dated while its
+single source-owned preparation continues. These publications are fixed cuts,
+not live HZ mirrors. Graph binding/hash checks passed, but no nonempty graph traversal
 is claimed without an observed node. HTML text projection preserves full original HTML
 for reads; it does not establish the meaning of embedded figures.
 
 The release prepares all five existing native/document owners before opening the
 HTTP listener. Failure or the overall 300-second preparation deadline leaves it closed;
 workspace-only launches retain their existing behavior. The current release initialized
-all five in 152.5 seconds within the existing 420-second startup grace. Its isolated
-capacity check peaked at about 12 GiB within the existing 16 GiB allocation. ECS remains
+all five in 155.4 seconds within the existing 420-second startup grace. Its isolated
+capacity check peaked at 13,579,268,096 bytes (12.65 GiB) within the existing 16 GiB allocation. ECS remains
 at two CPUs; ephemeral storage increased from 40 to 60 GiB to fit the qualified image.
 Image and disk were the only task-configuration changes; persistence, roles, secrets and
 authentication bindings were preserved. These measurements do not promise arbitrary
