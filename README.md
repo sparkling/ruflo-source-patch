@@ -44,6 +44,15 @@ credentials, MCP permissions and workspace trust are unchanged. The five MCP
 registrations remain in `~/.gemini/config/mcp_config.json`, with explicit server
 allow rules in `~/.gemini/antigravity-cli/settings.json`.
 
+Global user instructions on both hosts now select `agy -p` through 9router for
+Gemini 4+ workers, including Carbon and Neon, following
+[Google's current client guidance](https://github.com/google-gemini/gemini-cli#gemini-cli).
+The rule distinguishes the executing CLI from 9router's Antigravity provider,
+preserves explicit model/effort/account assignments, and retains Gemini CLI for
+explicitly selected enterprise or legacy work. Codex, Claude Code, Gemini CLI
+and AGY receive it through their user instruction files; the conflicting HZ
+direct-OAuth-only rule was replaced. Existing authors were not restarted.
+
 The full AGY test exposed a second 9router 0.5.119 compatibility defect: the
 Gemini adapter did not carry `x-goog-api-key` into the internal authenticated
 handler. The scoped adapter correction retains credential precedence, invalid-key
