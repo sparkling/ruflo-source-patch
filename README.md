@@ -148,9 +148,15 @@ cut, replacing the dated October publication. All five document publications and
 all nine native snapshots now have 26 November cuts. All five sources passed
 exact-image ARM64 qualification, including hash checks for 106 HTML projections
 and full reconstruction of a 3,695,221-character original in 280 pages. Fresh AI
-consumer OAuth readback remains pending the current browser handoff; earlier
-OAuth proofs retain their exact image identity. These publications are fixed cuts,
-not live HZ mirrors. Graph binding/hash checks passed, but no nonempty graph traversal
+consumer OAuth verification passed on this final image at 16:11 UTC: all 22 tools,
+complete original and metadata hashes, native learning reads, audience rejection,
+refresh and revocation passed; the slowest sampled request took 18.606 seconds
+under the normal 60-second deadline. The test grant is revoked and its collector
+closed. Earlier five-source and fresh SA OAuth proofs retain their exact image
+identities; package comparisons prove the unchanged members. The final aggregate
+receipt SHA-256 is
+`a9a138e9a0d1a6e7ad499e89d4d79ee1702324abf42e90915efad012f2e16895`.
+These publications are fixed cuts, not live HZ mirrors. Graph binding/hash checks passed, but no nonempty graph traversal
 is claimed without an observed node. HTML text projection preserves full original HTML
 for reads; it does not establish the meaning of embedded figures.
 
