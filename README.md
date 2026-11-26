@@ -28,6 +28,26 @@ The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
 not register browser-hosted ChatGPT/Gemini integrations.
 
+All five AWS sources are live, including Product at
+[`https://ea.hm.sparklingideas.co.uk/api/mcp/product`](https://ea.hm.sparklingideas.co.uk/api/mcp/product).
+The final image `9c4f5cefef50` passed authenticated full-document reads, refresh,
+cross-source token rejection and revocation for every source. Existing Auth0
+whitelist admission and authentication persistence were preserved. Whitelist
+removal alone does not revoke an existing grant: access tokens last 15 minutes,
+refresh grants have a fixed seven-day lifetime, and explicit token revocation
+remains available. Verification grants were revoked and credentials were not saved.
+
+AWS retains dated publications: BA/SA/EA native snapshots are from 16 October
+with October original-document publications; AI Strategy is from 28 October;
+Product was exported on 26 November with 8,270 selected originals. These are
+not live HZ mirrors. Native searches and selected exact reads passed where hits
+were returned; BA's sampled query returned no admitted hits. BA/SA still disclose
+incomplete pattern-controller coverage. Product's first document request took
+about 44 seconds to open the corpus. Deployment uses 40 GiB ephemeral storage
+after the initial 20 GiB task refused startup with insufficient disk; the healthy
+old release remained available during rollback. Authentication settings were
+unchanged.
+
 **26 November architecture audit, release 4.46.198:** the EA administrative
 `claude mcp get knowledge_ai_ba` failure came from an obsolete custom global
 SessionEnd command, which invoked native session teardown without a matching
