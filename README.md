@@ -48,6 +48,15 @@ The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
 not register browser-hosted ChatGPT/Gemini integrations.
 
+The two older HZ read-only facades were gracefully refreshed to load the current
+source contracts. All five now expose 22 tools, including paged artefact metadata;
+200 catalogue checks across 40 loaded Codex sessions passed. Separate native memory
+owners remained running. Full metadata reconstruction and SHA-256 comparison passed
+for one BA, EA, SA and AI Strategy artefact each. Product explicitly reports that
+no publication catalogue is bound; this is not a claim that Product has no media.
+Five origin comparison reads failed around the facade refresh and passed a single
+read-only retry; original failures and timing uncertainty are retained.
+
 All five AWS sources are live, including Product at
 [`https://ea.hm.sparklingideas.co.uk/api/mcp/product`](https://ea.hm.sparklingideas.co.uk/api/mcp/product).
 The final image `dce21318860f` passed authenticated full-document reads, refresh,
