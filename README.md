@@ -84,6 +84,17 @@ still active. These checks do not resume or certify the held research conversati
 Evidence and retirement limits are recorded in
 [9router issue #5785](https://github.com/decolua/9router/issues/5785#issuecomment-7201127827).
 
+Research on 26 November located the retired preview in AGY 1.5.18's compiled
+default FlashLite tier mapping, before router translation. The existing upstream
+[AGY issue #1420](https://github.com/google-antigravity/antigravity-cli/issues/1420)
+remains open; the latest published 1.5.18 release does not resolve our reproduction.
+The published settings schema offers no documented safety-tier override;
+`customModelsConfig` adds selectable main models. Google's documented migration
+is to `gemini-3.1-flash-lite`, but a shared router alias would also affect other
+requests for that preview ID. No migration has been applied. Approval and a native
+parsed-verdict check remain necessary; the earlier generic 200 response and
+command-permission tests do not establish the replacement's safety behaviour.
+
 The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
 not register browser-hosted ChatGPT/Gemini integrations.
