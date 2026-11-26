@@ -10,7 +10,8 @@ Closed issue labels are never treated as proof; each retirement is gated on runn
 
 **26 November shared knowledge configuration:** `knowledge_ai_ba`, `ruflo_ba`,
 `ruflo_ea_research`, `ruflo_sa` and `knowledge_product` now use user-level
-registrations in Claude Code, Codex/ChatGPT desktop and Gemini CLI on both hosts.
+registrations in Claude Code, Codex/ChatGPT desktop, Gemini CLI and Antigravity CLI
+on both hosts.
 The eight duplicate Claude/Codex AI Strategy registrations in the four HZ source
 projects and their obsolete project approvals were removed. Fresh Claude lookups
 and Codex configuration-layer reads prove user scope; all five sources passed
@@ -21,9 +22,22 @@ The owner scope rule is retained in each client's user instructions.
 Gemini marks the five shared MCPs trusted in its user settings on both hosts.
 User-level workspace rules cover the laptop source tree and HZ project roots;
 fresh native CLI checks from different projects report all five connected.
-The laptop runs Gemini CLI 0.71.1. HZ's older CLI also connects to the MCPs, while
-Google rejects its separate individual Code Assist authentication as an
-unsupported client. MCP configuration does not establish model authentication.
+Both hosts run Gemini CLI 0.71.1. Google still rejects its individual Code Assist
+authentication, so Gemini uses the existing approved 9router Neon mapping through
+a private user launcher; shared Google credentials remain unchanged. Native MCP
+discovery connects, but live tool execution exposed a 9router Gemini translation
+defect under repair: declared tools, function results and streamed calls were
+discarded. No end-to-end Gemini tool success is claimed yet.
+
+Antigravity CLI 1.5.18 uses its own native Google account on both hosts. Its five
+registrations live in `~/.gemini/config/mcp_config.json`; explicit server tool
+allow rules and source-root trust live in
+`~/.gemini/antigravity-cli/settings.json`. Ten actual statistics calls, five per
+host, returned the intended HZ stores without approval prompts. No blanket tool
+bypass was enabled. The laptop run recovered two provider capacity responses;
+three SSH-backed MCP cleanup exits occurred after completed reads and remain
+distinct from connection or read success.
+
 The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
 not register browser-hosted ChatGPT/Gemini integrations.
