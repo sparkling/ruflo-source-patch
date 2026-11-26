@@ -89,6 +89,25 @@ try {
   assert.equal(compose.statusComposed([patcher.NAME])[patcher.NAME].patched, 1);
   compose.reconcile([], [patcher.NAME]);
   assert.equal(fs.readFileSync(guard, 'utf8'), source);
+  // A native update replaces the installed guard, including when an old patch
+  // backup survives. Retirement must preserve that new native guard byte-for-byte.
+  const native = fs.readFileSync(new URL('./fixtures/brain-forge-jsonl/forge-guard-native.mjs', import.meta.url), 'utf8');
+  const { proveNative, probeNativeForge } = await import('../lib/brain-forge-jsonl/probe.mjs');
+  await proveNative(native);
+  fs.writeFileSync(guard, native);
+  fs.writeFileSync(guard + '.rsp-backup', source);
+  assert.equal(probeNativeForge().state, 'superseded');
+  const { addPluginTargets, readState } = await import('../lib/cwd/state.mjs');
+  const { retireSuperseded } = await import('../lib/supersede.mjs');
+  addPluginTargets([patcher.NAME]);
+  retireSuperseded(readState());
+  assert(readState().retired[patcher.NAME]);
+  assert.equal(fs.readFileSync(guard, 'utf8'), native);
+  fs.writeFileSync(guard, native.replace('emptyText++', 'emptyText += 0'));
+  assert.equal(probeNativeForge().state, 'unknown', 'changed native validation cannot retire');
+  assert(patcher.patchSource(fs.readFileSync(guard, 'utf8')).missing.length);
+  fs.writeFileSync(guard, source);
+  assert.equal(probeNativeForge().state, 'live', 'legacy still needs patch');
   fs.unlinkSync(guard); fs.symlinkSync(file, guard);
   assert(!patcher.preflight().ok, 'symlink refused');
   console.log('PASS forge JSONL: Unicode, CRLF, EOF, malformed/empty data, UTF8, I/O, callback, validation, composition and restoration');

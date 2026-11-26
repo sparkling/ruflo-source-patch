@@ -8,6 +8,39 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+**26 November architecture audit, release 4.46.198:** the EA administrative
+`claude mcp get knowledge_ai_ba` failure came from an obsolete custom global
+SessionEnd command, which invoked native session teardown without a matching
+session start. Removing that dispatch and its two equivalent global PreCompact
+entries restored the original command: exit 0, Connected, empty stderr. Project
+hooks, Brain/core plugins and native ownership guards were preserved. The
+originating AI-BA session received the recovery receipt; the separately observed
+background daemon was inspected and retained, not declared reconciled.
+
+The installed Brain corpus now includes the upstream LF-only forge guard for
+[#528](https://github.com/stuinfla/ruvnet-brain/issues/528). This release retires
+`brain-forge-jsonl` only for the reviewed native source after executing Unicode,
+CRLF, EOF, malformed/empty input, UTF-8, I/O, callback and retained validation
+tests. Retirement preserves the new native guard even when a legacy backup
+exists. Unknown source remains refused. No corpus, update assets or signed
+manifests are changed. Ruflo/CLI **3.80.8** passes all **106 staged patch claims**,
+idempotent composition, **15 native dependency checks**, exact memory round trips
+and separate-process readbacks. Its shared HZ package is installed and patched;
+all **19 canonical services** have fresh verified owners and all **30 loaded
+Codex clients** report connected 3.80.8. BA/SA's signed helpers were refreshed
+through the native helper owner; EA retains its user-level plugin setup. All three
+research connections passed statistics, search and selected exact-key retrieval.
+No project prompt, author restart, database migration or write replay was used.
+All **153 regression suites pass**; the full command still reports the eight
+existing Markdown findings in untracked private evidence.
+
+Brain's host identity is not fully converged: the active generation and Codex
+plugin are **5.0.0**, while HZ's Claude registry and running-version marker say
+**5.1.0**. The native receipt still requests a host restart and marks Codex boot
+proof unverified. Retrieval works, but neither that nor the parser retirement
+proves a complete Brain upgrade or current corpus freshness. No manual Brain
+upgrade, cache manipulation or research-session restart was performed.
+
 **25 November 2026, semantic-control memory recovery:** the project was absent
 from the HZ memory-owner registry and retained the legacy segmented policy format.
 Its configured native owner now preserves both canonical store paths. The existing
@@ -465,8 +498,9 @@ is claimed recovered. The fleet upgrade is not complete.
 separators inside JSON strings remain content; LF delimits records. Malformed
 JSON, empty text, parity, truncation and live-query checks remain enforced, and
 stream/callback errors propagate. Exact reviewed source is required, with pristine
-restoration and monitor reapplication. Retire only after an upstream guard passes
-the same behavioral tests. This target edits only the installed `kb/forge-guard.mjs`;
+restoration and monitor reapplication. Release 4.46.198 retires the correction
+on the reviewed native guard after the same behavioral tests pass. Older exact
+sources retain compatibility. This target edits only the installed `kb/forge-guard.mjs`;
 it does not touch corpus files, signed manifests, candidate generations or update
 selection. A downloaded candidate carries its own guard, so installed parser
 recovery is not proof that the next native update can succeed. Native integrity
