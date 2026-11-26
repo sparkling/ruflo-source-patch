@@ -18,13 +18,15 @@ native statistics, search and selected exact-record retrieval. EA remains bound
 to research, and writable project/user memory retains its separate authority.
 The owner scope rule is retained in each client's user instructions.
 
-Gemini verification has separate limits: HZ's installed CLI connects to all five
-MCPs, while Google rejects its individual Code Assist authentication as an
-unsupported client. The laptop's newly installed Gemini CLI 0.71.1 sees all five
-registrations but keeps them disabled in the untrusted checkout; folder trust
-was not changed without the requested owner decision. MCP configuration does not
-establish model authentication. Browser-hosted ChatGPT/Gemini connections remain
-separate authenticated integrations; local configuration does not publish them.
+Gemini marks the five shared MCPs trusted in its user settings on both hosts.
+User-level workspace rules cover the laptop source tree and HZ project roots;
+fresh native CLI checks from different projects report all five connected.
+The laptop runs Gemini CLI 0.71.1. HZ's older CLI also connects to the MCPs, while
+Google rejects its separate individual Code Assist authentication as an
+unsupported client. MCP configuration does not establish model authentication.
+The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
+AWS publishes separate authenticated endpoints; local client configuration does
+not register browser-hosted ChatGPT/Gemini integrations.
 
 **26 November architecture audit, release 4.46.198:** the EA administrative
 `claude mcp get knowledge_ai_ba` failure came from an obsolete custom global
