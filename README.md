@@ -72,6 +72,18 @@ after pristine upstream bytes pass the authorization and tool fixtures plus both
 live AGY checks; retire the aliases only when native routing selects the same
 subscription and preserves effort.
 
+The ADR132 headless qualification exposed two additional safety-model routes.
+An actual wire trace showed that the native Hydrogen-labelled monitor requests
+`gemini-3.8-flash` with LOW effort. Its explicit alias to `ag/gemini-3.8-flash`
+is live on the shared router, and a fresh AGY run received a parsed safety verdict.
+FlashLite still requests retired `gemini-3.1-flash-lite-preview`; its exact upstream
+route returned NOT_FOUND. Google's stable replacement passed a direct probe, but
+changing that monitor's identity awaits the owner's decision. Scoped session-only
+command approval passed positive and appended-command denial checks with monitors
+still active. These checks do not resume or certify the held research conversation.
+Evidence and retirement limits are recorded in
+[9router issue #5785](https://github.com/decolua/9router/issues/5785#issuecomment-7201127827).
+
 The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
 not register browser-hosted ChatGPT/Gemini integrations.
