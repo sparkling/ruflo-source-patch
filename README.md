@@ -57,6 +57,20 @@ no publication catalogue is bound; this is not a claim that Product has no media
 Five origin comparison reads failed around the facade refresh and passed a single
 read-only retry; original failures and timing uncertainty are retained.
 
+Large document provenance also uses the existing 32 KiB serialized response
+bound. When metadata alone exceeds it, discovery returns `metadata.readWith`;
+`read_document` with `representation: "metadata-json"` reconstructs it in pages,
+with a required metadata hash on continuation. Original text remains separately
+readable with its original hash. All five live local sources passed complete
+body/metadata reconstruction, and the 200 loaded connections expose this schema
+([Product #3](https://github.com/sparkling/semantic-product/issues/3)).
+Cold Product references now initialize their existing validated corpus without a
+preceding search. Deferring the existing search vocabulary until search needs it
+reduced the actual cold MCP read from 57.1 to 20.9 seconds; the subsequent first
+search passed in 34.1 seconds. Every source/path/body hash is still checked before
+admission, and all 18 focused regressions pass
+([Product #4, closed](https://github.com/sparkling/semantic-product/issues/4)).
+
 All five AWS sources are live, including Product at
 [`https://ea.hm.sparklingideas.co.uk/api/mcp/product`](https://ea.hm.sparklingideas.co.uk/api/mcp/product).
 The final image `dce21318860f` passed authenticated full-document reads, refresh,
