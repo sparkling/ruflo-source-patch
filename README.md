@@ -33,6 +33,9 @@ research connections passed statistics, search and selected exact-key retrieval.
 No project prompt, author restart, database migration or write replay was used.
 All **153 regression suites pass**; the full command still reports the eight
 existing Markdown findings in untracked private evidence.
+Source-patch **4.46.198** is activated on Mac and HZ: all **376 packaged files**
+match the release in each installed prefix, the native forge guard is preserved
+and the redundant target retired, and both monitor checks pass without drift.
 
 Brain's host identity is not fully converged: the active generation and Codex
 plugin are **5.0.0**, while HZ's Claude registry and running-version marker say
