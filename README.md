@@ -77,10 +77,13 @@ An actual wire trace showed that the native Hydrogen-labelled monitor requests
 `gemini-3.8-flash` with LOW effort. Its explicit alias to `ag/gemini-3.8-flash`
 is live on the shared router, and a fresh AGY run received a parsed safety verdict.
 FlashLite still requests retired `gemini-3.1-flash-lite-preview`; its exact upstream
-route returned NOT_FOUND. Google's stable replacement passed a direct probe, but
-changing that monitor's identity awaits the owner's decision. Scoped session-only
-command approval passed positive and appended-command denial checks with monitors
-still active. These checks do not resume or certify the held research conversation.
+route returned NOT_FOUND. The owner-authorized shared alias now maps that ID to
+`ag/gemini-3.1-flash-lite`. Fresh HZ AGY runs received the stable response model and
+parsed native FlashLite verdicts with MINIMAL effort. The permitted command ran;
+an appended command escalated to severe-risk review and was denied by the separate
+permission check. All three monitors remain enabled. This proves routing, parsing,
+observed escalation and scoped permissions, not general classifier equivalence or
+a severe-risk blocking verdict. The original research conversation was untouched.
 Evidence and retirement limits are recorded in
 [9router issue #5785](https://github.com/decolua/9router/issues/5785#issuecomment-7201127827).
 
@@ -90,10 +93,21 @@ default FlashLite tier mapping, before router translation. The existing upstream
 remains open; the latest published 1.5.18 release does not resolve our reproduction.
 The published settings schema offers no documented safety-tier override;
 `customModelsConfig` adds selectable main models. Google's documented migration
-is to `gemini-3.1-flash-lite`, but a shared router alias would also affect other
-requests for that preview ID. No migration has been applied. Approval and a native
-parsed-verdict check remain necessary; the earlier generic 200 response and
-command-permission tests do not establish the replacement's safety behaviour.
+is to `gemini-3.1-flash-lite`; the applied shared alias also affects auxiliary
+requests for the preview ID. Both hosts use that router. A separate laptop native
+smoke reached HTTP 200 for Carbon but timed out before reaching its safety monitor;
+it does not establish a laptop native-monitor pass. Recovery evidence is posted
+on [AGY #1420](https://github.com/google-antigravity/antigravity-cli/issues/1420#issuecomment-7203945879).
+Retire the alias after a pristine AGY release selects a supported identity and
+passes the native parsing, escalation and permission checks.
+
+The separate external Codex credit-reset candidate remains **unactivated**.
+Refreshing provider quota currently leaves the existing local model cooldown in
+place. The candidate reconciles only proven account/model quota locks and passed
+102 focused tests plus build/smoke checks; deployment was held for active streams.
+It is absent from the running Gemini-compatible release and must preserve those
+newer fixes before activation. Related upstream work is
+[9router PR #4305](https://github.com/decolua/9router/pull/4305).
 
 The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
