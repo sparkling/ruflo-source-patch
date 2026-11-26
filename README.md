@@ -73,40 +73,45 @@ admission, and all 18 focused regressions pass
 
 All five AWS sources are live, including Product at
 [`https://ea.hm.sparklingideas.co.uk/api/mcp/product`](https://ea.hm.sparklingideas.co.uk/api/mcp/product).
-The final image `dce21318860f` passed authenticated full-document reads, refresh,
-cross-source token rejection and revocation for every source, using the actual
-60-second MCP request deadline. Distinct follow-up searches after native/learning
-store switches also passed. Existing Auth0
-whitelist admission and authentication persistence were preserved. Whitelist
-removal alone does not revoke an existing grant: access tokens last 15 minutes,
-refresh grants have a fixed seven-day lifetime, and explicit token revocation
-remains available. Verification grants were revoked and credentials were not saved.
+Image `64765033a992` passed fresh authenticated native reads, complete documents,
+artefact metadata, metadata paging, exact-audience rejection, refresh and revocation
+for all five sources. The slowest sampled requests were BA 0.8 s, SA 4.6 s,
+EA 6.2 s, AI Strategy 17.8 s and Product 12.8 s, all within the actual default
+60-second MCP deadline. All five verification grants were revoked afterward.
+Catalogue links retain their original accessibility qualifications; this check
+did not fetch every media binary. Product still has no bound publication catalogue.
 
-AWS retains dated publications: BA/SA/EA native snapshots are from 16 October
-with October original-document publications; AI Strategy is from 28 October;
-Product was exported on 26 November with 8,270 selected originals. These are
-not live HZ mirrors. Native searches and selected exact reads passed where hits
-were returned; BA's sampled query returned no admitted hits. BA/SA still disclose
-incomplete pattern-controller coverage.
+Authentication now consults the existing canonical whitelist and retained revocation
+cutoff for access tokens, refresh grants, browser sessions and authorization codes.
+The cutoff uses original authentication time, so a refreshed token cannot revive
+an older revoked sign-in. Removal disables the existing identity; reapproval requires
+a fresh sign-in. Canonical synchronization verified 38 approved emails, denied an
+unknown email and preserved all 14 existing broker identities. The 33 focused auth
+checks include DynamoDB-backed removal/reapproval cases. Existing Auth0/Cognito
+configuration and token lifetimes remain unchanged; no whitelist expansion was made.
+The correction and deployment are tracked in
+[EA issue #2](https://github.com/sparkling/semantic-enterprise-architecture/issues/2).
 
-The first rollout exposed a readiness defect: BA's cold search took 68.7 seconds,
-exceeding the SDK's 60-second default despite passing a longer verifier deadline.
-EA commit `54d31bca` now prepares the five existing native/document owners before
-opening the HTTP listener and retains distinct fixed-store owners across reads.
-Failure or the overall 300-second preparation deadline leaves the listener closed;
-workspace-only launches retain their existing behavior. All five sources prepared
-in 67.5 seconds on the deployed task before it accepted traffic. BA's first live
-search then took 4.4 seconds and its distinct follow-up 4.1 seconds. The scoped
-52 Node tests, three deployment-template tests, build and ARM64 capacity check
-passed. The existing ECS startup grace is 420 seconds; unrelated configuration
-was preserved. These measured checks do not establish a concurrency guarantee.
-The rollout and readiness fix are recorded in
+All nine AWS native-memory snapshots now come from 26 November, with source-owned
+native backups and exact readback comparisons. BA, EA and Product document publications
+are also refreshed; Product contains 8,270 originals. This image explicitly retains
+SA's 19 October and AI Strategy's 28 October document publications while their new
+source-owned preparations finish. These publications are dated copies, not live HZ
+mirrors. The fresh SA export is prepared; its final AWS publication and the AI Strategy
+refresh remain pending. Graph binding/hash checks passed, but no nonempty graph traversal
+is claimed without an observed node. HTML text projection preserves full original HTML
+for reads; it does not establish the meaning of embedded figures.
+
+The release prepares all five existing native/document owners before opening the
+HTTP listener. Failure or the overall 300-second preparation deadline leaves it closed;
+workspace-only launches retain their existing behavior. The current release initialized
+all five in 152.5 seconds within the existing 420-second startup grace. Its isolated
+capacity check peaked at about 12 GiB within the existing 16 GiB allocation. ECS remains
+at two CPUs; ephemeral storage increased from 40 to 60 GiB to fit the qualified image.
+Image and disk were the only task-configuration changes; persistence, roles, secrets and
+authentication bindings were preserved. These measurements do not promise arbitrary
+concurrent capacity. The original startup fix is recorded in
 [EA issue #1](https://github.com/sparkling/semantic-enterprise-architecture/issues/1).
-
-Deployment uses 40 GiB ephemeral storage
-after the initial 20 GiB task refused startup with insufficient disk; the healthy
-old release remained available during rollback. Authentication settings were
-unchanged.
 
 **26 November architecture audit, release 4.46.198:** the EA administrative
 `claude mcp get knowledge_ai_ba` failure came from an obsolete custom global
