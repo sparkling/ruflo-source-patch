@@ -94,20 +94,37 @@ remains open; the latest published 1.5.18 release does not resolve our reproduct
 The published settings schema offers no documented safety-tier override;
 `customModelsConfig` adds selectable main models. Google's documented migration
 is to `gemini-3.1-flash-lite`; the applied shared alias also affects auxiliary
-requests for the preview ID. Both hosts use that router. A separate laptop native
-smoke reached HTTP 200 for Carbon but timed out before reaching its safety monitor;
-it does not establish a laptop native-monitor pass. Recovery evidence is posted
-on [AGY #1420](https://github.com/google-antigravity/antigravity-cli/issues/1420#issuecomment-7203945879).
+requests for the preview ID. Both hosts use that router. The missing laptop check
+is now complete: a fresh native Carbon/HIGH run parsed FlashLite/MINIMAL and
+severe-risk/LOW verdicts, then executed its exact session-permitted portable
+command with exit 0. Native completion took 18.24 seconds. The original 120-second
+pre-monitor timeout remains preserved; its cause was not established. The new
+probe uses a bounded 240-second deadline and incremental transport receipts;
+its shorter actual duration does not prove a timeout-setting defect. The HZ
+appended-command denial proof remains valid. Recovery evidence is posted
+on [AGY #1420](https://github.com/google-antigravity/antigravity-cli/issues/1420#issuecomment-7204257565).
 Retire the alias after a pristine AGY release selects a supported identity and
 passes the native parsing, escalation and permission checks.
 
-The separate external Codex credit-reset candidate remains **unactivated**.
-Refreshing provider quota currently leaves the existing local model cooldown in
-place. The candidate reconciles only proven account/model quota locks and passed
-102 focused tests plus build/smoke checks; deployment was held for active streams.
-It is absent from the running Gemini-compatible release and must preserve those
-newer fixes before activation. Related upstream work is
-[9router PR #4305](https://github.com/decolua/9router/pull/4305).
+The external Codex credit-reset fix is **active** on the shared 9router 0.5.119
+release serving the laptop and HZ. This is downstream code; related upstream
+[PR #4305](https://github.com/decolua/9router/pull/4305#issuecomment-7204228434) remains open. Fresh usage
+reads now reconcile only matching, proven account/model quota locks when the
+provider explicitly reports capacity in every applicable window. Atomic snapshot
+comparison preserves concurrent account, credential and error changes. The
+combined release preserves Gemini tool/auth and image-complexity corrections;
+113 focused tests, build, compiled-route checks and isolated smoke passed. Native
+request drain completed before activation. All 16 live Codex quota reads returned
+the new availability fields, and HZ relay health passed; account identities,
+settings and model mappings were unchanged.
+
+No reset credit was consumed during verification. A fresh provider-site reset
+remains unobserved; regression tests cover the recovery transition. Legacy locks
+without per-model provenance, authentication failures and unrelated model/family
+locks remain untouched. Expired legacy fields can leave an availability badge
+stale until native successful-request cleanup, but do not prevent selection.
+Retire the downstream fix only after pristine upstream passes the external-reset,
+account-identity, family-isolation and concurrent-update cases.
 
 The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
