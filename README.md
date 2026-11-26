@@ -122,8 +122,10 @@ Authentication now consults the existing canonical whitelist and retained revoca
 cutoff for access tokens, refresh grants, browser sessions and authorization codes.
 The cutoff uses original authentication time, so a refreshed token cannot revive
 an older revoked sign-in. Removal disables the existing identity; reapproval requires
-a fresh sign-in. Canonical synchronization verified 38 approved emails, denied an
-unknown email and preserved all 14 existing broker identities. The 33 focused auth
+a fresh sign-in. Canonical synchronization initially verified 38 approved emails. The later
+owner-requested additive approval is deployed and read back with 39 addresses,
+all 38 prior entries preserved, unknown-user and unverified-password denial intact,
+and all 14 existing broker identities unchanged. The 33 focused auth
 checks include DynamoDB-backed removal/reapproval cases. Existing Auth0/Cognito
 configuration and token lifetimes remain unchanged; no whitelist expansion was made.
 The correction and deployment are tracked in
@@ -140,8 +142,14 @@ The other four source publications and all nine native snapshots are byte-identi
 their earlier live checks retain their original image identity. All five passed
 ARM64 qualification on this exact SA image. The aggregate receipt SHA-256 is
 `350155d3a353309d324ac9bc3b80de45c495d6801973a6ac840406bc3e49029f`.
-AI Strategy's 28 October document publication remains explicitly dated while its
-single source-owned preparation continues. These publications are fixed cuts,
+The final data image `227204f262bc` is now live. AI Strategy's fresh publication
+contains 11,272 originals and 189,322 passages from the fixed 26 November 11:44 UTC
+cut, replacing the dated October publication. All five document publications and
+all nine native snapshots now have 26 November cuts. All five sources passed
+exact-image ARM64 qualification, including hash checks for 106 HTML projections
+and full reconstruction of a 3,695,221-character original in 280 pages. Fresh AI
+consumer OAuth readback remains pending the current browser handoff; earlier
+OAuth proofs retain their exact image identity. These publications are fixed cuts,
 not live HZ mirrors. Graph binding/hash checks passed, but no nonempty graph traversal
 is claimed without an observed node. HTML text projection preserves full original HTML
 for reads; it does not establish the meaning of embedded figures.
@@ -149,8 +157,8 @@ for reads; it does not establish the meaning of embedded figures.
 The release prepares all five existing native/document owners before opening the
 HTTP listener. Failure or the overall 300-second preparation deadline leaves it closed;
 workspace-only launches retain their existing behavior. The current release initialized
-all five in 155.4 seconds within the existing 420-second startup grace. Its isolated
-capacity check peaked at 13,579,268,096 bytes (12.65 GiB) within the existing 16 GiB allocation. ECS remains
+all five in 185.0 seconds within the existing 420-second startup grace. Its isolated
+capacity check peaked at 14,846,255,104 bytes (13.83 GiB) within the existing 16 GiB allocation. ECS remains
 at two CPUs; ephemeral storage increased from 40 to 60 GiB to fit the qualified image.
 Image and disk were the only task-configuration changes; persistence, roles, secrets and
 authentication bindings were preserved. These measurements do not promise arbitrary
