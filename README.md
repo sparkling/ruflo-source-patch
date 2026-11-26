@@ -30,8 +30,10 @@ not register browser-hosted ChatGPT/Gemini integrations.
 
 All five AWS sources are live, including Product at
 [`https://ea.hm.sparklingideas.co.uk/api/mcp/product`](https://ea.hm.sparklingideas.co.uk/api/mcp/product).
-The final image `9c4f5cefef50` passed authenticated full-document reads, refresh,
-cross-source token rejection and revocation for every source. Existing Auth0
+The final image `dce21318860f` passed authenticated full-document reads, refresh,
+cross-source token rejection and revocation for every source, using the actual
+60-second MCP request deadline. Distinct follow-up searches after native/learning
+store switches also passed. Existing Auth0
 whitelist admission and authentication persistence were preserved. Whitelist
 removal alone does not revoke an existing grant: access tokens last 15 minutes,
 refresh grants have a fixed seven-day lifetime, and explicit token revocation
@@ -42,8 +44,23 @@ with October original-document publications; AI Strategy is from 28 October;
 Product was exported on 26 November with 8,270 selected originals. These are
 not live HZ mirrors. Native searches and selected exact reads passed where hits
 were returned; BA's sampled query returned no admitted hits. BA/SA still disclose
-incomplete pattern-controller coverage. Product's first document request took
-about 44 seconds to open the corpus. Deployment uses 40 GiB ephemeral storage
+incomplete pattern-controller coverage.
+
+The first rollout exposed a readiness defect: BA's cold search took 68.7 seconds,
+exceeding the SDK's 60-second default despite passing a longer verifier deadline.
+EA commit `54d31bca` now prepares the five existing native/document owners before
+opening the HTTP listener and retains distinct fixed-store owners across reads.
+Failure or the overall 300-second preparation deadline leaves the listener closed;
+workspace-only launches retain their existing behavior. All five sources prepared
+in 67.5 seconds on the deployed task before it accepted traffic. BA's first live
+search then took 4.4 seconds and its distinct follow-up 4.1 seconds. The scoped
+52 Node tests, three deployment-template tests, build and ARM64 capacity check
+passed. The existing ECS startup grace is 420 seconds; unrelated configuration
+was preserved. These measured checks do not establish a concurrency guarantee.
+The rollout and readiness fix are recorded in
+[EA issue #1](https://github.com/sparkling/semantic-enterprise-architecture/issues/1).
+
+Deployment uses 40 GiB ephemeral storage
 after the initial 20 GiB task refused startup with insufficient disk; the healthy
 old release remained available during rollback. Authentication settings were
 unchanged.
