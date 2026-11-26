@@ -35,14 +35,33 @@ and [upstream PR #5386](https://github.com/decolua/9router/pull/5386).
 Retire it only after a pristine release passes the typed/streamed tool fixtures
 and both live five-source checks; requalify dormant local candidates before activation.
 
-Antigravity CLI 1.5.18 uses its own native Google account on both hosts. Its five
-registrations live in `~/.gemini/config/mcp_config.json`; explicit server tool
-allow rules and source-root trust live in
-`~/.gemini/antigravity-cli/settings.json`. Ten actual statistics calls, five per
-host, returned the intended HZ stores without approval prompts. No blanket tool
-bypass was enabled. The laptop run recovered two provider capacity responses;
-three SSH-backed MCP cleanup exits occurred after completed reads and remain
-distinct from connection or read success.
+Antigravity CLI 1.5.18 now routes model requests through the existing 9router on
+both hosts. User settings select `modelProvider: "gemini"`; the private `agy`
+launcher supplies the existing router credential and loopback endpoint. The
+unchanged native binary resides in `~/.local/lib/antigravity-cli/agy`, a supported
+custom installation location, and retains its native updater. Google account
+credentials, MCP permissions and workspace trust are unchanged. The five MCP
+registrations remain in `~/.gemini/config/mcp_config.json`, with explicit server
+allow rules in `~/.gemini/antigravity-cli/settings.json`.
+
+The full AGY test exposed a second 9router 0.5.119 compatibility defect: the
+Gemini adapter did not carry `x-goog-api-key` into the internal authenticated
+handler. The scoped adapter correction retains credential precedence, invalid-key
+rejection and model authorization, and is tracked in
+[upstream PR #4864](https://github.com/decolua/9router/pull/4864#issuecomment-7194242262).
+Carbon also needs explicit base and high-name aliases to its Antigravity provider.
+AGY sends the base name plus `thinkingLevel: HIGH`; executable fixtures prove
+LOW, MEDIUM and HIGH retain their corresponding native provider settings.
+
+Fresh persistent-configuration runs between 14:13 and 14:14 UTC completed exactly five
+statistics calls per host using Carbon High with high effort. All ten returned
+initialized, intended HZ stores; both runs exited zero with empty stderr and no
+startup login warning. No blanket permission bypass or author restart was used.
+This verifies the configured MCP sources through the new model route; the old
+account-backed plugin reload was not replayed. Retire the adapter correction only
+after pristine upstream bytes pass the authorization and tool fixtures plus both
+live AGY checks; retire the aliases only when native routing selects the same
+subscription and preserves effort.
 
 The live non-AWS sources reside on HZ and are consumed from HZ and the laptop.
 AWS publishes separate authenticated endpoints; local client configuration does
