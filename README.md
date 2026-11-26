@@ -8,6 +8,24 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+**26 November shared knowledge configuration:** `knowledge_ai_ba`, `ruflo_ba`,
+`ruflo_ea_research`, `ruflo_sa` and `knowledge_product` now use user-level
+registrations in Claude Code, Codex/ChatGPT desktop and Gemini CLI on both hosts.
+The eight duplicate Claude/Codex AI Strategy registrations in the four HZ source
+projects and their obsolete project approvals were removed. Fresh Claude lookups
+and Codex configuration-layer reads prove user scope; all five sources passed
+native statistics, search and selected exact-record retrieval. EA remains bound
+to research, and writable project/user memory retains its separate authority.
+The owner scope rule is retained in each client's user instructions.
+
+Gemini verification has separate limits: HZ's installed CLI connects to all five
+MCPs, while Google rejects its individual Code Assist authentication as an
+unsupported client. The laptop's newly installed Gemini CLI 0.71.1 sees all five
+registrations but keeps them disabled in the untrusted checkout; folder trust
+was not changed without the requested owner decision. MCP configuration does not
+establish model authentication. Browser-hosted ChatGPT/Gemini connections remain
+separate authenticated integrations; local configuration does not publish them.
+
 **26 November architecture audit, release 4.46.198:** the EA administrative
 `claude mcp get knowledge_ai_ba` failure came from an obsolete custom global
 SessionEnd command, which invoked native session teardown without a matching
