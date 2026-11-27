@@ -91,6 +91,7 @@ import { rufloPiiPolicyCommand } from '../lib/ruflo-pii-policy/commands.mjs';
 import { rufloAidefenceConfigCommand } from '../lib/ruflo-aidefence-config/commands.mjs';
 import { rufloAidefenceSchemaCommand } from '../lib/ruflo-aidefence-schema/commands.mjs';
 import { rufloHookIdSchemaCommand } from '../lib/ruflo-hook-id-schema/commands.mjs';
+import { rufloMcpSubscriptionsCommand } from '../lib/ruflo-mcp-subscriptions/commands.mjs';
 import { rufloTierValueSchemaCommand } from '../lib/ruflo-tier-value-schema/commands.mjs';
 import { rufloAtomicWriteCommand } from '../lib/ruflo-atomic-write/commands.mjs';
 import { rufloSelectiveLearningCommand } from '../lib/ruflo-selective-learning/commands.mjs';
@@ -173,6 +174,7 @@ const PLUGIN_PATCH_TARGETS = {
   'ruflo-aidefence-config': rufloAidefenceConfigCommand,
   'ruflo-aidefence-schema': rufloAidefenceSchemaCommand,
   'ruflo-hook-id-schema': rufloHookIdSchemaCommand,
+  'ruflo-mcp-subscriptions': rufloMcpSubscriptionsCommand,
   'ruflo-tier-value-schema': rufloTierValueSchemaCommand,
   'ruflo-atomic-write': rufloAtomicWriteCommand,
   'ruflo-tier-consolidation': rufloTierConsolidationCommand,
@@ -288,6 +290,7 @@ Plugin patches (ruvnet-brain)  (actions: install | uninstall | status)
   ${pad('ruflo-aidefence-config')} configure native AIDefence packs once per server (#4785)
   ${pad('ruflo-aidefence-schema')} advertise the native scan input limit without changing detection (#4886)
   ${pad('ruflo-hook-id-schema')} advertise native post-task identifier restrictions (#4887)
+  ${pad('ruflo-mcp-subscriptions')} truthful modern MCP notification advertisement (#5145)
   ${pad('ruflo-tier-value-schema')} advertise the native tier value limit (#4892)
   ${pad('ruflo-atomic-write')} complete native atomic writes before publication (#4888)
   ${pad('ruflo-selective-learning')}refuse unsupported native trajectory selection before learning (#4693)

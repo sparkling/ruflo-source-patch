@@ -8,6 +8,20 @@ dual-host plugin drift, and release/cache gaps in plugin fixes. Historical daemo
 remains available for older Ruflo builds but retires itself on current native behavior.
 Closed issue labels are never treated as proof; each retirement is gated on runnable local behavior.
 
+**27 November MCP subscription correction:** `ruflo-mcp-subscriptions` addresses
+[Ruflo #5145](https://github.com/ruvnet/ruflo/issues/5145). The shared ADR-524
+stdio protocol module advertised `tools.listChanged` to modern clients without
+implementing `subscriptions/listen`. Modern discovery now omits that unsupported
+flag; legacy initialization, tools, resources and owner guards are unchanged.
+Exact protocol bytes and all three stdio callers are qualified before patching;
+unknown implementations require review. Retire after pristine upstream modern
+discovery/subscription behavior and legacy compatibility pass the same checks.
+Focused regression passes; rollout and native-client recovery are still pending.
+
+```bash
+npx github:sparkling/ruflo-source-patch ruflo-mcp-subscriptions install
+```
+
 **26 November shared knowledge configuration:** `knowledge_ai_ba`, `ruflo_ba`,
 `ruflo_ea_research`, `ruflo_sa` and `knowledge_product` now use user-level
 registrations in Claude Code, Codex/ChatGPT desktop, Gemini CLI and Antigravity CLI
@@ -3582,6 +3596,7 @@ They preserve the native store and policy owners. Actions: `install` · `uninsta
 | **`ruflo-aidefence-config`** | Passes validated server-level pack selection to native AIDefence in all three loading paths. Omitted configuration preserves defaults; invalid values refuse. Built-in detection and PII remain. | [#4785](https://github.com/ruvnet/ruflo/issues/4785) |
 | **`ruflo-aidefence-schema`** | Advertises the native scan limit of 10,000 UTF-16 code units while retaining the exact validator, detector and original input. | [#4886](https://github.com/ruvnet/ruflo/issues/4886) |
 | **`ruflo-tier-value-schema`** | Advertises the native hierarchical-store nonempty/10,000 UTF-16-unit value contract and corrects the misleading empty-value message; preserves storage and supersedes behavior. | [#4892](https://github.com/ruvnet/ruflo/issues/4892) |
+| **`ruflo-mcp-subscriptions`** | Omits unsupported modern tools.listChanged advertisement from qualified ADR-524 discovery; preserves legacy initialization and all owner guards. Unknown protocol or caller revisions require qualification before application or retirement. | [#5145](https://github.com/ruvnet/ruflo/issues/5145) |
 | **`ruflo-hook-id-schema`** | Advertises native task/agent/parent identifier constraints on older source; accepts the behaviorally qualified 3.75.0 native schemas unchanged. | [#4887](https://github.com/ruvnet/ruflo/issues/4887) |
 | **`ruflo-atomic-write`** | Drains short writes before publication on older source; accepts the qualified 3.75.0 native loop unchanged, preserving failure cleanup and sibling safety guards. | [#4888](https://github.com/ruvnet/ruflo/issues/4888) |
 | **`ruflo-worktree-memory`** | Prepares external memory-package bindings through the native resolver before invoking the unchanged signed AutoMemory helper. Exact generated hook forms migrate during native init upgrade; custom commands remain intact. `ruflo hooks auto-memory-hook --action prepare --scope project` prepares and verifies without importing memory, so managed launchers can require success before starting an author. User helpers remain pinned to HOME and data roots remain separate. Retire on proven equivalent native startup, migration and failure behavior. | [#4851](https://github.com/ruvnet/ruflo/issues/4851) |

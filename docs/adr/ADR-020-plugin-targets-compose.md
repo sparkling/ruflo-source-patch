@@ -2,6 +2,12 @@
 
 **Status**: Implemented
 **Date**: 2026-07-15
+**Updated**: 2026-11-27. Ruflo #5145 adds the exact-hash-qualified ADR-524
+modern discovery projection. Only unsupported tools.listChanged is omitted;
+legacy initialization and dispatch remain native. All three stdio callers must
+retain their inspected contract; an upstream subscription implementation requires
+fresh qualification. Installation, source restoration and native-client recovery
+are separate proofs; no managed-memory or live-author restart is part of this patch.
 **Updated**: 2026-11-25. Release 4.46.197 qualifies Ruflo 3.80.7's native
 init pinning and atomic policy-lock publication without replacing their behavior.
 Owner namespace projection preserves native read-only discovery. Brain 5.0.0's
