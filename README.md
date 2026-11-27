@@ -16,7 +16,17 @@ flag; legacy initialization, tools, resources and owner guards are unchanged.
 Exact protocol bytes and all three stdio callers are qualified before patching;
 unknown implementations require review. Retire after pristine upstream modern
 discovery/subscription behavior and legacy compatibility pass the same checks.
-Focused regression passes; rollout and native-client recovery are still pending.
+Release **4.46.199** is installed on the laptop and HZ: all 378 packaged files
+match the immutable artifact in three global installations; both stable library
+copies match. Eight discovered protocol copies per host are patched and tracked.
+All 154 code suites pass; the full test command retains eight pre-existing Markdown
+findings in private historical reports. Changed documentation passes lint.
+On HZ, fresh Claude Code 2.1.326 administrative MCP discovery reproduced the
+subscription failure before activation; the same operation then exited 0 with
+modern 2026-07-28 negotiation and no failed subscription reopen. Legacy capability
+preservation also passes on every installed protocol copy. Existing author
+processes were not restarted: the originating queen still owns the separate
+strict-config user-memory binding correction and held-session acceptance.
 
 ```bash
 npx github:sparkling/ruflo-source-patch ruflo-mcp-subscriptions install
