@@ -73,8 +73,9 @@ the launchers, settings, MCP registrations and private credential fingerprints.
 This upgrade does **not** clear the interrupted-conversation startup hold. An
 isolated, network-disabled native reproduction confirms that a new invocation
 can resume an unfinished conversation before its new prompt. The documented
-`PreInvocation` termination hook blocks requests but does not durably cancel the
-recovered turn; a later unguarded startup sends the old prompt again. An injected
+`PreInvocation` termination hook blocked the old model request in that fixture
+but did not durably cancel the recovered turn; a later unguarded startup sent the
+old prompt again. An injected
 hook error also produced repeated recovery attempts. No such workaround has
 been deployed to the real sessions. Track the supported startup/cancellation
 boundary in [AGY issue #1884](https://github.com/google-antigravity/antigravity-cli/issues/1884#issuecomment-7238595601).
@@ -93,6 +94,27 @@ the proof. PreInvocation is not a universal provider-traffic barrier. The
 and its limits are recorded upstream. User instructions on both hosts now require
 coordinated recovery with exact cancellation and subsequent startup evidence;
 existing authors were not restarted.
+
+The shared-profile applicability check also reproduced takeover of a **live**
+client waiting on a background command, despite selecting a different conversation.
+SIGINT stopped the synthetic native process and child but left the conversation
+eligible for startup recovery. The combined sequence used interruption, observed
+child settlement, guarded exact-conversation Ctrl+C and clean exit. A later guarded
+restart and distinct positive control passed without old-request redispatch. This covers
+one synthetic command on 1.5.19, not the older live Python/Chrome process chain or
+remote provider settlement. The live-background reproduction's mock monitor parse
+failure is retained; the separate interruption/cancellation cases used a parsed
+FlashLite verdict with the severe monitor natively skipped. See the
+[upstream evidence and limits](https://github.com/google-antigravity/antigravity-cli/issues/1884#issuecomment-7239402694).
+
+User rules on both hosts now temporarily queue independent top-level AGY processes
+sharing a conversation store until an upstream ownership fix is qualified. Planned
+follow-ups reuse the documented [stream-json input channel](https://antigravity.google/docs/cli/headless/)
+when available; native background tasks and subagents retain their own lifecycle.
+Check results, stderr and background state instead of treating exit 0 as completion.
+Hooks use documented `hooks.json` files: 1.5.19 rejects hooks in `--settings`.
+No new scheduler or native binary patch was installed. The owning project root
+controls application of recovery to the original sessions, which remain held.
 
 Global user instructions on both hosts now select `agy -p` through 9router for
 Gemini 4+ workers, including Carbon and Neon, following
