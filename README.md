@@ -81,6 +81,19 @@ boundary in [AGY issue #1884](https://github.com/google-antigravity/antigravity-
 The original conversation and unknown provider outcome remain in project custody;
 installation success is not permission to replay them.
 
+A subsequent initialized native TUI test verified a supported cancellation route
+for an interrupted turn with no pending tools: select the exact conversation under
+temporary containment, use Ctrl+C, capture its cancellation acknowledgment and
+exit cleanly. A guarded restart showed no old activity; a later unguarded startup
+completed only a distinct positive-control prompt. This was tested in disposable
+state, not applied to the held research conversation. Ctrl+C reported
+`kill_background_tasks=false`, so background tasks and subagents remain outside
+the proof. PreInvocation is not a universal provider-traffic barrier. The
+[bounded recovery result](https://github.com/google-antigravity/antigravity-cli/issues/1884#issuecomment-7238834798)
+and its limits are recorded upstream. User instructions on both hosts now require
+coordinated recovery with exact cancellation and subsequent startup evidence;
+existing authors were not restarted.
+
 Global user instructions on both hosts now select `agy -p` through 9router for
 Gemini 4+ workers, including Carbon and Neon, following
 [Google's current client guidance](https://github.com/google-gemini/gemini-cli#gemini-cli).
