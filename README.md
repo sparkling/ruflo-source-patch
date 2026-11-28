@@ -59,14 +59,27 @@ and [upstream PR #5386](https://github.com/decolua/9router/pull/5386).
 Retire it only after a pristine release passes the typed/streamed tool fixtures
 and both live five-source checks; requalify dormant local candidates before activation.
 
-Antigravity CLI 1.5.18 now routes model requests through the existing 9router on
-both hosts. User settings select `modelProvider: "gemini"`; the private `agy`
+Antigravity CLI 1.5.19 is installed on both hosts with the existing 9router
+launchers retained. User settings select `modelProvider: "gemini"`; the private `agy`
 launcher supplies the existing router credential and loopback endpoint. The
-unchanged native binary resides in `~/.local/lib/antigravity-cli/agy`, a supported
+unmodified official binary resides in `~/.local/lib/antigravity-cli/agy`, a supported
 custom installation location, and retains its native updater. Google account
 credentials, MCP permissions and workspace trust are unchanged. The five MCP
 registrations remain in `~/.gemini/config/mcp_config.json`, with explicit server
 allow rules in `~/.gemini/antigravity-cli/settings.json`.
+
+The official updater installed 1.5.19 on both hosts on 28 November, preserving
+the launchers, settings, MCP registrations and private credential fingerprints.
+This upgrade does **not** clear the interrupted-conversation startup hold. An
+isolated, network-disabled native reproduction confirms that a new invocation
+can resume an unfinished conversation before its new prompt. The documented
+`PreInvocation` termination hook blocks requests but does not durably cancel the
+recovered turn; a later unguarded startup sends the old prompt again. An injected
+hook error also produced repeated recovery attempts. No such workaround has
+been deployed to the real sessions. Track the supported startup/cancellation
+boundary in [AGY issue #1884](https://github.com/google-antigravity/antigravity-cli/issues/1884#issuecomment-7238595601).
+The original conversation and unknown provider outcome remain in project custody;
+installation success is not permission to replay them.
 
 Global user instructions on both hosts now select `agy -p` through 9router for
 Gemini 4+ workers, including Carbon and Neon, following
